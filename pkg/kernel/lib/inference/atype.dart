@@ -9,7 +9,7 @@ import 'value.dart';
 import 'key.dart';
 
 abstract class ConstraintBuilder {
-  List<Bound> getClassAsInstanceOf(Class subclass, Class superclass);
+  List<AType> getClassAsInstanceOf(Class subclass, Class superclass);
   List<Bound> getTypeAsInstanceOf(InterfaceAType subtype, Class superclass);
 
   void addConstraint(Constraint constraint);
