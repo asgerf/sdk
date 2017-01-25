@@ -3,9 +3,9 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.key;
 
-import 'package:kernel/ast.dart';
-import 'package:kernel/inference/solver.dart';
-import 'package:kernel/inference/value.dart';
+import '../ast.dart';
+import '../inference/solver.dart';
+import '../inference/value.dart';
 
 class Key {
   final TreeNode owner; // Class or Member

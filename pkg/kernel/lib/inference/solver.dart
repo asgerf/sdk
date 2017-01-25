@@ -3,10 +3,10 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.solver;
 
+import '../ast.dart';
+import '../class_hierarchy.dart';
 import 'constraints.dart';
 import 'key.dart';
-import 'package:kernel/ast.dart';
-import 'package:kernel/class_hierarchy.dart';
 import 'value.dart';
 
 class WorkItem {

@@ -3,9 +3,9 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.constraints;
 
-import 'package:kernel/inference/solver.dart';
-import 'package:kernel/inference/key.dart';
-import 'package:kernel/inference/value.dart';
+import '../inference/solver.dart';
+import '../inference/key.dart';
+import '../inference/value.dart';
 
 abstract class Constraint {
   void transfer(ConstraintSolver solver);
