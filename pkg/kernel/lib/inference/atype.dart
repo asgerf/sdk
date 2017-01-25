@@ -9,33 +9,53 @@ import 'value.dart';
 import 'key.dart';
 
 abstract class ConstraintBuilder {
-  InterfaceAType getClassAsInstanceOf(Class subclass, Class superclass);
-  InterfaceAType getTypeAsInstanceOf(InterfaceAType subtype, Class superclass);
+  List<Bound> getClassAsInstanceOf(Class subclass, Class superclass);
+  List<Bound> getTypeAsInstanceOf(InterfaceAType subtype, Class superclass);
 
   void addConstraint(Constraint constraint);
 
   void addImmediateSubtype(Key subtype, AType supertype) {
+    assert(subtype != null);
+    assert(supertype != null);
     if (!supertype.isAssignable) return;
     Key supertypeKey = supertype.key;
     Key supertypeNullability = supertype.nullability;
     if (supertypeKey != supertypeNullability) {
       addSubtypeConstraint(subtype, supertypeNullability, Flags.null_);
-      addSubtypeConstraint(subtype, supertypeKey, Flags.all & ~Flags.null_);
+      addSubtypeConstraint(subtype, supertypeKey, Flags.notNull);
     } else {
       addSubtypeConstraint(subtype, supertypeKey);
     }
   }
 
+  void addImmediateValue(Value value, AType supertype) {
+    assert(value != null);
+    assert(supertype != null);
+    if (!supertype.isAssignable) return;
+    Key supertypeKey = supertype.key;
+    Key supertypeNullability = supertype.nullability;
+    if (supertypeKey != supertypeNullability) {
+      if (value.canBeNull) {
+        addValueConstraint(value, supertypeNullability);
+      }
+      if (value.canBeNonNull) {
+        addValueConstraint(value.masked(Flags.notNull), supertypeKey);
+      }
+    } else {
+      addValueConstraint(value, supertypeKey);
+    }
+  }
+
   void addSubtypeConstraint(Key subtype, Key supertype,
       [int mask = Flags.all]) {
+    assert(subtype != null);
+    assert(supertype != null);
     addConstraint(new SubtypeConstraint(subtype, supertype, mask));
   }
 
-  void addNullableSubtypeConstraint(Key subtype, Key supertype) {
-    addConstraint(new SubtypeConstraint(subtype, supertype, Flags.null_));
-  }
-
   void addValueConstraint(Value value, Key destination) {
+    assert(value != null);
+    assert(destination != null);
     addConstraint(new ValueConstraint(destination, value));
   }
 
@@ -65,13 +85,14 @@ class InterfaceAType extends AType {
   }
 
   void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
+    builder.addImmediateSubtype(key, supertype);
     if (supertype is InterfaceAType) {
-      var casted = builder.getTypeAsInstanceOf(this, supertype.classNode);
-      if (casted == null) return;
-      builder.addImmediateSubtype(key, supertype);
+      List<Bound> upcastArguments =
+          builder.getTypeAsInstanceOf(this, supertype.classNode);
+      if (upcastArguments == null) return;
       for (int i = 0; i < typeArguments.length; ++i) {
-        typeArguments[i]
-            .generateSubtypeConstraint(casted.typeArguments[i], builder);
+        upcastArguments[i]
+            .generateSubtypeConstraint(supertype.typeArguments[i], builder);
       }
     }
   }
@@ -85,18 +106,22 @@ class Bound {
 
   void generateSubtypeConstraint(Bound supertype, ConstraintBuilder builder) {
     upperBound.generateSubtypeConstraint(supertype.upperBound, builder);
-    builder.addSubtypeConstraint(supertype.lowerBound, this.lowerBound);
+    if (lowerBound != null && supertype.lowerBound != null) {
+      builder.addSubtypeConstraint(supertype.lowerBound, this.lowerBound);
+    }
   }
 }
 
-class NullAType extends AType {
+class ConstantAType extends AType {
+  final Value value;
+
+  ConstantAType(this.value);
+
   Key get key => null;
   Key get nullability => null;
 
   void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
-    if (supertype.isAssignable) {
-      builder.addValueConstraint(builder.nullValue, supertype.nullability);
-    }
+    builder.addImmediateValue(value, supertype);
   }
 }
 
@@ -110,7 +135,8 @@ class NullabilityType extends AType {
 
   void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
     if (supertype.isAssignable) {
-      builder.addNullableSubtypeConstraint(nullability, supertype.nullability);
+      builder.addSubtypeConstraint(
+          nullability, supertype.nullability, Flags.null_);
     }
     type.generateSubtypeConstraint(supertype, builder);
   }
@@ -124,7 +150,7 @@ class TypeParameterAType extends AType {
 
   void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
     if (supertype is TypeParameterAType && supertype.parameter == parameter) {
-      builder.addSubtypeConstraint(this.key, supertype.key);
+      // No constraint is needed.
     } else {
       var bound = builder.getTypeParameterBound(parameter);
       bound.generateSubtypeConstraint(supertype, builder);

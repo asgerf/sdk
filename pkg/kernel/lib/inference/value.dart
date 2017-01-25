@@ -27,6 +27,9 @@ class Flags {
   static const int all = (1 << numberOfFlags) - 1;
   static const int none = 0;
 
+  static const int notNull = all & ~null_;
+  static const int nonNullValue = valueFlags & ~null_;
+
   static const List<String> flagNames = const <String>[
     'inexactBaseClass',
     'Null', // Captialize to avoid confusion with null.toString().
@@ -61,10 +64,13 @@ class Value {
   int get valueFlags => flags & Flags.valueFlags;
   bool get hasExactBaseClass => flags & Flags.inexactBaseClass == 0;
   bool get canBeNull => flags & Flags.null_ != 0;
+  bool get canBeNonNull => flags & Flags.nonNullValue != 0;
   bool get isEscaping => flags & Flags.escaping != 0;
 
   Value masked(int mask) {
-    return new Value(baseClass, flags & mask);
+    int maskedFlags = flags & mask;
+    if (maskedFlags == flags) return this;
+    return new Value(baseClass, maskedFlags);
   }
 
   String toString() {
