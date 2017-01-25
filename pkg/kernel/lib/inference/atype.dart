@@ -157,3 +157,61 @@ class TypeParameterAType extends AType {
     }
   }
 }
+
+class FunctionAType extends AType {
+  final Key key;
+  final List<Bound> typeParameters;
+  final int requiredParameterCount;
+  final List<AType> positionalParameters;
+  final List<AType> namedParameters;
+  final List<String> namedParameterNames;
+  final AType returnType;
+
+  FunctionAType(
+      this.key,
+      this.typeParameters,
+      this.requiredParameterCount,
+      this.positionalParameters,
+      this.namedParameters,
+      this.namedParameterNames,
+      this.returnType);
+
+  @override
+  void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
+    builder.addImmediateSubtype(key, supertype);
+    if (supertype is FunctionAType) {
+      for (int i = 0; i < typeParameters.length; ++i) {
+        if (i < supertype.typeParameters.length) {
+          supertype.typeParameters[i]
+              .generateSubtypeConstraint(typeParameters[i], builder);
+        }
+      }
+      for (int i = 0; i < positionalParameters.length; ++i) {
+        if (i < supertype.positionalParameters.length) {
+          supertype.positionalParameters[i]
+              .generateSubtypeConstraint(positionalParameters[i], builder);
+        }
+      }
+      for (int i = 0; i < namedParameters.length; ++i) {
+        String name = namedParameterNames[i];
+        int j = supertype.namedParameterNames.indexOf(name);
+        if (j != -1) {
+          supertype.namedParameters[j]
+              .generateSubtypeConstraint(namedParameters[i], builder);
+        }
+      }
+      returnType.generateSubtypeConstraint(supertype.returnType, builder);
+    }
+  }
+}
+
+class FunctionTypeParameterAType extends AType {
+  final int index;
+
+  FunctionTypeParameterAType(this.index);
+
+  Key get key => null;
+
+  @override
+  void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {}
+}
