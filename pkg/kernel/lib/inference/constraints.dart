@@ -3,9 +3,9 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.constraints;
 
-import '../inference/solver.dart';
-import '../inference/key.dart';
-import '../inference/value.dart';
+import 'key.dart';
+import 'solver.dart';
+import 'value.dart';
 
 abstract class Constraint {
   void transfer(ConstraintSolver solver);
@@ -13,8 +13,10 @@ abstract class Constraint {
 }
 
 class TypeArgumentConstraint extends Constraint {
-  Key createdObject;
-  Key typeArgument;
+  final Key createdObject;
+  final Key typeArgument;
+
+  TypeArgumentConstraint(this.createdObject, this.typeArgument);
 
   void transfer(ConstraintSolver solver) {
     solver.transferTypeArgumentConstraint(this);
@@ -26,8 +28,10 @@ class TypeArgumentConstraint extends Constraint {
 }
 
 class SubtypeConstraint extends Constraint {
-  Key source;
-  Key destination;
+  final Key source;
+  final Key destination;
+
+  SubtypeConstraint(this.source, this.destination);
 
   void transfer(ConstraintSolver solver) {
     solver.transferSubtypeConstraint(this);
@@ -39,8 +43,10 @@ class SubtypeConstraint extends Constraint {
 }
 
 class ValueConstraint extends Constraint {
-  Key destination;
-  Value value;
+  final Key destination;
+  final Value value;
+
+  ValueConstraint(this.destination, this.value);
 
   void transfer(ConstraintSolver solver) {
     solver.transferValueConstraint(this);

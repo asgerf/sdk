@@ -18,4 +18,6 @@ class Key {
 
   Value value;
   WorkItem forward, backward;
+
+  String toString() => '$owner:$index';
 }
