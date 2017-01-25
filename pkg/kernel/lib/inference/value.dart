@@ -61,6 +61,8 @@ class Value {
 
   Value(this.baseClass, this.flags);
 
+  static final Value nullValue = new Value(null, Flags.null_);
+
   int get valueFlags => flags & Flags.valueFlags;
   bool get hasExactBaseClass => flags & Flags.inexactBaseClass == 0;
   bool get canBeNull => flags & Flags.null_ != 0;

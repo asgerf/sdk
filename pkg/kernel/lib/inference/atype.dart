@@ -64,6 +64,13 @@ abstract class ConstraintBuilder {
   AType getTypeParameterBound(TypeParameter parameter);
 }
 
+class ASupertype {
+  final Class classNode;
+  final List<AType> typeArguments;
+
+  ASupertype(this.classNode, this.typeArguments);
+}
+
 abstract class AType {
   Key get key;
   Key get nullability => key;
@@ -144,9 +151,10 @@ class NullabilityType extends AType {
 
 class TypeParameterAType extends AType {
   final TypeParameter parameter;
-  final Key key; // Refers to the key bound on the parameter.
 
-  TypeParameterAType(this.parameter, this.key);
+  TypeParameterAType(this.parameter);
+
+  Key get key => null;
 
   void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
     if (supertype is TypeParameterAType && supertype.parameter == parameter) {
@@ -163,8 +171,8 @@ class FunctionAType extends AType {
   final List<Bound> typeParameters;
   final int requiredParameterCount;
   final List<AType> positionalParameters;
-  final List<AType> namedParameters;
   final List<String> namedParameterNames;
+  final List<AType> namedParameters;
   final AType returnType;
 
   FunctionAType(
@@ -172,8 +180,8 @@ class FunctionAType extends AType {
       this.typeParameters,
       this.requiredParameterCount,
       this.positionalParameters,
-      this.namedParameters,
       this.namedParameterNames,
+      this.namedParameters,
       this.returnType);
 
   @override
