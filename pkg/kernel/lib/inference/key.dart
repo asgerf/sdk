@@ -4,20 +4,21 @@
 library kernel.inference.key;
 
 import '../ast.dart';
-import '../inference/solver.dart';
-import '../inference/value.dart';
+import 'solver.dart';
+import 'value.dart';
 
 class Key {
   final TreeNode owner; // Class or Member
   final int index;
 
+  // Used by solver
+  Value value;
+  WorkItem forward, backward;
+
   Key(this.owner, this.index) {
     forward = new WorkItem(this);
     backward = new WorkItem(this);
   }
-
-  Value value;
-  WorkItem forward, backward;
 
   String toString() => '$owner:$index';
 }

@@ -30,8 +30,9 @@ class TypeArgumentConstraint extends Constraint {
 class SubtypeConstraint extends Constraint {
   final Key source;
   final Key destination;
+  final int mask;
 
-  SubtypeConstraint(this.source, this.destination);
+  SubtypeConstraint(this.source, this.destination, [this.mask = Flags.all]);
 
   void transfer(ConstraintSolver solver) {
     solver.transferSubtypeConstraint(this);

@@ -63,6 +63,10 @@ class Value {
   bool get canBeNull => flags & Flags.null_ != 0;
   bool get isEscaping => flags & Flags.escaping != 0;
 
+  Value masked(int mask) {
+    return new Value(baseClass, flags & mask);
+  }
+
   String toString() {
     if (baseClass == null) return 'bottom';
     String nullability = canBeNull ? '?' : '';

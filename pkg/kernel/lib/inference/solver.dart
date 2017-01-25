@@ -90,7 +90,8 @@ class ConstraintSolver {
   }
 
   void transferSubtypeConstraint(SubtypeConstraint constraint) {
-    propagateForward(constraint.source.value, constraint.destination);
+    propagateForward(constraint.source.value.masked(constraint.mask),
+        constraint.destination);
     propagateBackward(constraint.source, constraint.destination.value);
   }
 
