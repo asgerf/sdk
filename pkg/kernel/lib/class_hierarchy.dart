@@ -248,6 +248,19 @@ class ClassHierarchy {
     return new ClassSet(this, _infoFor[class_].subclassIntervalList);
   }
 
+  Class getCommonBaseClass(Class first, Class second) {
+    int index1 = getClassIndex(first);
+    int index2 = getClassIndex(second);
+    while (index1 != index2) {
+      if (index1 < index2) {
+        index2 = getClassIndex(classes[index2].superclass);
+      } else {
+        index1 = getClassIndex(classes[index1].superclass);
+      }
+    }
+    return classes[index1];
+  }
+
   ClassHierarchy._internal(Program program, int numberOfClasses)
       : classes = new List<Class>(numberOfClasses) {
     // Build the class ordering based on a topological sort.
