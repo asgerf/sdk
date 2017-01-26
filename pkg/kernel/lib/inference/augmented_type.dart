@@ -9,11 +9,18 @@ import 'key.dart';
 import 'package:kernel/inference/substitution.dart';
 import 'value.dart';
 
+const bool _showKeys = const bool.fromEnvironment('kernel.inference.showKeys');
+
 class ASupertype {
   final Class classNode;
   final List<AType> typeArguments;
 
   ASupertype(this.classNode, this.typeArguments);
+
+  String toString() {
+    if (typeArguments.isEmpty) return '$classNode';
+    return '$classNode<${typeArguments.join(",")}>';
+  }
 }
 
 abstract class AType {
@@ -55,6 +62,11 @@ abstract class AType {
     if (types.isEmpty) return const <AType>[];
     return types.map((t) => t.substitute(substitution)).toList(growable: false);
   }
+
+  String get _keyString {
+    if (!_showKeys) return '';
+    return '($source,$sink)';
+  }
 }
 
 class InterfaceAType extends AType {
@@ -82,6 +94,11 @@ class InterfaceAType extends AType {
   AType substitute(Substitution substitution) {
     return new InterfaceAType(source, sink, classNode,
         AType.substituteList(typeArguments, substitution));
+  }
+
+  String toString() {
+    if (typeArguments.isEmpty) return '$classNode$_keyString';
+    return '$classNode$_keyString<${typeArguments.join(",")}>';
   }
 }
 
@@ -149,6 +166,25 @@ class FunctionAType extends AType {
         AType.substituteList(namedParameters, substitution),
         returnType.substitute(substitution));
   }
+
+  String toString() {
+    var typeParameterString =
+        typeParameters.isEmpty ? '' : '<${typeParameters.join(",")}>';
+    List<Object> parameters = <Object>[];
+    parameters.addAll(positionalParameters.take(requiredParameterCount));
+    if (requiredParameterCount > 0) {
+      var optional =
+          positionalParameters.skip(requiredParameterCount).join(',');
+      parameters.add('[$optional]');
+    }
+    if (namedParameters.length > 0) {
+      var named = new List.generate(namedParameters.length,
+          (i) => '${namedParameterNames[i]}: ${namedParameters[i]}').join(',');
+      parameters.add('{$named}');
+    }
+    return 'Function$_keyString$typeParameterString($parameters) '
+        '=> $returnType';
+  }
 }
 
 class FunctionTypeParameterAType extends AType {
@@ -162,6 +198,8 @@ class FunctionTypeParameterAType extends AType {
       AType supertype, ConstraintBuilder builder) {}
 
   FunctionTypeParameterAType substitute(Substitution substitution) => this;
+
+  String toString() => '#$index';
 }
 
 /// Potentially nullable or true bottom.
@@ -173,6 +211,8 @@ class BottomAType extends AType {
       AType supertype, ConstraintBuilder builder) {}
 
   BottomAType substitute(Substitution substitution) => this;
+
+  String toString() => 'Bottom$_keyString';
 }
 
 class PlaceholderAType extends AType {
@@ -191,4 +231,6 @@ class PlaceholderAType extends AType {
   AType substitute(Substitution substitution) {
     return substitution.getSubstitute(parameter);
   }
+
+  String toString() => '$parameter';
 }
