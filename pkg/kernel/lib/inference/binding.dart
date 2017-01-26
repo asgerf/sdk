@@ -5,7 +5,7 @@ library kernel.strong_inference.binding;
 
 import '../ast.dart';
 import '../core_types.dart';
-import 'atype.dart';
+import 'augmented_type.dart';
 import 'key.dart';
 import 'value.dart';
 
