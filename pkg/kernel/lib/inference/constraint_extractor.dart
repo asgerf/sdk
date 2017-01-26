@@ -143,6 +143,11 @@ class ConstraintExtractor {
   void fail(TreeNode where, String message) {
     print('$where: $message');
   }
+
+  List<Function> attachmentHooks = [];
+  void registerAttachmentHook(hook()) {
+    attachmentHooks.add(hook);
+  }
 }
 
 abstract class TypeParameterScope {
@@ -1070,6 +1075,10 @@ class TypeCheckingVisitor
     if (node.initializer != null) {
       checkAssignableExpression(node.initializer, type);
     }
+    checker.registerAttachmentHook(() {
+      print(
+          '$node on ${node.location.brief} has value ${type.source.value} (${type.source})');
+    });
   }
 
   @override

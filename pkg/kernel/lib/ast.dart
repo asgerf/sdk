@@ -60,6 +60,7 @@ import 'transformations/flags.dart';
 import 'text/ast_to_text.dart';
 import 'type_algebra.dart';
 import 'type_environment.dart';
+import 'package:path/path.dart' as pathlib;
 
 /// Any type of node in the IR.
 abstract class Node {
@@ -3577,6 +3578,10 @@ class Location {
   Location(this.file, this.line, this.column);
 
   String toString() => '$file:$line:$column';
+
+  String get brief {
+    return '${pathlib.basename(file)}:$line';
+  }
 }
 
 // ------------------------------------------------------------------------

@@ -33,10 +33,11 @@ class ConstraintSolver {
     int inputFlags = subtype.flags & Flags.forward;
     int newFlags = oldFlags | inputFlags;
     bool changed = false;
-    if (supertype.baseClass != subtype.baseClass) {
+    if (supertype.baseClass != null &&
+        supertype.baseClass != subtype.baseClass) {
       newFlags |= Flags.inexactBaseClass;
       Class newBaseClass =
-          hierarchy.getCommonBaseClass(supertype.baseClass, subtype.baseClass);
+          getCommonBaseClass(supertype.baseClass, subtype.baseClass);
       if (newBaseClass != supertype.baseClass) {
         supertype.baseClass = newBaseClass;
         changed = true;
@@ -47,6 +48,12 @@ class ConstraintSolver {
       changed = true;
     }
     return changed;
+  }
+
+  Class getCommonBaseClass(Class first, Class second) {
+    if (first == null) return second;
+    if (second == null) return first;
+    return hierarchy.getCommonBaseClass(first, second);
   }
 
   /// Update [subtype] to contain the escape information of [supertype].

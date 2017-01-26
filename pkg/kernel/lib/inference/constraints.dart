@@ -24,7 +24,11 @@ class SubtypeConstraint extends Constraint {
   final Key destination;
   final int mask;
 
-  SubtypeConstraint(this.source, this.destination, [this.mask = Flags.all]);
+  SubtypeConstraint(this.source, this.destination, [this.mask = Flags.all]) {
+    assert(source != null);
+    assert(destination != null);
+    assert(mask != null);
+  }
 
   void transfer(ConstraintSolver solver) {
     solver.transferSubtypeConstraint(this);
@@ -33,6 +37,11 @@ class SubtypeConstraint extends Constraint {
   void register(ConstraintSolver solver) {
     solver.registerSubtypeConstraint(this);
   }
+
+  String toString() {
+    var suffix = (mask == Flags.all) ? '' : ' (${Flags.flagsToString(mask)})';
+    return '$source <: $destination$suffix';
+  }
 }
 
 /// The given [value] can flow into [destination].
@@ -40,7 +49,10 @@ class ValueConstraint extends Constraint {
   final Key destination;
   final Value value;
 
-  ValueConstraint(this.destination, this.value);
+  ValueConstraint(this.destination, this.value) {
+    assert(destination != null);
+    assert(value != null);
+  }
 
   void transfer(ConstraintSolver solver) {
     solver.transferValueConstraint(this);
@@ -48,6 +60,10 @@ class ValueConstraint extends Constraint {
 
   void register(ConstraintSolver solver) {
     solver.registerValueConstraint(this);
+  }
+
+  String toString() {
+    return '$value -> $destination';
   }
 }
 
@@ -67,7 +83,10 @@ class TypeArgumentConstraint extends Constraint {
   final Key createdObject;
   final Key typeArgument;
 
-  TypeArgumentConstraint(this.createdObject, this.typeArgument);
+  TypeArgumentConstraint(this.createdObject, this.typeArgument) {
+    assert(createdObject != null);
+    assert(typeArgument != null);
+  }
 
   void transfer(ConstraintSolver solver) {
     solver.transferTypeArgumentConstraint(this);
@@ -75,5 +94,9 @@ class TypeArgumentConstraint extends Constraint {
 
   void register(ConstraintSolver solver) {
     solver.registerTypeArgumentConstraint(this);
+  }
+
+  String toString() {
+    return '$createdObject<$typeArgument>';
   }
 }

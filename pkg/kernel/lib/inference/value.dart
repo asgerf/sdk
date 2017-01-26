@@ -64,6 +64,8 @@ class Value implements ValueSource {
 
   Value(this.baseClass, this.flags);
 
+  Value get value => this;
+
   static final Value bottom = new Value(null, Flags.none);
   static final Value nullValue = new Value(null, Flags.null_);
   static final Value escaping = new Value(null, Flags.escaping);

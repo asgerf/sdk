@@ -14,6 +14,8 @@ abstract class ValueSource {
       ConstraintBuilder builder, Key destination, int mask);
 
   bool isBottom(int mask);
+
+  Value get value;
 }
 
 abstract class ValueSink {
@@ -48,7 +50,7 @@ class Key extends ValueSource implements ValueSink {
   final int index;
 
   // Used by solver
-  Value value;
+  Value value = new Value(null, Flags.none);
   WorkItem forward, backward;
 
   Key(this.owner, this.index) {

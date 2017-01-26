@@ -12,11 +12,11 @@ import 'package:kernel/inference/key.dart';
 class Binding {
   final CoreTypes coreTypes;
   final Map<Class, ClassBank> classBanks = <Class, ClassBank>{};
-  final Map<Member, ModifierBank> memberBanks = <Member, ModifierBank>{};
+  final Map<Member, MemberBank> memberBanks = <Member, MemberBank>{};
 
   Binding(this.coreTypes);
 
-  ModifierBank _initializeMemberBank(Member member) {
+  MemberBank _initializeMemberBank(Member member) {
     if (member is Field) {
       var modifiers = new FieldBank(member, coreTypes);
       modifiers.type = modifiers.augmentType(member.type);
@@ -44,7 +44,7 @@ class Binding {
     return classBanks[class_] ??= _initializeClassBank(class_);
   }
 
-  ModifierBank getMemberBank(Member member) {
+  MemberBank getMemberBank(Member member) {
     return memberBanks[member] ??= _initializeMemberBank(member);
   }
 
@@ -114,7 +114,13 @@ abstract class ModifierBank {
   }
 }
 
-class FieldBank extends ModifierBank {
+abstract class MemberBank extends ModifierBank {
+  MemberBank(CoreTypes coreTypes) : super(coreTypes);
+
+  AType get type;
+}
+
+class FieldBank extends MemberBank {
   final Field field;
   AType type;
 
@@ -123,7 +129,7 @@ class FieldBank extends ModifierBank {
   Member get classOrMember => field;
 }
 
-class FunctionMemberBank extends ModifierBank {
+class FunctionMemberBank extends MemberBank {
   final Member member;
   FunctionAType type;
 
