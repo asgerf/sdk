@@ -5,12 +5,22 @@ library kernel.inference.atype;
 
 import '../ast.dart';
 import 'constraints.dart';
+import 'package:kernel/inference/augmented_checker.dart';
+import 'package:kernel/inference/substitution.dart';
 import 'value.dart';
 import 'key.dart';
 
 abstract class ConstraintBuilder {
-  List<AType> getClassAsInstanceOf(Class subclass, Class superclass);
-  List<Bound> getTypeAsInstanceOf(InterfaceAType subtype, Class superclass);
+  final AugmentedTypeChecker generator;
+  final TypeParameterScope scope;
+
+  ConstraintBuilder(this.generator, this.scope);
+
+  List<Bound> getTypeAsInstanceOf(InterfaceAType subtype, Class superclass) {
+    return generator.hierarchy
+        .getTypeAsInstanceOf(subtype, superclass)
+        .typeArguments;
+  }
 
   void addConstraint(Constraint constraint);
 
@@ -78,6 +88,17 @@ abstract class AType {
   bool get isAssignable => key != null;
 
   void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder);
+
+  AType substitute(Substitution substitution, bool covariant, int offset);
+
+  static List<AType> substituteList(
+      List<AType> list, Substitution substitution, bool covariant, int offset) {
+    return list
+        .map((t) => t.substitute(substitution, covariant, offset))
+        .toList(growable: false);
+  }
+
+  bool checkIsClosed(List<TypeParameter> typeParameters) {}
 }
 
 class InterfaceAType extends AType {
@@ -103,6 +124,12 @@ class InterfaceAType extends AType {
       }
     }
   }
+
+  InterfaceAType substitute(
+      Substitution substitution, bool covariant, int offset) {
+    return new InterfaceAType(key, classNode,
+        Bound.substituteList(typeArguments, substitution, covariant, offset));
+  }
 }
 
 class Bound {
@@ -117,6 +144,18 @@ class Bound {
       builder.addSubtypeConstraint(supertype.lowerBound, this.lowerBound);
     }
   }
+
+  Bound substitute(Substitution substitution, bool covariant, int offset) {
+    return new Bound(
+        upperBound.substitute(substitution, covariant, offset), lowerBound);
+  }
+
+  static List<Bound> substituteList(List<Bound> bounds,
+      Substitution substitution, bool covariant, int offset) {
+    return bounds
+        .map((b) => b.substitute(substitution, covariant, offset))
+        .toList(growable: false);
+  }
 }
 
 class ConstantAType extends AType {
@@ -129,6 +168,11 @@ class ConstantAType extends AType {
 
   void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
     builder.addImmediateValue(value, supertype);
+  }
+
+  ConstantAType substitute(
+      Substitution substitution, bool covariant, int offset) {
+    return this;
   }
 }
 
@@ -147,22 +191,11 @@ class NullabilityType extends AType {
     }
     type.generateSubtypeConstraint(supertype, builder);
   }
-}
 
-class TypeParameterAType extends AType {
-  final TypeParameter parameter;
-
-  TypeParameterAType(this.parameter);
-
-  Key get key => null;
-
-  void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
-    if (supertype is TypeParameterAType && supertype.parameter == parameter) {
-      // No constraint is needed.
-    } else {
-      var bound = builder.getTypeParameterBound(parameter);
-      bound.generateSubtypeConstraint(supertype, builder);
-    }
+  NullabilityType substitute(
+      Substitution substitution, bool covariant, int offset) {
+    return new NullabilityType(
+        type.substitute(substitution, covariant, offset), nullability);
   }
 }
 
@@ -211,6 +244,42 @@ class FunctionAType extends AType {
       returnType.generateSubtypeConstraint(supertype.returnType, builder);
     }
   }
+
+  FunctionAType substitute(
+      Substitution substitution, bool covariant, int offset) {
+    offset += typeParameters.length;
+    return new FunctionAType(
+        key,
+        Bound.substituteList(typeParameters, substitution, !covariant, offset),
+        requiredParameterCount,
+        AType.substituteList(
+            positionalParameters, substitution, !covariant, offset),
+        namedParameterNames,
+        AType.substituteList(namedParameters, substitution, !covariant, offset),
+        returnType.substitute(substitution, covariant, offset));
+  }
+}
+
+class TypeParameterAType extends AType {
+  final TypeParameter parameter;
+
+  TypeParameterAType(this.parameter);
+
+  Key get key => null;
+
+  void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
+    if (supertype is TypeParameterAType && supertype.parameter == parameter) {
+      // No constraint is needed.
+    } else {
+      var bound = builder.getTypeParameterBound(parameter);
+      bound.generateSubtypeConstraint(supertype, builder);
+    }
+  }
+
+  AType substitute(Substitution substitution, bool covariant, int offset) {
+    return substitution.getOuterSubstitute(parameter, covariant, offset) ??
+        this;
+  }
 }
 
 class FunctionTypeParameterAType extends AType {
@@ -222,4 +291,8 @@ class FunctionTypeParameterAType extends AType {
 
   @override
   void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {}
+
+  AType substitute(Substitution substitution, bool covariant, int offset) {
+    return substitution.getInnerSubstitute(index, covariant, offset) ?? this;
+  }
 }

@@ -12,21 +12,13 @@ abstract class Constraint {
   void register(ConstraintSolver solver);
 }
 
-class TypeArgumentConstraint extends Constraint {
-  final Key createdObject;
-  final Key typeArgument;
-
-  TypeArgumentConstraint(this.createdObject, this.typeArgument);
-
-  void transfer(ConstraintSolver solver) {
-    solver.transferTypeArgumentConstraint(this);
-  }
-
-  void register(ConstraintSolver solver) {
-    solver.registerTypeArgumentConstraint(this);
-  }
-}
-
+/// Any value in [source] matching [mask] can flow into [destination].
+///
+/// If [destination] escapes, so does [source], unless [mask] does not contain
+/// [Flags.escaping].
+///
+/// In most cases, the [mask] contains all the flags in [Flags.all], but in
+/// some cases it is used to specifically propagate nullability.
 class SubtypeConstraint extends Constraint {
   final Key source;
   final Key destination;
@@ -43,6 +35,7 @@ class SubtypeConstraint extends Constraint {
   }
 }
 
+/// The given [value] can flow into [destination].
 class ValueConstraint extends Constraint {
   final Key destination;
   final Value value;
@@ -55,5 +48,32 @@ class ValueConstraint extends Constraint {
 
   void register(ConstraintSolver solver) {
     solver.registerValueConstraint(this);
+  }
+}
+
+/// If [createdObject] is escaping, then [typeArgument] must be top.
+///
+/// This is generated for each type argument term inside an allocation site.
+/// For instance, for the allocation
+///
+///     new Map<String, List<Uri>>()
+///
+/// three of these constraints are generated: one for `String`, one for `List`,
+/// and one for `Uri`.  So if the map escapes, the type becomes something like
+///
+///     Map<String+?, List+?<Uri+?>>
+///
+class TypeArgumentConstraint extends Constraint {
+  final Key createdObject;
+  final Key typeArgument;
+
+  TypeArgumentConstraint(this.createdObject, this.typeArgument);
+
+  void transfer(ConstraintSolver solver) {
+    solver.transferTypeArgumentConstraint(this);
+  }
+
+  void register(ConstraintSolver solver) {
+    solver.registerTypeArgumentConstraint(this);
   }
 }
