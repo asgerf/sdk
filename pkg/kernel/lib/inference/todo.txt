@@ -1,0 +1,11 @@
+Constraint System
+Constraint Solver
+--- Testing here? ---
+Constraint Generation
+  - Augmented type system
+  - Substitution operator
+  - Tree traversal with type checker
+Serialization
+  - Serialize constraints and solve outside
+Export Results to VM
+Testing

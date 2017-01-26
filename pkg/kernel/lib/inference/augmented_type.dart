@@ -5,74 +5,10 @@ library kernel.inference.atype;
 
 import '../ast.dart';
 import 'constraints.dart';
-import 'package:kernel/inference/augmented_checker.dart';
-import 'package:kernel/inference/substitution.dart';
+import 'substitution.dart';
 import 'value.dart';
 import 'key.dart';
-
-abstract class ConstraintBuilder {
-  final AugmentedTypeChecker generator;
-  final TypeParameterScope scope;
-
-  ConstraintBuilder(this.generator, this.scope);
-
-  List<Bound> getTypeAsInstanceOf(InterfaceAType subtype, Class superclass) {
-    return generator.hierarchy
-        .getTypeAsInstanceOf(subtype, superclass)
-        .typeArguments;
-  }
-
-  void addConstraint(Constraint constraint);
-
-  void addImmediateSubtype(Key subtype, AType supertype) {
-    assert(subtype != null);
-    assert(supertype != null);
-    if (!supertype.isAssignable) return;
-    Key supertypeKey = supertype.key;
-    Key supertypeNullability = supertype.nullability;
-    if (supertypeKey != supertypeNullability) {
-      addSubtypeConstraint(subtype, supertypeNullability, Flags.null_);
-      addSubtypeConstraint(subtype, supertypeKey, Flags.notNull);
-    } else {
-      addSubtypeConstraint(subtype, supertypeKey);
-    }
-  }
-
-  void addImmediateValue(Value value, AType supertype) {
-    assert(value != null);
-    assert(supertype != null);
-    if (!supertype.isAssignable) return;
-    Key supertypeKey = supertype.key;
-    Key supertypeNullability = supertype.nullability;
-    if (supertypeKey != supertypeNullability) {
-      if (value.canBeNull) {
-        addValueConstraint(value, supertypeNullability);
-      }
-      if (value.canBeNonNull) {
-        addValueConstraint(value.masked(Flags.notNull), supertypeKey);
-      }
-    } else {
-      addValueConstraint(value, supertypeKey);
-    }
-  }
-
-  void addSubtypeConstraint(Key subtype, Key supertype,
-      [int mask = Flags.all]) {
-    assert(subtype != null);
-    assert(supertype != null);
-    addConstraint(new SubtypeConstraint(subtype, supertype, mask));
-  }
-
-  void addValueConstraint(Value value, Key destination) {
-    assert(value != null);
-    assert(destination != null);
-    addConstraint(new ValueConstraint(destination, value));
-  }
-
-  Value get nullValue;
-
-  AType getTypeParameterBound(TypeParameter parameter);
-}
+import 'constraint_builder.dart';
 
 class ASupertype {
   final Class classNode;
@@ -98,7 +34,9 @@ abstract class AType {
         .toList(growable: false);
   }
 
-  bool checkIsClosed(List<TypeParameter> typeParameters) {}
+  AType get innerType => this;
+
+  AType toLowerBound(Key key);
 }
 
 class InterfaceAType extends AType {
@@ -130,24 +68,30 @@ class InterfaceAType extends AType {
     return new InterfaceAType(key, classNode,
         Bound.substituteList(typeArguments, substitution, covariant, offset));
   }
+
+  InterfaceAType toLowerBound(Key newKey) {
+    return new InterfaceAType(newKey, classNode, typeArguments);
+  }
 }
 
 class Bound {
   final AType upperBound;
-  final Key lowerBound;
+  final Key lowerBoundKey;
 
-  Bound(this.upperBound, this.lowerBound);
+  Bound(this.upperBound, this.lowerBoundKey);
+
+  AType getLowerBound() => upperBound.toLowerBound(lowerBoundKey);
 
   void generateSubtypeConstraint(Bound supertype, ConstraintBuilder builder) {
     upperBound.generateSubtypeConstraint(supertype.upperBound, builder);
-    if (lowerBound != null && supertype.lowerBound != null) {
-      builder.addSubtypeConstraint(supertype.lowerBound, this.lowerBound);
+    if (lowerBoundKey != null && supertype.lowerBoundKey != null) {
+      builder.addSubtypeConstraint(supertype.lowerBoundKey, this.lowerBoundKey);
     }
   }
 
   Bound substitute(Substitution substitution, bool covariant, int offset) {
     return new Bound(
-        upperBound.substitute(substitution, covariant, offset), lowerBound);
+        upperBound.substitute(substitution, covariant, offset), lowerBoundKey);
   }
 
   static List<Bound> substituteList(List<Bound> bounds,
@@ -174,6 +118,8 @@ class ConstantAType extends AType {
       Substitution substitution, bool covariant, int offset) {
     return this;
   }
+
+  ConstantAType toLowerBound(Key newKey) => this;
 }
 
 class NullabilityType extends AType {
@@ -183,6 +129,7 @@ class NullabilityType extends AType {
   NullabilityType(this.type, this.nullability);
 
   Key get key => type.key;
+  AType get innerType => type.innerType;
 
   void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
     if (supertype.isAssignable) {
@@ -197,6 +144,8 @@ class NullabilityType extends AType {
     return new NullabilityType(
         type.substitute(substitution, covariant, offset), nullability);
   }
+
+  AType toLowerBound(Key newKey) => type.toLowerBound(newKey);
 }
 
 class FunctionAType extends AType {
@@ -219,6 +168,7 @@ class FunctionAType extends AType {
 
   @override
   void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
+    supertype = supertype.innerType;
     builder.addImmediateSubtype(key, supertype);
     if (supertype is FunctionAType) {
       for (int i = 0; i < typeParameters.length; ++i) {
@@ -258,6 +208,11 @@ class FunctionAType extends AType {
         AType.substituteList(namedParameters, substitution, !covariant, offset),
         returnType.substitute(substitution, covariant, offset));
   }
+
+  FunctionAType toLowerBound(Key newKey) {
+    return new FunctionAType(newKey, typeParameters, requiredParameterCount,
+        positionalParameters, namedParameterNames, namedParameters, returnType);
+  }
 }
 
 class TypeParameterAType extends AType {
@@ -268,17 +223,22 @@ class TypeParameterAType extends AType {
   Key get key => null;
 
   void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
+    supertype = supertype.innerType;
     if (supertype is TypeParameterAType && supertype.parameter == parameter) {
       // No constraint is needed.
     } else {
       var bound = builder.getTypeParameterBound(parameter);
-      bound.generateSubtypeConstraint(supertype, builder);
+      bound.upperBound.generateSubtypeConstraint(supertype, builder);
     }
   }
 
   AType substitute(Substitution substitution, bool covariant, int offset) {
     return substitution.getOuterSubstitute(parameter, covariant, offset) ??
         this;
+  }
+
+  AType toLowerBound(Key newKey) {
+    return new NullabilityType(this, newKey);
   }
 }
 
@@ -294,5 +254,9 @@ class FunctionTypeParameterAType extends AType {
 
   AType substitute(Substitution substitution, bool covariant, int offset) {
     return substitution.getInnerSubstitute(index, covariant, offset) ?? this;
+  }
+
+  AType toLowerBound(Key newKey) {
+    throw 'Function type parameters cannot be converted to lower bounds';
   }
 }
