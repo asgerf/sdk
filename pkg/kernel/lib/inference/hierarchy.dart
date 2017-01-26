@@ -45,12 +45,12 @@ class AugmentedHierarchy {
     if (superSubstitution == null) return null;
     var interfaceSubstitution = Substitution.fromInterfaceType(subtype);
     return new InterfaceAType(
-        subtype.key,
+        subtype.source,
+        subtype.sink,
         superclass,
         superclass.typeParameters.map((p) {
-          var first = superSubstitution.getOuterSubstitute(p, true, 0);
-          var second = interfaceSubstitution.substituteType(first);
-          return new Bound(second, second.key);
+          var upcast = superSubstitution.getSubstitute(p);
+          return interfaceSubstitution.substituteType(upcast);
         }).toList(growable: false));
   }
 }

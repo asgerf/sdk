@@ -6,8 +6,7 @@ library kernel.strong_inference.binding;
 import '../ast.dart';
 import '../core_types.dart';
 import 'augmented_type.dart';
-import 'key.dart';
-import 'value.dart';
+import 'package:kernel/inference/key.dart';
 
 /// Constructs augmented types and type modifier variables.
 class Binding {
@@ -33,7 +32,7 @@ class Binding {
   ModifierBank _initializeClassBank(Class class_) {
     var modifiers = new ClassBank(class_, coreTypes);
     modifiers.typeParameters = class_.typeParameters
-        .map((p) => modifiers.augmentBound(p.bound))
+        .map((p) => modifiers.augmentType(p.bound))
         .toList(growable: false);
     modifiers.supertypes = class_.supers
         .map((s) => modifiers.augmentSuper(s))
@@ -86,16 +85,16 @@ class Binding {
 
 abstract class ModifierBank {
   final CoreTypes coreTypes;
-  final List<Key> keys = <Key>[];
+  final List<Key> modifiers = <Key>[];
 
   ModifierBank(this.coreTypes);
 
   TreeNode get classOrMember;
 
-  Key newKey() {
-    var key = new Key(classOrMember, keys.length);
-    keys.add(key);
-    return key;
+  Key newModifier() {
+    var modifier = new Key(classOrMember, modifiers.length);
+    modifiers.add(modifier);
+    return modifier;
   }
 
   AType augmentType(DartType type) {
@@ -104,14 +103,6 @@ abstract class ModifierBank {
 
   List<AType> augmentTypeList(Iterable<DartType> types) {
     return types.map(augmentType).toList(growable: false);
-  }
-
-  Bound augmentBound(DartType type) {
-    return new TypeAugmentor(coreTypes, this).makeBound(type);
-  }
-
-  List<Bound> augmentBoundList(Iterable<DartType> types) {
-    return types.map(augmentBound).toList(growable: false);
   }
 
   ASupertype augmentSuper(Supertype type) {
@@ -143,7 +134,7 @@ class FunctionMemberBank extends ModifierBank {
 
 class ClassBank extends ModifierBank {
   final Class classNode;
-  List<Bound> typeParameters;
+  List<AType> typeParameters;
   List<ASupertype> supertypes;
 
   ClassBank(this.classNode, CoreTypes coreTypes) : super(coreTypes);
@@ -158,10 +149,6 @@ class TypeAugmentor extends DartTypeVisitor<AType> {
 
   TypeAugmentor(this.coreTypes, this.modifiers);
 
-  Bound makeBound(DartType type) {
-    return new Bound(type.accept(this), modifiers.newKey());
-  }
-
   AType makeType(DartType type) {
     return type.accept(this);
   }
@@ -172,34 +159,40 @@ class TypeAugmentor extends DartTypeVisitor<AType> {
   }
 
   visitInvalidType(InvalidType node) {
-    return new InterfaceAType(
-        modifiers.newKey(), coreTypes.objectClass, const <Bound>[]);
+    return new InterfaceAType(modifiers.newModifier(), modifiers.newModifier(),
+        coreTypes.objectClass, const <AType>[]);
   }
 
   visitDynamicType(DynamicType node) {
-    return new InterfaceAType(
-        modifiers.newKey(), coreTypes.objectClass, const <Bound>[]);
+    return new InterfaceAType(modifiers.newModifier(), modifiers.newModifier(),
+        coreTypes.objectClass, const <AType>[]);
   }
 
   visitVoidType(VoidType node) {
-    return new ConstantAType(Value.nullValue);
+    var key = modifiers.newModifier();
+    return new BottomAType(key, key);
   }
 
   visitBottomType(BottomType node) {
-    return new ConstantAType(Value.nullValue);
+    var key = modifiers.newModifier();
+    return new BottomAType(key, key);
   }
 
   visitInterfaceType(InterfaceType node) {
-    return new InterfaceAType(modifiers.newKey(), node.classNode,
-        node.typeArguments.map(makeBound).toList(growable: false));
+    return new InterfaceAType(
+        modifiers.newModifier(),
+        modifiers.newModifier(),
+        node.classNode,
+        node.typeArguments.map(makeType).toList(growable: false));
   }
 
   visitFunctionType(FunctionType node) {
     innerTypeParameters.add(node.typeParameters);
     var type = new FunctionAType(
-        modifiers.newKey(),
+        modifiers.newModifier(),
+        modifiers.newModifier(),
         node.typeParameters
-            .map((p) => makeBound(p.bound))
+            .map((p) => makeType(p.bound))
             .toList(growable: false),
         node.requiredParameterCount,
         node.positionalParameters.map(makeType).toList(growable: false),
@@ -213,17 +206,14 @@ class TypeAugmentor extends DartTypeVisitor<AType> {
   }
 
   visitTypeParameterType(TypeParameterType node) {
-    int offset = 0;
     for (int i = innerTypeParameters.length - 1; i >= 0; --i) {
       var list = innerTypeParameters[i];
       int index = list.indexOf(node.parameter);
       if (index != -1) {
-        return new NullabilityType(
-            new FunctionTypeParameterAType(index + offset), modifiers.newKey());
+        var key = modifiers.newModifier();
+        return new FunctionTypeParameterAType(key, key, index);
       }
-      offset += list.length;
     }
-    return new NullabilityType(
-        new TypeParameterAType(node.parameter), modifiers.newKey());
+    return new PlaceholderAType(node.parameter);
   }
 }

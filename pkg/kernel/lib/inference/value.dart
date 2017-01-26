@@ -4,6 +4,9 @@
 library kernel.inference.value;
 
 import '../ast.dart';
+import 'constraint_builder.dart';
+import 'constraints.dart';
+import 'key.dart';
 
 class Flags {
   static const int inexactBaseClass = 1 << 0;
@@ -55,7 +58,7 @@ class Flags {
   }
 }
 
-class Value {
+class Value implements ValueSource {
   Class baseClass;
   int flags;
 
@@ -82,5 +85,16 @@ class Value {
     int otherFlags = flags & ~(Flags.null_ | Flags.inexactBaseClass);
     String suffix = Flags.flagsToString(otherFlags);
     return '$baseClass$baseClassSuffix$nullability($suffix)';
+  }
+
+  @override
+  void generateAssignmentTo(
+      ConstraintBuilder builder, Key destination, int mask) {
+    if (flags & mask == 0) return;
+    builder.addConstraint(new ValueConstraint(destination, masked(mask)));
+  }
+
+  bool isBottom(int mask) {
+    return flags & mask == 0;
   }
 }

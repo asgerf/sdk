@@ -9,30 +9,14 @@ import 'augmented_type.dart';
 abstract class Substitution {
   const Substitution();
 
-  AType getOuterSubstitute(TypeParameter parameter, bool covariant, int offset);
+  AType getSubstitute(TypeParameter parameter);
 
-  AType getInnerSubstitute(int index, bool covariant, int offset);
-
-  AType substituteType(AType type, {bool covariant: true, int offset: 0}) {
-    return type.substitute(this, covariant, offset);
+  AType substituteType(AType type) {
+    return type.substitute(this);
   }
 
-  Bound substituteBound(Bound bound, {bool covariant: true, int offset: 0}) {
-    return bound.substitute(this, covariant, offset);
-  }
-
-  List<AType> substituteTypeList(List<AType> types,
-      {bool covariant: true, int offset: 0}) {
-    return types
-        .map((t) => t.substitute(this, covariant, offset))
-        .toList(growable: false);
-  }
-
-  List<Bound> substituteBoundList(List<Bound> bounds,
-      {bool covariant: true, int offset: 0}) {
-    return bounds
-        .map((b) => b.substitute(this, covariant, offset))
-        .toList(growable: false);
+  List<AType> substituteTypeList(List<AType> types) {
+    return types.map((t) => t.substitute(this)).toList(growable: false);
   }
 
   static const Substitution empty = EmptySubstitution.instance;
@@ -65,19 +49,6 @@ abstract class Substitution {
     if (second == empty) return first;
     return new SequenceSubstitution(first, second);
   }
-
-  static Substitution bottomForClass(Class class_, AType top, AType bottom) {
-    if (class_.typeParameters.isEmpty) return empty;
-    return new BottomSubstitution(class_, top, bottom);
-  }
-
-  static Substitution instantiateFunctionType(List<AType> arguments) {
-    return new InstantiatingSubstitution(arguments);
-  }
-
-  static Substitution generalizeFunctionType(List<TypeParameter> parameters) {
-    return new GeneralizingSubstitution(parameters);
-  }
 }
 
 class EmptySubstitution extends Substitution {
@@ -86,21 +57,11 @@ class EmptySubstitution extends Substitution {
   const EmptySubstitution();
 
   @override
-  AType substituteType(AType type, {bool covariant: true, int offset: 0}) {
-    return type;
+  AType substituteType(AType type) {
+    return type; // Do not traverse type when there is nothing to do.
   }
 
-  @override
-  Bound substituteBound(Bound bound, {bool covariant: true, int offset: 0}) {
-    return bound;
-  }
-
-  AType getOuterSubstitute(
-      TypeParameter parameter, bool covariant, int offset) {
-    return null;
-  }
-
-  AType getInnerSubstitute(int index, bool covariant, int offset) {
+  AType getSubstitute(TypeParameter parameter) {
     return null;
   }
 }
@@ -110,14 +71,9 @@ class SupertypeSubstitution extends Substitution {
 
   SupertypeSubstitution(this.supertype);
 
-  AType getOuterSubstitute(
-      TypeParameter parameter, bool covariant, int offset) {
+  AType getSubstitute(TypeParameter parameter) {
     int index = supertype.classNode.typeParameters.indexOf(parameter);
     return index == -1 ? null : supertype.typeArguments[index];
-  }
-
-  AType getInnerSubstitute(int index, bool covariant, int offset) {
-    return null;
   }
 }
 
@@ -126,17 +82,10 @@ class InterfaceSubstitution extends Substitution {
 
   InterfaceSubstitution(this.type);
 
-  AType getOuterSubstitute(
-      TypeParameter parameter, bool covariant, int offset) {
-    Class class_ = type.classNode;
-    int index = class_.typeParameters.indexOf(parameter);
+  AType getSubstitute(TypeParameter parameter) {
+    int index = type.classNode.typeParameters.indexOf(parameter);
     if (index == -1) return null;
-    var bound = type.typeArguments[index];
-    return covariant ? bound.upperBound : bound.getLowerBound();
-  }
-
-  AType getInnerSubstitute(int index, bool covariant, int offset) {
-    return null;
+    return type.typeArguments[index];
   }
 }
 
@@ -146,15 +95,10 @@ class PairSubstitution extends Substitution {
 
   PairSubstitution(this.parameters, this.types);
 
-  AType getOuterSubstitute(
-      TypeParameter parameter, bool covariant, int offset) {
+  AType getSubstitute(TypeParameter parameter) {
     int index = parameters.indexOf(parameter);
     if (index == -1) return null;
     return types[index];
-  }
-
-  AType getInnerSubstitute(int index, bool covariant, int offset) {
-    return null;
   }
 }
 
@@ -163,24 +107,12 @@ class SequenceSubstitution extends Substitution {
 
   SequenceSubstitution(this.left, this.right);
 
-  AType getOuterSubstitute(
-      TypeParameter parameter, bool covariant, int offset) {
-    var replacement = left.getOuterSubstitute(parameter, covariant, offset);
+  AType getSubstitute(TypeParameter parameter) {
+    var replacement = left.getSubstitute(parameter);
     if (replacement != null) {
-      return right.substituteType(replacement,
-          covariant: covariant, offset: offset);
+      return right.substituteType(replacement);
     } else {
-      return right.getOuterSubstitute(parameter, covariant, offset);
-    }
-  }
-
-  AType getInnerSubstitute(int index, bool covariant, int offset) {
-    var replacement = left.getInnerSubstitute(index, covariant, offset);
-    if (replacement != null) {
-      return right.substituteType(replacement,
-          covariant: covariant, offset: offset);
-    } else {
-      return right.getInnerSubstitute(index, covariant, offset);
+      return right.getSubstitute(parameter);
     }
   }
 }
@@ -190,67 +122,8 @@ class EitherSubstitution extends Substitution {
 
   EitherSubstitution(this.left, this.right);
 
-  AType getOuterSubstitute(
-      TypeParameter parameter, bool covariant, int offset) {
-    return left.getOuterSubstitute(parameter, covariant, offset) ??
-        right.getOuterSubstitute(parameter, covariant, offset);
-  }
-
-  AType getInnerSubstitute(int index, bool covariant, int offset) {
-    return left.getInnerSubstitute(index, covariant, offset) ??
-        right.getInnerSubstitute(index, covariant, offset);
-  }
-}
-
-class BottomSubstitution extends Substitution {
-  final Class class_;
-  final AType top, bottom;
-
-  BottomSubstitution(this.class_, this.top, this.bottom);
-
-  AType getOuterSubstitute(
-      TypeParameter parameter, bool covariant, int offset) {
-    if (class_.typeParameters.contains(parameter)) {
-      return covariant ? bottom : top;
-    } else {
-      return null;
-    }
-  }
-
-  AType getInnerSubstitute(int index, bool covariant, int offset) {
-    return null;
-  }
-}
-
-class InstantiatingSubstitution extends Substitution {
-  final List<AType> arguments;
-
-  InstantiatingSubstitution(this.arguments);
-
-  AType getOuterSubstitute(
-      TypeParameter parameter, bool covariant, int offset) {
-    return null;
-  }
-
-  AType getInnerSubstitute(int index, bool covariant, int offset) {
-    return index >= offset ? arguments[index - offset] : null;
-  }
-}
-
-class GeneralizingSubstitution extends Substitution {
-  final List<TypeParameter> typeParameters;
-
-  GeneralizingSubstitution(this.typeParameters);
-
-  AType getOuterSubstitute(
-      TypeParameter parameter, bool covariant, int offset) {
-    int index = typeParameters.indexOf(parameter);
-    if (index == -1) return new TypeParameterAType(parameter);
-    return new FunctionTypeParameterAType(index + offset);
-  }
-
-  AType getInnerSubstitute(int index, bool covariant, int offset) {
-    return null;
+  AType getSubstitute(TypeParameter parameter) {
+    return left.getSubstitute(parameter) ?? right.getSubstitute(parameter);
   }
 }
 
@@ -259,14 +132,8 @@ class ClosednessChecker extends Substitution {
 
   ClosednessChecker(this.typeParameters);
 
-  AType getOuterSubstitute(
-      TypeParameter parameter, bool covariant, int offset) {
+  AType getSubstitute(TypeParameter parameter) {
     if (typeParameters.contains(parameter)) return null;
     throw '$parameter from ${parameter.parent} ${parameter.parent.parent} is out of scope';
-  }
-
-  AType getInnerSubstitute(int index, bool covariant, int offset) {
-    if (index >= offset) throw 'Inner parameter T#$index is out of scope';
-    return null;
   }
 }

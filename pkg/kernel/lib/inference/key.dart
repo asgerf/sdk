@@ -4,10 +4,37 @@
 library kernel.inference.key;
 
 import '../ast.dart';
+import 'package:kernel/inference/constraint_builder.dart';
+import 'package:kernel/inference/constraints.dart';
 import 'solver.dart';
 import 'value.dart';
 
-class Key {
+abstract class ValueSource {
+  void generateAssignmentTo(
+      ConstraintBuilder builder, Key destination, int mask);
+
+  bool isBottom(int mask);
+}
+
+abstract class ValueSink {
+  void generateAssignmentFrom(
+      ConstraintBuilder builder, ValueSource source, int mask);
+}
+
+class NoValueSink extends ValueSink {
+  final String reason;
+
+  NoValueSink(this.reason);
+
+  @override
+  void generateAssignmentFrom(
+      ConstraintBuilder builder, ValueSource source, int mask) {
+    if (source.isBottom(mask)) return;
+    throw reason;
+  }
+}
+
+class Key extends ValueSource implements ValueSink {
   final TreeNode owner; // Class or Member
   final int index;
 
@@ -21,4 +48,21 @@ class Key {
   }
 
   String toString() => '$owner:$index';
+
+  @override
+  void generateAssignmentTo(
+      ConstraintBuilder builder, Key destination, int mask) {
+    builder.addConstraint(new SubtypeConstraint(this, destination, mask));
+  }
+
+  @override
+  void generateAssignmentFrom(
+      ConstraintBuilder builder, ValueSource source, int mask) {
+    source.generateAssignmentTo(builder, this, mask);
+  }
+
+  @override
+  bool isBottom(int mask) {
+    return false;
+  }
 }

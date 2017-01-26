@@ -1,14 +1,13 @@
 // Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-library kernel.inference.atype;
+library kernel.inference.augmented_type;
 
 import '../ast.dart';
-import 'constraints.dart';
-import 'substitution.dart';
-import 'value.dart';
-import 'key.dart';
 import 'constraint_builder.dart';
+import 'key.dart';
+import 'package:kernel/inference/substitution.dart';
+import 'value.dart';
 
 class ASupertype {
   final Class classNode;
@@ -18,139 +17,76 @@ class ASupertype {
 }
 
 abstract class AType {
-  Key get key;
-  Key get nullability => key;
+  final ValueSource source;
+  final ValueSink sink;
 
-  bool get isAssignable => key != null;
+  AType(this.source, this.sink);
 
-  void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder);
-
-  AType substitute(Substitution substitution, bool covariant, int offset);
-
-  static List<AType> substituteList(
-      List<AType> list, Substitution substitution, bool covariant, int offset) {
-    return list
-        .map((t) => t.substitute(substitution, covariant, offset))
-        .toList(growable: false);
+  void generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
+    supertype.sink.generateAssignmentFrom(builder, this.source, Flags.all);
+    _generateSubtypeConstraints(supertype, builder);
   }
 
-  AType get innerType => this;
+  void generateSubBoundConstraint(AType superbound, ConstraintBuilder builder) {
+    if (superbound.source is Key) {
+      Key superSource = superbound.source as Key;
+      superSource.generateAssignmentFrom(builder, this.source, Flags.all);
+    }
+    if (superbound.sink is Key) {
+      Key superSink = superbound.sink as Key;
+      this.sink.generateAssignmentFrom(builder, superSink, Flags.all);
+    }
+    _generateSubtypeConstraints(superbound, builder);
+  }
 
-  AType toLowerBound(Key key);
+  void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder);
+
+  bool get isPlaceholder => false;
+  bool get containsPlaceholder => false;
+
+  static bool listContainsPlaceholder(Iterable<AType> types) {
+    return types.every((t) => t.containsPlaceholder);
+  }
+
+  AType substitute(Substitution substitution);
+
+  static List<AType> substituteList(
+      List<AType> types, Substitution substitution) {
+    if (types.isEmpty) return const <AType>[];
+    return types.map((t) => t.substitute(substitution)).toList(growable: false);
+  }
 }
 
 class InterfaceAType extends AType {
-  final Key key;
   final Class classNode;
-  final List<Bound> typeArguments;
+  final List<AType> typeArguments;
 
-  InterfaceAType(this.key, this.classNode, this.typeArguments);
+  InterfaceAType(
+      ValueSource source, ValueSink sink, this.classNode, this.typeArguments)
+      : super(source, sink);
 
-  Constraint generateAssignmentTo(Key destination) {
-    return new SubtypeConstraint(this.key, destination);
-  }
-
-  void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
-    builder.addImmediateSubtype(key, supertype);
+  void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
     if (supertype is InterfaceAType) {
-      List<Bound> upcastArguments =
-          builder.getTypeAsInstanceOf(this, supertype.classNode);
-      if (upcastArguments == null) return;
-      for (int i = 0; i < typeArguments.length; ++i) {
-        upcastArguments[i]
-            .generateSubtypeConstraint(supertype.typeArguments[i], builder);
+      var casted = builder.getTypeAsInstanceOf(this, supertype.classNode);
+      if (casted == null) return;
+      for (int i = 0; i < casted.typeArguments.length; ++i) {
+        var subtypeArgument = casted.typeArguments[i];
+        var supertypeArgument = supertype.typeArguments[i];
+        subtypeArgument.generateSubBoundConstraint(supertypeArgument, builder);
       }
     }
   }
 
-  InterfaceAType substitute(
-      Substitution substitution, bool covariant, int offset) {
-    return new InterfaceAType(key, classNode,
-        Bound.substituteList(typeArguments, substitution, covariant, offset));
+  bool get containsPlaceholder => AType.listContainsPlaceholder(typeArguments);
+
+  AType substitute(Substitution substitution) {
+    return new InterfaceAType(source, sink, classNode,
+        AType.substituteList(typeArguments, substitution));
   }
-
-  InterfaceAType toLowerBound(Key newKey) {
-    return new InterfaceAType(newKey, classNode, typeArguments);
-  }
-}
-
-class Bound {
-  final AType upperBound;
-  final Key lowerBoundKey;
-
-  Bound(this.upperBound, this.lowerBoundKey);
-
-  AType getLowerBound() => upperBound.toLowerBound(lowerBoundKey);
-
-  void generateSubtypeConstraint(Bound supertype, ConstraintBuilder builder) {
-    upperBound.generateSubtypeConstraint(supertype.upperBound, builder);
-    if (lowerBoundKey != null && supertype.lowerBoundKey != null) {
-      builder.addSubtypeConstraint(supertype.lowerBoundKey, this.lowerBoundKey);
-    }
-  }
-
-  Bound substitute(Substitution substitution, bool covariant, int offset) {
-    return new Bound(
-        upperBound.substitute(substitution, covariant, offset), lowerBoundKey);
-  }
-
-  static List<Bound> substituteList(List<Bound> bounds,
-      Substitution substitution, bool covariant, int offset) {
-    return bounds
-        .map((b) => b.substitute(substitution, covariant, offset))
-        .toList(growable: false);
-  }
-}
-
-class ConstantAType extends AType {
-  final Value value;
-
-  ConstantAType(this.value);
-
-  Key get key => null;
-  Key get nullability => null;
-
-  void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
-    builder.addImmediateValue(value, supertype);
-  }
-
-  ConstantAType substitute(
-      Substitution substitution, bool covariant, int offset) {
-    return this;
-  }
-
-  ConstantAType toLowerBound(Key newKey) => this;
-}
-
-class NullabilityType extends AType {
-  final AType type;
-  final Key nullability;
-
-  NullabilityType(this.type, this.nullability);
-
-  Key get key => type.key;
-  AType get innerType => type.innerType;
-
-  void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
-    if (supertype.isAssignable) {
-      builder.addSubtypeConstraint(
-          nullability, supertype.nullability, Flags.null_);
-    }
-    type.generateSubtypeConstraint(supertype, builder);
-  }
-
-  NullabilityType substitute(
-      Substitution substitution, bool covariant, int offset) {
-    return new NullabilityType(
-        type.substitute(substitution, covariant, offset), nullability);
-  }
-
-  AType toLowerBound(Key newKey) => type.toLowerBound(newKey);
 }
 
 class FunctionAType extends AType {
-  final Key key;
-  final List<Bound> typeParameters;
+  final List<AType> typeParameters;
   final int requiredParameterCount;
   final List<AType> positionalParameters;
   final List<String> namedParameterNames;
@@ -158,29 +94,29 @@ class FunctionAType extends AType {
   final AType returnType;
 
   FunctionAType(
-      this.key,
+      ValueSource source,
+      ValueSink sink,
       this.typeParameters,
       this.requiredParameterCount,
       this.positionalParameters,
       this.namedParameterNames,
       this.namedParameters,
-      this.returnType);
+      this.returnType)
+      : super(source, sink);
 
   @override
-  void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
-    supertype = supertype.innerType;
-    builder.addImmediateSubtype(key, supertype);
+  void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
     if (supertype is FunctionAType) {
       for (int i = 0; i < typeParameters.length; ++i) {
         if (i < supertype.typeParameters.length) {
           supertype.typeParameters[i]
-              .generateSubtypeConstraint(typeParameters[i], builder);
+              .generateSubtypeConstraints(typeParameters[i], builder);
         }
       }
       for (int i = 0; i < positionalParameters.length; ++i) {
         if (i < supertype.positionalParameters.length) {
           supertype.positionalParameters[i]
-              .generateSubtypeConstraint(positionalParameters[i], builder);
+              .generateSubtypeConstraints(positionalParameters[i], builder);
         }
       }
       for (int i = 0; i < namedParameters.length; ++i) {
@@ -188,75 +124,71 @@ class FunctionAType extends AType {
         int j = supertype.namedParameterNames.indexOf(name);
         if (j != -1) {
           supertype.namedParameters[j]
-              .generateSubtypeConstraint(namedParameters[i], builder);
+              .generateSubtypeConstraints(namedParameters[i], builder);
         }
       }
-      returnType.generateSubtypeConstraint(supertype.returnType, builder);
+      returnType.generateSubtypeConstraints(supertype.returnType, builder);
     }
   }
 
-  FunctionAType substitute(
-      Substitution substitution, bool covariant, int offset) {
-    offset += typeParameters.length;
+  bool get containsPlaceholder {
+    return AType.listContainsPlaceholder(typeParameters) ||
+        AType.listContainsPlaceholder(positionalParameters) ||
+        AType.listContainsPlaceholder(namedParameters) ||
+        returnType.containsPlaceholder;
+  }
+
+  FunctionAType substitute(Substitution substitution) {
     return new FunctionAType(
-        key,
-        Bound.substituteList(typeParameters, substitution, !covariant, offset),
+        source,
+        sink,
+        AType.substituteList(typeParameters, substitution),
         requiredParameterCount,
-        AType.substituteList(
-            positionalParameters, substitution, !covariant, offset),
+        AType.substituteList(positionalParameters, substitution),
         namedParameterNames,
-        AType.substituteList(namedParameters, substitution, !covariant, offset),
-        returnType.substitute(substitution, covariant, offset));
-  }
-
-  FunctionAType toLowerBound(Key newKey) {
-    return new FunctionAType(newKey, typeParameters, requiredParameterCount,
-        positionalParameters, namedParameterNames, namedParameters, returnType);
-  }
-}
-
-class TypeParameterAType extends AType {
-  final TypeParameter parameter;
-
-  TypeParameterAType(this.parameter);
-
-  Key get key => null;
-
-  void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {
-    supertype = supertype.innerType;
-    if (supertype is TypeParameterAType && supertype.parameter == parameter) {
-      // No constraint is needed.
-    } else {
-      var bound = builder.getTypeParameterBound(parameter);
-      bound.upperBound.generateSubtypeConstraint(supertype, builder);
-    }
-  }
-
-  AType substitute(Substitution substitution, bool covariant, int offset) {
-    return substitution.getOuterSubstitute(parameter, covariant, offset) ??
-        this;
-  }
-
-  AType toLowerBound(Key newKey) {
-    return new NullabilityType(this, newKey);
+        AType.substituteList(namedParameters, substitution),
+        returnType.substitute(substitution));
   }
 }
 
 class FunctionTypeParameterAType extends AType {
   final int index;
 
-  FunctionTypeParameterAType(this.index);
-
-  Key get key => null;
+  FunctionTypeParameterAType(ValueSource source, ValueSink sink, this.index)
+      : super(source, sink);
 
   @override
-  void generateSubtypeConstraint(AType supertype, ConstraintBuilder builder) {}
+  void _generateSubtypeConstraints(
+      AType supertype, ConstraintBuilder builder) {}
 
-  AType substitute(Substitution substitution, bool covariant, int offset) {
-    return substitution.getInnerSubstitute(index, covariant, offset) ?? this;
+  FunctionTypeParameterAType substitute(Substitution substitution) => this;
+}
+
+/// Potentially nullable or true bottom.
+class BottomAType extends AType {
+  BottomAType(ValueSource source, ValueSink sink) : super(source, sink);
+
+  @override
+  void _generateSubtypeConstraints(
+      AType supertype, ConstraintBuilder builder) {}
+
+  BottomAType substitute(Substitution substitution) => this;
+}
+
+class PlaceholderAType extends AType {
+  final TypeParameter parameter;
+
+  PlaceholderAType(this.parameter) : super(null, null);
+
+  bool get isPlaceholder => true;
+  bool get containsPlaceholder => false;
+
+  @override
+  void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
+    throw 'Incomplete type';
   }
 
-  AType toLowerBound(Key newKey) {
-    throw 'Function type parameters cannot be converted to lower bounds';
+  AType substitute(Substitution substitution) {
+    return substitution.getSubstitute(parameter);
   }
 }
