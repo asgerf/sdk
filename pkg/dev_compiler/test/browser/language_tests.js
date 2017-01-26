@@ -45,7 +45,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
 
   // The number of expected unittest errors should be zero but unfortunately
   // there are a lot of broken html unittests.
-  let num_expected_unittest_fails = 3;
+  let num_expected_unittest_fails = 4;
   let num_expected_unittest_errors = 0;
 
   // TODO(jmesserly): separate StrongModeError from other errors.
@@ -74,7 +74,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'async_star_test_05_multi': async_unittest,
 
       'async_switch_test': fail,
-      'asyncstar_throw_in_catch_test': fail,
+      'asyncstar_throw_in_catch_test': ['skip', 'fail'],
       'await_future_test': skip_timeout,
       'bit_operations_test_none_multi': fail,  // DDC/dart2js canonicalize bitop results to unsigned
       'branch_canonicalization_test': fail,  // JS bit operations truncate to 32 bits.
@@ -391,7 +391,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       // was https://github.com/dart-lang/sdk/issues/27578, needs triage
       'dom_constructors_test': 'fail',
 
-      'element_animate_test': async_unittest,
+      'element_animate_test': 'unittest',
 
       // https://github.com/dart-lang/sdk/issues/27579.
       'element_classes_test': 'fail',

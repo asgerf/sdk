@@ -5536,7 +5536,18 @@ class LibraryElementImpl extends ElementImpl implements LibraryElement {
   }
 
   @override
-  bool get hasExtUri => hasModifier(Modifier.HAS_EXT_URI);
+  bool get hasExtUri {
+    if (_unlinkedDefiningUnit != null) {
+      List<UnlinkedImport> unlinkedImports = _unlinkedDefiningUnit.imports;
+      for (UnlinkedImport import in unlinkedImports) {
+        if (DartUriResolver.isDartExtUri(import.uri)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    return hasModifier(Modifier.HAS_EXT_URI);
+  }
 
   /**
    * Set whether this library has an import of a "dart-ext" URI.
@@ -7152,7 +7163,7 @@ class ParameterElementImpl extends VariableElementImpl
   @override
   bool get isFinal {
     if (_unlinkedParam != null) {
-      return false;
+      return _unlinkedParam.isFinal;
     }
     return super.isFinal;
   }
@@ -7875,6 +7886,8 @@ abstract class PropertyInducingElementImpl
  * The context in which elements are resynthesized.
  */
 abstract class ResynthesizerContext {
+  bool get isStrongMode;
+
   /**
    * Build [ElementAnnotationImpl] for the given [UnlinkedExpr].
    */

@@ -107,12 +107,6 @@ class AstInferredTypeTest extends AbstractResynthesizeTest
 
   @override
   @failingTest
-  void test_blockBodiedLambdas_doesNotInferBottom_async_topLevel() {
-    super.test_blockBodiedLambdas_doesNotInferBottom_async_topLevel();
-  }
-
-  @override
-  @failingTest
   void test_blockBodiedLambdas_doesNotInferBottom_asyncStar_topLevel() {
     super.test_blockBodiedLambdas_doesNotInferBottom_asyncStar_topLevel();
   }
@@ -701,6 +695,7 @@ var v = new C().m(1, b: 'bbb', c: 2.0);
         .test_unsafeBlockClosureInference_methodCall_implicitTypeParam_comment();
   }
 
+  @override
   LibraryElementImpl _checkSource(
       SummaryResynthesizer resynthesizer, Source source) {
     LibraryElementImpl resynthesized =

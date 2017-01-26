@@ -47,7 +47,7 @@ class Future<T> {
 
   static Future<List/*<T>*/> wait/*<T>*/(
       Iterable<Future/*<T>*/> futures) => null;
-  Future/*<R>*/ then/*<R>*/(onValue(T value)) => null;
+  Future/*<R>*/ then/*<R>*/(FutureOr/*<R>*/ onValue(T value)) => null;
 
   Future<T> whenComplete(action());
 }
@@ -333,9 +333,25 @@ const _MockSdkLibrary _LIB_HTML_DARTIUM = const _MockSdkLibrary(
     'dart:html',
     '$sdkRoot/lib/html/dartium/html_dartium.dart',
     '''
-library dart.html;
+library dart.dom.html;
 
-abstract class HtmlElement {}
+final HtmlDocument document;
+
+abstract class Element {}
+
+abstract class HtmlDocument {
+  Element query(String relativeSelectors) => null;
+}
+
+abstract class HtmlElement extends Element {}
+
+abstract class AnchorElement extends HtmlElement {}
+abstract class BodyElement extends HtmlElement {}
+abstract class ButtonElement extends HtmlElement {}
+abstract class DivElement extends HtmlElement {}
+abstract class InputElement extends HtmlElement {}
+abstract class SelectElement extends HtmlElement {}
+
 
 abstract class CanvasElement extends HtmlElement {
   Object getContext(String contextId, [Map attributes]);
@@ -343,6 +359,8 @@ abstract class CanvasElement extends HtmlElement {
 }
 
 abstract class class CanvasRenderingContext2D {}
+
+Element query(String relativeSelectors) => null;
 ''');
 
 const _MockSdkLibrary _LIB_INTERCEPTORS = const _MockSdkLibrary(
@@ -467,30 +485,29 @@ class MockSdk implements DartSdk {
 
   @override
   Source fromFileUri(Uri uri) {
-    String filePath = uri.path;
-    String libPath = '$sdkRoot/lib';
-    if (!filePath.startsWith("$libPath/")) {
+    String filePath = provider.pathContext.fromUri(uri);
+    if (!filePath.startsWith(provider.convertPath('$sdkRoot/lib/'))) {
       return null;
     }
     for (SdkLibrary library in sdkLibraries) {
-      String libraryPath = library.path;
-      if (filePath.replaceAll('\\', '/') == libraryPath) {
+      String libraryPath = provider.convertPath(library.path);
+      if (filePath == libraryPath) {
         try {
-          resource.File file =
-              provider.getResource(provider.convertPath(filePath));
+          resource.File file = provider.getResource(filePath);
           Uri dartUri = Uri.parse(library.shortName);
           return file.createSource(dartUri);
         } catch (exception) {
           return null;
         }
       }
-      if (filePath.startsWith("$libraryPath/")) {
-        String pathInLibrary = filePath.substring(libraryPath.length + 1);
-        String path = '${library.shortName}/$pathInLibrary';
+      String libraryRootPath = provider.pathContext.dirname(libraryPath) +
+          provider.pathContext.separator;
+      if (filePath.startsWith(libraryRootPath)) {
+        String pathInLibrary = filePath.substring(libraryRootPath.length);
+        String uriStr = '${library.shortName}/$pathInLibrary';
         try {
-          resource.File file =
-              provider.getResource(provider.convertPath(filePath));
-          Uri dartUri = new Uri(scheme: 'dart', path: path);
+          resource.File file = provider.getResource(filePath);
+          Uri dartUri = Uri.parse(uriStr);
           return file.createSource(dartUri);
         } catch (exception) {
           return null;
