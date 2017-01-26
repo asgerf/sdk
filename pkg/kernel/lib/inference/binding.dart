@@ -129,6 +129,11 @@ class FunctionMemberBank extends ModifierBank {
 
   FunctionMemberBank(this.member, CoreTypes coreTypes) : super(coreTypes);
 
+  AType get returnType => type.returnType;
+  List<AType> get typeParameters => type.typeParameters;
+  List<AType> get positionalParameters => type.positionalParameters;
+  List<AType> get namedParameters => type.namedParameters;
+
   Member get classOrMember => member;
 }
 

@@ -27,14 +27,18 @@ abstract class AType {
   final ValueSource source;
   final ValueSink sink;
 
-  AType(this.source, this.sink);
+  AType(this.source, this.sink) {
+    assert(this is PlaceholderAType || (source != null && sink != null));
+  }
 
   void generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
+    assert(!supertype.isPlaceholder);
     supertype.sink.generateAssignmentFrom(builder, this.source, Flags.all);
     _generateSubtypeConstraints(supertype, builder);
   }
 
   void generateSubBoundConstraint(AType superbound, ConstraintBuilder builder) {
+    assert(!superbound.isPlaceholder);
     if (superbound.source is Key) {
       Key superSource = superbound.source as Key;
       superSource.generateAssignmentFrom(builder, this.source, Flags.all);
@@ -52,7 +56,7 @@ abstract class AType {
   bool get containsPlaceholder => false;
 
   static bool listContainsPlaceholder(Iterable<AType> types) {
-    return types.every((t) => t.containsPlaceholder);
+    return types.any((t) => t.containsPlaceholder);
   }
 
   AType substitute(Substitution substitution);
@@ -213,6 +217,11 @@ class BottomAType extends AType {
   BottomAType substitute(Substitution substitution) => this;
 
   String toString() => 'Bottom$_keyString';
+
+  static final BottomAType nonNullable =
+      new BottomAType(Value.bottom, ValueSink.nowhere);
+  static final BottomAType nullable =
+      new BottomAType(Value.nullValue, ValueSink.nowhere);
 }
 
 class PlaceholderAType extends AType {
@@ -221,7 +230,7 @@ class PlaceholderAType extends AType {
   PlaceholderAType(this.parameter) : super(null, null);
 
   bool get isPlaceholder => true;
-  bool get containsPlaceholder => false;
+  bool get containsPlaceholder => true;
 
   @override
   void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
@@ -232,5 +241,24 @@ class PlaceholderAType extends AType {
     return substitution.getSubstitute(parameter);
   }
 
-  String toString() => '$parameter';
+  String toString() => '{$parameter}';
+}
+
+class TypeParameterAType extends AType {
+  final TypeParameter parameter;
+
+  TypeParameterAType(ValueSource source, ValueSink sink, this.parameter)
+      : super(source, sink);
+
+  @override
+  void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
+    // TODO: Use bound.
+  }
+
+  AType substitute(Substitution substitution) {
+    // Placeholders can be substituted. This type is not substitutable.
+    return this;
+  }
+
+  String toString() => '$parameter$_keyString';
 }

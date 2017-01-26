@@ -5,6 +5,9 @@ library kernel.strong_inference.substitution;
 
 import '../ast.dart';
 import 'augmented_type.dart';
+import 'binding.dart';
+import 'package:kernel/inference/key.dart';
+import 'package:kernel/inference/value.dart';
 
 abstract class Substitution {
   const Substitution();
@@ -14,6 +17,9 @@ abstract class Substitution {
   AType substituteType(AType type) {
     return type.substitute(this);
   }
+
+  // TODO: Determine if this needs to be changed or just removed.
+  AType substituteBound(AType type) => type.substitute(this);
 
   List<AType> substituteTypeList(List<AType> types) {
     return types.map((t) => t.substitute(this)).toList(growable: false);
@@ -49,6 +55,24 @@ abstract class Substitution {
     if (second == empty) return first;
     return new SequenceSubstitution(first, second);
   }
+
+  static Substitution bottomForClass(Class class_) {
+    return new BottomSubstitution(class_);
+  }
+}
+
+class BottomSubstitution extends Substitution {
+  final Class class_;
+
+  BottomSubstitution(this.class_);
+
+  @override
+  AType getSubstitute(TypeParameter parameter) {
+    if (parameter.parent == class_) {
+      return new BottomAType(Value.bottom, ValueSink.nowhere);
+    }
+    return null;
+  }
 }
 
 class EmptySubstitution extends Substitution {
@@ -62,6 +86,22 @@ class EmptySubstitution extends Substitution {
   }
 
   AType getSubstitute(TypeParameter parameter) {
+    return null;
+  }
+}
+
+class ThisTypeSubstitution extends Substitution {
+  final ModifierBank bank;
+  final List<TypeParameter> typeParameters;
+
+  ThisTypeSubstitution(this.bank, this.typeParameters);
+
+  @override
+  AType getSubstitute(TypeParameter parameter) {
+    if (typeParameters.contains(parameter)) {
+      var key = bank.newModifier();
+      return new TypeParameterAType(key, key, parameter);
+    }
     return null;
   }
 }

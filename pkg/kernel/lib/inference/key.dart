@@ -19,18 +19,27 @@ abstract class ValueSource {
 abstract class ValueSink {
   void generateAssignmentFrom(
       ConstraintBuilder builder, ValueSource source, int mask);
+
+  static final ValueSink nowhere = new NowhereSink();
+
+  static ValueSink error(String reason) => new ErrorSink(reason);
 }
 
-class NoValueSink extends ValueSink {
-  final String reason;
+class NowhereSink extends ValueSink {
+  @override
+  void generateAssignmentFrom(
+      ConstraintBuilder builder, ValueSource source, int mask) {}
+}
 
-  NoValueSink(this.reason);
+class ErrorSink extends ValueSink {
+  final String what;
+
+  ErrorSink(this.what);
 
   @override
   void generateAssignmentFrom(
       ConstraintBuilder builder, ValueSource source, int mask) {
-    if (source.isBottom(mask)) return;
-    throw reason;
+    throw 'Cannot assign to $what';
   }
 }
 

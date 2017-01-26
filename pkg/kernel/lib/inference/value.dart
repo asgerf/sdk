@@ -64,7 +64,9 @@ class Value implements ValueSource {
 
   Value(this.baseClass, this.flags);
 
+  static final Value bottom = new Value(null, Flags.none);
   static final Value nullValue = new Value(null, Flags.null_);
+  static final Value escaping = new Value(null, Flags.escaping);
 
   int get valueFlags => flags & Flags.valueFlags;
   bool get hasExactBaseClass => flags & Flags.inexactBaseClass == 0;
