@@ -144,9 +144,10 @@ class ConstraintExtractor {
     print('$where: $message');
   }
 
-  List<Function> attachmentHooks = [];
-  void registerAttachmentHook(hook()) {
-    attachmentHooks.add(hook);
+  final List<Function> analysisCompleteHooks = <Function>[];
+
+  void onAnalysisComplete(void hook()) {
+    analysisCompleteHooks.add(hook);
   }
 }
 
@@ -1075,9 +1076,11 @@ class TypeCheckingVisitor
     if (node.initializer != null) {
       checkAssignableExpression(node.initializer, type);
     }
-    checker.registerAttachmentHook(() {
-      print(
-          '$node on ${node.location.brief} has value ${type.source.value} (${type.source})');
+    // TODO: Distinguish bounds and types in order to avoid this hack.
+    type.sink.generateAssignmentTo(builder, type.source, Flags.all);
+    checker.onAnalysisComplete(() {
+      print('$node on ${node.location.brief} has value '
+          '${type.source.value} (${type.source}, ${type.sink})');
     });
   }
 

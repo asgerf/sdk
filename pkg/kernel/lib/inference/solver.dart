@@ -33,9 +33,10 @@ class ConstraintSolver {
     int inputFlags = subtype.flags & Flags.forward;
     int newFlags = oldFlags | inputFlags;
     bool changed = false;
-    if (supertype.baseClass != null &&
-        supertype.baseClass != subtype.baseClass) {
-      newFlags |= Flags.inexactBaseClass;
+    if (subtype.baseClass != null && supertype.baseClass != subtype.baseClass) {
+      if (supertype.baseClass != null) {
+        newFlags |= Flags.inexactBaseClass;
+      }
       Class newBaseClass =
           getCommonBaseClass(supertype.baseClass, subtype.baseClass);
       if (newBaseClass != supertype.baseClass) {

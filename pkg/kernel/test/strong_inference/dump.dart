@@ -9,7 +9,7 @@ import 'package:kernel/inference/solver.dart';
 import 'package:kernel/kernel.dart';
 
 main(List<String> args) {
-  args = ['micro.dill'];
+  args = ['nano.dill'];
   var program = loadProgramFromBinary(args[0]);
   // var coreTypes = new CoreTypes(program);
   // var baseHierarchy = new ClassHierarchy(program);
@@ -23,7 +23,7 @@ main(List<String> args) {
   var solver = new ConstraintSolver(extractor.baseHierarchy, constraints);
   solver.solve();
   print('Solved');
-  for (var hook in extractor.attachmentHooks) {
+  for (var hook in extractor.analysisCompleteHooks) {
     hook();
   }
   var binding = extractor.binding;
