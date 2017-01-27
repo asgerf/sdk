@@ -53,10 +53,17 @@ abstract class AType {
   void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder);
 
   bool get isPlaceholder => false;
-  bool get containsPlaceholder => false;
 
-  static bool listContainsPlaceholder(Iterable<AType> types) {
-    return types.any((t) => t.containsPlaceholder);
+  bool containsAny(bool predicate(AType type)) => predicate(this);
+
+  bool get containsPlaceholder => containsAny((t) => t is PlaceholderAType);
+
+  bool get containsFunctionTypeParameter =>
+      containsAny((t) => t is FunctionTypeParameterAType);
+
+  static bool listContainsAny(
+      Iterable<AType> types, bool predicate(AType type)) {
+    return types.any((t) => t.containsAny(predicate));
   }
 
   AType substitute(Substitution substitution);
@@ -93,7 +100,8 @@ class InterfaceAType extends AType {
     }
   }
 
-  bool get containsPlaceholder => AType.listContainsPlaceholder(typeArguments);
+  bool containsAny(bool predicate(AType type)) =>
+      predicate(this) || AType.listContainsAny(typeArguments, predicate);
 
   AType substitute(Substitution substitution) {
     return new InterfaceAType(source, sink, classNode,
@@ -152,11 +160,12 @@ class FunctionAType extends AType {
     }
   }
 
-  bool get containsPlaceholder {
-    return AType.listContainsPlaceholder(typeParameters) ||
-        AType.listContainsPlaceholder(positionalParameters) ||
-        AType.listContainsPlaceholder(namedParameters) ||
-        returnType.containsPlaceholder;
+  bool containsAny(bool predicate(AType type)) {
+    return predicate(this) ||
+        AType.listContainsAny(typeParameters, predicate) ||
+        AType.listContainsAny(positionalParameters, predicate) ||
+        AType.listContainsAny(namedParameters, predicate) ||
+        returnType.containsAny(predicate);
   }
 
   FunctionAType substitute(Substitution substitution) {
@@ -230,7 +239,6 @@ class PlaceholderAType extends AType {
   PlaceholderAType(this.parameter) : super(null, null);
 
   bool get isPlaceholder => true;
-  bool get containsPlaceholder => true;
 
   @override
   void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {

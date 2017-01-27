@@ -3580,7 +3580,7 @@ class Location {
   String toString() => '$file:$line:$column';
 
   String get brief {
-    return '${pathlib.basename(file)}:$line';
+    return '${pathlib.basename(file)}:$line:$column';
   }
 }
 

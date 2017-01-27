@@ -83,7 +83,11 @@ class Value implements ValueSource {
   }
 
   String toString() {
-    if (baseClass == null) return 'bottom';
+    if (baseClass == null) {
+      if (flags == Flags.null_) return 'Null';
+      if (flags == 0) return 'bottom';
+      return 'bottom(${Flags.flagsToString(flags)})';
+    }
     String nullability = canBeNull ? '?' : '';
     String baseClassSuffix = hasExactBaseClass ? '!' : '+';
     int otherFlags = flags & ~(Flags.null_ | Flags.inexactBaseClass);

@@ -294,11 +294,15 @@ class TypeCheckingVisitor
   }
 
   visitField(Field node) {
+    FieldBank modifiers = this.modifiers;
+    var fieldType = thisSubstitution.substituteType(modifiers.type);
     if (node.initializer != null) {
-      FieldBank modifiers = this.modifiers;
-      var actualType = thisSubstitution.substituteType(modifiers.type);
-      checkAssignableExpression(node.initializer, actualType);
+      checkAssignableExpression(node.initializer, fieldType);
     }
+    checker.onAnalysisComplete(() {
+      print("${node.location.brief} '$node' has "
+          "value ${fieldType.source.value}");
+    });
   }
 
   visitConstructor(Constructor node) {
@@ -360,7 +364,7 @@ class TypeCheckingVisitor
   FunctionAType handleNestedFunctionNode(FunctionNode node) {
     for (var parameter in node.typeParameters) {
       scope.typeParameterBounds[parameter] =
-          modifiers.augmentType(parameter.bound);
+          modifiers.augmentBound(parameter.bound);
     }
     for (var parameter in node.positionalParameters) {
       scope.variables[parameter] = modifiers.augmentType(parameter.type);
@@ -471,6 +475,8 @@ class TypeCheckingVisitor
     for (int i = 0; i < arguments.positional.length; ++i) {
       var expectedType =
           substitution.substituteType(target.positionalParameters[i]);
+      print('${target.positionalParameters[i]} became $expectedType');
+      assert(!expectedType.containsFunctionTypeParameter);
       checkAssignableExpression(arguments.positional[i], expectedType);
     }
     for (int i = 0; i < arguments.named.length; ++i) {
@@ -573,6 +579,14 @@ class TypeCheckingVisitor
     return type;
   }
 
+  int flagsFromExactClass(Class class_) {
+    if (class_ == coreTypes.intClass) return Flags.integer;
+    if (class_ == coreTypes.doubleClass) return Flags.double_;
+    if (class_ == coreTypes.stringClass) return Flags.string;
+    if (class_ == coreTypes.boolClass) return Flags.boolean;
+    return Flags.other;
+  }
+
   @override
   AType visitConstructorInvocation(ConstructorInvocation node) {
     Constructor target = node.target;
@@ -583,9 +597,14 @@ class TypeCheckingVisitor
         Substitution.fromPairs(class_.typeParameters, typeArguments);
     handleCall(arguments, target, receiver: substitution);
     var modifier = modifiers.newModifier();
+    builder.addConstraint(new ValueConstraint(
+        modifier, new Value(class_, flagsFromExactClass(class_))));
     // TODO: Generate TypeArgumentConstraints
     return new InterfaceAType(
-        modifier, modifier, target.enclosingClass, typeArguments);
+        modifier,
+        ValueSink.error('result of an expression'),
+        target.enclosingClass,
+        typeArguments);
   }
 
   @override
@@ -657,8 +676,13 @@ class TypeCheckingVisitor
       checkAssignableExpression(item, typeArgument);
     }
     var modifier = modifiers.newModifier();
+    builder.addConstraint(new ValueConstraint(
+        modifier, new Value(coreTypes.listClass, Flags.other)));
     return new InterfaceAType(
-        modifier, modifier, coreTypes.listClass, <AType>[typeArgument]);
+        modifier,
+        ValueSink.error('result of an expression'),
+        coreTypes.listClass,
+        <AType>[typeArgument]);
   }
 
   @override
@@ -677,8 +701,13 @@ class TypeCheckingVisitor
       checkAssignableExpression(entry.value, valueType);
     }
     var modifier = modifiers.newModifier();
+    builder.addConstraint(new ValueConstraint(
+        modifier, new Value(coreTypes.mapClass, Flags.other)));
     return new InterfaceAType(
-        modifier, modifier, coreTypes.mapClass, <AType>[keyType, valueType]);
+        modifier,
+        ValueSink.error('result of an expression'),
+        coreTypes.mapClass,
+        <AType>[keyType, valueType]);
   }
 
   AType handleDynamicCall(AType receiver, Arguments arguments) {
@@ -748,9 +777,26 @@ class TypeCheckingVisitor
   }
 
   AType getTypeOfOverloadedArithmetic(AType type1, AType type2) {
-    if (type1 == type2) return type1;
-    if (type1 == checker.doubleType || type2 == checker.doubleType) {
-      return checker.doubleType;
+    if (type1 is TypeParameterAType &&
+        type2 is TypeParameterAType &&
+        type1.parameter == type2.parameter) {
+      // TODO: Prevent 'null' value from being propagated here.
+      return type1;
+    }
+    while (type1 is TypeParameterAType) {
+      type1 = getTypeParameterBound((type1 as TypeParameterAType).parameter);
+    }
+    if (type1 is InterfaceAType && type2 is InterfaceAType) {
+      Class class1 = type1.classNode;
+      Class class2 = type2.classNode;
+      // Note that the result cannot be null because that would fail at runtime,
+      // so do not return 'type1' or 'type2'.
+      if (class1 == coreTypes.intClass && class2 == coreTypes.intClass) {
+        return checker.intType;
+      }
+      if (class1 == coreTypes.doubleClass || class2 == coreTypes.doubleClass) {
+        return checker.doubleType;
+      }
     }
     return checker.numType;
   }
@@ -761,6 +807,7 @@ class TypeCheckingVisitor
     if (target == null) {
       var receiver = visitExpression(node.receiver);
       if (node.name.name == '==') {
+        // TODO: Handle value escaping through == operator.
         visitExpression(node.arguments.positional.single);
         return checker.boolType;
       }
@@ -905,6 +952,7 @@ class TypeCheckingVisitor
   @override
   AType visitVariableGet(VariableGet node) {
     if (node.promotedType != null) {
+      // TODO: Ensure dataflow from variable base type
       return modifiers.augmentType(node.promotedType);
     }
     return getVariableType(node.variable);
@@ -1076,11 +1124,8 @@ class TypeCheckingVisitor
     if (node.initializer != null) {
       checkAssignableExpression(node.initializer, type);
     }
-    // TODO: Distinguish bounds and types in order to avoid this hack.
-    type.sink.generateAssignmentTo(builder, type.source, Flags.all);
     checker.onAnalysisComplete(() {
-      print('$node on ${node.location.brief} has value '
-          '${type.source.value} (${type.source}, ${type.sink})');
+      print("[${node.location.brief}] '$node' has value ${type.source.value}");
     });
   }
 

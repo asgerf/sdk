@@ -97,6 +97,10 @@ abstract class ModifierBank {
     return modifier;
   }
 
+  AType augmentBound(DartType type) {
+    return new TypeAugmentor(coreTypes, this).makeBound(type);
+  }
+
   AType augmentType(DartType type) {
     return new TypeAugmentor(coreTypes, this).makeType(type);
   }
@@ -157,10 +161,18 @@ class TypeAugmentor extends DartTypeVisitor<AType> {
   final CoreTypes coreTypes;
   final ModifierBank modifiers;
   final List<List<TypeParameter>> innerTypeParameters = <List<TypeParameter>>[];
+  Key source, sink;
 
   TypeAugmentor(this.coreTypes, this.modifiers);
 
   AType makeType(DartType type) {
+    source = sink = modifiers.newModifier();
+    return type.accept(this);
+  }
+
+  AType makeBound(DartType type) {
+    source = modifiers.newModifier();
+    sink = modifiers.newModifier();
     return type.accept(this);
   }
 
@@ -170,40 +182,35 @@ class TypeAugmentor extends DartTypeVisitor<AType> {
   }
 
   visitInvalidType(InvalidType node) {
-    return new InterfaceAType(modifiers.newModifier(), modifiers.newModifier(),
-        coreTypes.objectClass, const <AType>[]);
+    return new InterfaceAType(
+        source, sink, coreTypes.objectClass, const <AType>[]);
   }
 
   visitDynamicType(DynamicType node) {
-    return new InterfaceAType(modifiers.newModifier(), modifiers.newModifier(),
-        coreTypes.objectClass, const <AType>[]);
+    return new InterfaceAType(
+        source, sink, coreTypes.objectClass, const <AType>[]);
   }
 
   visitVoidType(VoidType node) {
-    var key = modifiers.newModifier();
-    return new BottomAType(key, key);
+    return new BottomAType(source, sink);
   }
 
   visitBottomType(BottomType node) {
-    var key = modifiers.newModifier();
-    return new BottomAType(key, key);
+    return new BottomAType(source, sink);
   }
 
   visitInterfaceType(InterfaceType node) {
-    return new InterfaceAType(
-        modifiers.newModifier(),
-        modifiers.newModifier(),
-        node.classNode,
-        node.typeArguments.map(makeType).toList(growable: false));
+    return new InterfaceAType(source, sink, node.classNode,
+        node.typeArguments.map(makeBound).toList(growable: false));
   }
 
   visitFunctionType(FunctionType node) {
     innerTypeParameters.add(node.typeParameters);
     var type = new FunctionAType(
-        modifiers.newModifier(),
-        modifiers.newModifier(),
+        source,
+        sink,
         node.typeParameters
-            .map((p) => makeType(p.bound))
+            .map((p) => makeBound(p.bound))
             .toList(growable: false),
         node.requiredParameterCount,
         node.positionalParameters.map(makeType).toList(growable: false),
@@ -221,8 +228,7 @@ class TypeAugmentor extends DartTypeVisitor<AType> {
       var list = innerTypeParameters[i];
       int index = list.indexOf(node.parameter);
       if (index != -1) {
-        var key = modifiers.newModifier();
-        return new FunctionTypeParameterAType(key, key, index);
+        return new FunctionTypeParameterAType(source, sink, index);
       }
     }
     return new PlaceholderAType(node.parameter);
