@@ -458,9 +458,8 @@ class TypeCheckingVisitor
     }
     FunctionMemberBank target = binding.getFunctionBank(function.parent);
     var typeParameters = function.typeParameters;
-    var typeArguments = member is Constructor
-        ? const <AType>[]
-        : modifiers.augmentTypeList(arguments.types).toList(growable: false);
+    var typeArguments =
+        modifiers.augmentTypeList(arguments.types).toList(growable: false);
     if (typeArguments.length != typeParameters.length) {
       fail(arguments, 'Wrong number of type arguments');
       return BottomAType.nonNullable;
@@ -593,9 +592,9 @@ class TypeCheckingVisitor
     Arguments arguments = node.arguments;
     Class class_ = target.enclosingClass;
     var typeArguments = modifiers.augmentTypeList(arguments.types);
-    Substitution substitution =
-        Substitution.fromPairs(class_.typeParameters, typeArguments);
-    handleCall(arguments, target, receiver: substitution);
+    // Substitution substitution =
+    //     Substitution.fromPairs(class_.typeParameters, typeArguments);
+    handleCall(arguments, target);
     var modifier = modifiers.newModifier();
     builder.addConstraint(new ValueConstraint(
         modifier, new Value(class_, flagsFromExactClass(class_))));
