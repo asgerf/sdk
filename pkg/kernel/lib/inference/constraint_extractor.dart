@@ -13,6 +13,7 @@ import 'hierarchy.dart';
 import 'package:kernel/inference/constraint_builder.dart';
 import 'package:kernel/inference/key.dart';
 import 'package:kernel/inference/value.dart';
+import 'package:kernel/text/ast_to_text.dart';
 import 'substitution.dart';
 
 class ConstraintExtractor {
@@ -33,12 +34,15 @@ class ConstraintExtractor {
   AType typeType;
   AType topType;
 
+  AugmentedTypeAnnotator annotator;
+
   void checkProgram(Program program) {
     coreTypes ??= new CoreTypes(program);
     baseHierarchy ??= new ClassHierarchy(program);
     binding ??= new Binding(coreTypes);
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
     builder ??= new ConstraintBuilder(hierarchy);
+    annotator ??= new AugmentedTypeAnnotator(binding);
     conditionType = new InterfaceAType(
         Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
     escapingType = new BottomAType(Value.escaping, ValueSink.nowhere);
@@ -299,10 +303,6 @@ class TypeCheckingVisitor
     if (node.initializer != null) {
       checkAssignableExpression(node.initializer, fieldType);
     }
-    checker.onAnalysisComplete(() {
-      print("${node.location.brief} '$node' has "
-          "value ${fieldType.source.value}");
-    });
   }
 
   visitConstructor(Constructor node) {
@@ -339,8 +339,10 @@ class TypeCheckingVisitor
           modifiers.typeParameters[i];
     }
     for (int i = 0; i < function.positionalParameters.length; ++i) {
-      scope.variables[function.positionalParameters[i]] =
-          modifiers.positionalParameters[i];
+      var variable = function.positionalParameters[i];
+      var type = modifiers.positionalParameters[i];
+      checker.annotator.variableTypes[variable] = type;
+      scope.variables[variable] = type;
     }
     for (int i = 0; i < function.namedParameters.length; ++i) {
       scope.variables[function.namedParameters[i]] =
@@ -1123,9 +1125,7 @@ class TypeCheckingVisitor
     if (node.initializer != null) {
       checkAssignableExpression(node.initializer, type);
     }
-    checker.onAnalysisComplete(() {
-      print("[${node.location.brief}] '$node' has value ${type.source.value}");
-    });
+    checker.annotator.variableTypes[node] = type;
   }
 
   @override
@@ -1181,4 +1181,38 @@ class TypeCheckingVisitor
 
   @override
   visitInvalidInitializer(InvalidInitializer node) {}
+}
+
+class AugmentedTypeAnnotator implements Annotator {
+  final Binding binding;
+  final Map<VariableDeclaration, AType> variableTypes =
+      <VariableDeclaration, AType>{};
+
+  AugmentedTypeAnnotator(this.binding);
+
+  String showType(AType type) {
+    if (type == null) return null;
+    if (type.isPlaceholder) return '$type';
+    return type.source.value.toString();
+  }
+
+  @override
+  String annotateField(Printer printer, Field node) {
+    return showType(binding.getFieldType(node));
+  }
+
+  @override
+  String annotateReturn(Printer printer, FunctionNode node) {
+    var parent = node.parent;
+    if (parent is Member) {
+      return showType(binding.getFunctionBank(parent).type.returnType);
+    } else {
+      return null;
+    }
+  }
+
+  @override
+  String annotateVariable(Printer printer, VariableDeclaration node) {
+    return showType(variableTypes[node]);
+  }
 }

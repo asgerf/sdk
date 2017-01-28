@@ -26,9 +26,5 @@ main(List<String> args) {
   for (var hook in extractor.analysisCompleteHooks) {
     hook();
   }
-  var binding = extractor.binding;
-  for (var member in binding.memberBanks.keys) {
-    var bank = binding.getMemberBank(member);
-    // print('$member = ${(bank.type.source as Key)?.value ?? "typevar"}');
-  }
+  writeProgramToText(program, path: 'dump.txt', annotator: extractor.annotator);
 }

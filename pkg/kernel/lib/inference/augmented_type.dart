@@ -109,8 +109,10 @@ class InterfaceAType extends AType {
   }
 
   String toString() {
-    if (typeArguments.isEmpty) return '$classNode$_keyString';
-    return '$classNode$_keyString<${typeArguments.join(",")}>';
+    String typeArgumentPart =
+        typeArguments.isEmpty ? '' : '<${typeArguments.join(',')}>';
+    var value = source.value;
+    return '$classNode($value)$typeArgumentPart';
   }
 }
 
@@ -195,7 +197,8 @@ class FunctionAType extends AType {
           (i) => '${namedParameterNames[i]}: ${namedParameters[i]}').join(',');
       parameters.add('{$named}');
     }
-    return 'Function$_keyString$typeParameterString($parameters) '
+    var value = source.value;
+    return 'Function($value)$typeParameterString($parameters) '
         '=> $returnType';
   }
 }
@@ -212,7 +215,7 @@ class FunctionTypeParameterAType extends AType {
 
   FunctionTypeParameterAType substitute(Substitution substitution) => this;
 
-  String toString() => '#$index';
+  String toString() => 'FunctionTypeParameter($index)';
 }
 
 /// Potentially nullable or true bottom.
@@ -225,7 +228,7 @@ class BottomAType extends AType {
 
   BottomAType substitute(Substitution substitution) => this;
 
-  String toString() => 'Bottom$_keyString';
+  String toString() => 'Bottom(${source.value})';
 
   static final BottomAType nonNullable =
       new BottomAType(Value.bottom, ValueSink.nowhere);
@@ -249,7 +252,7 @@ class PlaceholderAType extends AType {
     return substitution.getSubstitute(parameter);
   }
 
-  String toString() => '{$parameter}';
+  String toString() => 'Placeholder($parameter)';
 }
 
 class TypeParameterAType extends AType {
@@ -268,5 +271,5 @@ class TypeParameterAType extends AType {
     return this;
   }
 
-  String toString() => '$parameter$_keyString';
+  String toString() => '$parameter${source.value}';
 }
