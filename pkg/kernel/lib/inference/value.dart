@@ -7,6 +7,7 @@ import '../ast.dart';
 import 'constraint_builder.dart';
 import 'constraints.dart';
 import 'key.dart';
+import 'package:kernel/class_hierarchy.dart';
 
 class Flags {
   static const int inexactBaseClass = 1 << 0;
@@ -58,13 +59,11 @@ class Flags {
   }
 }
 
-class Value implements ValueSource {
+class Value extends ValueSource {
   Class baseClass;
   int flags;
 
   Value(this.baseClass, this.flags);
-
-  Value get value => this;
 
   static final Value bottom = new Value(null, Flags.none);
   static final Value nullValue = new Value(null, Flags.null_);
@@ -104,5 +103,21 @@ class Value implements ValueSource {
 
   bool isBottom(int mask) {
     return flags & mask == 0;
+  }
+
+  Value get value => this;
+
+  Value concreteJoin(Value other, ClassHierarchy hierarchy) {
+    var base = baseClass == null
+        ? other.baseClass
+        : other.baseClass == null
+            ? this.baseClass
+            : hierarchy.getCommonBaseClass(baseClass, other.baseClass);
+    int newFlags = flags | other.flags;
+    if (baseClass != null && baseClass != base ||
+        other.baseClass != null && other.baseClass != base) {
+      newFlags |= Flags.inexactBaseClass;
+    }
+    return new Value(base, newFlags);
   }
 }

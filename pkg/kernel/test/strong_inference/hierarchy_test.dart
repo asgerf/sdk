@@ -34,7 +34,7 @@ main(List<String> args) {
         for (int i = 0; i < superclass.typeParameters.length; ++i) {
           var typeParameter = superclass.typeParameters[i];
           var argument = instance.typeArguments[i];
-          var augmented = substitution.getSubstitute(typeParameter);
+          var augmented = substitution.getRawSubstitute(typeParameter);
           if (augmented == null || !isSameType(argument, augmented)) {
             fail('getClassAsInstanceOf($class_, $superclass)\n'
                 '       replaced: $typeParameter\n'
@@ -85,7 +85,7 @@ bool isSameType(DartType type, AType augmented) {
     }
     return isSameType(type.returnType, augmented.returnType);
   }
-  if (type is TypeParameterType && augmented is PlaceholderAType) {
+  if (type is TypeParameterType && augmented is TypeParameterAType) {
     return type.parameter == augmented.parameter;
   }
   return false;

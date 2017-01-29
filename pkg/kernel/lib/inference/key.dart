@@ -4,6 +4,7 @@
 library kernel.inference.key;
 
 import '../ast.dart';
+import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/inference/constraint_builder.dart';
 import 'package:kernel/inference/constraints.dart';
 import 'solver.dart';
@@ -16,6 +17,30 @@ abstract class ValueSource {
   bool isBottom(int mask);
 
   Value get value;
+
+  ValueSource join(ValueSource other) =>
+      new ValueSourceWithNullability(this, other);
+}
+
+class ValueSourceWithNullability extends ValueSource {
+  final ValueSource base, nullability;
+
+  ValueSourceWithNullability(this.base, this.nullability);
+
+  void generateAssignmentTo(
+      ConstraintBuilder builder, Key destination, int mask) {
+    base.generateAssignmentTo(builder, destination, mask);
+    nullability.generateAssignmentTo(builder, destination, Flags.null_);
+  }
+
+  bool isBottom(int mask) => base.isBottom(mask) && nullability.isBottom(mask);
+
+  Value get value {
+    var baseValue = base.value;
+    var nullabilityValue = nullability.value;
+    if (baseValue.canBeNull || !nullabilityValue.canBeNull) return baseValue;
+    return new Value(baseValue.baseClass, baseValue.flags | Flags.null_);
+  }
 }
 
 abstract class ValueSink {

@@ -28,17 +28,16 @@ abstract class AType {
   final ValueSink sink;
 
   AType(this.source, this.sink) {
-    assert(this is PlaceholderAType || (source != null && sink != null));
+    assert(source != null);
+    assert(sink != null);
   }
 
   void generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
-    assert(!supertype.isPlaceholder);
     supertype.sink.generateAssignmentFrom(builder, this.source, Flags.all);
     _generateSubtypeConstraints(supertype, builder);
   }
 
   void generateSubBoundConstraint(AType superbound, ConstraintBuilder builder) {
-    assert(!superbound.isPlaceholder);
     if (superbound.source is Key) {
       Key superSource = superbound.source as Key;
       superSource.generateAssignmentFrom(builder, this.source, Flags.all);
@@ -52,14 +51,15 @@ abstract class AType {
 
   void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder);
 
-  bool get isPlaceholder => false;
-
   bool containsAny(bool predicate(AType type)) => predicate(this);
-
-  bool get containsPlaceholder => containsAny((t) => t is PlaceholderAType);
 
   bool get containsFunctionTypeParameter =>
       containsAny((t) => t is FunctionTypeParameterAType);
+
+  bool isClosed([Iterable<TypeParameter> scope = const []]) {
+    return !containsAny(
+        (t) => t is TypeParameterAType && !scope.contains(t.parameter));
+  }
 
   static bool listContainsAny(
       Iterable<AType> types, bool predicate(AType type)) {
@@ -74,10 +74,7 @@ abstract class AType {
     return types.map((t) => t.substitute(substitution)).toList(growable: false);
   }
 
-  String get _keyString {
-    if (!_showKeys) return '';
-    return '($source,$sink)';
-  }
+  AType withSource(ValueSource source);
 }
 
 class InterfaceAType extends AType {
@@ -106,6 +103,10 @@ class InterfaceAType extends AType {
   AType substitute(Substitution substitution) {
     return new InterfaceAType(source, sink, classNode,
         AType.substituteList(typeArguments, substitution));
+  }
+
+  AType withSource(ValueSource source) {
+    return new InterfaceAType(source, sink, classNode, typeArguments);
   }
 
   String toString() {
@@ -201,6 +202,18 @@ class FunctionAType extends AType {
     return 'Function($value)$typeParameterString($parameters) '
         '=> $returnType';
   }
+
+  AType withSource(ValueSource source) {
+    return new FunctionAType(
+        source,
+        sink,
+        typeParameters,
+        requiredParameterCount,
+        positionalParameters,
+        namedParameterNames,
+        namedParameters,
+        returnType);
+  }
 }
 
 class FunctionTypeParameterAType extends AType {
@@ -216,6 +229,10 @@ class FunctionTypeParameterAType extends AType {
   FunctionTypeParameterAType substitute(Substitution substitution) => this;
 
   String toString() => 'FunctionTypeParameter($index)';
+
+  AType withSource(ValueSource source) {
+    return new FunctionTypeParameterAType(source, sink, index);
+  }
 }
 
 /// Potentially nullable or true bottom.
@@ -234,25 +251,10 @@ class BottomAType extends AType {
       new BottomAType(Value.bottom, ValueSink.nowhere);
   static final BottomAType nullable =
       new BottomAType(Value.nullValue, ValueSink.nowhere);
-}
 
-class PlaceholderAType extends AType {
-  final TypeParameter parameter;
-
-  PlaceholderAType(this.parameter) : super(null, null);
-
-  bool get isPlaceholder => true;
-
-  @override
-  void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
-    throw 'Incomplete type';
+  AType withSource(ValueSource source) {
+    return new BottomAType(source, sink);
   }
-
-  AType substitute(Substitution substitution) {
-    return substitution.getSubstitute(parameter);
-  }
-
-  String toString() => 'Placeholder($parameter)';
 }
 
 class TypeParameterAType extends AType {
@@ -267,9 +269,12 @@ class TypeParameterAType extends AType {
   }
 
   AType substitute(Substitution substitution) {
-    // Placeholders can be substituted. This type is not substitutable.
-    return this;
+    return substitution.getSubstitute(this);
   }
 
   String toString() => '$parameter${source.value}';
+
+  AType withSource(ValueSource source) {
+    return new TypeParameterAType(source, sink, parameter);
+  }
 }

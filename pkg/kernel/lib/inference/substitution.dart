@@ -12,7 +12,12 @@ import 'package:kernel/inference/value.dart';
 abstract class Substitution {
   const Substitution();
 
-  AType getSubstitute(TypeParameter parameter);
+  AType getSubstitute(TypeParameterAType parameter) {
+    // Note: this is overridden in some subclasses.
+    return getRawSubstitute(parameter.parameter);
+  }
+
+  AType getRawSubstitute(TypeParameter parameter);
 
   AType substituteType(AType type) {
     return type.substitute(this);
@@ -67,7 +72,7 @@ class BottomSubstitution extends Substitution {
   BottomSubstitution(this.class_);
 
   @override
-  AType getSubstitute(TypeParameter parameter) {
+  AType getRawSubstitute(TypeParameter parameter) {
     if (parameter.parent == class_) {
       return new BottomAType(Value.bottom, ValueSink.nowhere);
     }
@@ -85,35 +90,28 @@ class EmptySubstitution extends Substitution {
     return type; // Do not traverse type when there is nothing to do.
   }
 
-  AType getSubstitute(TypeParameter parameter) {
-    return null;
-  }
-}
-
-class ThisTypeSubstitution extends Substitution {
-  final ModifierBank bank;
-  final List<TypeParameter> typeParameters;
-
-  ThisTypeSubstitution(this.bank, this.typeParameters);
-
-  @override
-  AType getSubstitute(TypeParameter parameter) {
-    if (typeParameters.contains(parameter)) {
-      var key = bank.newModifier();
-      return new TypeParameterAType(key, key, parameter);
-    }
+  AType getRawSubstitute(TypeParameter parameter) {
     return null;
   }
 }
 
 class SupertypeSubstitution extends Substitution {
-  final ASupertype supertype;
+  final ASupertype type;
 
-  SupertypeSubstitution(this.supertype);
+  SupertypeSubstitution(this.type);
 
-  AType getSubstitute(TypeParameter parameter) {
-    int index = supertype.classNode.typeParameters.indexOf(parameter);
-    return index == -1 ? null : supertype.typeArguments[index];
+  AType getSubstitute(TypeParameterAType parameterType) {
+    var parameter = parameterType.parameter;
+    int index = type.classNode.typeParameters.indexOf(parameter);
+    if (index == -1) return null;
+    AType argument = type.typeArguments[index];
+    return argument.withSource(argument.source.join(parameterType.source));
+  }
+
+  AType getRawSubstitute(TypeParameter parameter) {
+    int index = type.classNode.typeParameters.indexOf(parameter);
+    if (index == -1) return null;
+    return type.typeArguments[index];
   }
 }
 
@@ -122,7 +120,15 @@ class InterfaceSubstitution extends Substitution {
 
   InterfaceSubstitution(this.type);
 
-  AType getSubstitute(TypeParameter parameter) {
+  AType getSubstitute(TypeParameterAType parameterType) {
+    var parameter = parameterType.parameter;
+    int index = type.classNode.typeParameters.indexOf(parameter);
+    if (index == -1) return null;
+    AType argument = type.typeArguments[index];
+    return argument.withSource(argument.source.join(parameterType.source));
+  }
+
+  AType getRawSubstitute(TypeParameter parameter) {
     int index = type.classNode.typeParameters.indexOf(parameter);
     if (index == -1) return null;
     return type.typeArguments[index];
@@ -135,7 +141,7 @@ class PairSubstitution extends Substitution {
 
   PairSubstitution(this.parameters, this.types);
 
-  AType getSubstitute(TypeParameter parameter) {
+  AType getRawSubstitute(TypeParameter parameter) {
     int index = parameters.indexOf(parameter);
     if (index == -1) return null;
     return types[index];
@@ -147,12 +153,21 @@ class SequenceSubstitution extends Substitution {
 
   SequenceSubstitution(this.left, this.right);
 
-  AType getSubstitute(TypeParameter parameter) {
-    var replacement = left.getSubstitute(parameter);
+  AType getSubstitute(TypeParameterAType type) {
+    var replacement = left.getSubstitute(type);
     if (replacement != null) {
       return right.substituteType(replacement);
     } else {
-      return right.getSubstitute(parameter);
+      return right.getSubstitute(type);
+    }
+  }
+
+  AType getRawSubstitute(TypeParameter parameter) {
+    var replacement = left.getRawSubstitute(parameter);
+    if (replacement != null) {
+      return right.substituteType(replacement);
+    } else {
+      return right.getRawSubstitute(parameter);
     }
   }
 }
@@ -162,8 +177,13 @@ class EitherSubstitution extends Substitution {
 
   EitherSubstitution(this.left, this.right);
 
-  AType getSubstitute(TypeParameter parameter) {
-    return left.getSubstitute(parameter) ?? right.getSubstitute(parameter);
+  AType getSubstitute(TypeParameterAType type) {
+    return left.getSubstitute(type) ?? right.getSubstitute(type);
+  }
+
+  AType getRawSubstitute(TypeParameter parameter) {
+    return left.getRawSubstitute(parameter) ??
+        right.getRawSubstitute(parameter);
   }
 }
 
@@ -172,7 +192,7 @@ class ClosednessChecker extends Substitution {
 
   ClosednessChecker(this.typeParameters);
 
-  AType getSubstitute(TypeParameter parameter) {
+  AType getRawSubstitute(TypeParameter parameter) {
     if (typeParameters.contains(parameter)) return null;
     throw '$parameter from ${parameter.parent} ${parameter.parent.parent} is out of scope';
   }

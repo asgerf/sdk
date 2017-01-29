@@ -231,6 +231,6 @@ class TypeAugmentor extends DartTypeVisitor<AType> {
         return new FunctionTypeParameterAType(source, sink, index);
       }
     }
-    return new PlaceholderAType(node.parameter);
+    return new TypeParameterAType(source, sink, node.parameter);
   }
 }

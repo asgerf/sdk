@@ -39,9 +39,17 @@ class AugmentedHierarchy {
     return _supertypes[index][superclass];
   }
 
+  // Foo<E> {}
+  // Bar<T> extends Foo<List β<T (γ1,γ2)>> {}
+  // Bar δ<String (α1,α2)> as Foo
+  // => Foo δ<List β<String (α1+γ1,α2)>>
+
+  // Foo extends Bar<int>
+
   InterfaceAType getTypeAsInstanceOf(InterfaceAType subtype, Class superclass) {
-    if (identical(subtype.classNode, superclass)) return subtype;
-    var superSubstitution = getClassAsInstanceOf(subtype.classNode, superclass);
+    Class subclass = subtype.classNode;
+    if (identical(subclass, superclass)) return subtype;
+    var superSubstitution = getClassAsInstanceOf(subclass, superclass);
     if (superSubstitution == null) return null;
     var interfaceSubstitution = Substitution.fromInterfaceType(subtype);
     return new InterfaceAType(
@@ -49,7 +57,7 @@ class AugmentedHierarchy {
         subtype.sink,
         superclass,
         superclass.typeParameters.map((p) {
-          var upcast = superSubstitution.getSubstitute(p);
+          var upcast = superSubstitution.getRawSubstitute(p);
           return interfaceSubstitution.substituteType(upcast);
         }).toList(growable: false));
   }

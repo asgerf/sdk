@@ -110,7 +110,7 @@ class ConstraintExtractor {
     var substitution =
         hierarchy.getClassAsInstanceOf(host, member.enclosingClass);
     var type = substitution.substituteType(binding.getGetterType(member));
-    assert(!type.containsPlaceholder);
+    assert(type.isClosed(host.typeParameters));
     return type;
   }
 
@@ -118,7 +118,7 @@ class ConstraintExtractor {
     var substitution =
         hierarchy.getClassAsInstanceOf(host, member.enclosingClass);
     var type = substitution.substituteType(binding.getSetterType(member));
-    assert(!type.containsPlaceholder);
+    assert(type.isClosed(host.typeParameters));
     return type;
   }
 
@@ -138,8 +138,9 @@ class ConstraintExtractor {
   /// [where] is an AST node indicating roughly where the check is required.
   void checkAssignable(
       TreeNode where, AType from, AType to, TypeParameterScope scope) {
-    assert(!from.containsPlaceholder);
-    assert(!to.containsPlaceholder);
+    // assert(!from.containsPlaceholder);
+    // assert(!to.containsPlaceholder);
+    // TODO: Expose type parameters in 'scope' and check closedness
     from.generateSubtypeConstraints(to, builder);
   }
 
@@ -1043,7 +1044,10 @@ class TypeCheckingVisitor
       var asStream = hierarchy.getClassAsInstanceOf(
           stream.classNode, coreTypes.streamClass);
       if (asStream == null) return checker.topType;
-      return asStream.getSubstitute(coreTypes.streamClass.typeParameters[0]);
+      var parameter = coreTypes.streamClass.typeParameters[0];
+      var modifier = modifiers.newModifier();
+      return asStream
+          .getSubstitute(new TypeParameterAType(modifier, modifier, parameter));
     }
     return checker.topType;
   }
@@ -1192,7 +1196,6 @@ class AugmentedTypeAnnotator implements Annotator {
 
   String showType(AType type) {
     if (type == null) return null;
-    if (type.isPlaceholder) return '$type';
     return type.source.value.toString();
   }
 
