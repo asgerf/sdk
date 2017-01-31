@@ -24,7 +24,10 @@ class Binding {
     } else {
       var modifiers = new FunctionMemberBank(member, coreTypes);
       var function = member.function;
-      modifiers.type = modifiers.augmentType(function.functionType);
+      var t = modifiers.type = modifiers.augmentType(function.functionType);
+      if (member.enclosingLibrary.importUri.scheme != 'dart') {
+        print('Type of $member is $t (${function.functionType})');
+      }
       return modifiers;
     }
   }
@@ -91,30 +94,32 @@ abstract class ModifierBank {
 
   TreeNode get classOrMember;
 
+  int get nextIndex => modifiers.length;
+
   Key newModifier() {
     var modifier = new Key(classOrMember, modifiers.length);
     modifiers.add(modifier);
     return modifier;
   }
 
-  AType augmentBound(DartType type) {
-    return new TypeAugmentor(coreTypes, this).makeBound(type);
+  AType augmentBound(DartType type, [int offset]) {
+    return new TypeAugmentor(coreTypes, this, offset).makeBound(type);
   }
 
-  AType augmentType(DartType type) {
-    return new TypeAugmentor(coreTypes, this).makeType(type);
+  AType augmentType(DartType type, [int offset]) {
+    return new TypeAugmentor(coreTypes, this, offset).makeType(type);
   }
 
-  List<AType> augmentTypeList(Iterable<DartType> types) {
-    return types.map(augmentType).toList(growable: false);
+  List<AType> augmentTypeList(Iterable<DartType> types, [int offset]) {
+    return types.map((t) => augmentType(t, offset)).toList(growable: false);
   }
 
-  ASupertype augmentSuper(Supertype type) {
-    return new TypeAugmentor(coreTypes, this).makeSuper(type);
+  ASupertype augmentSuper(Supertype type, [int offset]) {
+    return new TypeAugmentor(coreTypes, this, offset).makeSuper(type);
   }
 
-  List<ASupertype> augmentSuperList(Iterable<Supertype> types) {
-    return types.map(augmentSuper).toList(growable: false);
+  List<ASupertype> augmentSuperList(Iterable<Supertype> types, [int offset]) {
+    return types.map((t) => augmentSuper(t, offset)).toList(growable: false);
   }
 }
 
@@ -162,17 +167,26 @@ class TypeAugmentor extends DartTypeVisitor<AType> {
   final ModifierBank modifiers;
   final List<List<TypeParameter>> innerTypeParameters = <List<TypeParameter>>[];
   Key source, sink;
+  int index;
 
-  TypeAugmentor(this.coreTypes, this.modifiers);
+  TypeAugmentor(this.coreTypes, this.modifiers, this.index);
+
+  Key nextModifier() {
+    if (index == null) {
+      return modifiers.newModifier();
+    } else {
+      return modifiers.modifiers[index++];
+    }
+  }
 
   AType makeType(DartType type) {
-    source = sink = modifiers.newModifier();
+    source = sink = nextModifier();
     return type.accept(this);
   }
 
   AType makeBound(DartType type) {
-    source = modifiers.newModifier();
-    sink = modifiers.newModifier();
+    source = nextModifier();
+    sink = nextModifier();
     return type.accept(this);
   }
 

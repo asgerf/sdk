@@ -1121,6 +1121,7 @@ class TypeCheckingVisitor
   @override
   visitVariableDeclaration(VariableDeclaration node) {
     assert(!scope.variables.containsKey(node));
+    node.inferredValueOffset = modifiers.nextIndex;
     var type = scope.variables[node] = modifiers.augmentType(node.type);
     if (node.initializer != null) {
       checkAssignableExpression(node.initializer, type);

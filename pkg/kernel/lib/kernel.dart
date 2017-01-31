@@ -18,6 +18,7 @@ import 'binary/ast_to_binary.dart';
 import 'binary/loader.dart';
 import 'dart:async';
 import 'dart:io';
+import 'package:kernel/inference/binding.dart';
 import 'repository.dart';
 import 'text/ast_to_text.dart';
 
@@ -52,11 +53,13 @@ void writeLibraryToText(Library library, {String path}) {
 
 void writeProgramToText(Program program,
     {String path,
+    Binding binding,
     bool showExternal: false,
     bool showOffsets: false,
     Annotator annotator: const InferredValueAnnotator()}) {
   StringBuffer buffer = new StringBuffer();
   new Printer(buffer,
+          binding: binding,
           showExternal: showExternal,
           showOffsets: showOffsets,
           annotator: annotator)

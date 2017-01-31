@@ -1156,7 +1156,6 @@ class FunctionNode extends TreeNode {
   }
 
   FunctionType get functionType {
-    TreeNode parent = this.parent;
     List<NamedType> named =
         namedParameters.map(_getNamedTypeOfVariable).toList(growable: false);
     named.sort();
@@ -1164,9 +1163,7 @@ class FunctionNode extends TreeNode {
         positionalParameters.map(_getTypeOfVariable).toList(growable: false),
         returnType,
         namedParameters: named,
-        typeParameters: parent is Constructor
-            ? parent.enclosingClass.typeParameters
-            : typeParameters,
+        typeParameters: typeParameters,
         requiredParameterCount: requiredParameterCount);
   }
 
@@ -3016,6 +3013,8 @@ class VariableDeclaration extends Statement {
   ///
   /// Should be null in other cases.
   Expression initializer; // May be null.
+
+  int inferredValueOffset;
 
   VariableDeclaration(this.name,
       {this.initializer,

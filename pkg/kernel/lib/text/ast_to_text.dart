@@ -6,6 +6,8 @@ library kernel.ast_to_text;
 import '../ast.dart';
 import '../import_table.dart';
 import '../type_propagation/type_propagation.dart';
+import 'package:kernel/inference/augmented_type.dart';
+import 'package:kernel/inference/binding.dart';
 
 class Namer<T> {
   int index = 0;
@@ -180,6 +182,8 @@ class Printer extends Visitor<Null> {
   final NameSystem syntheticNames;
   final StringSink sink;
   final Annotator annotator;
+  final Binding binding;
+  ModifierBank modifiers;
   ImportTable importTable;
   int indentation = 0;
   int column = 0;
@@ -196,7 +200,8 @@ class Printer extends Visitor<Null> {
       this.showExternal,
       this.showOffsets: false,
       this.importTable,
-      this.annotator: const InferredValueAnnotator()})
+      this.annotator: const InferredValueAnnotator(),
+      this.binding})
       : this.syntheticNames = syntheticNames ?? new NameSystem();
 
   Printer._inner(Printer parent, this.importTable)
@@ -204,7 +209,8 @@ class Printer extends Visitor<Null> {
         syntheticNames = parent.syntheticNames,
         annotator = parent.annotator,
         showExternal = parent.showExternal,
-        showOffsets = parent.showOffsets;
+        showOffsets = parent.showOffsets,
+        binding = parent.binding;
 
   String getLibraryName(Library node) {
     return node.name ?? syntheticNames.nameLibrary(node);
@@ -411,19 +417,14 @@ class Printer extends Visitor<Null> {
     }
   }
 
-  void writeAnnotatedType(DartType type, void annotate()) {
-    bool shownDartType = false;
-    if ((annotate == null || annotator == null) && annotator.showDartTypes) {
+  void writeAnnotatedType(DartType type, int offset) {
+    if (offset != null && offset > 0 && modifiers != null) {
+      AType augmented = modifiers.augmentType(type, offset);
+      augmented.print(this);
+    } else {
       writeType(type);
-      shownDartType = true;
     }
-    if (annotate != null) {
-      if (shownDartType) {
-        writeSymbol('/');
-      }
-      annotate();
-      state = WORD;
-    }
+    state = WORD;
   }
 
   void writeType(DartType type) {
@@ -488,8 +489,7 @@ class Printer extends Visitor<Null> {
     writeTypeParameterList(function.typeParameters);
     writeParameterList(function.positionalParameters, function.namedParameters,
         function.requiredParameterCount);
-    writeReturnType(
-        function.returnType, () => annotator?.annotateReturn(this, function));
+    writeReturnType(function.returnType, -1);
     if (initializers != null && initializers.isNotEmpty) {
       endLine();
       ++indentation;
@@ -570,10 +570,10 @@ class Printer extends Visitor<Null> {
     }
   }
 
-  void writeReturnType(DartType type, void annotate()) {
+  void writeReturnType(DartType type, int offset) {
     if (type == null) return;
     writeSpaced('→');
-    writeAnnotatedType(type, annotate);
+    writeAnnotatedType(type, offset);
   }
 
   void writeTypeParameterList(List<TypeParameter> typeParameters) {
@@ -675,6 +675,7 @@ class Printer extends Visitor<Null> {
   visitLibrary(Library node) {}
 
   visitField(Field node) {
+    modifiers = binding.getMemberBank(node);
     writeAnnotationList(node.annotations);
     writeIndentation();
     writeModifier(node.isStatic, 'static');
@@ -695,7 +696,7 @@ class Printer extends Visitor<Null> {
     }
     writeWord('field');
     writeSpace();
-    writeAnnotatedType(node.type, () => annotator?.annotateField(this, node));
+    writeAnnotatedType(node.type, 0);
     writeName(getMemberName(node));
     if (node.initializer != null) {
       writeSpaced('=');
@@ -711,6 +712,7 @@ class Printer extends Visitor<Null> {
   }
 
   visitProcedure(Procedure node) {
+    modifiers = binding.getMemberBank(node);
     writeAnnotationList(node.annotations);
     writeIndentation();
     writeModifier(node.isExternal, 'external');
@@ -727,6 +729,7 @@ class Printer extends Visitor<Null> {
   }
 
   visitConstructor(Constructor node) {
+    modifiers = binding.getMemberBank(node);
     writeAnnotationList(node.annotations);
     writeIndentation();
     writeModifier(node.isExternal, 'external');
@@ -737,6 +740,7 @@ class Printer extends Visitor<Null> {
   }
 
   visitClass(Class node) {
+    modifiers = binding.getClassBank(node);
     writeAnnotationList(node.annotations);
     writeIndentation();
     writeModifier(node.isAbstract, 'abstract');
@@ -1314,8 +1318,7 @@ class Printer extends Visitor<Null> {
     writeModifier(node.isFinal, 'final');
     writeModifier(node.isConst, 'const');
     if (node.type != null) {
-      writeAnnotatedType(
-          node.type, () => annotator?.annotateVariable(this, node));
+      writeAnnotatedType(node.type, node.inferredValueOffset);
     }
     if (useVarKeyword && !node.isFinal && !node.isConst && node.type == null) {
       writeWord('var');
