@@ -660,14 +660,10 @@ class TypeCheckingVisitor
   @override
   AType visitLet(Let node) {
     var value = visitExpression(node.variable.initializer);
-    // if (node.variable.type is DynamicType) {
-    // TODO(asgerf): Get rid of this hack.
-    // node.variable.type = value.toDartType([]);
-    // scope.variables[node.variable] = value;
-    // } else {
     // TODO(asgerf): Make sure let variable is not 'dynamic'.
-    scope.variables[node.variable] = modifiers.augmentType(node.variable.type);
-    // }
+    var type = scope.variables[node.variable] =
+        modifiers.augmentType(node.variable.type);
+    checkAssignable(node, value, type);
     return visitExpression(node.body);
   }
 
