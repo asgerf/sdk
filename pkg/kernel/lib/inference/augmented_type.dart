@@ -24,7 +24,29 @@ class ASupertype {
 }
 
 abstract class AType {
+  /// Describes the abstract values one may obtain by reading from a storage
+  /// location with this type.
+  ///
+  /// This can be a [Value] or a [Key], depending on whether the abstract value
+  /// is statically known, or is a symbolic value determined during type
+  /// propagation.
   final ValueSource source;
+
+  /// Describes the effects of assigning a value into a storage location with
+  /// this type.
+  ///
+  /// In most cases this is a [Key], denoting an abstract storage location into
+  /// which values should be recorded.
+  ///
+  /// Alternatives are [NowhereSink] that ignores incoming values and
+  /// [ErrorSink] that throws an exception because the type should never
+  /// occur as a left-hand value (e.g. it is an error to try to use the
+  /// "this type" as a sink).
+  ///
+  /// For variables, fields, parameters, return types, and allocation-site
+  /// type arguments, this equals the [source].  When a type occurs as type
+  /// argument to an interface type, it represents a type bound, and then the
+  /// source and sinks are separate [Key] values.
   final ValueSink sink;
 
   AType(this.source, this.sink) {
