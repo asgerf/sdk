@@ -60,8 +60,8 @@ class Flags {
 }
 
 class Value extends ValueSource {
-  Class baseClass;
-  int flags;
+  final Class baseClass;
+  final int flags;
 
   Value(this.baseClass, this.flags);
 

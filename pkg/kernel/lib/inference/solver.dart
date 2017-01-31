@@ -28,29 +28,27 @@ class ConstraintSolver {
   Class get rootClass => hierarchy.classes[0];
 
   /// Update [supertype] to contain the values of [subtype].
-  bool mergeForward(Value subtype, Value supertype) {
+  Value mergeForward(Value subtype, Value supertype) {
     int oldFlags = supertype.flags;
     int inputFlags = subtype.flags & Flags.forward;
     int newFlags = oldFlags | inputFlags;
-    bool changed = false;
-    if (subtype.baseClass != null && supertype.baseClass != subtype.baseClass) {
-      if (supertype.baseClass != null) {
+    Class oldBaseClass = supertype.baseClass;
+    Class newBaseClass = oldBaseClass;
+    Class inputBaseClass = subtype.baseClass;
+    if (inputBaseClass != null && oldBaseClass != inputBaseClass) {
+      if (oldBaseClass != null) {
         newFlags |= Flags.inexactBaseClass;
       }
-      Class newBaseClass =
-          getCommonBaseClass(supertype.baseClass, subtype.baseClass);
-      if (newBaseClass != supertype.baseClass) {
-        supertype.baseClass = newBaseClass;
-        changed = true;
-      }
+      newBaseClass = getCommonBaseClass(supertype.baseClass, subtype.baseClass);
     }
-    if (newFlags != oldFlags) {
-      supertype.flags = newFlags;
-      changed = true;
+    if (newBaseClass != supertype.baseClass || newFlags != oldFlags) {
+      return new Value(newBaseClass, newFlags);
     }
-    return changed;
+    return supertype;
   }
 
+  /// Returns the least upper bound of two base classes, where `null` represents
+  /// bottom.
   Class getCommonBaseClass(Class first, Class second) {
     if (first == null) return second;
     if (second == null) return first;
@@ -58,25 +56,28 @@ class ConstraintSolver {
   }
 
   /// Update [subtype] to contain the escape information of [supertype].
-  bool mergeBackward(Value subtype, Value supertype) {
+  Value mergeBackward(Value subtype, Value supertype) {
     int oldFlags = supertype.flags;
     int inputFlags = subtype.flags & Flags.backward;
     int newFlags = oldFlags | inputFlags;
     if (newFlags != oldFlags) {
-      supertype.flags = newFlags;
-      return true;
+      return new Value(supertype.baseClass, newFlags);
     }
-    return false;
+    return supertype;
   }
 
   void propagateForward(Value subtype, Key supertype) {
-    if (mergeForward(subtype, supertype.value)) {
+    var joined = mergeForward(subtype, supertype.value);
+    if (!identical(joined, supertype.value)) {
+      supertype.value = joined;
       enqueue(supertype.forward);
     }
   }
 
   void propagateBackward(Key subtype, Value supertype) {
-    if (mergeBackward(subtype.value, supertype)) {
+    var joined = mergeBackward(subtype.value, supertype);
+    if (!identical(joined, subtype.value)) {
+      subtype.value = joined;
       enqueue(subtype.backward);
     }
   }
