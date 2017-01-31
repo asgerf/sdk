@@ -162,6 +162,7 @@ class ClosednessChecker extends Substitution {
 
   AType getRawSubstitute(TypeParameter parameter) {
     if (typeParameters.contains(parameter)) return null;
-    throw '$parameter from ${parameter.parent} ${parameter.parent.parent} is out of scope';
+    throw '$parameter from ${parameter.parent} ${parameter.parent.parent} '
+        'is out of scope';
   }
 }
