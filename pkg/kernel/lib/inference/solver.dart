@@ -12,10 +12,9 @@ import 'value.dart';
 class WorkItem {
   final Key key;
   final List<Constraint> dependencies = <Constraint>[];
+  bool isInWorklist = false;
 
   WorkItem(this.key);
-
-  bool isInWorklist = false;
 }
 
 class ConstraintSolver {
