@@ -1190,28 +1190,30 @@ class AugmentedTypeAnnotator implements Annotator {
 
   AugmentedTypeAnnotator(this.binding);
 
-  String showType(AType type) {
-    if (type == null) return null;
-    return type.source.value.toString();
+  bool get showDartTypes => false;
+
+  @override
+  void annotateField(Printer printer, Field node) {
+    binding.getFieldType(node).print(printer);
   }
 
   @override
-  String annotateField(Printer printer, Field node) {
-    return showType(binding.getFieldType(node));
-  }
-
-  @override
-  String annotateReturn(Printer printer, FunctionNode node) {
+  void annotateReturn(Printer printer, FunctionNode node) {
     var parent = node.parent;
     if (parent is Member) {
-      return showType(binding.getFunctionBank(parent).type.returnType);
+      binding.getFunctionBank(parent).type.returnType.print(printer);
     } else {
-      return null;
+      printer.write('<?>');
     }
   }
 
   @override
-  String annotateVariable(Printer printer, VariableDeclaration node) {
-    return showType(variableTypes[node]);
+  void annotateVariable(Printer printer, VariableDeclaration node) {
+    var type = variableTypes[node];
+    if (type == null) {
+      printer.write('<?>');
+    } else {
+      type.print(printer);
+    }
   }
 }

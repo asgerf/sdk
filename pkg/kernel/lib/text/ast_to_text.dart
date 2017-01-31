@@ -148,27 +148,30 @@ class NameSystem {
 }
 
 abstract class Annotator {
-  String annotateVariable(Printer printer, VariableDeclaration node);
-  String annotateReturn(Printer printer, FunctionNode node);
-  String annotateField(Printer printer, Field node);
+  const Annotator();
+
+  bool get showDartTypes => true;
+  void annotateVariable(Printer printer, VariableDeclaration node);
+  void annotateReturn(Printer printer, FunctionNode node);
+  void annotateField(Printer printer, Field node);
 }
 
-class InferredValueAnnotator implements Annotator {
+class InferredValueAnnotator extends Annotator {
   const InferredValueAnnotator();
 
-  String annotateVariable(Printer printer, VariableDeclaration node) {
-    if (node.inferredValue == null) return null;
-    return printer.getInferredValueString(node.inferredValue);
+  void annotateVariable(Printer printer, VariableDeclaration node) {
+    if (node.inferredValue == null) return;
+    printer.write(printer.getInferredValueString(node.inferredValue));
   }
 
-  String annotateReturn(Printer printer, FunctionNode node) {
-    if (node.inferredReturnValue == null) return null;
-    return printer.getInferredValueString(node.inferredReturnValue);
+  void annotateReturn(Printer printer, FunctionNode node) {
+    if (node.inferredReturnValue == null) return;
+    printer.write(printer.getInferredValueString(node.inferredReturnValue));
   }
 
-  String annotateField(Printer printer, Field node) {
-    if (node.inferredValue == null) return null;
-    return printer.getInferredValueString(node.inferredValue);
+  void annotateField(Printer printer, Field node) {
+    if (node.inferredValue == null) return;
+    printer.write(printer.getInferredValueString(node.inferredValue));
   }
 }
 
@@ -408,11 +411,17 @@ class Printer extends Visitor<Null> {
     }
   }
 
-  void writeAnnotatedType(DartType type, String annotation) {
-    writeType(type);
-    if (annotation != null) {
-      write('/');
-      write(annotation);
+  void writeAnnotatedType(DartType type, void annotate()) {
+    bool shownDartType = false;
+    if ((annotate == null || annotator == null) && annotator.showDartTypes) {
+      writeType(type);
+      shownDartType = true;
+    }
+    if (annotate != null) {
+      if (shownDartType) {
+        writeSymbol('/');
+      }
+      annotate();
       state = WORD;
     }
   }
@@ -480,7 +489,7 @@ class Printer extends Visitor<Null> {
     writeParameterList(function.positionalParameters, function.namedParameters,
         function.requiredParameterCount);
     writeReturnType(
-        function.returnType, annotator?.annotateReturn(this, function));
+        function.returnType, () => annotator?.annotateReturn(this, function));
     if (initializers != null && initializers.isNotEmpty) {
       endLine();
       ++indentation;
@@ -561,10 +570,10 @@ class Printer extends Visitor<Null> {
     }
   }
 
-  void writeReturnType(DartType type, String annotation) {
+  void writeReturnType(DartType type, void annotate()) {
     if (type == null) return;
     writeSpaced('→');
-    writeAnnotatedType(type, annotation);
+    writeAnnotatedType(type, annotate);
   }
 
   void writeTypeParameterList(List<TypeParameter> typeParameters) {
@@ -686,7 +695,7 @@ class Printer extends Visitor<Null> {
     }
     writeWord('field');
     writeSpace();
-    writeAnnotatedType(node.type, annotator?.annotateField(this, node));
+    writeAnnotatedType(node.type, () => annotator?.annotateField(this, node));
     writeName(getMemberName(node));
     if (node.initializer != null) {
       writeSpaced('=');
@@ -1305,7 +1314,8 @@ class Printer extends Visitor<Null> {
     writeModifier(node.isFinal, 'final');
     writeModifier(node.isConst, 'const');
     if (node.type != null) {
-      writeAnnotatedType(node.type, annotator?.annotateVariable(this, node));
+      writeAnnotatedType(
+          node.type, () => annotator?.annotateVariable(this, node));
     }
     if (useVarKeyword && !node.isFinal && !node.isConst && node.type == null) {
       writeWord('var');

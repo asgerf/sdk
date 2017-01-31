@@ -8,6 +8,7 @@ import 'constraint_builder.dart';
 import 'constraints.dart';
 import 'key.dart';
 import 'package:kernel/class_hierarchy.dart';
+import 'package:kernel/text/ast_to_text.dart';
 
 class Flags {
   static const int inexactBaseClass = 1 << 0;
@@ -119,5 +120,25 @@ class Value extends ValueSource {
       newFlags |= Flags.inexactBaseClass;
     }
     return new Value(base, newFlags);
+  }
+
+  void print(Printer printer) {
+    if (value.baseClass == null) {
+      if (value.canBeNull) {
+        printer.write('Null');
+      } else {
+        printer.write('Bottom');
+      }
+    } else {
+      printer.writeClassReference(value.baseClass);
+      if (value.hasExactBaseClass) {
+        printer.write('!');
+      } else {
+        printer.write('+');
+      }
+      if (value.canBeNull) {
+        printer.write('?');
+      }
+    }
   }
 }

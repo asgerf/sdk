@@ -7,6 +7,7 @@ import '../ast.dart';
 import 'constraint_builder.dart';
 import 'key.dart';
 import 'package:kernel/inference/substitution.dart';
+import 'package:kernel/text/ast_to_text.dart';
 import 'value.dart';
 
 class ASupertype {
@@ -94,6 +95,8 @@ abstract class AType {
         (t) => t is TypeParameterAType && !scope.contains(t.parameter));
   }
 
+  void print(Printer printer);
+
   static bool listContainsAny(
       Iterable<AType> types, bool predicate(AType type)) {
     return types.any((t) => t.containsAny(predicate));
@@ -144,6 +147,29 @@ class InterfaceAType extends AType {
         typeArguments.isEmpty ? '' : '<${typeArguments.join(',')}>';
     var value = source.value;
     return '$classNode($value)$typeArgumentPart';
+  }
+
+  void print(Printer printer) {
+    Value value = source.value;
+    value.print(printer);
+    if (value.baseClass != classNode) {
+      printer.writeSymbol('&');
+      printer.writeClassReference(classNode);
+    }
+    if (typeArguments.isNotEmpty) {
+      printer.writeSymbol('<');
+      printer.writeList(typeArguments, (AType bound) {
+        bound.print(printer);
+        var sink = bound.sink;
+        if (sink is Key) {
+          printer.writeSymbol('/');
+          if (!sink.value.isBottom(Flags.valueFlags)) {
+            sink.value.print(printer);
+          }
+        }
+      });
+      printer.writeSymbol('>');
+    }
   }
 }
 
@@ -245,6 +271,14 @@ class FunctionAType extends AType {
         namedParameters,
         returnType);
   }
+
+  void print(Printer printer) {
+    Value value = source.value;
+    if (value.canBeNull) {
+      printer.write('?');
+    }
+    printer.write('<Function>'); // TODO
+  }
 }
 
 class FunctionTypeParameterAType extends AType {
@@ -263,6 +297,10 @@ class FunctionTypeParameterAType extends AType {
 
   AType withSource(ValueSource source) {
     return new FunctionTypeParameterAType(source, sink, index);
+  }
+
+  void print(Printer printer) {
+    printer.writeWord('FunctionTypeParameter($index)');
   }
 }
 
@@ -286,6 +324,10 @@ class BottomAType extends AType {
   AType withSource(ValueSource source) {
     return new BottomAType(source, sink);
   }
+
+  void print(Printer printer) {
+    source.value.print(printer);
+  }
 }
 
 class TypeParameterAType extends AType {
@@ -308,5 +350,12 @@ class TypeParameterAType extends AType {
 
   AType withSource(ValueSource source) {
     return new TypeParameterAType(source, sink, parameter);
+  }
+
+  void print(Printer printer) {
+    printer.writeTypeParameterReference(parameter);
+    if (source.value.canBeNull) {
+      printer.write('?');
+    }
   }
 }

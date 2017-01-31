@@ -60,7 +60,6 @@ import 'transformations/flags.dart';
 import 'text/ast_to_text.dart';
 import 'type_algebra.dart';
 import 'type_environment.dart';
-import 'package:path/path.dart' as pathlib;
 
 /// Any type of node in the IR.
 abstract class Node {
@@ -1244,6 +1243,9 @@ enum AsyncMarker {
 // ------------------------------------------------------------------------
 
 abstract class Expression extends TreeNode {
+  /// Index of the abstract value inferred for this expression.
+  int inferredValueIndex = -1;
+
   /// Returns the static type of the expression.
   ///
   /// Should only be used on code compiled in strong mode, as this method
@@ -3578,10 +3580,6 @@ class Location {
   Location(this.file, this.line, this.column);
 
   String toString() => '$file:$line:$column';
-
-  String get brief {
-    return '${pathlib.basename(file)}:$line:$column';
-  }
 }
 
 // ------------------------------------------------------------------------
