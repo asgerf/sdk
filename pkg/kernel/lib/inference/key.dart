@@ -17,9 +17,6 @@ abstract class ValueSource {
   bool isBottom(int mask);
 
   Value get value;
-
-  ValueSource join(ValueSource other) =>
-      new ValueSourceWithNullability(this, other);
 }
 
 class ValueSourceWithNullability extends ValueSource {

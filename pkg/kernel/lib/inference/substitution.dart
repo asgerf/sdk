@@ -33,13 +33,11 @@ abstract class Substitution {
   static const Substitution empty = EmptySubstitution.instance;
 
   static Substitution fromSupertype(ASupertype type) {
-    if (type.typeArguments.isEmpty) return empty;
-    return new SupertypeSubstitution(type);
+    return fromPairs(type.classNode.typeParameters, type.typeArguments);
   }
 
   static Substitution fromInterfaceType(InterfaceAType type) {
-    if (type.typeArguments.isEmpty) return empty;
-    return new InterfaceSubstitution(type);
+    return fromPairs(type.classNode.typeParameters, type.typeArguments);
   }
 
   static Substitution fromPairs(
@@ -95,51 +93,21 @@ class EmptySubstitution extends Substitution {
   }
 }
 
-class SupertypeSubstitution extends Substitution {
-  final ASupertype type;
-
-  SupertypeSubstitution(this.type);
-
-  AType getSubstitute(TypeParameterAType parameterType) {
-    var parameter = parameterType.parameter;
-    int index = type.classNode.typeParameters.indexOf(parameter);
-    if (index == -1) return null;
-    AType argument = type.typeArguments[index];
-    return argument.withSource(argument.source.join(parameterType.source));
-  }
-
-  AType getRawSubstitute(TypeParameter parameter) {
-    int index = type.classNode.typeParameters.indexOf(parameter);
-    if (index == -1) return null;
-    return type.typeArguments[index];
-  }
-}
-
-class InterfaceSubstitution extends Substitution {
-  final InterfaceAType type;
-
-  InterfaceSubstitution(this.type);
-
-  AType getSubstitute(TypeParameterAType parameterType) {
-    var parameter = parameterType.parameter;
-    int index = type.classNode.typeParameters.indexOf(parameter);
-    if (index == -1) return null;
-    AType argument = type.typeArguments[index];
-    return argument.withSource(argument.source.join(parameterType.source));
-  }
-
-  AType getRawSubstitute(TypeParameter parameter) {
-    int index = type.classNode.typeParameters.indexOf(parameter);
-    if (index == -1) return null;
-    return type.typeArguments[index];
-  }
-}
-
 class PairSubstitution extends Substitution {
   final List<TypeParameter> parameters;
   final List<AType> types;
 
   PairSubstitution(this.parameters, this.types);
+
+  AType getSubstitute(TypeParameterAType parameterType) {
+    var parameter = parameterType.parameter;
+    int index = parameters.indexOf(parameter);
+    if (index == -1) return null;
+    AType argument = types[index];
+    var source =
+        new ValueSourceWithNullability(argument.source, parameterType.source);
+    return argument.withSource(source);
+  }
 
   AType getRawSubstitute(TypeParameter parameter) {
     int index = parameters.indexOf(parameter);
