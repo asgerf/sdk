@@ -9,8 +9,6 @@ import 'key.dart';
 import 'package:kernel/inference/substitution.dart';
 import 'value.dart';
 
-const bool _showKeys = const bool.fromEnvironment('kernel.inference.showKeys');
-
 class ASupertype {
   final Class classNode;
   final List<AType> typeArguments;
@@ -54,11 +52,15 @@ abstract class AType {
     assert(sink != null);
   }
 
+  /// Generate constraints to ensure this type is more specific than
+  /// [supertype].
   void generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
     supertype.sink.generateAssignmentFrom(builder, this.source, Flags.all);
     _generateSubtypeConstraints(supertype, builder);
   }
 
+  /// Generate constraints to ensure this bound is more specific than
+  /// [superbound].
   void generateSubBoundConstraint(AType superbound, ConstraintBuilder builder) {
     if (superbound.source is Key) {
       Key superSource = superbound.source as Key;
