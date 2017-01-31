@@ -4,7 +4,6 @@
 library kernel.inference.key;
 
 import '../ast.dart';
-import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/inference/constraint_builder.dart';
 import 'package:kernel/inference/constraints.dart';
 import 'solver.dart';

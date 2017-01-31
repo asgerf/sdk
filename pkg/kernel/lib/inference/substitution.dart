@@ -5,7 +5,6 @@ library kernel.strong_inference.substitution;
 
 import '../ast.dart';
 import 'augmented_type.dart';
-import 'binding.dart';
 import 'package:kernel/inference/key.dart';
 import 'package:kernel/inference/value.dart';
 
