@@ -417,9 +417,9 @@ class Printer extends Visitor<Null> {
     }
   }
 
-  void writeAnnotatedType(DartType type, int offset) {
-    if (offset != null && offset > 0 && modifiers != null) {
-      AType augmented = modifiers.augmentType(type, offset);
+  void writeAnnotatedType(DartType type, IteratingAugmentor augmentor) {
+    if (augmentor != null) {
+      AType augmented = augmentor.augmentType(type);
       augmented.print(this);
     } else {
       writeType(type);
@@ -478,7 +478,10 @@ class Printer extends Visitor<Null> {
   }
 
   void writeFunction(FunctionNode function,
-      {name, List<Initializer> initializers, bool terminateLine: true}) {
+      {name,
+      List<Initializer> initializers,
+      bool terminateLine: true,
+      IteratingAugmentor augmentor}) {
     if (name is String) {
       writeWord(name);
     } else if (name is Name) {
@@ -489,7 +492,7 @@ class Printer extends Visitor<Null> {
     writeTypeParameterList(function.typeParameters);
     writeParameterList(function.positionalParameters, function.namedParameters,
         function.requiredParameterCount);
-    writeReturnType(function.returnType, -1);
+    writeReturnType(function.returnType, augmentor);
     if (initializers != null && initializers.isNotEmpty) {
       endLine();
       ++indentation;
@@ -570,10 +573,21 @@ class Printer extends Visitor<Null> {
     }
   }
 
-  void writeReturnType(DartType type, int offset) {
+  IteratingAugmentor getAugmentor(int offset) {
+    if (modifiers == null || offset == -1) return null;
+    return modifiers.getIteratingAugmentor(offset);
+  }
+
+  IteratingAugmentor getExpressionAugmentor(Expression node, int offset) {
+    if (modifiers == null) return null;
+    if (node.inferredValueIndex == -1) return null;
+    return modifiers.getIteratingAugmentor(node.inferredValueIndex + offset);
+  }
+
+  void writeReturnType(DartType type, IteratingAugmentor augmentor) {
     if (type == null) return;
     writeSpaced('→');
-    writeAnnotatedType(type, offset);
+    writeAnnotatedType(type, augmentor);
   }
 
   void writeTypeParameterList(List<TypeParameter> typeParameters) {
@@ -696,7 +710,7 @@ class Printer extends Visitor<Null> {
     }
     writeWord('field');
     writeSpace();
-    writeAnnotatedType(node.type, 0);
+    writeAnnotatedType(node.type, getAugmentor(0));
     writeName(getMemberName(node));
     if (node.initializer != null) {
       writeSpaced('=');
@@ -933,7 +947,8 @@ class Printer extends Visitor<Null> {
     }
     if (node.typeArgument != null) {
       writeSymbol('<');
-      writeType(node.typeArgument);
+      var iterator = getAugmentor(node.inferredTypeArgumentIndex);
+      writeAnnotatedType(node.typeArgument, iterator);
       writeSymbol('>');
     }
     writeSymbol('[');
@@ -948,7 +963,9 @@ class Printer extends Visitor<Null> {
     }
     if (node.keyType != null) {
       writeSymbol('<');
-      writeList([node.keyType, node.valueType], writeType);
+      var iterator = getAugmentor(node.inferredTypeArgumentIndex);
+      writeList([node.keyType, node.valueType],
+          (t) => writeAnnotatedType(t, iterator));
       writeSymbol('>');
     }
     writeSymbol('{');
@@ -1318,7 +1335,7 @@ class Printer extends Visitor<Null> {
     writeModifier(node.isFinal, 'final');
     writeModifier(node.isConst, 'const');
     if (node.type != null) {
-      writeAnnotatedType(node.type, node.inferredValueOffset);
+      writeAnnotatedType(node.type, getAugmentor(node.inferredValueOffset));
     }
     if (useVarKeyword && !node.isFinal && !node.isConst && node.type == null) {
       writeWord('var');

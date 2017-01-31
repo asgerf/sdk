@@ -246,7 +246,21 @@ class TypeCheckingVisitor
     checker.fail(node, message);
   }
 
-  AType visitExpression(Expression node) => node.accept(this);
+  AType visitExpression(Expression node) {
+    var type = node.accept(this);
+    var source = type.source;
+    if (source is Key) {
+      if (source.owner != modifiers.classOrMember) {
+        var newKey = modifiers.newModifier();
+        newKey.generateAssignmentFrom(builder, source, Flags.all);
+        type = type.withSource(newKey);
+        node.inferredValueIndex = newKey.index;
+      } else {
+        node.inferredValueIndex = source.index;
+      }
+    }
+    return type;
+  }
 
   void visitStatement(Statement node) {
     node.accept(this);
@@ -669,6 +683,7 @@ class TypeCheckingVisitor
 
   @override
   AType visitListLiteral(ListLiteral node) {
+    node.inferredTypeArgumentIndex = modifiers.nextIndex;
     var typeArgument = modifiers.augmentType(node.typeArgument);
     for (var item in node.expressions) {
       checkAssignableExpression(item, typeArgument);
@@ -692,6 +707,7 @@ class TypeCheckingVisitor
 
   @override
   AType visitMapLiteral(MapLiteral node) {
+    node.inferredTypeArgumentIndex = modifiers.nextIndex;
     var keyType = modifiers.augmentType(node.keyType);
     var valueType = modifiers.augmentType(node.valueType);
     for (var entry in node.entries) {

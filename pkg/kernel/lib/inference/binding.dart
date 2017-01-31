@@ -24,10 +24,7 @@ class Binding {
     } else {
       var modifiers = new FunctionMemberBank(member, coreTypes);
       var function = member.function;
-      var t = modifiers.type = modifiers.augmentType(function.functionType);
-      if (member.enclosingLibrary.importUri.scheme != 'dart') {
-        print('Type of $member is $t (${function.functionType})');
-      }
+      modifiers.type = modifiers.augmentType(function.functionType);
       return modifiers;
     }
   }
@@ -102,6 +99,10 @@ abstract class ModifierBank {
     return modifier;
   }
 
+  IteratingAugmentor getIteratingAugmentor(int offset) {
+    return new TypeAugmentor(coreTypes, this, offset);
+  }
+
   AType augmentBound(DartType type, [int offset]) {
     return new TypeAugmentor(coreTypes, this, offset).makeBound(type);
   }
@@ -162,7 +163,12 @@ class ClassBank extends ModifierBank {
   Class get classOrMember => classNode;
 }
 
-class TypeAugmentor extends DartTypeVisitor<AType> {
+abstract class IteratingAugmentor {
+  AType augmentType(DartType type);
+}
+
+class TypeAugmentor extends DartTypeVisitor<AType>
+    implements IteratingAugmentor {
   final CoreTypes coreTypes;
   final ModifierBank modifiers;
   final List<List<TypeParameter>> innerTypeParameters = <List<TypeParameter>>[];
@@ -170,6 +176,8 @@ class TypeAugmentor extends DartTypeVisitor<AType> {
   int index;
 
   TypeAugmentor(this.coreTypes, this.modifiers, this.index);
+
+  AType augmentType(DartType type) => makeType(type);
 
   Key nextModifier() {
     if (index == null) {

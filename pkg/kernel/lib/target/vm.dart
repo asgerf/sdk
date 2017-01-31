@@ -64,8 +64,8 @@ class VmTarget extends Target {
     if (strongMode) {
       new InsertTypeChecks(hierarchy: hierarchy, coreTypes: coreTypes)
           .transformProgram(program);
-      new InsertCovarianceChecks(hierarchy: hierarchy, coreTypes: coreTypes)
-          .transformProgram(program);
+      // new InsertCovarianceChecks(hierarchy: hierarchy, coreTypes: coreTypes)
+      //     .transformProgram(program);
     }
 
     new TreeShaker(program,

@@ -2263,6 +2263,7 @@ class Throw extends Expression {
 
 class ListLiteral extends Expression {
   bool isConst;
+  int inferredTypeArgumentIndex = -1;
   DartType typeArgument; // Not null, defaults to DynamicType.
   final List<Expression> expressions;
 
@@ -2291,6 +2292,7 @@ class ListLiteral extends Expression {
 
 class MapLiteral extends Expression {
   bool isConst;
+  int inferredTypeArgumentIndex = -1;
   DartType keyType; // Not null, defaults to DynamicType.
   DartType valueType; // Not null, defaults to DynamicType.
   final List<MapEntry> entries;
