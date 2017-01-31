@@ -52,14 +52,19 @@ abstract class AType {
     assert(sink != null);
   }
 
-  /// Generate constraints to ensure this type is more specific than
+  AType substitute(Substitution substitution);
+
+  /// Returns a copy of this type with its value source replaced.
+  AType withSource(ValueSource source);
+
+  /// Generates constraints to ensure this type is more specific than
   /// [supertype].
   void generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
     supertype.sink.generateAssignmentFrom(builder, this.source, Flags.all);
-    _generateSubtypeConstraints(supertype, builder);
+    _generateSubtypeConstraintsForSubterms(supertype, builder);
   }
 
-  /// Generate constraints to ensure this bound is more specific than
+  /// Generates constraints to ensure this bound is more specific than
   /// [superbound].
   void generateSubBoundConstraint(AType superbound, ConstraintBuilder builder) {
     if (superbound.source is Key) {
@@ -70,16 +75,20 @@ abstract class AType {
       Key superSink = superbound.sink as Key;
       this.sink.generateAssignmentFrom(builder, superSink, Flags.all);
     }
-    _generateSubtypeConstraints(superbound, builder);
+    _generateSubtypeConstraintsForSubterms(superbound, builder);
   }
 
-  void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder);
+  /// Generates subtyping constraints specific to a subclass.
+  void _generateSubtypeConstraintsForSubterms(
+      AType supertype, ConstraintBuilder builder);
 
+  /// True if this type or any of its subterms match [predicate].
   bool containsAny(bool predicate(AType type)) => predicate(this);
 
   bool get containsFunctionTypeParameter =>
       containsAny((t) => t is FunctionTypeParameterAType);
 
+  /// True if this contains no type parameters, other than those in [scope].
   bool isClosed([Iterable<TypeParameter> scope = const []]) {
     return !containsAny(
         (t) => t is TypeParameterAType && !scope.contains(t.parameter));
@@ -90,15 +99,11 @@ abstract class AType {
     return types.any((t) => t.containsAny(predicate));
   }
 
-  AType substitute(Substitution substitution);
-
   static List<AType> substituteList(
       List<AType> types, Substitution substitution) {
     if (types.isEmpty) return const <AType>[];
     return types.map((t) => t.substitute(substitution)).toList(growable: false);
   }
-
-  AType withSource(ValueSource source);
 }
 
 class InterfaceAType extends AType {
@@ -109,7 +114,8 @@ class InterfaceAType extends AType {
       ValueSource source, ValueSink sink, this.classNode, this.typeArguments)
       : super(source, sink);
 
-  void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
+  void _generateSubtypeConstraintsForSubterms(
+      AType supertype, ConstraintBuilder builder) {
     if (supertype is InterfaceAType) {
       var casted = builder.getTypeAsInstanceOf(this, supertype.classNode);
       if (casted == null) return;
@@ -161,7 +167,8 @@ class FunctionAType extends AType {
       : super(source, sink);
 
   @override
-  void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
+  void _generateSubtypeConstraintsForSubterms(
+      AType supertype, ConstraintBuilder builder) {
     if (supertype is FunctionAType) {
       for (int i = 0; i < typeParameters.length; ++i) {
         if (i < supertype.typeParameters.length) {
@@ -247,7 +254,7 @@ class FunctionTypeParameterAType extends AType {
       : super(source, sink);
 
   @override
-  void _generateSubtypeConstraints(
+  void _generateSubtypeConstraintsForSubterms(
       AType supertype, ConstraintBuilder builder) {}
 
   FunctionTypeParameterAType substitute(Substitution substitution) => this;
@@ -264,7 +271,7 @@ class BottomAType extends AType {
   BottomAType(ValueSource source, ValueSink sink) : super(source, sink);
 
   @override
-  void _generateSubtypeConstraints(
+  void _generateSubtypeConstraintsForSubterms(
       AType supertype, ConstraintBuilder builder) {}
 
   BottomAType substitute(Substitution substitution) => this;
@@ -288,7 +295,8 @@ class TypeParameterAType extends AType {
       : super(source, sink);
 
   @override
-  void _generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
+  void _generateSubtypeConstraintsForSubterms(
+      AType supertype, ConstraintBuilder builder) {
     // TODO: Use bound.
   }
 
