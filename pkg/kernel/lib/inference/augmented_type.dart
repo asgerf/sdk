@@ -53,6 +53,8 @@ abstract class AType {
     assert(sink != null);
   }
 
+  accept(ATypeVisitor visitor);
+
   AType substitute(Substitution substitution);
 
   /// Returns a copy of this type with its value source replaced.
@@ -116,6 +118,8 @@ class InterfaceAType extends AType {
   InterfaceAType(
       ValueSource source, ValueSink sink, this.classNode, this.typeArguments)
       : super(source, sink);
+
+  accept(ATypeVisitor visitor) => visitor.visitInterfaceAType(this);
 
   void _generateSubtypeConstraintsForSubterms(
       AType supertype, ConstraintBuilder builder) {
@@ -191,6 +195,8 @@ class FunctionAType extends AType {
       this.namedParameters,
       this.returnType)
       : super(source, sink);
+
+  accept(ATypeVisitor visitor) => visitor.visitFunctionAType(this);
 
   @override
   void _generateSubtypeConstraintsForSubterms(
@@ -287,6 +293,8 @@ class FunctionTypeParameterAType extends AType {
   FunctionTypeParameterAType(ValueSource source, ValueSink sink, this.index)
       : super(source, sink);
 
+  accept(ATypeVisitor visitor) => visitor.visitFunctionTypeParameterAType(this);
+
   @override
   void _generateSubtypeConstraintsForSubterms(
       AType supertype, ConstraintBuilder builder) {}
@@ -307,6 +315,8 @@ class FunctionTypeParameterAType extends AType {
 /// Potentially nullable or true bottom.
 class BottomAType extends AType {
   BottomAType(ValueSource source, ValueSink sink) : super(source, sink);
+
+  accept(ATypeVisitor visitor) => visitor.visitBottomAType(this);
 
   @override
   void _generateSubtypeConstraintsForSubterms(
@@ -336,6 +346,8 @@ class TypeParameterAType extends AType {
   TypeParameterAType(ValueSource source, ValueSink sink, this.parameter)
       : super(source, sink);
 
+  accept(ATypeVisitor visitor) => visitor.visitTypeParameterAType(this);
+
   @override
   void _generateSubtypeConstraintsForSubterms(
       AType supertype, ConstraintBuilder builder) {
@@ -358,4 +370,12 @@ class TypeParameterAType extends AType {
       printer.write('?');
     }
   }
+}
+
+abstract class ATypeVisitor {
+  visitInterfaceAType(InterfaceAType type);
+  visitFunctionAType(FunctionAType type);
+  visitFunctionTypeParameterAType(FunctionTypeParameterAType type);
+  visitBottomAType(BottomAType type);
+  visitTypeParameterAType(TypeParameterAType type);
 }

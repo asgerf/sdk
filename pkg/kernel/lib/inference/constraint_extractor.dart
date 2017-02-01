@@ -34,6 +34,14 @@ class ConstraintExtractor {
   AType typeType;
   AType topType;
 
+  Value nullableIntValue;
+  Value nullableDoubleValue;
+  Value nullableNumValue;
+  Value nullableStringValue;
+  Value nullableBoolValue;
+  Value nullValue;
+  Value escapingValue;
+
   AugmentedTypeAnnotator annotator;
 
   void checkProgram(Program program) {
@@ -72,6 +80,18 @@ class ConstraintExtractor {
         coreTypes.symbolClass, const <AType>[]);
     typeType = new InterfaceAType(new Value(coreTypes.typeClass, Flags.other),
         ValueSink.nowhere, coreTypes.typeClass, const <AType>[]);
+    nullableIntValue =
+        new Value(coreTypes.intClass, Flags.null_ | Flags.integer);
+    nullableDoubleValue =
+        new Value(coreTypes.doubleClass, Flags.null_ | Flags.double_);
+    nullableNumValue = new Value(coreTypes.numClass,
+        Flags.null_ | Flags.integer | Flags.double_ | Flags.inexactBaseClass);
+    nullableStringValue =
+        new Value(coreTypes.stringClass, Flags.null_ | Flags.string);
+    nullableBoolValue =
+        new Value(coreTypes.boolClass, Flags.null_ | Flags.boolean);
+    nullValue = new Value(null, Flags.null_);
+    escapingValue = new Value(null, Flags.escaping);
     for (var library in program.libraries) {
       if (library.importUri.scheme == 'dart') continue;
       for (var class_ in library.classes) {
@@ -83,26 +103,26 @@ class ConstraintExtractor {
     }
 
     for (var library in program.libraries) {
-      if (library.importUri.scheme == 'dart') continue;
+      bool isUncheckedLibrary = library.importUri.scheme == 'dart';
       for (var class_ in library.classes) {
         for (var member in class_.members) {
-          analyzeMember(member);
+          analyzeMember(member, isUncheckedLibrary);
         }
       }
       for (var procedure in library.procedures) {
-        analyzeMember(procedure);
+        analyzeMember(procedure, isUncheckedLibrary);
       }
       for (var field in library.fields) {
-        analyzeMember(field);
+        analyzeMember(field, isUncheckedLibrary);
       }
     }
   }
 
-  void analyzeMember(Member member) {
+  void analyzeMember(Member member, bool isUncheckedLibrary) {
     var class_ = member.enclosingClass;
     var classBank = class_ == null ? null : binding.getClassBank(class_);
-    var visitor = new TypeCheckingVisitor(
-        this, member, binding.getMemberBank(member), classBank);
+    var visitor = new TypeCheckingVisitor(this, member,
+        binding.getMemberBank(member), classBank, isUncheckedLibrary);
     visitor.analyzeMember();
   }
 
@@ -147,6 +167,16 @@ class ConstraintExtractor {
   /// Indicates that type checking failed.
   void fail(TreeNode where, String message) {
     print('$where: $message');
+  }
+
+  Value getWorstCaseType(Class classNode) {
+    if (classNode == coreTypes.intClass) return nullableIntValue;
+    if (classNode == coreTypes.doubleClass) return nullableDoubleValue;
+    if (classNode == coreTypes.numClass) return nullableNumValue;
+    if (classNode == coreTypes.stringClass) return nullableStringValue;
+    if (classNode == coreTypes.boolClass) return nullableBoolValue;
+    if (classNode == coreTypes.nullClass) return nullValue;
+    return new Value(coreTypes.objectClass, Flags.all);
   }
 
   final List<Function> analysisCompleteHooks = <Function>[];
@@ -222,9 +252,10 @@ class TypeCheckingVisitor
   AsyncMarker currentAsyncMarker;
 
   final LocalScope scope = new LocalScope();
+  final bool isUncheckedLibrary;
 
-  TypeCheckingVisitor(
-      this.checker, this.currentMember, this.modifiers, this.classModifiers);
+  TypeCheckingVisitor(this.checker, this.currentMember, this.modifiers,
+      this.classModifiers, this.isUncheckedLibrary);
 
   void checkTypeBound(TreeNode where, AType type, AType bound) {
     type.generateSubBoundConstraint(bound, builder);
@@ -315,8 +346,11 @@ class TypeCheckingVisitor
   visitField(Field node) {
     FieldBank modifiers = this.modifiers;
     var fieldType = thisSubstitution.substituteType(modifiers.type);
-    if (node.initializer != null) {
+    if (node.initializer != null && !isUncheckedLibrary) {
       checkAssignableExpression(node.initializer, fieldType);
+    }
+    if (node.isExternal || isUncheckedLibrary) {
+      modifiers.type.accept(new ExternalVisitor(checker, true, !node.isFinal));
     }
   }
 
@@ -325,7 +359,12 @@ class TypeCheckingVisitor
     yieldType = null;
     recordParameterTypes(modifiers, node.function);
     node.initializers.forEach(visitInitializer);
-    handleFunctionBody(node.function);
+    if (!isUncheckedLibrary) {
+      handleFunctionBody(node.function);
+    }
+    if (node.isExternal || isUncheckedLibrary) {
+      modifiers.type.accept(new ExternalVisitor(checker, true, false));
+    }
   }
 
   visitProcedure(Procedure node) {
@@ -334,7 +373,12 @@ class TypeCheckingVisitor
     returnType = _getInternalReturnType(node.function.asyncMarker, ret);
     yieldType = _getYieldType(node.function.asyncMarker, ret);
     recordParameterTypes(modifiers, node.function);
-    handleFunctionBody(node.function);
+    if (!isUncheckedLibrary) {
+      handleFunctionBody(node.function);
+    }
+    if (node.isExternal || isUncheckedLibrary) {
+      modifiers.type.accept(new ExternalVisitor(checker, true, false));
+    }
   }
 
   void recordClassTypeParameterBounds() {
@@ -1233,4 +1277,68 @@ class AugmentedTypeAnnotator implements Annotator {
       type.print(printer);
     }
   }
+}
+
+class ExternalVisitor extends ATypeVisitor {
+  final ConstraintExtractor extractor;
+  final bool covariant, contravariant;
+
+  CoreTypes get coreTypes => extractor.coreTypes;
+  ConstraintBuilder get builder => extractor.builder;
+
+  ExternalVisitor(this.extractor, this.covariant, this.contravariant);
+
+  ExternalVisitor get inverseVisitor {
+    return new ExternalVisitor(extractor, contravariant, covariant);
+  }
+
+  ExternalVisitor get bivariantVisitor {
+    return new ExternalVisitor(extractor, true, true);
+  }
+
+  void visit(AType type) => type.accept(this);
+  void visitBound(AType type) => type.accept(bivariantVisitor);
+  void visitInverse(AType type) => type.accept(inverseVisitor);
+
+  @override
+  visitBottomAType(BottomAType type) {}
+
+  @override
+  visitFunctionAType(FunctionAType type) {
+    var source = type.source;
+    if (covariant && source is Key) {
+      source.generateAssignmentFrom(
+          builder, new Value(coreTypes.objectClass, Flags.other), Flags.all);
+    }
+    var sink = type.sink;
+    if (contravariant && sink is Key) {
+      sink.generateAssignmentFrom(
+          builder, extractor.escapingValue, Flags.escaping);
+    }
+    type.typeParameters.forEach(visitBound);
+    type.positionalParameters.forEach(visitInverse);
+    type.namedParameters.forEach(visitInverse);
+    visit(type.returnType);
+  }
+
+  @override
+  visitFunctionTypeParameterAType(FunctionTypeParameterAType type) {}
+
+  @override
+  visitInterfaceAType(InterfaceAType type) {
+    var source = type.source;
+    if (covariant && source is Key) {
+      source.generateAssignmentFrom(builder,
+          extractor.getWorstCaseType(type.classNode), Flags.valueFlags);
+    }
+    var sink = type.sink;
+    if (contravariant && sink is Key) {
+      sink.generateAssignmentFrom(
+          builder, extractor.escapingValue, Flags.escaping);
+    }
+    type.typeArguments.forEach(visitBound);
+  }
+
+  @override
+  visitTypeParameterAType(TypeParameterAType type) {}
 }
