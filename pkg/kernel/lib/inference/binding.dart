@@ -253,6 +253,8 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
         return new FunctionTypeParameterAType(source, sink, index);
       }
     }
+    source.isNullabilityKey = true;
+    sink.isNullabilityKey = true;
     return new TypeParameterAType(source, sink, node.parameter);
   }
 }

@@ -70,6 +70,8 @@ class Key extends ValueSource implements ValueSink {
   final TreeNode owner; // Class or Member
   final int index;
 
+  bool isNullabilityKey = false;
+
   // Used by solver
   Value value = new Value(null, Flags.none);
   WorkItem forward, backward;

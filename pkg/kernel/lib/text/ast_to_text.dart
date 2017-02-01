@@ -8,6 +8,7 @@ import '../import_table.dart';
 import '../type_propagation/type_propagation.dart';
 import 'package:kernel/inference/augmented_type.dart';
 import 'package:kernel/inference/binding.dart';
+import 'package:kernel/inference/key.dart';
 
 class Namer<T> {
   int index = 0;
@@ -417,10 +418,25 @@ class Printer extends Visitor<Null> {
     }
   }
 
+  void writeBound(DartType type, [Augmentor augmentor]) {
+    if (augmentor != null) {
+      AType augmented = augmentor.augmentType(type);
+      augmented.writeTo(this);
+      writeSymbol('/');
+      if (augmented.sink is Key) {
+        Key key = augmented.sink;
+        key.value.print(this);
+      }
+    } else {
+      type.accept(this);
+    }
+    state = WORD;
+  }
+
   void writeType(DartType type, [Augmentor augmentor]) {
     if (augmentor != null) {
       AType augmented = augmentor.augmentType(type);
-      augmented.print(this);
+      augmented.writeTo(this);
     } else {
       type.accept(this);
     }
@@ -1478,7 +1494,7 @@ class Printer extends Visitor<Null> {
   writeTypeParameter(TypeParameter node, Augmentor augmentor) {
     writeWord(getTypeParameterName(node));
     writeSpaced('extends');
-    writeType(node.bound, augmentor);
+    writeBound(node.bound, augmentor);
   }
 
   defaultNode(Node node) {

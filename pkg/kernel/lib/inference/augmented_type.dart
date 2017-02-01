@@ -97,7 +97,7 @@ abstract class AType {
         (t) => t is TypeParameterAType && !scope.contains(t.parameter));
   }
 
-  void print(Printer printer);
+  void writeTo(Printer printer);
 
   static bool listContainsAny(
       Iterable<AType> types, bool predicate(AType type)) {
@@ -153,7 +153,7 @@ class InterfaceAType extends AType {
     return '$classNode($value)$typeArgumentPart';
   }
 
-  void print(Printer printer) {
+  void writeTo(Printer printer) {
     Value value = source.value;
     value.print(printer);
     if (value.baseClass != classNode) {
@@ -163,7 +163,7 @@ class InterfaceAType extends AType {
     if (typeArguments.isNotEmpty) {
       printer.writeSymbol('<');
       printer.writeList(typeArguments, (AType bound) {
-        bound.print(printer);
+        bound.writeTo(printer);
         var sink = bound.sink;
         if (sink is Key) {
           printer.writeSymbol('/');
@@ -278,7 +278,7 @@ class FunctionAType extends AType {
         returnType);
   }
 
-  void print(Printer printer) {
+  void writeTo(Printer printer) {
     Value value = source.value;
     if (value.canBeNull) {
       printer.write('?');
@@ -307,7 +307,7 @@ class FunctionTypeParameterAType extends AType {
     return new FunctionTypeParameterAType(source, sink, index);
   }
 
-  void print(Printer printer) {
+  void writeTo(Printer printer) {
     printer.writeWord('FunctionTypeParameter($index)');
   }
 }
@@ -335,7 +335,7 @@ class BottomAType extends AType {
     return new BottomAType(source, sink);
   }
 
-  void print(Printer printer) {
+  void writeTo(Printer printer) {
     source.value.print(printer);
   }
 }
@@ -358,13 +358,13 @@ class TypeParameterAType extends AType {
     return substitution.getSubstitute(this);
   }
 
-  String toString() => '$parameter${source.value}';
+  String toString() => '$parameter(${source}=${source.value})';
 
-  AType withSource(ValueSource source) {
-    return new TypeParameterAType(source, sink, parameter);
+  AType withSource(ValueSource newSource) {
+    return new TypeParameterAType(newSource, sink, parameter);
   }
 
-  void print(Printer printer) {
+  void writeTo(Printer printer) {
     printer.writeTypeParameterReference(parameter);
     if (source.value.canBeNull) {
       printer.write('?');

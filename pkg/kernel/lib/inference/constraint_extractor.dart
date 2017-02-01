@@ -338,6 +338,8 @@ class TypeCheckingVisitor
     } else {
       thisSubstitution = Substitution.empty;
     }
+    thisSubstitution = Substitution.empty;
+
     recordClassTypeParameterBounds();
     currentMember.accept(this);
   }
@@ -1260,14 +1262,14 @@ class AugmentedTypeAnnotator implements Annotator {
 
   @override
   void annotateField(Printer printer, Field node) {
-    binding.getFieldType(node).print(printer);
+    binding.getFieldType(node).writeTo(printer);
   }
 
   @override
   void annotateReturn(Printer printer, FunctionNode node) {
     var parent = node.parent;
     if (parent is Member) {
-      binding.getFunctionBank(parent).type.returnType.print(printer);
+      binding.getFunctionBank(parent).type.returnType.writeTo(printer);
     } else {
       printer.write('<?>');
     }
@@ -1279,7 +1281,7 @@ class AugmentedTypeAnnotator implements Annotator {
     if (type == null) {
       printer.write('<?>');
     } else {
-      type.print(printer);
+      type.writeTo(printer);
     }
   }
 }

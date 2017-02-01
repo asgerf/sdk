@@ -56,13 +56,13 @@ class ConstraintSolver {
 
   /// Update [subtype] to contain the escape information of [supertype].
   Value mergeBackward(Value subtype, Value supertype) {
-    int oldFlags = supertype.flags;
-    int inputFlags = subtype.flags & Flags.backward;
+    int oldFlags = subtype.flags;
+    int inputFlags = supertype.flags & Flags.backward;
     int newFlags = oldFlags | inputFlags;
     if (newFlags != oldFlags) {
-      return new Value(supertype.baseClass, newFlags);
+      return new Value(subtype.baseClass, newFlags);
     }
-    return supertype;
+    return subtype;
   }
 
   void propagateForward(Value subtype, Key supertype) {
