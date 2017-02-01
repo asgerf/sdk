@@ -252,7 +252,7 @@ class LocalScope extends TypeParameterScope {
 class TypeCheckingVisitor
     implements
         ExpressionVisitor<AType>,
-        StatementVisitor<Null>,
+        StatementVisitor<bool>,
         MemberVisitor<Null>,
         InitializerVisitor<Null> {
   final ConstraintExtractor checker;
@@ -320,8 +320,9 @@ class TypeCheckingVisitor
     return type;
   }
 
-  void visitStatement(Statement node) {
-    node.accept(this);
+  /// Returns false if the statement cannot complete normally.
+  bool visitStatement(Statement node) {
+    return node.accept(this);
   }
 
   void visitInitializer(Initializer node) {
@@ -446,7 +447,11 @@ class TypeCheckingVisitor
         .forEach(handleOptionalParameter);
     node.namedParameters.forEach(handleOptionalParameter);
     if (node.body != null) {
-      visitStatement(node.body);
+      bool completes = visitStatement(node.body);
+      if (completes && returnType != null) {
+        returnType.sink
+            .generateAssignmentFrom(builder, checker.nullValue, Flags.null_);
+      }
     }
     currentAsyncMarker = oldAsyncMarker;
   }
@@ -1068,40 +1073,56 @@ class TypeCheckingVisitor
   }
 
   @override
-  visitAssertStatement(AssertStatement node) {
+  bool visitAssertStatement(AssertStatement node) {
     visitExpression(node.condition);
     if (node.message != null) {
       visitExpression(node.message);
     }
+    return true;
   }
 
   @override
-  visitBlock(Block node) {
-    node.statements.forEach(visitStatement);
+  bool visitBlock(Block node) {
+    for (var statement in node.statements) {
+      if (!visitStatement(statement)) return false;
+    }
+    return true;
   }
 
   @override
-  visitBreakStatement(BreakStatement node) {}
+  bool visitBreakStatement(BreakStatement node) {
+    return false;
+  }
 
   @override
-  visitContinueSwitchStatement(ContinueSwitchStatement node) {}
+  bool visitContinueSwitchStatement(ContinueSwitchStatement node) {
+    return false;
+  }
+
+  bool isTrueConstant(Expression node) {
+    return node is BoolLiteral && node.value == true;
+  }
 
   @override
-  visitDoStatement(DoStatement node) {
-    visitStatement(node.body);
+  bool visitDoStatement(DoStatement node) {
+    var bodyCompletes = visitStatement(node.body);
     checkConditionExpression(node.condition);
+    return bodyCompletes && !isTrueConstant(node.condition);
   }
 
   @override
-  visitEmptyStatement(EmptyStatement node) {}
+  bool visitEmptyStatement(EmptyStatement node) {
+    return true;
+  }
 
   @override
-  visitExpressionStatement(ExpressionStatement node) {
+  bool visitExpressionStatement(ExpressionStatement node) {
     visitExpression(node.expression);
+    return node.expression is! Throw && node.expression is! Rethrow;
   }
 
   @override
-  visitForInStatement(ForInStatement node) {
+  bool visitForInStatement(ForInStatement node) {
     scope.variables[node.variable] = modifiers.augmentType(node.variable.type);
     var iterable = visitExpression(node.iterable);
     // TODO(asgerf): Store interface targets on for-in loops or desugar them,
@@ -1114,6 +1135,7 @@ class TypeCheckingVisitor
           getVariableType(node.variable));
     }
     visitStatement(node.body);
+    return true;
   }
 
   static final Name iteratorName = new Name('iterator');
@@ -1153,39 +1175,44 @@ class TypeCheckingVisitor
   }
 
   @override
-  visitForStatement(ForStatement node) {
+  bool visitForStatement(ForStatement node) {
     node.variables.forEach(visitVariableDeclaration);
     if (node.condition != null) {
       checkConditionExpression(node.condition);
     }
     node.updates.forEach(visitExpression);
     visitStatement(node.body);
+    return !isTrueConstant(node.condition);
   }
 
   @override
-  visitFunctionDeclaration(FunctionDeclaration node) {
+  bool visitFunctionDeclaration(FunctionDeclaration node) {
     handleNestedFunctionNode(node.function, node.variable);
+    return true;
   }
 
   @override
-  visitIfStatement(IfStatement node) {
+  bool visitIfStatement(IfStatement node) {
     checkConditionExpression(node.condition);
-    visitStatement(node.then);
-    if (node.otherwise != null) {
-      visitStatement(node.otherwise);
-    }
+    bool thenCompletes = visitStatement(node.then);
+    bool elseCompletes =
+        (node.otherwise != null) ? visitStatement(node.otherwise) : false;
+    return thenCompletes || elseCompletes;
   }
 
   @override
-  visitInvalidStatement(InvalidStatement node) {}
+  bool visitInvalidStatement(InvalidStatement node) {
+    return false;
+  }
 
   @override
-  visitLabeledStatement(LabeledStatement node) {
+  bool visitLabeledStatement(LabeledStatement node) {
     visitStatement(node.body);
+    return true;
   }
 
   @override
-  visitReturnStatement(ReturnStatement node) {
+  bool visitReturnStatement(ReturnStatement node) {
     if (node.expression != null) {
       if (returnType == null) {
         fail(node, 'Return of a value from void method');
@@ -1197,38 +1224,46 @@ class TypeCheckingVisitor
         checkAssignable(node.expression, type, returnType);
       }
     }
+    return false;
   }
 
   @override
-  visitSwitchStatement(SwitchStatement node) {
+  bool visitSwitchStatement(SwitchStatement node) {
     visitExpression(node.expression);
     for (var switchCase in node.cases) {
       switchCase.expressions.forEach(visitExpression);
       visitStatement(switchCase.body);
     }
+    return false; // Must break out from an enclosing labeled statement.
   }
 
   @override
-  visitTryCatch(TryCatch node) {
-    visitStatement(node.body);
+  bool visitTryCatch(TryCatch node) {
+    bool bodyCompletes = visitStatement(node.body);
+    bool catchCompletes = false;
     for (var catchClause in node.catches) {
       // TODO: Set precise types on catch parameters
       scope.variables[catchClause.exception] = checker.topType;
       if (catchClause.stackTrace != null) {
         scope.variables[catchClause.stackTrace] = checker.topType;
       }
-      visitStatement(catchClause.body);
+      bool completes = visitStatement(catchClause.body);
+      if (completes) {
+        catchCompletes = true;
+      }
     }
+    return bodyCompletes || catchCompletes;
   }
 
   @override
-  visitTryFinally(TryFinally node) {
-    visitStatement(node.body);
-    visitStatement(node.finalizer);
+  bool visitTryFinally(TryFinally node) {
+    bool bodyCompletes = visitStatement(node.body);
+    bool finalizerCompletes = visitStatement(node.finalizer);
+    return bodyCompletes && finalizerCompletes;
   }
 
   @override
-  visitVariableDeclaration(VariableDeclaration node) {
+  bool visitVariableDeclaration(VariableDeclaration node) {
     assert(!scope.variables.containsKey(node));
     node.inferredValueOffset = modifiers.nextIndex;
     var type = scope.variables[node] = modifiers.augmentType(node.type);
@@ -1236,16 +1271,18 @@ class TypeCheckingVisitor
       checkAssignableExpression(node.initializer, type);
     }
     checker.annotator.variableTypes[node] = type;
+    return true;
   }
 
   @override
-  visitWhileStatement(WhileStatement node) {
+  bool visitWhileStatement(WhileStatement node) {
     checkConditionExpression(node.condition);
     visitStatement(node.body);
+    return !isTrueConstant(node.condition);
   }
 
   @override
-  visitYieldStatement(YieldStatement node) {
+  bool visitYieldStatement(YieldStatement node) {
     if (node.isYieldStar) {
       Class container = currentAsyncMarker == AsyncMarker.AsyncStar
           ? coreTypes.streamClass
@@ -1263,6 +1300,7 @@ class TypeCheckingVisitor
     } else {
       checkAssignableExpression(node.expression, yieldType);
     }
+    return true;
   }
 
   @override
