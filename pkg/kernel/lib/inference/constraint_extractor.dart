@@ -119,6 +119,7 @@ class ConstraintExtractor {
   }
 
   void analyzeMember(Member member, bool isUncheckedLibrary) {
+    builder.currentOwner = member;
     var class_ = member.enclosingClass;
     var classBank = class_ == null ? null : binding.getClassBank(class_);
     var visitor = new TypeCheckingVisitor(this, member,
@@ -520,13 +521,19 @@ class TypeCheckingVisitor
     }
     FunctionMemberBank target = binding.getFunctionBank(function.parent);
     var typeParameters = function.typeParameters;
-    var typeArguments =
-        modifiers.augmentTypeList(arguments.types).toList(growable: false);
-    if (typeArguments.length != typeParameters.length) {
-      fail(arguments, 'Wrong number of type arguments');
-      return BottomAType.nonNullable;
+    Substitution instantiation = Substitution.empty;
+    List<AType> typeArguments = const [];
+    if (member is! Constructor) {
+      typeArguments =
+          modifiers.augmentTypeList(arguments.types).toList(growable: false);
+      if (typeArguments.length != typeParameters.length) {
+        fail(arguments, 'Wrong number of type arguments');
+        return BottomAType.nonNullable;
+      }
+      instantiation = Substitution.fromPairs(typeParameters, typeArguments);
+    } else {
+      assert(typeParameters.isEmpty);
     }
-    var instantiation = Substitution.fromPairs(typeParameters, typeArguments);
     var substitution = Substitution.either(receiver, instantiation);
     for (int i = 0; i < typeParameters.length; ++i) {
       var argument = typeArguments[i];
@@ -536,8 +543,6 @@ class TypeCheckingVisitor
     for (int i = 0; i < arguments.positional.length; ++i) {
       var expectedType =
           substitution.substituteType(target.positionalParameters[i]);
-      print('${target.positionalParameters[i]} became $expectedType');
-      assert(!expectedType.containsFunctionTypeParameter);
       checkAssignableExpression(arguments.positional[i], expectedType);
     }
     for (int i = 0; i < arguments.named.length; ++i) {
@@ -655,9 +660,9 @@ class TypeCheckingVisitor
     Class class_ = target.enclosingClass;
     node.arguments.inferredTypeArgumentIndex = modifiers.nextIndex;
     var typeArguments = modifiers.augmentTypeList(arguments.types);
-    // Substitution substitution =
-    //     Substitution.fromPairs(class_.typeParameters, typeArguments);
-    handleCall(arguments, target);
+    Substitution substitution =
+        Substitution.fromPairs(class_.typeParameters, typeArguments);
+    handleCall(arguments, target, receiver: substitution);
     var modifier = modifiers.newModifier();
     builder.addConstraint(new ValueConstraint(
         modifier, new Value(class_, flagsFromExactClass(class_))));

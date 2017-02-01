@@ -164,6 +164,7 @@ class ClassBank extends ModifierBank {
 }
 
 abstract class Augmentor {
+  int index;
   AType augmentType(DartType type);
 }
 

@@ -4,10 +4,12 @@
 library kernel.inference.constraints;
 
 import 'key.dart';
+import 'package:kernel/ast.dart';
 import 'solver.dart';
 import 'value.dart';
 
 abstract class Constraint {
+  TreeNode owner;
   void transfer(ConstraintSolver solver);
   void register(ConstraintSolver solver);
 }

@@ -1,15 +1,9 @@
-import 'package:kernel/class_hierarchy.dart';
-import 'package:kernel/core_types.dart';
-import 'package:kernel/inference/binding.dart';
-import 'package:kernel/inference/constraint_builder.dart';
 import 'package:kernel/inference/constraint_extractor.dart';
-import 'package:kernel/inference/hierarchy.dart';
-import 'package:kernel/inference/key.dart';
 import 'package:kernel/inference/solver.dart';
 import 'package:kernel/kernel.dart';
 
 main(List<String> args) {
-  args = ['micro.dill'];
+  args = ['foo.dill'];
   var program = loadProgramFromBinary(args[0]);
   // var coreTypes = new CoreTypes(program);
   // var baseHierarchy = new ClassHierarchy(program);
@@ -19,7 +13,10 @@ main(List<String> args) {
   var extractor = new ConstraintExtractor()..checkProgram(program);
   var constraints = extractor.builder.constraints;
   print('Extracted ${constraints.length} constraints');
-  print(constraints.join('\n'));
+  print(constraints
+      .where((c) =>
+          (c.owner as Member)?.enclosingLibrary?.importUri?.scheme == 'file')
+      .join('\n'));
   var solver = new ConstraintSolver(extractor.baseHierarchy, constraints);
   solver.solve();
   print('-------');

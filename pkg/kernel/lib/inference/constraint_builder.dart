@@ -8,6 +8,7 @@ import 'package:kernel/inference/hierarchy.dart';
 class ConstraintBuilder {
   final List<Constraint> constraints = <Constraint>[];
   final AugmentedHierarchy hierarchy;
+  TreeNode currentOwner;
 
   ConstraintBuilder(this.hierarchy);
 
@@ -16,6 +17,6 @@ class ConstraintBuilder {
   }
 
   void addConstraint(Constraint constraint) {
-    constraints.add(constraint);
+    constraints.add(constraint..owner = currentOwner);
   }
 }
