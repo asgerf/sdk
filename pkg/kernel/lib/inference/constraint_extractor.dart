@@ -357,6 +357,7 @@ class TypeCheckingVisitor
   visitConstructor(Constructor node) {
     returnType = null;
     yieldType = null;
+    FunctionMemberBank modifiers = this.modifiers;
     recordParameterTypes(modifiers, node.function);
     node.initializers.forEach(visitInitializer);
     if (!isUncheckedLibrary) {
@@ -652,6 +653,7 @@ class TypeCheckingVisitor
     Constructor target = node.target;
     Arguments arguments = node.arguments;
     Class class_ = target.enclosingClass;
+    node.arguments.inferredTypeArgumentIndex = modifiers.nextIndex;
     var typeArguments = modifiers.augmentTypeList(arguments.types);
     // Substitution substitution =
     //     Substitution.fromPairs(class_.typeParameters, typeArguments);

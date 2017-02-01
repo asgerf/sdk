@@ -1692,6 +1692,8 @@ class Arguments extends TreeNode {
   final List<Expression> positional;
   final List<NamedExpression> named;
 
+  int inferredTypeArgumentIndex = -1;
+
   Arguments(this.positional,
       {List<DartType> types, List<NamedExpression> named})
       : this.types = types ?? <DartType>[],

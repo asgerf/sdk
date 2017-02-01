@@ -1351,8 +1351,9 @@ class Printer extends Visitor<Null> {
 
   visitArguments(Arguments node) {
     if (node.types.isNotEmpty) {
+      var augmentor = getAugmentor(node.inferredTypeArgumentIndex);
       writeSymbol('<');
-      writeList(node.types, writeType);
+      writeList(node.types, (t) => writeType(t, augmentor));
       writeSymbol('>');
     }
     writeSymbol('(');
