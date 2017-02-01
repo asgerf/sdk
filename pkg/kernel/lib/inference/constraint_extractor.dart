@@ -504,6 +504,10 @@ class TypeCheckingVisitor
     if (parameter.initializer != null) {
       checkAssignableExpression(
           parameter.initializer, getVariableType(parameter));
+    } else {
+      getVariableType(parameter)
+          .sink
+          .generateAssignmentFrom(builder, checker.nullValue, Flags.null_);
     }
   }
 
