@@ -417,38 +417,30 @@ class Printer extends Visitor<Null> {
     }
   }
 
-  void writeAnnotatedType(DartType type, IteratingAugmentor augmentor) {
+  void writeType(DartType type, [IteratingAugmentor augmentor]) {
     if (augmentor != null) {
       AType augmented = augmentor.augmentType(type);
       augmented.print(this);
     } else {
-      writeType(type);
+      type.accept(this);
     }
     state = WORD;
   }
 
-  void writeType(DartType type) {
-    if (type == null) {
-      print('<No DartType>');
-    } else {
-      type.accept(this);
-    }
-  }
-
-  void writeOptionalType(DartType type) {
+  void writeOptionalType(DartType type, IteratingAugmentor augmentor) {
     if (type != null) {
-      type.accept(this);
+      writeType(type, augmentor);
     }
   }
 
-  visitSupertype(Supertype type) {
+  visitSupertype(Supertype type, IteratingAugmentor augmentor) {
     if (type == null) {
       print('<No Supertype>');
     } else {
       writeClassReference(type.classNode);
       if (type.typeArguments.isNotEmpty) {
         writeSymbol('<');
-        writeList(type.typeArguments, writeType);
+        writeList(type.typeArguments, (t) => writeType(t, augmentor));
         writeSymbol('>');
       }
     }
@@ -489,9 +481,9 @@ class Printer extends Visitor<Null> {
     } else {
       assert(name == null);
     }
-    writeTypeParameterList(function.typeParameters);
+    writeTypeParameterList(function.typeParameters, augmentor);
     writeParameterList(function.positionalParameters, function.namedParameters,
-        function.requiredParameterCount);
+        function.requiredParameterCount, augmentor);
     writeReturnType(function.returnType, augmentor);
     if (initializers != null && initializers.isNotEmpty) {
       endLine();
@@ -587,29 +579,33 @@ class Printer extends Visitor<Null> {
   void writeReturnType(DartType type, IteratingAugmentor augmentor) {
     if (type == null) return;
     writeSpaced('→');
-    writeAnnotatedType(type, augmentor);
+    writeType(type, augmentor);
   }
 
-  void writeTypeParameterList(List<TypeParameter> typeParameters) {
+  void writeTypeParameterList(
+      List<TypeParameter> typeParameters, IteratingAugmentor augmentor) {
     if (typeParameters.isEmpty) return;
     writeSymbol('<');
-    writeList(typeParameters, writeNode);
+    writeList(typeParameters, (p) => writeTypeParameter(p, augmentor));
     writeSymbol('>');
     state = WORD; // Ensure space if not followed by another symbol.
   }
 
-  void writeParameterList(List<VariableDeclaration> positional,
-      List<VariableDeclaration> named, int requiredParameterCount) {
+  void writeParameterList(
+      List<VariableDeclaration> positional,
+      List<VariableDeclaration> named,
+      int requiredParameterCount,
+      IteratingAugmentor augmentor) {
     writeSymbol('(');
-    writeList(
-        positional.take(requiredParameterCount), writeVariableDeclaration);
+    writeList(positional.take(requiredParameterCount),
+        (v) => writeVariableDeclaration(v, augmentor: augmentor));
     if (requiredParameterCount < positional.length) {
       if (requiredParameterCount > 0) {
         writeComma();
       }
       writeSymbol('[');
-      writeList(
-          positional.skip(requiredParameterCount), writeVariableDeclaration);
+      writeList(positional.skip(requiredParameterCount),
+          (v) => writeVariableDeclaration(v, augmentor: augmentor));
       writeSymbol(']');
     }
     if (named.isNotEmpty) {
@@ -617,7 +613,8 @@ class Printer extends Visitor<Null> {
         writeComma();
       }
       writeSymbol('{');
-      writeList(named, writeVariableDeclaration);
+      writeList(
+          named, (v) => writeVariableDeclaration(v, augmentor: augmentor));
       writeSymbol('}');
     }
     writeSymbol(')');
@@ -710,7 +707,7 @@ class Printer extends Visitor<Null> {
     }
     writeWord('field');
     writeSpace();
-    writeAnnotatedType(node.type, getAugmentor(0));
+    writeType(node.type, getAugmentor(0));
     writeName(getMemberName(node));
     if (node.initializer != null) {
       writeSpaced('=');
@@ -739,7 +736,9 @@ class Printer extends Visitor<Null> {
             node.enclosingClass.fileUri != node.fileUri)) {
       writeWord("/* from ${node.fileUri} */");
     }
-    writeFunction(node.function, name: getMemberName(node));
+    writeFunction(node.function,
+        name: getMemberName(node),
+        augmentor: modifiers.getIteratingAugmentor(1));
   }
 
   visitConstructor(Constructor node) {
@@ -750,7 +749,9 @@ class Printer extends Visitor<Null> {
     writeModifier(node.isConst, 'const');
     writeWord('constructor');
     writeFunction(node.function,
-        name: node.name, initializers: node.initializers);
+        name: node.name,
+        initializers: node.initializers,
+        augmentor: modifiers.getIteratingAugmentor(1));
   }
 
   visitClass(Class node) {
@@ -760,19 +761,20 @@ class Printer extends Visitor<Null> {
     writeModifier(node.isAbstract, 'abstract');
     writeWord('class');
     writeWord(getClassName(node));
-    writeTypeParameterList(node.typeParameters);
+    var augmentor = modifiers.getIteratingAugmentor(0);
+    writeTypeParameterList(node.typeParameters, augmentor);
     if (node.isMixinApplication) {
       writeSpaced('=');
-      visitSupertype(node.supertype);
+      visitSupertype(node.supertype, augmentor);
       writeSpaced('with');
-      visitSupertype(node.mixedInType);
+      visitSupertype(node.mixedInType, augmentor);
     } else if (node.supertype != null) {
       writeSpaced('extends');
-      visitSupertype(node.supertype);
+      visitSupertype(node.supertype, augmentor);
     }
     if (node.implementedTypes.isNotEmpty) {
       writeSpaced('implements');
-      writeList(node.implementedTypes, visitSupertype);
+      writeList(node.implementedTypes, (t) => visitSupertype(t, augmentor));
     }
     var endLineString = ' {';
     if (node.enclosingLibrary.fileUri != node.fileUri) {
@@ -948,7 +950,7 @@ class Printer extends Visitor<Null> {
     if (node.typeArgument != null) {
       writeSymbol('<');
       var iterator = getAugmentor(node.inferredTypeArgumentIndex);
-      writeAnnotatedType(node.typeArgument, iterator);
+      writeType(node.typeArgument, iterator);
       writeSymbol('>');
     }
     writeSymbol('[');
@@ -964,8 +966,7 @@ class Printer extends Visitor<Null> {
     if (node.keyType != null) {
       writeSymbol('<');
       var iterator = getAugmentor(node.inferredTypeArgumentIndex);
-      writeList([node.keyType, node.valueType],
-          (t) => writeAnnotatedType(t, iterator));
+      writeList([node.keyType, node.valueType], (t) => writeType(t, iterator));
       writeSymbol('>');
     }
     writeSymbol('{');
@@ -1330,12 +1331,13 @@ class Printer extends Visitor<Null> {
   }
 
   void writeVariableDeclaration(VariableDeclaration node,
-      {bool useVarKeyword: false}) {
+      {bool useVarKeyword: false, IteratingAugmentor augmentor}) {
     if (showOffsets) writeWord("[${node.fileOffset}]");
     writeModifier(node.isFinal, 'final');
     writeModifier(node.isConst, 'const');
     if (node.type != null) {
-      writeAnnotatedType(node.type, getAugmentor(node.inferredValueOffset));
+      augmentor ??= getAugmentor(node.inferredValueOffset);
+      writeType(node.type, augmentor);
     }
     if (useVarKeyword && !node.isFinal && !node.isConst && node.type == null) {
       writeWord('var');
@@ -1428,7 +1430,7 @@ class Printer extends Visitor<Null> {
     if (state == WORD) {
       ensureSpace();
     }
-    writeTypeParameterList(node.typeParameters);
+    writeTypeParameterList(node.typeParameters, null);
     writeSymbol('(');
     var positional = node.positionalParameters;
     writeList(positional.take(node.requiredParameterCount), writeType);
@@ -1465,9 +1467,13 @@ class Printer extends Visitor<Null> {
   }
 
   visitTypeParameter(TypeParameter node) {
+    writeTypeParameter(node, null);
+  }
+
+  writeTypeParameter(TypeParameter node, IteratingAugmentor augmentor) {
     writeWord(getTypeParameterName(node));
     writeSpaced('extends');
-    writeType(node.bound);
+    writeType(node.bound, augmentor);
   }
 
   defaultNode(Node node) {
