@@ -68,9 +68,9 @@ class VmTarget extends Target {
       //     .transformProgram(program);
     }
 
-    new TreeShaker(program,
-            hierarchy: hierarchy, coreTypes: coreTypes, strongMode: strongMode)
-        .transform(program);
+    // new TreeShaker(program,
+    //         hierarchy: hierarchy, coreTypes: coreTypes, strongMode: strongMode)
+    //     .transform(program);
 
     cont.transformProgram(program);
 

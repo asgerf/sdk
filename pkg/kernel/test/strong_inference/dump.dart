@@ -5,11 +5,6 @@ import 'package:kernel/kernel.dart';
 main(List<String> args) {
   args = ['foo.dill'];
   var program = loadProgramFromBinary(args[0]);
-  // var coreTypes = new CoreTypes(program);
-  // var baseHierarchy = new ClassHierarchy(program);
-  // var binding = new Binding(coreTypes);
-  // var augmentedHierarchy = new AugmentedHierarchy(baseHierarchy, binding);
-  // var constraints = new ConstraintBuilder(augmentedHierarchy);
   var extractor = new ConstraintExtractor()..checkProgram(program);
   var constraints = extractor.builder.constraints;
   print('Extracted ${constraints.length} constraints');

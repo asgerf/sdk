@@ -40,7 +40,6 @@ class ConstraintExtractor {
   Value nullableStringValue;
   Value nullableBoolValue;
   Value nullValue;
-  Value escapingValue;
 
   AugmentedTypeAnnotator annotator;
 
@@ -91,7 +90,6 @@ class ConstraintExtractor {
     nullableBoolValue =
         new Value(coreTypes.boolClass, Flags.null_ | Flags.boolean);
     nullValue = new Value(null, Flags.null_);
-    escapingValue = new Value(null, Flags.escaping);
     for (var library in program.libraries) {
       if (library.importUri.scheme == 'dart') continue;
       for (var class_ in library.classes) {
@@ -1319,8 +1317,7 @@ class ExternalVisitor extends ATypeVisitor {
     }
     var sink = type.sink;
     if (contravariant && sink is Key) {
-      sink.generateAssignmentFrom(
-          builder, extractor.escapingValue, Flags.escaping);
+      sink.generateAssignmentFrom(builder, Value.escaping, Flags.escaping);
     }
     type.typeParameters.forEach(visitBound);
     type.positionalParameters.forEach(visitInverse);
@@ -1340,8 +1337,7 @@ class ExternalVisitor extends ATypeVisitor {
     }
     var sink = type.sink;
     if (contravariant && sink is Key) {
-      sink.generateAssignmentFrom(
-          builder, extractor.escapingValue, Flags.escaping);
+      sink.generateAssignmentFrom(builder, Value.escaping, Flags.escaping);
     }
     type.typeArguments.forEach(visitBound);
   }
