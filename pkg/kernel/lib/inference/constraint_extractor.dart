@@ -340,9 +340,9 @@ class TypeCheckingVisitor
   void recordClassTypeParameterBounds() {
     var class_ = currentClass;
     if (class_ == null) return;
-    var typeParamters = class_.typeParameters;
-    for (int i = 0; i < typeParamters.length; ++i) {
-      scope.typeParameterBounds[typeParamters[i]] =
+    var typeParameters = class_.typeParameters;
+    for (int i = 0; i < typeParameters.length; ++i) {
+      scope.typeParameterBounds[typeParameters[i]] =
           classModifiers.typeParameters[i];
     }
   }
