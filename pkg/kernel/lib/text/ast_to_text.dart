@@ -417,7 +417,7 @@ class Printer extends Visitor<Null> {
     }
   }
 
-  void writeType(DartType type, [IteratingAugmentor augmentor]) {
+  void writeType(DartType type, [Augmentor augmentor]) {
     if (augmentor != null) {
       AType augmented = augmentor.augmentType(type);
       augmented.print(this);
@@ -427,13 +427,13 @@ class Printer extends Visitor<Null> {
     state = WORD;
   }
 
-  void writeOptionalType(DartType type, IteratingAugmentor augmentor) {
+  void writeOptionalType(DartType type, Augmentor augmentor) {
     if (type != null) {
       writeType(type, augmentor);
     }
   }
 
-  visitSupertype(Supertype type, IteratingAugmentor augmentor) {
+  visitSupertype(Supertype type, Augmentor augmentor) {
     if (type == null) {
       print('<No Supertype>');
     } else {
@@ -473,7 +473,7 @@ class Printer extends Visitor<Null> {
       {name,
       List<Initializer> initializers,
       bool terminateLine: true,
-      IteratingAugmentor augmentor}) {
+      Augmentor augmentor}) {
     if (name is String) {
       writeWord(name);
     } else if (name is Name) {
@@ -565,25 +565,25 @@ class Printer extends Visitor<Null> {
     }
   }
 
-  IteratingAugmentor getAugmentor(int offset) {
+  Augmentor getAugmentor(int offset) {
     if (modifiers == null || offset == -1) return null;
     return modifiers.getIteratingAugmentor(offset);
   }
 
-  IteratingAugmentor getExpressionAugmentor(Expression node, int offset) {
+  Augmentor getExpressionAugmentor(Expression node, int offset) {
     if (modifiers == null) return null;
     if (node.inferredValueIndex == -1) return null;
     return modifiers.getIteratingAugmentor(node.inferredValueIndex + offset);
   }
 
-  void writeReturnType(DartType type, IteratingAugmentor augmentor) {
+  void writeReturnType(DartType type, Augmentor augmentor) {
     if (type == null) return;
     writeSpaced('→');
     writeType(type, augmentor);
   }
 
   void writeTypeParameterList(
-      List<TypeParameter> typeParameters, IteratingAugmentor augmentor) {
+      List<TypeParameter> typeParameters, Augmentor augmentor) {
     if (typeParameters.isEmpty) return;
     writeSymbol('<');
     writeList(typeParameters, (p) => writeTypeParameter(p, augmentor));
@@ -595,7 +595,7 @@ class Printer extends Visitor<Null> {
       List<VariableDeclaration> positional,
       List<VariableDeclaration> named,
       int requiredParameterCount,
-      IteratingAugmentor augmentor) {
+      Augmentor augmentor) {
     writeSymbol('(');
     writeList(positional.take(requiredParameterCount),
         (v) => writeVariableDeclaration(v, augmentor: augmentor));
@@ -1331,7 +1331,7 @@ class Printer extends Visitor<Null> {
   }
 
   void writeVariableDeclaration(VariableDeclaration node,
-      {bool useVarKeyword: false, IteratingAugmentor augmentor}) {
+      {bool useVarKeyword: false, Augmentor augmentor}) {
     if (showOffsets) writeWord("[${node.fileOffset}]");
     writeModifier(node.isFinal, 'final');
     writeModifier(node.isConst, 'const');
@@ -1470,7 +1470,7 @@ class Printer extends Visitor<Null> {
     writeTypeParameter(node, null);
   }
 
-  writeTypeParameter(TypeParameter node, IteratingAugmentor augmentor) {
+  writeTypeParameter(TypeParameter node, Augmentor augmentor) {
     writeWord(getTypeParameterName(node));
     writeSpaced('extends');
     writeType(node.bound, augmentor);

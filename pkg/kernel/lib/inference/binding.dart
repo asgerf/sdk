@@ -99,16 +99,16 @@ abstract class ModifierBank {
     return modifier;
   }
 
-  IteratingAugmentor getIteratingAugmentor(int offset) {
-    return new TypeAugmentor(coreTypes, this, offset);
+  Augmentor getIteratingAugmentor(int offset) {
+    return new AugmentorVisitor(coreTypes, this, offset);
   }
 
   AType augmentBound(DartType type, [int offset]) {
-    return new TypeAugmentor(coreTypes, this, offset).makeBound(type);
+    return new AugmentorVisitor(coreTypes, this, offset).makeBound(type);
   }
 
   AType augmentType(DartType type, [int offset]) {
-    return new TypeAugmentor(coreTypes, this, offset).makeType(type);
+    return new AugmentorVisitor(coreTypes, this, offset).makeType(type);
   }
 
   List<AType> augmentTypeList(Iterable<DartType> types, [int offset]) {
@@ -116,7 +116,7 @@ abstract class ModifierBank {
   }
 
   ASupertype augmentSuper(Supertype type, [int offset]) {
-    return new TypeAugmentor(coreTypes, this, offset).makeSuper(type);
+    return new AugmentorVisitor(coreTypes, this, offset).makeSuper(type);
   }
 
   List<ASupertype> augmentSuperList(Iterable<Supertype> types, [int offset]) {
@@ -163,19 +163,18 @@ class ClassBank extends ModifierBank {
   Class get classOrMember => classNode;
 }
 
-abstract class IteratingAugmentor {
+abstract class Augmentor {
   AType augmentType(DartType type);
 }
 
-class TypeAugmentor extends DartTypeVisitor<AType>
-    implements IteratingAugmentor {
+class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
   final CoreTypes coreTypes;
   final ModifierBank modifiers;
   final List<List<TypeParameter>> innerTypeParameters = <List<TypeParameter>>[];
   Key source, sink;
   int index;
 
-  TypeAugmentor(this.coreTypes, this.modifiers, this.index);
+  AugmentorVisitor(this.coreTypes, this.modifiers, this.index);
 
   AType augmentType(DartType type) => makeType(type);
 
