@@ -1041,6 +1041,7 @@ class TypeCheckingVisitor
 
   @override
   AType visitThrow(Throw node) {
+    // TODO escape value
     visitExpression(node.expression);
     return BottomAType.nonNullable;
   }

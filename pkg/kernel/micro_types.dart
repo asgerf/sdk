@@ -79,8 +79,12 @@ void testBox() {
   int nonNullableInt = box.field;
 
   Box<int> boxWithNull = new Box<int>(null);
-  int stillNullable = boxWithNull.getNull();
-  int alsoNullable = boxWithNull.field;
+  int alwaysNull1 = boxWithNull.getNull();
+  int alwaysNull2 = boxWithNull.field;
+
+  Box<int> boxWithMaybeNull = new Box<int>(5 ?? null);
+  int nullableInt2 = boxWithMaybeNull.getNull();
+  int nullableInt3 = boxWithMaybeNull.field;
 }
 
 class Box<T> {
