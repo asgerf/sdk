@@ -49,8 +49,6 @@ class ConstraintExtractor {
   Value nullableStringValue;
   Value nullableBoolValue;
 
-  AugmentedTypeAnnotator annotator;
-
   void checkProgram(Program program) {
     coreTypes ??= new CoreTypes(program);
     baseHierarchy ??= new ClassHierarchy(program);
@@ -58,7 +56,6 @@ class ConstraintExtractor {
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
     externalModel ??= new BasicExternalModel(coreTypes);
     builder ??= new ConstraintBuilder(hierarchy);
-    annotator ??= new AugmentedTypeAnnotator(binding);
     conditionType = new InterfaceAType(
         Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
     escapingType = new BottomAType(Value.escaping, ValueSink.nowhere);
@@ -430,7 +427,6 @@ class TypeCheckingVisitor
     for (int i = 0; i < function.positionalParameters.length; ++i) {
       var variable = function.positionalParameters[i];
       var type = modifiers.positionalParameters[i];
-      checker.annotator.variableTypes[variable] = type;
       scope.variables[variable] = type;
     }
     for (int i = 0; i < function.namedParameters.length; ++i) {
@@ -1274,7 +1270,6 @@ class TypeCheckingVisitor
     if (node.initializer != null) {
       checkAssignableExpression(node.initializer, type);
     }
-    checker.annotator.variableTypes[node] = type;
     return true;
   }
 
@@ -1333,41 +1328,6 @@ class TypeCheckingVisitor
 
   @override
   visitInvalidInitializer(InvalidInitializer node) {}
-}
-
-class AugmentedTypeAnnotator implements Annotator {
-  final Binding binding;
-  final Map<VariableDeclaration, AType> variableTypes =
-      <VariableDeclaration, AType>{};
-
-  AugmentedTypeAnnotator(this.binding);
-
-  bool get showDartTypes => false;
-
-  @override
-  void annotateField(Printer printer, Field node) {
-    binding.getFieldType(node).writeTo(printer);
-  }
-
-  @override
-  void annotateReturn(Printer printer, FunctionNode node) {
-    var parent = node.parent;
-    if (parent is Member) {
-      binding.getFunctionBank(parent).type.returnType.writeTo(printer);
-    } else {
-      printer.write('<?>');
-    }
-  }
-
-  @override
-  void annotateVariable(Printer printer, VariableDeclaration node) {
-    var type = variableTypes[node];
-    if (type == null) {
-      printer.write('<?>');
-    } else {
-      type.writeTo(printer);
-    }
-  }
 }
 
 class ExternalVisitor extends ATypeVisitor {

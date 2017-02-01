@@ -18,8 +18,5 @@ main(List<String> args) {
   for (var hook in extractor.analysisCompleteHooks) {
     hook();
   }
-  writeProgramToText(program,
-      path: 'dump.txt',
-      annotator: extractor.annotator,
-      binding: extractor.binding);
+  writeProgramToText(program, path: 'dump.txt', binding: extractor.binding);
 }
