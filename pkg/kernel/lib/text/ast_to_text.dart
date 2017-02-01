@@ -433,7 +433,11 @@ class Printer extends Visitor<Null> {
     }
   }
 
-  visitSupertype(Supertype type, Augmentor augmentor) {
+  visitSupertype(Supertype type) {
+    writeSupertype(type, null);
+  }
+
+  writeSupertype(Supertype type, Augmentor augmentor) {
     if (type == null) {
       print('<No Supertype>');
     } else {
@@ -765,16 +769,16 @@ class Printer extends Visitor<Null> {
     writeTypeParameterList(node.typeParameters, augmentor);
     if (node.isMixinApplication) {
       writeSpaced('=');
-      visitSupertype(node.supertype, augmentor);
+      writeSupertype(node.supertype, augmentor);
       writeSpaced('with');
-      visitSupertype(node.mixedInType, augmentor);
+      writeSupertype(node.mixedInType, augmentor);
     } else if (node.supertype != null) {
       writeSpaced('extends');
-      visitSupertype(node.supertype, augmentor);
+      writeSupertype(node.supertype, augmentor);
     }
     if (node.implementedTypes.isNotEmpty) {
       writeSpaced('implements');
-      writeList(node.implementedTypes, (t) => visitSupertype(t, augmentor));
+      writeList(node.implementedTypes, (t) => writeSupertype(t, augmentor));
     }
     var endLineString = ' {';
     if (node.enclosingLibrary.fileUri != node.fileUri) {
