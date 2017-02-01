@@ -11,6 +11,7 @@ import 'binding.dart';
 import 'constraints.dart';
 import 'hierarchy.dart';
 import 'package:kernel/inference/constraint_builder.dart';
+import 'package:kernel/inference/external_model.dart';
 import 'package:kernel/inference/key.dart';
 import 'package:kernel/inference/value.dart';
 import 'package:kernel/text/ast_to_text.dart';
@@ -22,6 +23,7 @@ class ConstraintExtractor {
   ClassHierarchy baseHierarchy;
   AugmentedHierarchy hierarchy;
   ConstraintBuilder builder;
+  ExternalModel externalModel;
 
   AType conditionType;
   AType escapingType;
@@ -34,12 +36,18 @@ class ConstraintExtractor {
   AType typeType;
   AType topType;
 
+  Value intValue;
+  Value doubleValue;
+  Value numValue;
+  Value stringValue;
+  Value boolValue;
+  Value nullValue;
+
   Value nullableIntValue;
   Value nullableDoubleValue;
   Value nullableNumValue;
   Value nullableStringValue;
   Value nullableBoolValue;
-  Value nullValue;
 
   AugmentedTypeAnnotator annotator;
 
@@ -48,6 +56,7 @@ class ConstraintExtractor {
     baseHierarchy ??= new ClassHierarchy(program);
     binding ??= new Binding(coreTypes);
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
+    externalModel ??= new BasicExternalModel(coreTypes);
     builder ??= new ConstraintBuilder(hierarchy);
     annotator ??= new AugmentedTypeAnnotator(binding);
     conditionType = new InterfaceAType(
@@ -79,6 +88,13 @@ class ConstraintExtractor {
         coreTypes.symbolClass, const <AType>[]);
     typeType = new InterfaceAType(new Value(coreTypes.typeClass, Flags.other),
         ValueSink.nowhere, coreTypes.typeClass, const <AType>[]);
+    intValue = new Value(coreTypes.intClass, Flags.integer);
+    doubleValue = new Value(coreTypes.doubleClass, Flags.double_);
+    numValue = new Value(coreTypes.numClass,
+        Flags.integer | Flags.double_ | Flags.inexactBaseClass);
+    stringValue = new Value(coreTypes.stringClass, Flags.string);
+    boolValue = new Value(coreTypes.boolClass, Flags.boolean);
+    nullValue = new Value(null, Flags.null_);
     nullableIntValue =
         new Value(coreTypes.intClass, Flags.null_ | Flags.integer);
     nullableDoubleValue =
@@ -87,11 +103,8 @@ class ConstraintExtractor {
         Flags.null_ | Flags.integer | Flags.double_ | Flags.inexactBaseClass);
     nullableStringValue =
         new Value(coreTypes.stringClass, Flags.null_ | Flags.string);
-    nullableBoolValue =
-        new Value(coreTypes.boolClass, Flags.null_ | Flags.boolean);
-    nullValue = new Value(null, Flags.null_);
+    nullableBoolValue = new Value(coreTypes.boolClass, Flags.boolean);
     for (var library in program.libraries) {
-      if (library.importUri.scheme == 'dart') continue;
       for (var class_ in library.classes) {
         baseHierarchy.forEachOverridePair(class_,
             (Member ownMember, Member superMember, bool isSetter) {
@@ -164,11 +177,12 @@ class ConstraintExtractor {
   }
 
   /// Indicates that type checking failed.
-  void fail(TreeNode where, String message) {
+  void reportTypeError(TreeNode where, String message) {
     print('$where: $message');
   }
 
-  Value getWorstCaseType(Class classNode) {
+  Value getWorstCaseValue(Class classNode, {bool isNice: false}) {
+    if (isNice) return getNiceCaseValue(classNode);
     if (classNode == coreTypes.intClass) return nullableIntValue;
     if (classNode == coreTypes.doubleClass) return nullableDoubleValue;
     if (classNode == coreTypes.numClass) return nullableNumValue;
@@ -176,6 +190,16 @@ class ConstraintExtractor {
     if (classNode == coreTypes.boolClass) return nullableBoolValue;
     if (classNode == coreTypes.nullClass) return nullValue;
     return new Value(coreTypes.objectClass, Flags.all);
+  }
+
+  Value getNiceCaseValue(Class classNode) {
+    if (classNode == coreTypes.intClass) return intValue;
+    if (classNode == coreTypes.doubleClass) return doubleValue;
+    if (classNode == coreTypes.numClass) return numValue;
+    if (classNode == coreTypes.stringClass) return stringValue;
+    if (classNode == coreTypes.boolClass) return boolValue;
+    if (classNode == coreTypes.nullClass) return nullValue;
+    return new Value(coreTypes.objectClass, Flags.all & ~Flags.escaping);
   }
 
   final List<Function> analysisCompleteHooks = <Function>[];
@@ -249,6 +273,7 @@ class TypeCheckingVisitor
   AType returnType;
   AType yieldType;
   AsyncMarker currentAsyncMarker;
+  bool seenTypeError = false;
 
   final LocalScope scope = new LocalScope();
   final bool isUncheckedLibrary;
@@ -273,7 +298,10 @@ class TypeCheckingVisitor
   }
 
   void fail(TreeNode node, String message) {
-    checker.fail(node, message);
+    if (!isUncheckedLibrary) {
+      checker.reportTypeError(node, message);
+    }
+    seenTypeError = true;
   }
 
   AType visitExpression(Expression node) {
@@ -350,8 +378,9 @@ class TypeCheckingVisitor
     if (node.initializer != null && !isUncheckedLibrary) {
       checkAssignableExpression(node.initializer, fieldType);
     }
-    if (node.isExternal || isUncheckedLibrary) {
-      modifiers.type.accept(new ExternalVisitor(checker, true, !node.isFinal));
+    if (node.isExternal || seenTypeError) {
+      modifiers.type.accept(new ExternalVisitor(checker,
+          checker.externalModel.isNicelyBehaved(node), true, !node.isFinal));
     }
   }
 
@@ -361,11 +390,10 @@ class TypeCheckingVisitor
     FunctionMemberBank modifiers = this.modifiers;
     recordParameterTypes(modifiers, node.function);
     node.initializers.forEach(visitInitializer);
-    if (!isUncheckedLibrary) {
-      handleFunctionBody(node.function);
-    }
-    if (node.isExternal || isUncheckedLibrary) {
-      modifiers.type.accept(new ExternalVisitor(checker, true, false));
+    handleFunctionBody(node.function);
+    if (node.isExternal || seenTypeError) {
+      modifiers.type.accept(new ExternalVisitor(
+          checker, checker.externalModel.isNicelyBehaved(node), true, false));
     }
   }
 
@@ -375,11 +403,10 @@ class TypeCheckingVisitor
     returnType = _getInternalReturnType(node.function.asyncMarker, ret);
     yieldType = _getYieldType(node.function.asyncMarker, ret);
     recordParameterTypes(modifiers, node.function);
-    if (!isUncheckedLibrary) {
-      handleFunctionBody(node.function);
-    }
-    if (node.isExternal || isUncheckedLibrary) {
-      modifiers.type.accept(new ExternalVisitor(checker, true, false));
+    handleFunctionBody(node.function);
+    if (node.isExternal || seenTypeError) {
+      modifiers.type.accept(new ExternalVisitor(
+          checker, checker.externalModel.isNicelyBehaved(node), true, false));
     }
   }
 
@@ -424,7 +451,8 @@ class TypeCheckingVisitor
     currentAsyncMarker = oldAsyncMarker;
   }
 
-  FunctionAType handleNestedFunctionNode(FunctionNode node) {
+  FunctionAType handleNestedFunctionNode(FunctionNode node,
+      [VariableDeclaration selfReference]) {
     for (var parameter in node.typeParameters) {
       scope.typeParameterBounds[parameter] =
           modifiers.augmentBound(parameter.bound);
@@ -436,15 +464,8 @@ class TypeCheckingVisitor
       scope.variables[parameter] = modifiers.augmentType(parameter.type);
     }
     AType augmentedReturnType = modifiers.augmentType(node.returnType);
-    var oldReturn = returnType;
-    var oldYield = yieldType;
-    returnType = _getInternalReturnType(node.asyncMarker, augmentedReturnType);
-    yieldType = _getYieldType(node.asyncMarker, augmentedReturnType);
-    handleFunctionBody(node);
-    returnType = oldReturn;
-    yieldType = oldYield;
     var key = modifiers.newModifier();
-    return new FunctionAType(
+    var type = new FunctionAType(
         key,
         key,
         node.typeParameters.map(getTypeParameterBound).toList(growable: false),
@@ -453,6 +474,17 @@ class TypeCheckingVisitor
         node.namedParameters.map((v) => v.name).toList(growable: false),
         node.namedParameters.map(getVariableType).toList(growable: false),
         augmentedReturnType);
+    if (selfReference != null) {
+      scope.variables[selfReference] = type;
+    }
+    var oldReturn = returnType;
+    var oldYield = yieldType;
+    returnType = _getInternalReturnType(node.asyncMarker, augmentedReturnType);
+    yieldType = _getYieldType(node.asyncMarker, augmentedReturnType);
+    handleFunctionBody(node);
+    returnType = oldReturn;
+    yieldType = oldYield;
+    return type;
   }
 
   AType getVariableType(VariableDeclaration node) {
@@ -797,14 +829,18 @@ class TypeCheckingVisitor
       return BottomAType.nonNullable;
     }
     List<AType> typeArguments = modifiers.augmentTypeList(arguments.types);
-    var instantiation = Substitution.instantiateFunctionType(typeArguments);
+    if (typeArguments.isNotEmpty) {
+      fail(where, 'Function type arguments not yet supported');
+    }
+    var instantiation = Substitution.empty;
+    // var instantiation = Substitution.instantiateFunctionType(typeArguments);
     for (int i = 0; i < typeArguments.length; ++i) {
       checkTypeBound(where, typeArguments[i],
           instantiation.substituteBound(function.typeParameters[i]));
     }
     for (int i = 0; i < arguments.positional.length; ++i) {
-      var expectedType = instantiation
-          .substituteType(function.positionalParameters[i], covariant: false);
+      var expectedType =
+          instantiation.substituteType(function.positionalParameters[i]);
       checkAssignableExpression(arguments.positional[i], expectedType);
     }
     for (int i = 0; i < arguments.named.length; ++i) {
@@ -813,8 +849,8 @@ class TypeCheckingVisitor
       // TODO: exploit that named parameters are sorted.
       for (int j = 0; j < function.namedParameters.length; ++j) {
         if (argument.name == function.namedParameterNames[j]) {
-          var expectedType = instantiation
-              .substituteType(function.namedParameters[j], covariant: false);
+          var expectedType =
+              instantiation.substituteType(function.namedParameters[j]);
           checkAssignableExpression(argument.value, expectedType);
           found = true;
           break;
@@ -1127,7 +1163,7 @@ class TypeCheckingVisitor
 
   @override
   visitFunctionDeclaration(FunctionDeclaration node) {
-    handleNestedFunctionNode(node.function);
+    handleNestedFunctionNode(node.function, node.variable);
   }
 
   @override
@@ -1175,6 +1211,11 @@ class TypeCheckingVisitor
   visitTryCatch(TryCatch node) {
     visitStatement(node.body);
     for (var catchClause in node.catches) {
+      // TODO: Set precise types on catch parameters
+      scope.variables[catchClause.exception] = checker.topType;
+      if (catchClause.stackTrace != null) {
+        scope.variables[catchClause.stackTrace] = checker.topType;
+      }
       visitStatement(catchClause.body);
     }
   }
@@ -1289,18 +1330,20 @@ class AugmentedTypeAnnotator implements Annotator {
 class ExternalVisitor extends ATypeVisitor {
   final ConstraintExtractor extractor;
   final bool covariant, contravariant;
+  final bool isNice;
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ConstraintBuilder get builder => extractor.builder;
 
-  ExternalVisitor(this.extractor, this.covariant, this.contravariant);
+  ExternalVisitor(
+      this.extractor, this.isNice, this.covariant, this.contravariant);
 
   ExternalVisitor get inverseVisitor {
-    return new ExternalVisitor(extractor, contravariant, covariant);
+    return new ExternalVisitor(extractor, isNice, contravariant, covariant);
   }
 
   ExternalVisitor get bivariantVisitor {
-    return new ExternalVisitor(extractor, true, true);
+    return new ExternalVisitor(extractor, isNice, true, true);
   }
 
   void visit(AType type) => type.accept(this);
@@ -1334,11 +1377,13 @@ class ExternalVisitor extends ATypeVisitor {
   visitInterfaceAType(InterfaceAType type) {
     var source = type.source;
     if (covariant && source is Key) {
-      source.generateAssignmentFrom(builder,
-          extractor.getWorstCaseType(type.classNode), Flags.valueFlags);
+      source.generateAssignmentFrom(
+          builder,
+          extractor.getWorstCaseValue(type.classNode, isNice: isNice),
+          Flags.valueFlags);
     }
     var sink = type.sink;
-    if (contravariant && sink is Key) {
+    if (!isNice && contravariant && sink is Key) {
       sink.generateAssignmentFrom(builder, Value.escaping, Flags.escaping);
     }
     type.typeArguments.forEach(visitBound);
