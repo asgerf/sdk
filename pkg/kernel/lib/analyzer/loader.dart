@@ -18,6 +18,7 @@ import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/source_io.dart';
 import 'package:analyzer/src/summary/summary_sdk.dart';
 import 'package:kernel/application_root.dart';
+import 'package:meta/meta.dart';
 import 'package:package_config/discovery.dart';
 import 'package:package_config/packages.dart';
 
@@ -56,7 +57,7 @@ class DartOptions {
   DartOptions(
       {bool strongMode: false,
       bool strongModeSdk,
-      this.sdk,
+      @required this.sdk,
       this.sdkSummary,
       this.packagePath,
       ApplicationRoot applicationRoot,
@@ -708,8 +709,7 @@ class DartLoader implements ReferenceLevelLoader {
         ast.ProcedureKind.Method,
         new ast.FunctionNode(new ast.ExpressionStatement(new ast.Throw(
             new ast.StringLiteral('Program has no main method')))),
-        isStatic: true)
-      ..fileUri = library.fileUri;
+        isStatic: true)..fileUri = library.fileUri;
     library.addMember(main);
     return main;
   }
