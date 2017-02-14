@@ -61,6 +61,24 @@ var g = () async => futureInt;
     expect(f.type.toString(), '() → Future<int>');
   }
 
+  void test_asyncClosureReturnType_futureOr() {
+    var mainUnit = checkFile('''
+import 'dart:async';
+FutureOr<int> futureOrInt = null;
+var f = () => futureOrInt;
+var g = () async => futureOrInt;
+''');
+    var futureOrInt = mainUnit.topLevelVariables[0];
+    expect(futureOrInt.name, 'futureOrInt');
+    expect(futureOrInt.type.toString(), 'FutureOr<int>');
+    var f = mainUnit.topLevelVariables[1];
+    expect(f.name, 'f');
+    expect(f.type.toString(), '() → FutureOr<int>');
+    var g = mainUnit.topLevelVariables[2];
+    expect(g.name, 'g');
+    expect(g.type.toString(), '() → Future<int>');
+  }
+
   void test_blockBodiedLambdas_async_allReturnsAreFutures() {
     if (!mayCheckTypesOfLocals) {
       return;
@@ -229,113 +247,6 @@ Iterable<int> z = y;
 ''');
   }
 
-  void test_blockBodiedLambdas_doesNotInferBottom_async() {
-    if (!mayCheckTypesOfLocals) {
-      return;
-    }
-    var mainUnit = checkFile(r'''
-import 'dart:async';
-main() async {
-  var f = () async { return null; };
-  Future y = f();
-  Future<String> z = /*warning:DOWN_CAST_COMPOSITE*/f();
-  String s = /*info:DYNAMIC_CAST*/await f();
-}
-''');
-    var f = mainUnit.functions[0].localVariables[0];
-    expect(f.type.toString(), '() → Future<dynamic>');
-  }
-
-  void test_blockBodiedLambdas_doesNotInferBottom_async_topLevel() {
-    var mainUnit = checkFile(r'''
-import 'dart:async';
-var f = /*warning:UNSAFE_BLOCK_CLOSURE_INFERENCE,info:INFERRED_TYPE_CLOSURE*/() async { return null; };
-''');
-    var f = mainUnit.topLevelVariables[0];
-    expect(f.type.toString(), '() → Future<dynamic>');
-  }
-
-  void test_blockBodiedLambdas_doesNotInferBottom_asyncStar() {
-    if (!mayCheckTypesOfLocals) {
-      return;
-    }
-    var mainUnit = checkFile(r'''
-import 'dart:async';
-main() async {
-  var f = () async* { yield null; };
-  Stream y = f();
-  Stream<String> z = /*warning:DOWN_CAST_COMPOSITE*/f();
-  String s = /*info:DYNAMIC_CAST*/await f().first;
-}
-''');
-    var f = mainUnit.functions[0].localVariables[0];
-    expect(f.type.toString(), '() → Stream<dynamic>');
-  }
-
-  void test_blockBodiedLambdas_doesNotInferBottom_asyncStar_topLevel() {
-    var mainUnit = checkFile(r'''
-import 'dart:async';
-var f = /*warning:UNSAFE_BLOCK_CLOSURE_INFERENCE*/() async* { yield null; };
-''');
-    var f = mainUnit.topLevelVariables[0];
-    expect(f.type.toString(), '() → Stream<dynamic>');
-  }
-
-  void test_blockBodiedLambdas_doesNotInferBottom_sync() {
-    if (!mayCheckTypesOfLocals) {
-      return;
-    }
-    var mainUnit = checkFile(r'''
-var h = null;
-void foo(int f(Object _)) {}
-
-main() {
-  var f = (Object x) { return null; };
-  String y = /*info:DYNAMIC_CAST*/f(42);
-
-  f = /*info:INFERRED_TYPE_CLOSURE*/(x) => 'hello';
-
-  foo(/*info:INFERRED_TYPE_CLOSURE*/(x) { return null; });
-  foo(/*info:INFERRED_TYPE_CLOSURE*/(x) { throw "not implemented"; });
-}
-''');
-
-    var f = mainUnit.functions[1].localVariables[0];
-    expect(f.type.toString(), '(Object) → dynamic');
-  }
-
-  void test_blockBodiedLambdas_doesNotInferBottom_sync_topLevel() {
-    var mainUnit = checkFile(r'''
-var f = (Object x) { return null; };
-''');
-    var f = mainUnit.topLevelVariables[0];
-    expect(f.type.toString(), '(Object) → dynamic');
-  }
-
-  void test_blockBodiedLambdas_doesNotInferBottom_syncStar() {
-    if (!mayCheckTypesOfLocals) {
-      return;
-    }
-    var mainUnit = checkFile(r'''
-main() {
-  var f = () sync* { yield null; };
-  Iterable y = f();
-  Iterable<String> z = /*warning:DOWN_CAST_COMPOSITE*/f();
-  String s = /*info:DYNAMIC_CAST*/f().first;
-}
-''');
-    var f = mainUnit.functions[0].localVariables[0];
-    expect(f.type.toString(), '() → Iterable<dynamic>');
-  }
-
-  void test_blockBodiedLambdas_doesNotInferBottom_syncStar_topLevel() {
-    var mainUnit = checkFile(r'''
-var f = /*warning:UNSAFE_BLOCK_CLOSURE_INFERENCE*/() sync* { yield null; };
-''');
-    var f = mainUnit.topLevelVariables[0];
-    expect(f.type.toString(), '() → Iterable<dynamic>');
-  }
-
   void test_blockBodiedLambdas_downwardsIncompatibleWithUpwardsInference() {
     if (!mayCheckTypesOfLocals) {
       return;
@@ -359,6 +270,115 @@ var g = f;
 ''');
     var f = mainUnit.topLevelVariables[0];
     expect(f.type.toString(), '() → String');
+  }
+
+  void test_blockBodiedLambdas_inferBottom_async() {
+    if (!mayCheckTypesOfLocals) {
+      return;
+    }
+    var mainUnit = checkFile(r'''
+import 'dart:async';
+main() async {
+  var f = /*info:INFERRED_TYPE_CLOSURE*/() async { return null; };
+  Future y = f();
+  Future<String> z = f();
+  String s = await f();
+}
+''');
+    var f = mainUnit.functions[0].localVariables[0];
+    expect(f.type.toString(), '() → Future<Null>');
+  }
+
+  void test_blockBodiedLambdas_inferBottom_async_topLevel() {
+    var mainUnit = checkFile(r'''
+import 'dart:async';
+var f = /*warning:UNSAFE_BLOCK_CLOSURE_INFERENCE,info:INFERRED_TYPE_CLOSURE*/() async { return null; };
+''');
+    var f = mainUnit.topLevelVariables[0];
+    expect(f.type.toString(), '() → Future<Null>');
+  }
+
+  void test_blockBodiedLambdas_inferBottom_asyncStar() {
+    if (!mayCheckTypesOfLocals) {
+      return;
+    }
+    var mainUnit = checkFile(r'''
+import 'dart:async';
+main() async {
+  var f = /*info:INFERRED_TYPE_CLOSURE*/() async* { yield null; };
+  Stream y = f();
+  Stream<String> z = f();
+  String s = await f().first;
+}
+''');
+    var f = mainUnit.functions[0].localVariables[0];
+    expect(f.type.toString(), '() → Stream<Null>');
+  }
+
+  void test_blockBodiedLambdas_inferBottom_asyncStar_topLevel() {
+    var mainUnit = checkFile(r'''
+import 'dart:async';
+var f = /*info:INFERRED_TYPE_CLOSURE, warning:UNSAFE_BLOCK_CLOSURE_INFERENCE*/() async* { yield null; };
+''');
+    var f = mainUnit.topLevelVariables[0];
+    expect(f.type.toString(), '() → Stream<Null>');
+  }
+
+  void test_blockBodiedLambdas_inferBottom_sync() {
+    if (!mayCheckTypesOfLocals) {
+      return;
+    }
+    var mainUnit = checkFile(r'''
+var h = null;
+void foo(int f(Object _)) {}
+
+main() {
+  var f = /*info:INFERRED_TYPE_CLOSURE*/(Object x) { return null; };
+  String y = f(42);
+
+  f = /*error:INVALID_CAST_FUNCTION_EXPR, info:INFERRED_TYPE_CLOSURE*/(x) => 'hello';
+
+  foo(/*info:INFERRED_TYPE_CLOSURE,
+        info:INFERRED_TYPE_CLOSURE*/(x) { return null; });
+  foo(/*info:INFERRED_TYPE_CLOSURE,
+        info:INFERRED_TYPE_CLOSURE*/(x) { throw "not implemented"; });
+}
+''');
+
+    var f = mainUnit.functions[1].localVariables[0];
+    expect(f.type.toString(), '(Object) → Null');
+  }
+
+  void test_blockBodiedLambdas_inferBottom_sync_topLevel() {
+    var mainUnit = checkFile(r'''
+var f = /*info:INFERRED_TYPE_CLOSURE,warning:UNSAFE_BLOCK_CLOSURE_INFERENCE*/(Object x) { return null; };
+''');
+    var f = mainUnit.topLevelVariables[0];
+    expect(f.type.toString(), '(Object) → Null');
+  }
+
+  void test_blockBodiedLambdas_inferBottom_syncStar() {
+    if (!mayCheckTypesOfLocals) {
+      return;
+    }
+    var mainUnit = checkFile(r'''
+main() {
+  var f = /*info:INFERRED_TYPE_CLOSURE*/() sync* { yield null; };
+  Iterable y = f();
+  Iterable<String> z = f();
+  String s = f().first;
+}
+''');
+    var f = mainUnit.functions[0].localVariables[0];
+    expect(f.type.toString(), '() → Iterable<Null>');
+  }
+
+  void test_blockBodiedLambdas_inferBottom_syncStar_topLevel() {
+    var mainUnit = checkFile(r'''
+var f = /*info:INFERRED_TYPE_CLOSURE,warning:UNSAFE_BLOCK_CLOSURE_INFERENCE*/() sync* { yield null; };
+''');
+    var f = mainUnit.topLevelVariables[0];
+    expect(f.type.toString(), '() → Iterable<Null>');
   }
 
   void test_blockBodiedLambdas_LUB() {
@@ -429,7 +449,7 @@ var f = /*info:INFERRED_TYPE_CLOSURE,warning:UNSAFE_BLOCK_CLOSURE_INFERENCE*/() 
     var mainUnit = checkFile(r'''
 test1() {
   List<int> o;
-  var y = o.map(/*info:INFERRED_TYPE_CLOSURE*/(x) { });
+  var y = o.map(/*info:INFERRED_TYPE_CLOSURE,info:INFERRED_TYPE_CLOSURE*/(x) { });
   Iterable<int> z = /*warning:DOWN_CAST_COMPOSITE*/y;
 }
 ''');
@@ -440,7 +460,7 @@ test1() {
   void test_blockBodiedLambdas_noReturn_topLevel() {
     var mainUnit = checkFile(r'''
 final List<int> o = <int>[];
-var y = o.map((x) { });
+var y = o.map(/*info:INFERRED_TYPE_CLOSURE, warning:UNSAFE_BLOCK_CLOSURE_INFERENCE*/(x) { });
 ''');
     var f = mainUnit.topLevelVariables[1];
     expect(f.type.toString(), 'Iterable<dynamic>');
@@ -626,7 +646,6 @@ void main() {
     ''');
   }
 
-  @failingTest
   void test_constructors_inferenceFBounded() {
     // Regression for https://github.com/dart-lang/sdk/issues/26990
     var unit = checkFile('''
@@ -1665,6 +1684,61 @@ int get y => null;
     expect(x.type.toString(), 'int');
   }
 
+  void test_futureOr_subtyping() {
+    checkFile(r'''
+import 'dart:async';
+void add(int x) {}
+add2(int y) {}
+main() {
+  Future<int> f;
+  var a = f.then(add);
+  var b = f.then(add2);
+}
+    ''');
+  }
+
+  void test_futureThen_deprecated() {
+// Tests the deprecated ad hoc future inference for classes which implement
+// Future but haven't been updated to use FutureOr
+    String build({String declared, String downwards, String upwards}) => '''
+import 'dart:async';
+class MyFuture<T> implements Future<T> {
+  MyFuture() {}
+  MyFuture.value(T x) {}
+  dynamic noSuchMethod(invocation);
+  MyFuture<S> then<S>(dynamic f(T x), {Function onError}) => null;
+}
+
+void main() {
+  $declared f;
+  $downwards<int> t1 = f.then((_) async => await new $upwards<int>.value(3));
+  $downwards<int> t2 = f.then(/*info:INFERRED_TYPE_CLOSURE*/(_) async {
+     return await new $upwards<int>.value(3);});
+  $downwards<int> t3 = f.then((_) async => 3);
+  $downwards<int> t4 = f.then(/*info:INFERRED_TYPE_CLOSURE*/(_) async {
+    return 3;});
+  $downwards<int> t5 = f.then((_) => new $upwards<int>.value(3));
+  $downwards<int> t6 = f.then(/*info:INFERRED_TYPE_CLOSURE*/(_) {return new $upwards<int>.value(3);});
+  $downwards<int> t7 = f.then((_) async => new $upwards<int>.value(3));
+  $downwards<int> t8 = f.then(/*info:INFERRED_TYPE_CLOSURE*/(_) async {
+    return new $upwards<int>.value(3);});
+}
+''';
+
+    checkFile(
+        build(declared: "MyFuture", downwards: "Future", upwards: "Future"));
+    checkFile(
+        build(declared: "MyFuture", downwards: "Future", upwards: "MyFuture"));
+    checkFile(
+        build(declared: "MyFuture", downwards: "MyFuture", upwards: "Future"));
+    checkFile(build(
+        declared: "MyFuture", downwards: "MyFuture", upwards: "MyFuture"));
+    checkFile(
+        build(declared: "Future", downwards: "Future", upwards: "MyFuture"));
+    checkFile(
+        build(declared: "Future", downwards: "Future", upwards: "Future"));
+  }
+
   void test_futureThen() {
     String build({String declared, String downwards, String upwards}) => '''
 import 'dart:async';
@@ -1705,32 +1779,30 @@ void main() {
         build(declared: "Future", downwards: "Future", upwards: "Future"));
   }
 
-  void test_futureThen_comment() {
+  void test_futureThen_conditional_deprecated() {
+// Tests the deprecated ad hoc future inference for classes which implement
+// Future but haven't been updated to use FutureOr
     String build({String declared, String downwards, String upwards}) => '''
 import 'dart:async';
 class MyFuture<T> implements Future<T> {
   MyFuture() {}
   MyFuture.value(T x) {}
   dynamic noSuchMethod(invocation);
-  MyFuture/*<S>*/ then/*<S>*/(dynamic f(T x), {Function onError}) => null;
+  MyFuture<S> then<S>(dynamic f(T x), {Function onError}) => null;
 }
 
 void main() {
-  $declared f;
-  $downwards<int> t1 = f.then((_) async => await new $upwards<int>.value(3));
-  $downwards<int> t2 = f.then(/*info:INFERRED_TYPE_CLOSURE*/(_) async {
-     return await new $upwards<int>.value(3);});
-  $downwards<int> t3 = f.then((_) async => 3);
-  $downwards<int> t4 = f.then(/*info:INFERRED_TYPE_CLOSURE*/(_) async {
-    return 3;});
-  $downwards<int> t5 = f.then((_) => new $upwards<int>.value(3));
-  $downwards<int> t6 = f.then(/*info:INFERRED_TYPE_CLOSURE*/(_) {return new $upwards<int>.value(3);});
-  $downwards<int> t7 = f.then((_) async => new $upwards<int>.value(3));
-  $downwards<int> t8 = f.then(/*info:INFERRED_TYPE_CLOSURE*/(_) async {
-    return new $upwards<int>.value(3);});
+  $declared<bool> f;
+  $downwards<int> t1 = f.then(/*info:INFERRED_TYPE_CLOSURE*/
+      (x) async => x ? 2 : await new $upwards<int>.value(3));
+  $downwards<int> t2 = f.then(/*info:INFERRED_TYPE_CLOSURE,info:INFERRED_TYPE_CLOSURE*/(x) async { // TODO(leafp): Why the duplicate here?
+    return await x ? 2 : new $upwards<int>.value(3);});
+  $downwards<int> t5 = f.then(/*info:INFERRED_TYPE_CLOSURE*/
+      (x) => x ? 2 : new $upwards<int>.value(3));
+  $downwards<int> t6 = f.then(/*info:INFERRED_TYPE_CLOSURE,info:INFERRED_TYPE_CLOSURE*/
+      (x) {return /*warning:DOWN_CAST_COMPOSITE*/x ? 2 : new $upwards<int>.value(3);});
 }
 ''';
-
     checkFile(
         build(declared: "MyFuture", downwards: "Future", upwards: "Future"));
     checkFile(
@@ -1739,10 +1811,6 @@ void main() {
         build(declared: "MyFuture", downwards: "MyFuture", upwards: "Future"));
     checkFile(build(
         declared: "MyFuture", downwards: "MyFuture", upwards: "MyFuture"));
-    checkFile(
-        build(declared: "Future", downwards: "Future", upwards: "MyFuture"));
-    checkFile(
-        build(declared: "Future", downwards: "Future", upwards: "Future"));
   }
 
   void test_futureThen_conditional() {
@@ -1789,7 +1857,7 @@ main() {
   Future<int> f;
   Future<List<int>> b = /*info:ASSIGNMENT_CAST should be pass*/f
       .then(/*info:INFERRED_TYPE_CLOSURE*/(x) => [])
-      .whenComplete(/*pass should be info:INFERRED_TYPE_LITERAL*/() {});
+      .whenComplete(/*info:INFERRED_TYPE_CLOSURE*/() {});
   b = f.then(/*info:INFERRED_TYPE_CLOSURE*/(x) => /*info:INFERRED_TYPE_LITERAL*/[]);
 }
     ''');
@@ -1800,7 +1868,9 @@ main() {
 import "dart:async";
 m1() {
   Future<int> f;
-  var x = f.then<Future<List<int>>>(/*info:INFERRED_TYPE_CLOSURE,error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/(x) => []);
+  var x = f.then<Future<List<int>>>(/*info:INFERRED_TYPE_CLOSURE,
+                                      error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/
+                                    (x) => /*info:INFERRED_TYPE_LITERAL*/[]);
   Future<List<int>> y = x;
 }
 m2() {
@@ -1809,6 +1879,38 @@ m2() {
   Future<List<int>> y = x;
 }
     ''');
+  }
+
+  void test_futureThen_upwards_deprecated() {
+    // Tests the deprecated ad hoc future inference for classes which implement
+    // Future but haven't been updated to use FutureOr
+    // Regression test for https://github.com/dart-lang/sdk/issues/27088.
+    String build({String declared, String downwards, String upwards}) => '''
+import 'dart:async';
+class MyFuture<T> implements Future<T> {
+  MyFuture() {}
+  MyFuture.value(T x) {}
+  dynamic noSuchMethod(invocation);
+  MyFuture<S> then<S>(dynamic f(T x), {Function onError}) => null;
+}
+
+void main() {
+  var f = foo().then((_) => 2.3);
+  $downwards<int> f2 = /*error:INVALID_ASSIGNMENT*/f;
+
+  // The unnecessary cast is to illustrate that we inferred <double> for
+  // the generic type args, even though we had a return type context.
+  $downwards<num> f3 = /*info:UNNECESSARY_CAST*/foo().then(
+      (_) => 2.3) as $upwards<double>;
+}
+$declared foo() => new $declared<int>.value(1);
+    ''';
+    checkFile(
+        build(declared: "MyFuture", downwards: "Future", upwards: "Future"));
+    checkFile(build(
+        declared: "MyFuture", downwards: "MyFuture", upwards: "MyFuture"));
+    checkFile(
+        build(declared: "Future", downwards: "Future", upwards: "Future"));
   }
 
   void test_futureThen_upwards() {
@@ -1855,17 +1957,29 @@ main() {
     ''');
   }
 
-  void test_futureOr_subtyping() {
-    checkFile(r'''
+  void test_futureUnion_asyncConditional_deprecated() {
+    // Tests the deprecated ad hoc future inference for classes which implement
+    // Future but haven't been updated to use FutureOr
+    String build({String declared, String downwards, String upwards}) => '''
 import 'dart:async';
-void add(int x) {}
-add2(int y) {}
-main() {
-  Future<int> f;
-  var a = f.then(add);
-  var b = f.then(add2);
+class MyFuture<T> implements Future<T> {
+  MyFuture() {}
+  MyFuture.value(x) {}
+  dynamic noSuchMethod(invocation);
+  MyFuture<S> then<S>(dynamic f(T x), {Function onError}) => null;
 }
-    ''');
+
+$downwards<int> g1(bool x) async {
+  return x ? 42 : /*info:INFERRED_TYPE_ALLOCATION*/new $upwards.value(42); }
+$downwards<int> g2(bool x) async =>
+  x ? 42 : /*info:INFERRED_TYPE_ALLOCATION*/new $upwards.value(42);
+$downwards<int> g3(bool x) async {
+  var y = x ? 42 : new $upwards.value(42);
+  return y;
+}
+    ''';
+    checkFile(build(downwards: "Future", upwards: "Future"));
+    checkFile(build(downwards: "Future", upwards: "MyFuture"));
   }
 
   void test_futureUnion_asyncConditional() {
@@ -1891,27 +2005,46 @@ $downwards<int> g3(bool x) async {
     checkFile(build(downwards: "Future", upwards: "MyFuture"));
   }
 
-  void test_futureUnion_asyncConditional_comment() {
-    String build({String declared, String downwards, String upwards}) => '''
+  void test_futureUnion_downwards_deprecated() {
+    // Tests the deprecated ad hoc future inference for classes which implement
+    // Future but haven't been updated to use FutureOr
+    String build({String declared, String downwards, String upwards}) {
+      // TODO(leafp): The use of matchTypes in visitInstanceCreationExpression
+      // in the resolver visitor isn't powerful enough to catch this for the
+      // subclass.  See the TODO there.
+      var allocInfo =
+          (upwards == "Future") ? "/*info:INFERRED_TYPE_ALLOCATION*/" : "";
+      return '''
 import 'dart:async';
 class MyFuture<T> implements Future<T> {
   MyFuture() {}
-  MyFuture.value(x) {}
+  MyFuture.value([x]) {}
   dynamic noSuchMethod(invocation);
-  MyFuture/*<S>*/ then/*<S>*/(dynamic f(T x), {Function onError}) => null;
+  MyFuture<S> then<S>(dynamic f(T x), {Function onError}) => null;
 }
 
-$downwards<int> g1(bool x) async {
-  return x ? 42 : /*info:INFERRED_TYPE_ALLOCATION*/new $upwards.value(42); }
-$downwards<int> g2(bool x) async =>
-  x ? 42 : /*info:INFERRED_TYPE_ALLOCATION*/new $upwards.value(42);
-$downwards<int> g3(bool x) async {
-  var y = x ? 42 : new $upwards.value(42);
-  return y;
-}
-    ''';
-    checkFile(build(downwards: "Future", upwards: "Future"));
-    checkFile(build(downwards: "Future", upwards: "MyFuture"));
+$declared f;
+// Instantiates Future<int>
+$downwards<int> t1 = f.then((_) =>
+   ${allocInfo}new $upwards.value('hi'));
+
+// Instantiates List<int>
+$downwards<List<int>> t2 = f.then((_) => /*info:INFERRED_TYPE_LITERAL*/[3]);
+$downwards<List<int>> g2() async { return /*info:INFERRED_TYPE_LITERAL*/[3]; }
+$downwards<List<int>> g3() async {
+  return /*info:INFERRED_TYPE_ALLOCATION*/new $upwards.value(
+      /*info:INFERRED_TYPE_LITERAL*/[3]); }
+''';
+    }
+
+    checkFile(
+        build(declared: "MyFuture", downwards: "Future", upwards: "Future"));
+    checkFile(
+        build(declared: "MyFuture", downwards: "Future", upwards: "MyFuture"));
+    checkFile(
+        build(declared: "Future", downwards: "Future", upwards: "Future"));
+    checkFile(
+        build(declared: "Future", downwards: "Future", upwards: "MyFuture"));
   }
 
   void test_futureUnion_downwards() {
@@ -3420,19 +3553,21 @@ class Foo {
   void test_inferredType_blockBodiedClosure_noArguments() {
     var mainUnit = checkFile('''
 class C {
-  static final v = () {};
+  static final v = /*warning:UNSAFE_BLOCK_CLOSURE_INFERENCE,
+                     info:INFERRED_TYPE_CLOSURE*/() {};
 }
 ''');
     var v = mainUnit.getType('C').fields[0];
-    expect(v.type.toString(), '() → dynamic');
+    expect(v.type.toString(), '() → Null');
   }
 
   void test_inferredType_blockClosure_noArgs_noReturn() {
     var mainUnit = checkFile('''
-var f = () {};
+var f = /*warning:UNSAFE_BLOCK_CLOSURE_INFERENCE,
+                     info:INFERRED_TYPE_CLOSURE*/() {};
 ''');
     var f = mainUnit.topLevelVariables[0];
-    expect(f.type.toString(), '() → dynamic');
+    expect(f.type.toString(), '() → Null');
   }
 
   void test_inferredType_customBinaryOp() {
@@ -4272,7 +4407,7 @@ B v = null;
   void test_instantiateToBounds_generic2_noBound() {
     var unit = checkFile(r'''
 class A<T> {}
-class B<T extends /*error:NOT_INSTANTIATED_BOUND*/A> {}
+class B<T extends A> {}
 B v = null;
 ''');
     expect(unit.topLevelVariables[0].type.toString(), 'B<A<dynamic>>');

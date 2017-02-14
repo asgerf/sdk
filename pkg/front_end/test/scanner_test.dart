@@ -68,6 +68,18 @@ class CharSequenceReaderTest {
   }
 }
 
+class ErrorListener {
+  final errors = <TestError>[];
+
+  void assertErrors(List<TestError> expectedErrors) {
+    expect(errors, unorderedEquals(expectedErrors));
+  }
+
+  void assertNoErrors() {
+    assertErrors([]);
+  }
+}
+
 @reflectiveTest
 class KeywordStateTest {
   void test_KeywordState() {
@@ -113,16 +125,28 @@ class KeywordStateTest {
 }
 
 @reflectiveTest
-class ScannerTest {
-  void fail_incomplete_string_interpolation() {
-    // https://code.google.com/p/dart/issues/detail?id=18073
-    _assertErrorAndTokens(
-        ScannerErrorCode.UNTERMINATED_STRING_LITERAL, 9, "\"foo \${bar", [
-      new StringToken(TokenType.STRING, "\"foo ", 0),
-      new StringToken(TokenType.STRING_INTERPOLATION_EXPRESSION, "\${", 5),
-      new StringToken(TokenType.IDENTIFIER, "bar", 7)
-    ]);
+class ScannerTest extends ScannerTestBase {
+  @override
+  Token scanWithListener(String source, ErrorListener listener,
+      {bool genericMethodComments: false,
+      bool lazyAssignmentOperators: false}) {
+    Scanner scanner =
+        new _TestScanner(new CharSequenceReader(source), listener);
+    scanner.scanGenericMethodComments = genericMethodComments;
+    scanner.scanLazyAssignmentOperators = lazyAssignmentOperators;
+    return scanner.tokenize();
   }
+
+  @override
+  @failingTest
+  void test_incomplete_string_interpolation() {
+    super.test_incomplete_string_interpolation();
+  }
+}
+
+abstract class ScannerTestBase {
+  Token scanWithListener(String source, ErrorListener listener,
+      {bool genericMethodComments: false, bool lazyAssignmentOperators: false});
 
   void test_ampersand() {
     _assertToken(TokenType.AMPERSAND, "&");
@@ -139,6 +163,14 @@ class ScannerTest {
 
   void test_ampersand_eq() {
     _assertToken(TokenType.AMPERSAND_EQ, "&=");
+  }
+
+  void test_async_star() {
+    Token token = _scan("async*");
+    expect(token.type, TokenType.IDENTIFIER);
+    expect(token.lexeme, 'async');
+    expect(token.next.type, TokenType.STAR);
+    expect(token.next.next.type, TokenType.EOF);
   }
 
   void test_at() {
@@ -230,6 +262,36 @@ class ScannerTest {
     _assertComment(TokenType.MULTI_LINE_COMMENT, "/* comment */");
   }
 
+  void test_comment_multi_consecutive_2() {
+    Token token = _scan("/* x */ /* y */ z");
+    expect(token.type, TokenType.IDENTIFIER);
+    expect(token.precedingComments, isNotNull);
+    expect(token.precedingComments.value(), "/* x */");
+    expect(token.precedingComments.previous, isNull);
+    expect(token.precedingComments.next, isNotNull);
+    expect(token.precedingComments.next.value(), "/* y */");
+    expect(
+        token.precedingComments.next.previous, same(token.precedingComments));
+    expect(token.precedingComments.next.next, isNull);
+  }
+
+  void test_comment_multi_consecutive_3() {
+    Token token = _scan("/* x */ /* y */ /* z */ a");
+    expect(token.type, TokenType.IDENTIFIER);
+    expect(token.precedingComments, isNotNull);
+    expect(token.precedingComments.value(), "/* x */");
+    expect(token.precedingComments.previous, isNull);
+    expect(token.precedingComments.next, isNotNull);
+    expect(token.precedingComments.next.value(), "/* y */");
+    expect(
+        token.precedingComments.next.previous, same(token.precedingComments));
+    expect(token.precedingComments.next.next, isNotNull);
+    expect(token.precedingComments.next.next.value(), "/* z */");
+    expect(token.precedingComments.next.next.previous,
+        same(token.precedingComments.next));
+    expect(token.precedingComments.next.next.next, isNull);
+  }
+
   void test_comment_multi_lineEnds() {
     String code = r'''
 /**
@@ -237,7 +299,7 @@ class ScannerTest {
  * bbb
  * c
  */''';
-    _ErrorListener listener = new _ErrorListener();
+    ErrorListener listener = new ErrorListener();
     Scanner scanner = new _TestScanner(new CharSequenceReader(code), listener);
     scanner.tokenize();
     expect(
@@ -353,6 +415,16 @@ class ScannerTest {
     _assertError(ScannerErrorCode.ILLEGAL_CHARACTER, 0, "\u0312", [0x312]);
   }
 
+  void test_incomplete_string_interpolation() {
+    // https://code.google.com/p/dart/issues/detail?id=18073
+    _assertErrorAndTokens(
+        ScannerErrorCode.UNTERMINATED_STRING_LITERAL, 9, "\"foo \${bar", [
+      new StringToken(TokenType.STRING, "\"foo ", 0),
+      new StringToken(TokenType.STRING_INTERPOLATION_EXPRESSION, "\${", 5),
+      new StringToken(TokenType.IDENTIFIER, "bar", 7)
+    ]);
+  }
+
   void test_index() {
     _assertToken(TokenType.INDEX, "[]");
   }
@@ -379,6 +451,14 @@ class ScannerTest {
 
   void test_keyword_assert() {
     _assertKeywordToken("assert");
+  }
+
+  void test_keyword_async() {
+    _assertIdentifierToken("async");
+  }
+
+  void test_keyword_await() {
+    _assertIdentifierToken("await");
   }
 
   void test_keyword_break() {
@@ -461,6 +541,10 @@ class ScannerTest {
     _assertKeywordToken("get");
   }
 
+  void test_keyword_hide() {
+    _assertIdentifierToken("hide");
+  }
+
   void test_keyword_if() {
     _assertKeywordToken("if");
   }
@@ -485,6 +569,10 @@ class ScannerTest {
     _assertKeywordToken("library");
   }
 
+  void test_keyword_native() {
+    _assertIdentifierToken("native");
+  }
+
   void test_keyword_new() {
     _assertKeywordToken("new");
   }
@@ -493,12 +581,24 @@ class ScannerTest {
     _assertKeywordToken("null");
   }
 
+  void test_keyword_of() {
+    _assertIdentifierToken("of");
+  }
+
+  void test_keyword_on() {
+    _assertIdentifierToken("on");
+  }
+
   void test_keyword_operator() {
     _assertKeywordToken("operator");
   }
 
   void test_keyword_part() {
     _assertKeywordToken("part");
+  }
+
+  void test_keyword_patch() {
+    _assertIdentifierToken("patch");
   }
 
   void test_keyword_rethrow() {
@@ -513,6 +613,14 @@ class ScannerTest {
     _assertKeywordToken("set");
   }
 
+  void test_keyword_show() {
+    _assertIdentifierToken("show");
+  }
+
+  void test_keyword_source() {
+    _assertIdentifierToken("source");
+  }
+
   void test_keyword_static() {
     _assertKeywordToken("static");
   }
@@ -523,6 +631,10 @@ class ScannerTest {
 
   void test_keyword_switch() {
     _assertKeywordToken("switch");
+  }
+
+  void test_keyword_sync() {
+    _assertIdentifierToken("sync");
   }
 
   void test_keyword_this() {
@@ -559,6 +671,10 @@ class ScannerTest {
 
   void test_keyword_with() {
     _assertKeywordToken("with");
+  }
+
+  void test_keyword_yield() {
+    _assertIdentifierToken("yield");
   }
 
   void test_lt() {
@@ -691,7 +807,7 @@ class ScannerTest {
 
   void test_setSourceStart() {
     int offsetDelta = 42;
-    _ErrorListener listener = new _ErrorListener();
+    ErrorListener listener = new ErrorListener();
     Scanner scanner =
         new _TestScanner(new SubSequenceReader("a", offsetDelta), listener);
     scanner.setSourceStart(3, 9);
@@ -949,6 +1065,14 @@ class ScannerTest {
     ]);
   }
 
+  void test_sync_star() {
+    Token token = _scan("sync*");
+    expect(token.type, TokenType.IDENTIFIER);
+    expect(token.lexeme, 'sync');
+    expect(token.next.type, TokenType.STAR);
+    expect(token.next.next.type, TokenType.EOF);
+  }
+
   void test_tilde() {
     _assertToken(TokenType.TILDE, "~");
   }
@@ -962,8 +1086,8 @@ class ScannerTest {
   }
 
   void test_unclosedPairInInterpolation() {
-    _ErrorListener listener = new _ErrorListener();
-    _scanWithListener("'\${(}'", listener);
+    ErrorListener listener = new ErrorListener();
+    scanWithListener("'\${(}'", listener);
   }
 
   void _assertComment(TokenType commentType, String source,
@@ -1005,10 +1129,10 @@ class ScannerTest {
   void _assertError(
       ScannerErrorCode expectedError, int expectedOffset, String source,
       [List<Object> arguments]) {
-    _ErrorListener listener = new _ErrorListener();
-    _scanWithListener(source, listener);
+    ErrorListener listener = new ErrorListener();
+    scanWithListener(source, listener);
     listener.assertErrors(
-        [new _TestError(expectedOffset, 1, expectedError, arguments)]);
+        [new TestError(expectedOffset, expectedError, arguments)]);
   }
 
   /**
@@ -1022,11 +1146,30 @@ class ScannerTest {
    */
   void _assertErrorAndTokens(ScannerErrorCode expectedError, int expectedOffset,
       String source, List<Token> expectedTokens) {
-    _ErrorListener listener = new _ErrorListener();
-    Token token = _scanWithListener(source, listener);
-    listener
-        .assertErrors([new _TestError(expectedOffset, 1, expectedError, null)]);
+    ErrorListener listener = new ErrorListener();
+    Token token = scanWithListener(source, listener);
+    listener.assertErrors([new TestError(expectedOffset, expectedError, null)]);
     _checkTokens(token, expectedTokens);
+  }
+
+  /**
+   * Assert that when scanned the given [source] contains a single identifier
+   * token with the same lexeme as the original source.
+   */
+  void _assertIdentifierToken(String source) {
+    void check(String s, int expectedOffset) {
+      Token token = _scan(s);
+      expect(token, isNotNull);
+      expect(token.type, TokenType.IDENTIFIER);
+      expect(token.offset, expectedOffset);
+      expect(token.length, source.length);
+      expect(token.lexeme, source);
+      expect(token.value(), source);
+      expect(token.next.type, TokenType.EOF);
+    }
+
+    check(source, 0);
+    check(' $source ', 1);
   }
 
   /**
@@ -1140,22 +1283,53 @@ class ScannerTest {
   Token _scan(String source,
       {bool genericMethodComments: false,
       bool lazyAssignmentOperators: false}) {
-    _ErrorListener listener = new _ErrorListener();
-    Token token = _scanWithListener(source, listener,
+    ErrorListener listener = new ErrorListener();
+    Token token = scanWithListener(source, listener,
         genericMethodComments: genericMethodComments,
         lazyAssignmentOperators: lazyAssignmentOperators);
     listener.assertNoErrors();
     return token;
   }
+}
 
-  Token _scanWithListener(String source, _ErrorListener listener,
-      {bool genericMethodComments: false,
-      bool lazyAssignmentOperators: false}) {
-    Scanner scanner =
-        new _TestScanner(new CharSequenceReader(source), listener);
-    scanner.scanGenericMethodComments = genericMethodComments;
-    scanner.scanLazyAssignmentOperators = lazyAssignmentOperators;
-    return scanner.tokenize();
+class TestError {
+  final int offset;
+  final ErrorCode errorCode;
+  final List<Object> arguments;
+
+  TestError(this.offset, this.errorCode, this.arguments);
+
+  @override
+  get hashCode {
+    var h = new JenkinsSmiHash()..add(offset)..add(errorCode);
+    if (arguments != null) {
+      for (Object argument in arguments) {
+        h.add(argument);
+      }
+    }
+    return h.hashCode;
+  }
+
+  @override
+  operator ==(Object other) {
+    if (other is TestError &&
+        offset == other.offset &&
+        errorCode == other.errorCode) {
+      if (arguments == null) return other.arguments == null;
+      if (other.arguments == null) return false;
+      if (arguments.length != other.arguments.length) return false;
+      for (int i = 0; i < arguments.length; i++) {
+        if (arguments[i] != other.arguments[i]) return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  toString() {
+    var argString = arguments == null ? '' : '(${arguments.join(', ')})';
+    return 'Error($offset, $errorCode$argString)';
   }
 }
 
@@ -1227,64 +1401,8 @@ class TokenTypeTest {
   }
 }
 
-class _ErrorListener {
-  final errors = <_TestError>[];
-
-  void assertErrors(List<_TestError> expectedErrors) {
-    expect(errors, unorderedEquals(expectedErrors));
-  }
-
-  void assertNoErrors() {
-    assertErrors([]);
-  }
-}
-
-class _TestError {
-  final int offset;
-  final int length;
-  final ErrorCode errorCode;
-  final List<Object> arguments;
-
-  _TestError(this.offset, this.length, this.errorCode, this.arguments);
-
-  @override
-  get hashCode {
-    var h = new JenkinsSmiHash()..add(offset)..add(length)..add(errorCode);
-    if (arguments != null) {
-      for (Object argument in arguments) {
-        h.add(argument);
-      }
-    }
-    return h.hashCode;
-  }
-
-  @override
-  operator ==(Object other) {
-    if (other is _TestError &&
-        offset == other.offset &&
-        length == other.length &&
-        errorCode == other.errorCode) {
-      if (arguments == null) return other.arguments == null;
-      if (other.arguments == null) return false;
-      if (arguments.length != other.arguments.length) return false;
-      for (int i = 0; i < arguments.length; i++) {
-        if (arguments[i] != other.arguments[i]) return false;
-      }
-      return true;
-    }
-    return false;
-  }
-
-  @override
-  toString() {
-    var end = offset + length;
-    var argString = arguments == null ? '' : '(${arguments.join(', ')})';
-    return 'Error($offset..$end, $errorCode$argString)';
-  }
-}
-
 class _TestScanner extends Scanner {
-  final _ErrorListener listener;
+  final ErrorListener listener;
 
   _TestScanner(CharacterReader reader, [this.listener]) : super(reader);
 
@@ -1292,7 +1410,7 @@ class _TestScanner extends Scanner {
   void reportError(
       ScannerErrorCode errorCode, int offset, List<Object> arguments) {
     if (listener != null) {
-      listener.errors.add(new _TestError(offset, 1, errorCode, arguments));
+      listener.errors.add(new TestError(offset, errorCode, arguments));
     }
   }
 }

@@ -15,11 +15,11 @@ import 'package:analyzer/src/dart/analysis/top_level_declaration.dart';
 import 'package:analyzer/src/generated/engine.dart'
     show AnalysisOptions, AnalysisOptionsImpl;
 import 'package:analyzer/src/generated/source.dart';
-import 'package:analyzer/src/util/fast_uri.dart';
 import 'package:convert/convert.dart';
 import 'package:crypto/crypto.dart';
 import 'package:test/test.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
+import 'package:typed_mock/typed_mock.dart';
 
 import '../../context/mock_sdk.dart';
 
@@ -38,6 +38,7 @@ class FileSystemStateTest {
   final FileContentOverlay contentOverlay = new FileContentOverlay();
 
   final StringBuffer logBuffer = new StringBuffer();
+  final UriResolver generatedUriResolver = new _GeneratedUriResolverMock();
   SourceFactory sourceFactory;
   PerformanceLog logger;
 
@@ -48,6 +49,7 @@ class FileSystemStateTest {
     sdk = new MockSdk(resourceProvider: provider);
     sourceFactory = new SourceFactory([
       new DartUriResolver(sdk),
+      generatedUriResolver,
       new PackageMapUriResolver(provider, <String, List<Folder>>{
         'aaa': [provider.getFolder(_p('/aaa/lib'))],
         'bbb': [provider.getFolder(_p('/bbb/lib'))],
@@ -58,6 +60,46 @@ class FileSystemStateTest {
       ..strongMode = true;
     fileSystemState = new FileSystemState(logger, byteStore, contentOverlay,
         provider, sourceFactory, analysisOptions, new Uint32List(0));
+  }
+
+  test_definedClassMemberNames() {
+    String path = _p('/aaa/lib/a.dart');
+    provider.newFile(
+        path,
+        r'''
+class A {
+  int a, b;
+  A();
+  A.c();
+  d() {}
+  get e => null;
+  set f(_) {}
+}
+class B {
+  g() {}
+}
+''');
+    FileState file = fileSystemState.getFileForPath(path);
+    expect(file.definedClassMemberNames,
+        unorderedEquals(['a', 'b', 'd', 'e', 'f', 'g']));
+  }
+
+  test_definedTopLevelNames() {
+    String path = _p('/aaa/lib/a.dart');
+    provider.newFile(
+        path,
+        r'''
+class A {}
+class B = Object with A;
+typedef C {}
+D() {}
+get E => null;
+set F(_) {}
+var G, H;
+''');
+    FileState file = fileSystemState.getFileForPath(path);
+    expect(file.definedTopLevelNames,
+        unorderedEquals(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']));
   }
 
   test_exportedTopLevelDeclarations_export() {
@@ -259,7 +301,7 @@ class A2 {}
     String path = _p('/aaa/lib/a.dart');
     FileState file = fileSystemState.getFileForPath(path);
     expect(file.path, path);
-    expect(file.uri, FastUri.parse('package:aaa/a.dart'));
+    expect(file.uri, Uri.parse('package:aaa/a.dart'));
     expect(file.content, '');
     expect(file.contentHash, _md5(''));
     expect(_excludeSdk(file.importedFiles), isEmpty);
@@ -270,6 +312,53 @@ class A2 {}
     expect(file.library, isNull);
     expect(file.unlinked, isNotNull);
     expect(file.unlinked.classes, isEmpty);
+  }
+
+  test_getFileForPath_hasLibraryDirective_hasPartOfDirective() {
+    String a = _p('/test/lib/a.dart');
+    provider.newFile(
+        a,
+        r'''
+library L;
+part of L;
+''');
+    FileState file = fileSystemState.getFileForPath(a);
+    expect(file.isPart, isFalse);
+  }
+
+  test_getFileForPath_import_invalidUri() {
+    String a = _p('/aaa/lib/a.dart');
+    String a1 = _p('/aaa/lib/a1.dart');
+    String a2 = _p('/aaa/lib/a2.dart');
+    String a3 = _p('/aaa/lib/a3.dart');
+    String content_a1 = r'''
+import 'package:aaa/a1.dart';
+import '[invalid uri]';
+
+export '[invalid uri]';
+export 'package:aaa/a2.dart';
+
+part 'a3.dart';
+part '[invalid uri]';
+''';
+    provider.newFile(a, content_a1);
+
+    FileState file = fileSystemState.getFileForPath(a);
+
+    expect(_excludeSdk(file.importedFiles), hasLength(1));
+    expect(file.importedFiles[0].path, a1);
+    expect(file.importedFiles[0].uri, Uri.parse('package:aaa/a1.dart'));
+    expect(file.importedFiles[0].source, isNotNull);
+
+    expect(_excludeSdk(file.exportedFiles), hasLength(1));
+    expect(file.exportedFiles[0].path, a2);
+    expect(file.exportedFiles[0].uri, Uri.parse('package:aaa/a2.dart'));
+    expect(file.exportedFiles[0].source, isNotNull);
+
+    expect(_excludeSdk(file.partedFiles), hasLength(1));
+    expect(file.partedFiles[0].path, a3);
+    expect(file.partedFiles[0].uri, Uri.parse('package:aaa/a3.dart'));
+    expect(file.partedFiles[0].source, isNotNull);
   }
 
   test_getFileForPath_library() {
@@ -303,23 +392,23 @@ class A1 {}
 
     expect(_excludeSdk(file.importedFiles), hasLength(2));
     expect(file.importedFiles[0].path, a2);
-    expect(file.importedFiles[0].uri, FastUri.parse('package:aaa/a2.dart'));
+    expect(file.importedFiles[0].uri, Uri.parse('package:aaa/a2.dart'));
     expect(file.importedFiles[0].source, isNotNull);
     expect(file.importedFiles[1].path, b1);
-    expect(file.importedFiles[1].uri, FastUri.parse('package:bbb/b1.dart'));
+    expect(file.importedFiles[1].uri, Uri.parse('package:bbb/b1.dart'));
     expect(file.importedFiles[1].source, isNotNull);
 
     expect(file.exportedFiles, hasLength(2));
     expect(file.exportedFiles[0].path, b2);
-    expect(file.exportedFiles[0].uri, FastUri.parse('package:bbb/b2.dart'));
+    expect(file.exportedFiles[0].uri, Uri.parse('package:bbb/b2.dart'));
     expect(file.exportedFiles[0].source, isNotNull);
     expect(file.exportedFiles[1].path, a3);
-    expect(file.exportedFiles[1].uri, FastUri.parse('package:aaa/a3.dart'));
+    expect(file.exportedFiles[1].uri, Uri.parse('package:aaa/a3.dart'));
     expect(file.exportedFiles[1].source, isNotNull);
 
     expect(file.partedFiles, hasLength(1));
     expect(file.partedFiles[0].path, a4);
-    expect(file.partedFiles[0].uri, FastUri.parse('package:aaa/a4.dart'));
+    expect(file.partedFiles[0].uri, Uri.parse('package:aaa/a4.dart'));
 
     expect(_excludeSdk(file.directReferencedFiles), hasLength(5));
 
@@ -372,7 +461,7 @@ class A2 {}
 
     FileState file_a2 = fileSystemState.getFileForPath(a2);
     expect(file_a2.path, a2);
-    expect(file_a2.uri, FastUri.parse('package:aaa/a2.dart'));
+    expect(file_a2.uri, Uri.parse('package:aaa/a2.dart'));
 
     expect(file_a2.unlinked, isNotNull);
     expect(file_a2.unlinked.classes, hasLength(1));
@@ -419,7 +508,7 @@ part 'not-a2.dart';
 
   test_getFileForUri_packageVsFileUri() {
     String path = _p('/aaa/lib/a.dart');
-    var packageUri = FastUri.parse('package:aaa/a.dart');
+    var packageUri = Uri.parse('package:aaa/a.dart');
     var fileUri = provider.pathContext.toUri(path);
 
     // The files with `package:` and `file:` URIs are different.
@@ -436,6 +525,22 @@ part 'not-a2.dart';
     // The file with the `package:` style URI is canonical, and is the first.
     var files = fileSystemState.getFilesForPath(path);
     expect(files, [filePackageUri, fileFileUri]);
+  }
+
+  test_hasUri() {
+    Uri uri = Uri.parse('package:aaa/foo.dart');
+    String templatePath = _p('/aaa/lib/foo.dart');
+    String generatedPath = _p('/generated/aaa/lib/foo.dart');
+
+    Source generatedSource = new _SourceMock();
+    when(generatedSource.fullName).thenReturn(generatedPath);
+    when(generatedSource.uri).thenReturn(uri);
+
+    when(generatedUriResolver.resolveAbsolute(uri, uri))
+        .thenReturn(generatedSource);
+
+    expect(fileSystemState.hasUri(templatePath), isFalse);
+    expect(fileSystemState.hasUri(generatedPath), isTrue);
   }
 
   test_referencedNames() {
@@ -704,3 +809,7 @@ set _V3(_) {}
     return hex.encode(md5.convert(UTF8.encode(content)).bytes);
   }
 }
+
+class _GeneratedUriResolverMock extends TypedMock implements UriResolver {}
+
+class _SourceMock extends TypedMock implements Source {}

@@ -107,14 +107,26 @@ class AstInferredTypeTest extends AbstractResynthesizeTest
 
   @override
   @failingTest
-  void test_blockBodiedLambdas_doesNotInferBottom_asyncStar_topLevel() {
-    super.test_blockBodiedLambdas_doesNotInferBottom_asyncStar_topLevel();
+  void test_blockBodiedLambdas_inferBottom_async_topLevel() {
+    super.test_blockBodiedLambdas_inferBottom_async_topLevel();
   }
 
   @override
   @failingTest
-  void test_blockBodiedLambdas_doesNotInferBottom_syncStar_topLevel() {
-    super.test_blockBodiedLambdas_doesNotInferBottom_syncStar_topLevel();
+  void test_blockBodiedLambdas_inferBottom_asyncStar_topLevel() {
+    super.test_blockBodiedLambdas_inferBottom_asyncStar_topLevel();
+  }
+
+  @override
+  @failingTest
+  void test_blockBodiedLambdas_inferBottom_sync_topLevel() {
+    super.test_blockBodiedLambdas_inferBottom_sync_topLevel();
+  }
+
+  @override
+  @failingTest
+  void test_blockBodiedLambdas_inferBottom_syncStar_topLevel() {
+    super.test_blockBodiedLambdas_inferBottom_syncStar_topLevel();
   }
 
   @override
@@ -553,6 +565,18 @@ var b = a.m();
 
   @override
   @failingTest
+  void test_inferredType_blockBodiedClosure_noArguments() {
+    super.test_inferredType_blockBodiedClosure_noArguments();
+  }
+
+  @override
+  @failingTest
+  void test_inferredType_blockClosure_noArgs_noReturn() {
+    super.test_inferredType_blockClosure_noArgs_noReturn();
+  }
+
+  @override
+  @failingTest
   void test_inferredType_opAssignToProperty_prefixedIdentifier() {
     super.test_inferredType_opAssignToProperty_prefixedIdentifier();
   }
@@ -695,7 +719,6 @@ var v = new C().m(1, b: 'bbb', c: 2.0);
         .test_unsafeBlockClosureInference_methodCall_implicitTypeParam_comment();
   }
 
-  @override
   LibraryElementImpl _checkSource(
       SummaryResynthesizer resynthesizer, Source source) {
     LibraryElementImpl resynthesized =
@@ -720,7 +743,6 @@ class ResynthesizeAstStrongTest extends _ResynthesizeAstTest {
       super.createOptions()..strongMode = true;
 
   @override
-  @failingTest
   test_instantiateToBounds_boundRefersToItself() {
     super.test_instantiateToBounds_boundRefersToItself();
   }
@@ -860,7 +882,7 @@ abstract class _AstResynthesizeTestMixin
   }
 
   void _serializeLibrary(Source librarySource) {
-    if (librarySource.isInSystemLibrary) {
+    if (librarySource == null || librarySource.isInSystemLibrary) {
       return;
     }
     if (!serializedSources.add(librarySource)) {

@@ -57,6 +57,7 @@ double_parse_test/01: Pass, Fail # JS implementations disagree on U+0085 being w
 integer_to_radix_string_test: RuntimeError # issue 22045
 int_modulo_arith_test/bignum: RuntimeError # No bigints.
 int_modulo_arith_test/modPow: RuntimeError # No bigints.
+list_unmodifiable_test: Pass, RuntimeError # Issue 28712
 
 [ $compiler == dart2js && $fast_startup ]
 apply3_test: Fail # mirrors not supported
@@ -150,6 +151,9 @@ iterable_element_at_test: StaticWarning, OK # Test generates errors on purpose.
 num_clamp_test: StaticWarning, OK # Test generates errors on purpose.
 string_test: StaticWarning, OK # Test generates error on purpose.
 duration2_test: StaticWarning, OK # Test generates error on purpose.
+
+[ $compiler == dart2analyzer && $builder_tag == strong ]
+*: Skip # Issue 28649
 
 [ $system == windows && $arch == x64 ]
 stopwatch_test: Skip  # Flaky test due to expected performance behaviour.

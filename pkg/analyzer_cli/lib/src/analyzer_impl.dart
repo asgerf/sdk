@@ -12,8 +12,9 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/error/error.dart';
 import 'package:analyzer/exception/exception.dart';
 import 'package:analyzer/source/error_processor.dart';
+import 'package:analyzer/src/dart/analysis/driver.dart';
 import 'package:analyzer/src/error/codes.dart';
-import 'package:analyzer/src/generated/engine.dart';
+import 'package:analyzer/src/generated/engine.dart' hide AnalysisResult;
 import 'package:analyzer/src/generated/java_io.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/source_io.dart';
@@ -40,6 +41,7 @@ class AnalyzerImpl {
 
   final AnalysisOptions analysisOptions;
   final AnalysisContext context;
+  final AnalysisDriver analysisDriver;
 
   /// Accumulated analysis statistics.
   final AnalysisStats stats;
@@ -63,8 +65,8 @@ class AnalyzerImpl {
   /// specified the "--package-warnings" option.
   String _selfPackageName;
 
-  AnalyzerImpl(this.analysisOptions, this.context, this.librarySource,
-      this.options, this.stats, this.startTime);
+  AnalyzerImpl(this.analysisOptions, this.context, this.analysisDriver,
+      this.librarySource, this.options, this.stats, this.startTime);
 
   /// Returns the maximal [ErrorSeverity] of the recorded errors.
   ErrorSeverity get maxErrorSeverity {
@@ -128,8 +130,16 @@ class AnalyzerImpl {
     PerformanceTag previous = _prepareErrorsTag.makeCurrent();
     try {
       for (Source source in sources) {
-        context.computeErrors(source);
-        errorInfos.add(context.getErrors(source));
+        if (analysisDriver != null) {
+          String path = source.fullName;
+          analysisDriver.addFile(path);
+          ErrorsResult errorsResult = await analysisDriver.getErrors(path);
+          errorInfos.add(new AnalysisErrorInfoImpl(
+              errorsResult.errors, errorsResult.lineInfo));
+        } else {
+          context.computeErrors(source);
+          errorInfos.add(context.getErrors(source));
+        }
       }
     } finally {
       previous.makeCurrent();
@@ -155,12 +165,16 @@ class AnalyzerImpl {
 
   Future<ErrorSeverity> _analyze(int printMode) async {
     // Don't try to analyze parts.
-    if (context.computeKindOf(librarySource) == SourceKind.PART) {
+    String path = librarySource.fullName;
+    SourceKind librarySourceKind = analysisDriver != null
+        ? await analysisDriver.getSourceKind(path)
+        : context.computeKindOf(librarySource);
+    if (librarySourceKind == SourceKind.PART) {
       stderr.writeln("Only libraries can be analyzed.");
-      stderr.writeln(
-          "${librarySource.fullName} is a part and can not be analyzed.");
+      stderr.writeln("${path} is a part and can not be analyzed.");
       return ErrorSeverity.ERROR;
     }
+
     LibraryElement libraryElement = await _resolveLibrary();
     prepareSources(libraryElement);
     await prepareErrors();
@@ -249,7 +263,14 @@ class AnalyzerImpl {
   Future<LibraryElement> _resolveLibrary() async {
     PerformanceTag previous = _resolveLibraryTag.makeCurrent();
     try {
-      return context.computeLibraryElement(librarySource);
+      if (analysisDriver != null) {
+        String path = librarySource.fullName;
+        analysisDriver.priorityFiles = [path];
+        AnalysisResult analysisResult = await analysisDriver.getResult(path);
+        return analysisResult.unit.element.library;
+      } else {
+        return context.computeLibraryElement(librarySource);
+      }
     } finally {
       previous.makeCurrent();
     }

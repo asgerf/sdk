@@ -58,12 +58,12 @@ class StrongTypeSystemImpl extends TypeSystem {
       {this.implicitCasts: true,
       this.nonnullableTypes: AnalysisOptionsImpl.NONNULLABLE_TYPES});
 
+  @override
+  bool get isStrong => true;
+
   bool anyParameterType(FunctionType ft, bool predicate(DartType t)) {
     return ft.parameters.any((p) => predicate(p.type));
   }
-
-  @override
-  bool get isStrong => true;
 
   @override
   FunctionType functionTypeToConcreteType(FunctionType t) {
@@ -371,13 +371,26 @@ class StrongTypeSystemImpl extends TypeSystem {
     }
 
     // If we stopped making progress, and not all types are ground,
-    // then the whole type is malbounded and an error should be reported.
+    // then the whole type is malbounded and an error should be reported
+    // if errors are requested, and a partially completed type should
+    // be returned.
     if (partials.isNotEmpty) {
       if (hasError != null) {
         hasError[0] = true;
       }
-      return instantiateType(
-          type, new List<DartType>.filled(count, DynamicTypeImpl.instance));
+      var domain = defaults.keys.toList();
+      var range = defaults.values.toList();
+      // Build a substitution Phi mapping each uncompleted type variable to
+      // dynamic, and each completed type variable to its default.
+      for (TypeParameterType parameter in partials.keys) {
+        domain.add(parameter);
+        range.add(DynamicTypeImpl.instance);
+      }
+      // Set the default for an uncompleted type variable (T extends B)
+      // to be Phi(B)
+      for (TypeParameterType parameter in partials.keys) {
+        defaults[parameter] = partials[parameter].substitute2(range, domain);
+      }
     }
 
     List<DartType> orderedArguments =
@@ -696,13 +709,6 @@ class StrongTypeSystemImpl extends TypeSystem {
     };
   }
 
-  /// If [t1] or [t2] is a type parameter we are inferring, update its bound.
-  /// Returns `true` if we could possibly find a compatible type,
-  /// otherwise `false`.
-  bool _inferTypeParameterSubtypeOf(DartType t1, DartType t2) {
-    return false;
-  }
-
   /**
    * This currently does not implement a very complete least upper bound
    * algorithm, but handles a couple of the very common cases that are
@@ -840,28 +846,7 @@ class StrongTypeSystemImpl extends TypeSystem {
     // Trivially false.
     if (_isTop(t1, dynamicIsBottom: dynamicIsBottom) ||
         _isBottom(t2, dynamicIsBottom: dynamicIsBottom)) {
-      return _inferTypeParameterSubtypeOf(t1, t2);
-    }
-
-    // S <: T where S is a type variable
-    //  T is not dynamic or object (handled above)
-    //  True if T == S
-    //  Or true if bound of S is S' and S' <: T
-    if (t1 is TypeParameterType) {
-      if (t2 is TypeParameterType &&
-          t1.definition == t2.definition &&
-          guardedSubtype(t1.bound, t2.bound, visited)) {
-        return true;
-      }
-      if (_inferTypeParameterSubtypeOf(t1, t2)) {
-        return true;
-      }
-      DartType bound = t1.element.bound;
-      return bound == null ? false : guardedSubtype(bound, t2, visited);
-    }
-
-    if (t2 is TypeParameterType) {
-      return _inferTypeParameterSubtypeOf(t1, t2);
+      return false;
     }
 
     // Handle FutureOr<T> union type.
@@ -885,6 +870,23 @@ class StrongTypeSystemImpl extends TypeSystem {
       var t2TypeArg = t2.typeArguments[0];
       var t2Future = typeProvider.futureType.instantiate([t2TypeArg]);
       return isSubtypeOf(t1, t2Future) || isSubtypeOf(t1, t2TypeArg);
+    }
+
+    // S <: T where S is a type variable
+    //  T is not dynamic or object (handled above)
+    //  True if T == S
+    //  Or true if bound of S is S' and S' <: T
+    if (t1 is TypeParameterType) {
+      if (t2 is TypeParameterType &&
+          t1.definition == t2.definition &&
+          guardedSubtype(t1.bound, t2.bound, visited)) {
+        return true;
+      }
+      DartType bound = t1.element.bound;
+      return bound == null ? false : guardedSubtype(bound, t2, visited);
+    }
+    if (t2 is TypeParameterType) {
+      return false;
     }
 
     // Void only appears as the return type of a function, and we handle it
@@ -1482,6 +1484,7 @@ class _StrongInferenceTypeSystem extends StrongTypeSystemImpl {
 
     for (int i = 0; i < fnTypeParams.length; i++) {
       TypeParameterType typeParam = fnTypeParams[i];
+      _TypeParameterBound bound = _bounds[typeParam];
 
       // Apply the `extends` clause for the type parameter, if any.
       //
@@ -1503,7 +1506,9 @@ class _StrongInferenceTypeSystem extends StrongTypeSystemImpl {
       DartType declaredUpperBound = typeParam.element.bound;
       if (declaredUpperBound != null) {
         // Assert that the type parameter is a subtype of its bound.
-        _inferTypeParameterSubtypeOf(typeParam,
+        // TODO(jmesserly): the order of calling GLB here matters, because of
+        // https://github.com/dart-lang/sdk/issues/28513
+        bound.upper = _typeSystem.getGreatestLowerBound(bound.upper,
             declaredUpperBound.substitute2(inferredTypes, fnTypeParams));
       }
 
@@ -1519,7 +1524,6 @@ class _StrongInferenceTypeSystem extends StrongTypeSystemImpl {
       _TypeParameterVariance variance =
           new _TypeParameterVariance.from(typeParam, declaredReturnType);
 
-      _TypeParameterBound bound = _bounds[typeParam];
       DartType lowerBound = bound.lower;
       DartType upperBound = bound.upper;
 
@@ -1550,7 +1554,6 @@ class _StrongInferenceTypeSystem extends StrongTypeSystemImpl {
         lowerBound = bound.upper;
         upperBound = bound.lower;
       }
-
       inferredTypes[i] =
           variance.passedIn && !upperBound.isDynamic || lowerBound.isBottom
               ? upperBound
@@ -1562,8 +1565,19 @@ class _StrongInferenceTypeSystem extends StrongTypeSystemImpl {
   }
 
   @override
-  bool _inferTypeParameterSubtypeOf(DartType t1, DartType t2) {
+  bool _isSubtypeOf(DartType t1, DartType t2, Set<Element> visited,
+      {bool dynamicIsBottom: false}) {
+    // TODO(jmesserly): the trivial constraints are not treated as part of
+    // the constraint set here. This seems incorrect once we are able to pin the
+    // inferred type of a type parameter based on the downwards information.
+    if (identical(t1, t2) ||
+        _isTop(t2, dynamicIsBottom: dynamicIsBottom) ||
+        _isBottom(t1, dynamicIsBottom: dynamicIsBottom)) {
+      return true;
+    }
+
     if (t1 is TypeParameterType) {
+      // TODO(jmesserly): we ignore `dynamicIsBottom` here, is that correct?
       _TypeParameterBound bound = _bounds[t1];
       if (bound != null) {
         // Ensure T1 <: T2, where T1 is a type parameter we are inferring.
@@ -1591,7 +1605,8 @@ class _StrongInferenceTypeSystem extends StrongTypeSystemImpl {
         return true;
       }
     }
-    return false;
+    return super
+        ._isSubtypeOf(t1, t2, visited, dynamicIsBottom: dynamicIsBottom);
   }
 }
 

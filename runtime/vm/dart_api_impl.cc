@@ -536,11 +536,13 @@ Dart_Handle Api::AcquiredError(Isolate* isolate) {
 
 bool Api::IsValid(Dart_Handle handle) {
   Isolate* isolate = Isolate::Current();
+  Thread* thread = Thread::Current();
+  ASSERT(thread->IsMutatorThread());
   CHECK_ISOLATE(isolate);
 
   // Check against all of the handles in the current isolate as well as the
   // read-only handles.
-  return isolate->thread_registry()->IsValidHandle(handle) ||
+  return thread->IsValidHandle(handle) ||
          isolate->api_state()->IsActivePersistentHandle(
              reinterpret_cast<Dart_PersistentHandle>(handle)) ||
          isolate->api_state()->IsActiveWeakPersistentHandle(
@@ -1600,8 +1602,8 @@ Dart_CreateSnapshot(uint8_t** vm_snapshot_data_buffer,
 
   FullSnapshotWriter writer(Snapshot::kCore, vm_snapshot_data_buffer,
                             isolate_snapshot_data_buffer, ApiReallocate,
-                            NULL /* vm_instructions_writer */,
-                            NULL /* isolate_instructions_writer */);
+                            NULL /* vm_image_writer */,
+                            NULL /* isolate_image_writer */);
   writer.WriteFullSnapshot();
   if (vm_snapshot_data_buffer != NULL) {
     *vm_snapshot_data_size = writer.VmIsolateSnapshotSize();
@@ -5112,6 +5114,11 @@ RawString* Api::GetEnvironmentValue(Thread* thread, const String& name) {
     if (Symbols::DartIsVM().Equals(name)) {
       return Symbols::True().raw();
     }
+    if (FLAG_causal_async_stacks) {
+      if (Symbols::DartDeveloperCausalAsyncStacks().Equals(name)) {
+        return Symbols::True().raw();
+      }
+    }
   }
   return result.raw();
 }
@@ -5408,7 +5415,6 @@ DART_EXPORT Dart_Handle Dart_LoadKernel(void* kernel_program) {
     return Api::NewHandle(T, tmp.raw());
   }
   library ^= tmp.raw();
-  library.set_debuggable(false);
   I->object_store()->set_root_library(library);
   return Api::NewHandle(T, library.raw());
 #endif
@@ -6013,14 +6019,6 @@ DART_EXPORT bool Dart_KernelIsolateIsRunning() {
 }
 
 
-DART_EXPORT Dart_Port Dart_ServiceWaitForKernelPort() {
-#ifdef DART_PRECOMPILED_RUNTIME
-  return ILLEGAL_PORT;
-#else
-  return KernelIsolate::WaitForKernelPort();
-#endif
-}
-
 DART_EXPORT Dart_Port Dart_KernelPort() {
 #ifdef DART_PRECOMPILED_RUNTIME
   return false;
@@ -6029,6 +6027,18 @@ DART_EXPORT Dart_Port Dart_KernelPort() {
 #endif
 }
 
+
+DART_EXPORT Dart_KernelCompilationResult
+Dart_CompileToKernel(const char* script_uri) {
+#ifdef DART_PRECOMPILED_RUNTIME
+  Dart_KernelCompilationResult result;
+  result.status = Dart_KernelCompilationStatus_Unknown;
+  result.error = strdup("Dart_CompileToKernel is unsupported.");
+  return result;
+#else
+  return KernelIsolate::CompileToKernel(script_uri);
+#endif
+}
 
 // --- Service support ---
 
@@ -6658,16 +6668,16 @@ Dart_CreateAppAOTSnapshotAsAssembly(uint8_t** assembly_buffer,
 
   NOT_IN_PRODUCT(TimelineDurationScope tds2(T, Timeline::GetIsolateStream(),
                                             "WriteAppAOTSnapshot"));
-  AssemblyInstructionsWriter instructions_writer(assembly_buffer, ApiReallocate,
-                                                 2 * MB /* initial_size */);
+  AssemblyImageWriter image_writer(assembly_buffer, ApiReallocate,
+                                   2 * MB /* initial_size */);
   uint8_t* vm_snapshot_data_buffer = NULL;
   uint8_t* isolate_snapshot_data_buffer = NULL;
   FullSnapshotWriter writer(Snapshot::kAppAOT, &vm_snapshot_data_buffer,
                             &isolate_snapshot_data_buffer, ApiReallocate,
-                            &instructions_writer, &instructions_writer);
+                            &image_writer, &image_writer);
 
   writer.WriteFullSnapshot();
-  *assembly_size = instructions_writer.AssemblySize();
+  *assembly_size = image_writer.AssemblySize();
 
   return Api::Success();
 #endif
@@ -6727,23 +6737,21 @@ Dart_CreateAppAOTSnapshotAsBlobs(uint8_t** vm_snapshot_data_buffer,
 
   NOT_IN_PRODUCT(TimelineDurationScope tds2(T, Timeline::GetIsolateStream(),
                                             "WriteAppAOTSnapshot"));
-  BlobInstructionsWriter vm_instructions_writer(vm_snapshot_instructions_buffer,
-                                                ApiReallocate,
-                                                2 * MB /* initial_size */);
-  BlobInstructionsWriter isolate_instructions_writer(
-      isolate_snapshot_instructions_buffer, ApiReallocate,
-      2 * MB /* initial_size */);
-  FullSnapshotWriter writer(
-      Snapshot::kAppAOT, vm_snapshot_data_buffer, isolate_snapshot_data_buffer,
-      ApiReallocate, &vm_instructions_writer, &isolate_instructions_writer);
+  BlobImageWriter vm_image_writer(vm_snapshot_instructions_buffer,
+                                  ApiReallocate, 2 * MB /* initial_size */);
+  BlobImageWriter isolate_image_writer(isolate_snapshot_instructions_buffer,
+                                       ApiReallocate,
+                                       2 * MB /* initial_size */);
+  FullSnapshotWriter writer(Snapshot::kAppAOT, vm_snapshot_data_buffer,
+                            isolate_snapshot_data_buffer, ApiReallocate,
+                            &vm_image_writer, &isolate_image_writer);
 
   writer.WriteFullSnapshot();
   *vm_snapshot_data_size = writer.VmIsolateSnapshotSize();
-  *vm_snapshot_instructions_size =
-      vm_instructions_writer.InstructionsBlobSize();
+  *vm_snapshot_instructions_size = vm_image_writer.InstructionsBlobSize();
   *isolate_snapshot_data_size = writer.IsolateSnapshotSize();
   *isolate_snapshot_instructions_size =
-      isolate_instructions_writer.InstructionsBlobSize();
+      isolate_image_writer.InstructionsBlobSize();
 
   return Api::Success();
 #endif
@@ -6792,17 +6800,17 @@ Dart_CreateAppJITSnapshotAsBlobs(uint8_t** isolate_snapshot_data_buffer,
 
   NOT_IN_PRODUCT(TimelineDurationScope tds2(T, Timeline::GetIsolateStream(),
                                             "WriteAppJITSnapshot"));
-  BlobInstructionsWriter isolate_instructions_writer(
-      isolate_snapshot_instructions_buffer, ApiReallocate,
-      2 * MB /* initial_size */);
+  BlobImageWriter isolate_image_writer(isolate_snapshot_instructions_buffer,
+                                       ApiReallocate,
+                                       2 * MB /* initial_size */);
   FullSnapshotWriter writer(Snapshot::kAppJIT, NULL,
                             isolate_snapshot_data_buffer, ApiReallocate, NULL,
-                            &isolate_instructions_writer);
+                            &isolate_image_writer);
   writer.WriteFullSnapshot();
 
   *isolate_snapshot_data_size = writer.IsolateSnapshotSize();
   *isolate_snapshot_instructions_size =
-      isolate_instructions_writer.InstructionsBlobSize();
+      isolate_image_writer.InstructionsBlobSize();
 
   return Api::Success();
 #endif

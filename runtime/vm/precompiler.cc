@@ -2677,7 +2677,7 @@ void Precompiler::RehashTypes() {
   {
     CanonicalTypeSet types_table(Z, object_store->canonical_types());
     types_array = HashTables::ToArray(types_table, false);
-    for (intptr_t i = 0; i < (types_array.Length() - 1); i++) {
+    for (intptr_t i = 0; i < types_array.Length(); i++) {
       type ^= types_array.At(i);
       types.Add(type);
     }
@@ -2690,7 +2690,7 @@ void Precompiler::RehashTypes() {
   for (intptr_t i = 0; i < types.Length(); i++) {
     type ^= types.At(i);
     bool present = types_table.Insert(type);
-    ASSERT(!present);
+    ASSERT(!present || type.IsRecursive());
   }
   object_store->set_canonical_types(types_table.Release());
 
@@ -2703,7 +2703,7 @@ void Precompiler::RehashTypes() {
     CanonicalTypeArgumentsSet typeargs_table(
         Z, object_store->canonical_type_arguments());
     typeargs_array = HashTables::ToArray(typeargs_table, false);
-    for (intptr_t i = 0; i < (typeargs_array.Length() - 1); i++) {
+    for (intptr_t i = 0; i < typeargs_array.Length(); i++) {
       typearg ^= typeargs_array.At(i);
       typeargs.Add(typearg);
     }
@@ -2717,7 +2717,7 @@ void Precompiler::RehashTypes() {
   for (intptr_t i = 0; i < typeargs.Length(); i++) {
     typearg ^= typeargs.At(i);
     bool present = typeargs_table.Insert(typearg);
-    ASSERT(!present);
+    ASSERT(!present || typearg.IsRecursive());
   }
   object_store->set_canonical_type_arguments(typeargs_table.Release());
 }
@@ -3120,22 +3120,6 @@ void PrecompileParsedFunctionHelper::FinalizeCompilation(
     function.set_usage_counter(INT_MIN);
   }
 
-  const Array& intervals = graph_compiler->inlined_code_intervals();
-  INC_STAT(thread(), total_code_size, intervals.Length() * sizeof(uword));
-  code.SetInlinedIntervals(intervals);
-
-  const Array& inlined_id_array =
-      Array::Handle(zone, graph_compiler->InliningIdToFunction());
-  INC_STAT(thread(), total_code_size,
-           inlined_id_array.Length() * sizeof(uword));
-  code.SetInlinedIdToFunction(inlined_id_array);
-
-  const Array& caller_inlining_id_map_array =
-      Array::Handle(zone, graph_compiler->CallerInliningIdMap());
-  INC_STAT(thread(), total_code_size,
-           caller_inlining_id_map_array.Length() * sizeof(uword));
-  code.SetInlinedCallerIdMap(caller_inlining_id_map_array);
-
   graph_compiler->FinalizePcDescriptors(code);
   code.set_deopt_info_array(deopt_info_array);
 
@@ -3143,6 +3127,7 @@ void PrecompileParsedFunctionHelper::FinalizeCompilation(
   graph_compiler->FinalizeVarDescriptors(code);
   graph_compiler->FinalizeExceptionHandlers(code);
   graph_compiler->FinalizeStaticCallTargetsTable(code);
+  graph_compiler->FinalizeCodeSourceMap(code);
 
   if (optimized()) {
     // Installs code while at safepoint.

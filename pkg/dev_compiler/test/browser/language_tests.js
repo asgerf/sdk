@@ -185,6 +185,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'generic_instanceof2_test': fail,
       'generic_is_check_test': fail,
       'getter_closure_execution_order_test': fail,
+      'gc_test': 'slow',
       'hash_code_mangling_test': fail,
       'identical_closure2_test': fail,
       'infinite_switch_label_test': fail,
@@ -205,7 +206,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'many_generic_instanceof_test': fail,
       'map_literal10_test': fail,
       'map_literal7_test': fail,
-      'memory_swap_test': is.firefox() ? skip_timeout : pass,
+      'memory_swap_test': skip_timeout,
       'method_invocation_test': fail,
       'mint_arithmetic_test': fail,
       'mixin_forwarding_constructor3_test': fail,
@@ -353,6 +354,9 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
     },
 
     'lib/convert': {
+      'base64_test_01_multi': 'slow',
+      'chunked_conversion_utf85_test': 'slow',
+
       'encoding_test': skip_timeout,
 
       'json_utf8_chunk_test': skip_timeout,
@@ -387,10 +391,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'custom_element_name_clash_test': async_unittest,
       'custom_elements_23127_test': async_unittest,
       'custom_elements_test': async_unittest,
-
-      // was https://github.com/dart-lang/sdk/issues/27578, needs triage
-      'dom_constructors_test': 'fail',
-
       'element_animate_test': 'unittest',
 
       // https://github.com/dart-lang/sdk/issues/27579.
@@ -404,18 +404,10 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'element_types_test': firefox_fail,
       'event_customevent_test': async_unittest,
       'events_test': async_unittest,
-
-      // Failure: "Failed to execute 'dispatchEvent' on 'EventTarget': parameter
-      // 1 is not of type 'Event'."
-      'event_test': 'fail',
-
       'fileapi_test': async_unittest,
       'filereader_test': async_unittest,
       'fontface_loaded_test': async_unittest,
-
-      // Failed because it's expecting "Ahem" but getting null. Maybe sdk#27579?
-      'fontface_test': 'fail',
-
+      'fontface_test': firefox_fail,
       'form_data_test': async_unittest,
       'history_test': async_unittest,
       'indexeddb_1_test': async_unittest,
@@ -442,14 +434,9 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       // was https://github.com/dart-lang/sdk/issues/27578, needs triage
       'mediasource_test': 'fail',
       'media_stream_test': 'fail',
-      'messageevent_test': 'fail',
 
       'mutationobserver_test': async_unittest,
       'native_gc_test': async_unittest,
-
-      // was https://github.com/dart-lang/sdk/issues/27578, needs triage
-      'notification_test': 'fail',
-
       'postmessage_structured_test': async_unittest,
       'queryall_test': ['slow'], // see sdk #27794
       'request_animation_frame_test': async_unittest,
@@ -457,10 +444,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
 
       // was https://github.com/dart-lang/sdk/issues/27578, needs triage
       'rtc_test': is.chrome('<=55') ? fail : pass,
-
-      // Expected 1, got null.
-      'serialized_script_value_test': 'fail',
-
       'shadow_dom_test': firefox_fail,
 
       // was https://github.com/dart-lang/sdk/issues/27578, needs triage
@@ -711,8 +694,9 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
         }
       };
 
-      test(name, function(done) { // 'function' to allow `this.timeout`.
-        console.debug('Running test:  ' + name);
+      var fullName = status_group + '/' + name;
+      test(fullName, function(done) { // 'function' to allow `this.timeout`.
+        console.debug('Running test:  ' + fullName);
 
         // Many tests are async.  Currently, tests can indicate this in
         // two different ways.  First, `main` can call (in Dart)

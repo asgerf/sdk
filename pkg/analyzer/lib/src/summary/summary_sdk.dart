@@ -123,6 +123,7 @@ class SummaryTypeProvider extends TypeProviderBase {
   InterfaceType _functionType;
   InterfaceType _futureDynamicType;
   InterfaceType _futureNullType;
+  InterfaceType _futureOrNullType;
   InterfaceType _futureOrType;
   InterfaceType _futureType;
   InterfaceType _intType;
@@ -190,9 +191,23 @@ class SummaryTypeProvider extends TypeProviderBase {
   }
 
   @override
+  InterfaceType get futureOrNullType {
+    assert(_asyncLibrary != null);
+    _futureOrNullType ??= futureOrType.instantiate(<DartType>[nullType]);
+    return _futureOrNullType;
+  }
+
+  @override
   InterfaceType get futureOrType {
     assert(_asyncLibrary != null);
-    _futureOrType ??= _getType(_asyncLibrary, "FutureOr");
+    try {
+      _futureOrType ??= _getType(_asyncLibrary, "FutureOr");
+    } on StateError {
+      // FutureOr<T> is still fairly new, so if we're analyzing an SDK that
+      // doesn't have it yet, create an element for it.
+      _futureOrType =
+          TypeProviderImpl.createPlaceholderFutureOr(futureType, objectType);
+    }
     return _futureOrType;
   }
 

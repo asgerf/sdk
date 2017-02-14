@@ -5379,9 +5379,6 @@ void MergedMathInstr::EmitNativeCode(FlowGraphCompiler* compiler) {
     __ Bind(&done);
     return;
   }
-  if (kind() == MergedMathInstr::kSinCos) {
-    UNIMPLEMENTED();
-  }
   UNIMPLEMENTED();
 }
 
@@ -5550,7 +5547,7 @@ class RangeErrorSlowPath : public SlowPathCode {
     __ Push(locs->in(0).reg());
     __ Push(locs->in(1).reg());
     __ CallRuntime(kRangeErrorRuntimeEntry, 2);
-    compiler->pc_descriptors_list()->AddDescriptor(
+    compiler->AddDescriptor(
         RawPcDescriptors::kOther, compiler->assembler()->CodeSize(),
         instruction_->deopt_id(), instruction_->token_pos(), try_index_);
     compiler->RecordSafepoint(locs, 2);

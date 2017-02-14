@@ -33,7 +33,7 @@ import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/utilities_dart.dart';
 import 'package:analyzer/src/task/dart.dart';
 import 'package:analyzer/src/task/strong/checker.dart' as checker
-    show isKnownFunction;
+    show hasStrictArrow;
 
 /**
  * A visitor used to traverse an AST structure looking for additional errors and
@@ -857,6 +857,14 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
               [node.identifier]);
         }
       }
+
+      // TODO(paulberry): remove this once dartbug.com/28515 is fixed.
+      if (node.typeParameters != null) {
+        _errorReporter.reportErrorForNode(
+            CompileTimeErrorCode.GENERIC_FUNCTION_TYPED_PARAM_UNSUPPORTED,
+            node);
+      }
+
       return super.visitFunctionTypedFormalParameter(node);
     } finally {
       _isInFunctionTypedFormalParameter = old;
@@ -2298,7 +2306,9 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
             return;
           }
         }
-      } else if (expectedReturnType.isDynamic || expectedReturnType.isVoid) {
+      } else if (expectedReturnType.isDynamic ||
+          expectedReturnType.isVoid ||
+          expectedReturnType.isDartCoreNull) {
         return;
       }
       _hasReturnWithoutValue = true;
@@ -2505,7 +2515,6 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
       DartType actualStaticType,
       DartType expectedStaticType,
       ErrorCode errorCode) {
-    // TODO(leafp): Move the Downcast functionality here.
     if (!_expressionIsAssignableAtType(
         expression, actualStaticType, expectedStaticType)) {
       _errorReporter.reportTypeErrorForNode(
@@ -2569,6 +2578,39 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
         element is TypeParameterElement) {
       _errorReporter.reportErrorForNode(
           StaticWarningCode.ASSIGNMENT_TO_TYPE, expression);
+    }
+  }
+
+  /**
+   * Verifies that the class is not named `Function` and that it doesn't
+   * extends/implements/mixes in `Function`.
+   */
+  void _checkForBadFunctionUse(ClassDeclaration node) {
+    ExtendsClause extendsClause = node.extendsClause;
+    WithClause withClause = node.withClause;
+
+    if (node.name.name == "Function") {
+      _errorReporter.reportErrorForNode(
+          HintCode.DEPRECATED_FUNCTION_CLASS_DECLARATION, node.name);
+    }
+
+    if (extendsClause != null) {
+      InterfaceType superclassType = _enclosingClass.supertype;
+      ClassElement superclassElement = superclassType?.element;
+      if (superclassElement != null && superclassElement.name == "Function") {
+        _errorReporter.reportErrorForNode(
+            HintCode.DEPRECATED_EXTENDS_FUNCTION, extendsClause.superclass);
+      }
+    }
+
+    if (withClause != null) {
+      for (TypeName type in withClause.mixinTypes) {
+        Element mixinElement = type.name.staticElement;
+        if (mixinElement != null && mixinElement.name == "Function") {
+          _errorReporter.reportErrorForNode(
+              HintCode.DEPRECATED_MIXIN_FUNCTION, type);
+        }
+      }
     }
   }
 
@@ -2937,40 +2979,6 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
           } else {
             memberHashMap[name.name] = member;
           }
-        }
-      }
-    }
-  }
-
-  /**
-   * Verifies that the class is not named `Function` and that it doesn't
-   * extends/implements/mixes in `Function`.
-   */
-  void _checkForBadFunctionUse(ClassDeclaration node) {
-    ExtendsClause extendsClause = node.extendsClause;
-    ImplementsClause implementsClause = node.implementsClause;
-    WithClause withClause = node.withClause;
-
-    if (node.name.name == "Function") {
-      _errorReporter.reportErrorForNode(
-          HintCode.DEPRECATED_FUNCTION_CLASS_DECLARATION, node.name);
-    }
-
-    if (extendsClause != null) {
-      InterfaceType superclassType = _enclosingClass.supertype;
-      ClassElement superclassElement = superclassType?.element;
-      if (superclassElement != null && superclassElement.name == "Function") {
-        _errorReporter.reportErrorForNode(
-            HintCode.DEPRECATED_EXTENDS_FUNCTION, extendsClause.superclass);
-      }
-    }
-
-    if (withClause != null) {
-      for (TypeName type in withClause.mixinTypes) {
-        Element mixinElement = type.name.staticElement;
-        if (mixinElement != null && mixinElement.name == "Function") {
-          _errorReporter.reportErrorForNode(
-              HintCode.DEPRECATED_MIXIN_FUNCTION, type);
         }
       }
     }
@@ -3999,7 +4007,9 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
     }
     DartType invokeType = node.staticInvokeType;
     DartType declaredType = node.function.staticType;
-    if (invokeType is FunctionType && declaredType is FunctionType) {
+    if (invokeType is FunctionType &&
+        declaredType is FunctionType &&
+        declaredType.typeFormals.isNotEmpty) {
       Iterable<DartType> typeArgs =
           FunctionTypeImpl.recoverTypeArguments(declaredType, invokeType);
       if (typeArgs.any((t) => t.isDynamic)) {
@@ -5239,9 +5249,13 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
     if (node is TypeName) {
       if (node.typeArguments == null) {
         DartType type = node.type;
-        if (type is InterfaceType && type.element.typeParameters.isNotEmpty) {
-          _errorReporter.reportErrorForNode(
-              StrongModeCode.NOT_INSTANTIATED_BOUND, node, [type]);
+        if (type is ParameterizedType) {
+          Element element = type.element;
+          if (element is TypeParameterizedElement &&
+              element.typeParameters.any((p) => p.bound != null)) {
+            _errorReporter.reportErrorForNode(
+                StrongModeCode.NOT_INSTANTIATED_BOUND, node, [type]);
+          }
         }
       } else {
         node.typeArguments.arguments.forEach(_checkForNotInstantiatedBound);
@@ -5890,6 +5904,11 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
   }
 
   void _checkForValidField(FieldFormalParameter parameter) {
+    AstNode parent2 = parameter.parent?.parent;
+    if (parent2 is! ConstructorDeclaration &&
+        parent2?.parent is! ConstructorDeclaration) {
+      return;
+    }
     ParameterElement element = parameter.element;
     if (element is FieldFormalParameterElement) {
       FieldElement fieldElement = element.field;
@@ -6230,11 +6249,10 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
 
   bool _expressionIsAssignableAtType(Expression expression,
       DartType actualStaticType, DartType expectedStaticType) {
-    bool concrete = _options.strongMode && checker.isKnownFunction(expression);
+    bool concrete = _options.strongMode && checker.hasStrictArrow(expression);
     if (concrete && actualStaticType is FunctionType) {
       actualStaticType =
           _typeSystem.functionTypeToConcreteType(actualStaticType);
-      // TODO(leafp): Move the Downcast functionality here.
     }
     return _typeSystem.isAssignableTo(actualStaticType, expectedStaticType);
   }

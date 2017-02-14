@@ -1,0 +1,8 @@
+library;
+import self as self;
+
+static method main() → dynamic {
+  throw "pkg/fasta/test/rasta/breaking_bad.dart:230: \u0027[31mError:\nNo target of break.\u0027[0m";
+  #L1:
+  break #L1;
+}

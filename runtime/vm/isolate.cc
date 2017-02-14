@@ -845,7 +845,8 @@ Isolate::Isolate(const Dart_IsolateFlags& api_flags)
       reload_every_n_stack_overflow_checks_(FLAG_reload_every),
       reload_context_(NULL),
       last_reload_timestamp_(OS::GetCurrentTimeMillis()),
-      should_pause_post_service_request_(false) {
+      should_pause_post_service_request_(false),
+      handler_info_cache_() {
   NOT_IN_PRODUCT(FlagsCopyFrom(api_flags));
   // TODO(asiva): A Thread is not available here, need to figure out
   // how the vm_tag (kEmbedderTagId) can be set, these tags need to
@@ -998,35 +999,10 @@ Thread* Isolate::mutator_thread() const {
 }
 
 
-void Isolate::SetupInstructionsSnapshotPage(
-    const uint8_t* instructions_snapshot_buffer) {
-  InstructionsSnapshot snapshot(instructions_snapshot_buffer);
-#if defined(DEBUG)
-  if (FLAG_trace_isolates) {
-    OS::Print("Precompiled instructions are at [0x%" Px ", 0x%" Px ")\n",
-              reinterpret_cast<uword>(snapshot.instructions_start()),
-              reinterpret_cast<uword>(snapshot.instructions_start()) +
-                  snapshot.instructions_size());
-  }
-#endif
-  heap_->SetupExternalPage(snapshot.instructions_start(),
-                           snapshot.instructions_size(),
-                           /* is_executable = */ true);
-}
-
-
-void Isolate::SetupDataSnapshotPage(const uint8_t* data_snapshot_buffer) {
-  DataSnapshot snapshot(data_snapshot_buffer);
-#if defined(DEBUG)
-  if (FLAG_trace_isolates) {
-    OS::Print(
-        "Precompiled rodata are at [0x%" Px ", 0x%" Px ")\n",
-        reinterpret_cast<uword>(snapshot.data_start()),
-        reinterpret_cast<uword>(snapshot.data_start()) + snapshot.data_size());
-  }
-#endif
-  heap_->SetupExternalPage(snapshot.data_start(), snapshot.data_size(),
-                           /* is_executable = */ false);
+void Isolate::SetupImagePage(const uint8_t* image_buffer, bool is_executable) {
+  Image image(image_buffer);
+  heap_->SetupImagePage(image.object_start(), image.object_size(),
+                        is_executable);
 }
 
 
@@ -1193,6 +1169,16 @@ bool Isolate::MakeRunnable() {
     Service::HandleEvent(&runnableEvent);
   }
 #endif  // !PRODUCT
+  GetRunnableLatencyMetric()->set_value(UptimeMicros());
+  if (FLAG_print_benchmarking_metrics) {
+    {
+      StartIsolateScope scope(this);
+      heap()->CollectAllGarbage();
+    }
+    int64_t heap_size = (heap()->UsedInWords(Heap::kNew) * kWordSize) +
+                        (heap()->UsedInWords(Heap::kOld) * kWordSize);
+    GetRunnableHeapSizeMetric()->set_value(heap_size);
+  }
   return true;
 }
 
@@ -1690,13 +1676,12 @@ void Isolate::LowLevelShutdown() {
         "\tisolate:    %s\n",
         name());
   }
-  if (FLAG_print_metrics) {
+  if (FLAG_print_metrics || FLAG_print_benchmarking_metrics) {
     LogBlock lb;
     OS::PrintErr("Printing metrics for %s\n", name());
 #define ISOLATE_METRIC_PRINT(type, variable, name, unit)                       \
   OS::PrintErr("%s\n", metric_##variable##_.ToString());
-
-    ISOLATE_METRIC_LIST(ISOLATE_METRIC_PRINT);
+    ISOLATE_METRIC_LIST(ISOLATE_METRIC_PRINT)
 #undef ISOLATE_METRIC_PRINT
     OS::PrintErr("\n");
   }
