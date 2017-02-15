@@ -16,7 +16,8 @@ main(List<String> args) {
   testBox();
   testInitializers();
   testArithmetic();
-  testDowncast();
+  testGenericDowncast();
+  testGenericDynamic();
 }
 
 void takeExact(Foo foo) => takeExact2(foo);
@@ -256,7 +257,7 @@ class MutableBox<T> {
   MutableBox(this.field);
 }
 
-void testDowncast() {
+void testGenericDowncast() {
   var box = new MutableBox<int>(5);
   Object upcastBox = box;
   MutableBox<int> downcastBox = upcastBox as MutableBox<int>;
@@ -279,5 +280,27 @@ void testDowncast() {
   Object upcastVMap = vmap;
   Map<int, int> downcastVMap = upcastVMap as Map<int, int>;
   downcastVMap[5] = null;
+  int nullableIntFromVMap = vmap[5];
+}
+
+void testGenericDynamic() {
+  var box = new MutableBox<int>(5);
+  dynamic dynamicBox = box;
+  dynamicBox.field = null;
+  int nullableIntFromBox = box.field;
+
+  var list = <int>[5];
+  dynamic dynamicList = list;
+  dynamicList.add(null);
+  int nullableIntFromList = list.last;
+
+  var kmap = <int, int>{5: 6};
+  dynamic dynamicKMap = kmap;
+  dynamicKMap[null] = 3;
+  int nullableIntFromKMap = kmap.keys.first;
+
+  var vmap = <int, int>{5: 6};
+  dynamic dynamicVMap = vmap;
+  dynamicVMap[5] = null;
   int nullableIntFromVMap = vmap[5];
 }

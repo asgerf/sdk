@@ -893,15 +893,22 @@ class TypeCheckingVisitor
         <AType>[keyType, valueType]);
   }
 
+  void handleEscapingExpression(Expression node) {
+    var type = visitExpression(node);
+    handleEscapingType(type);
+  }
+
+  void handleEscapingType(AType type) {
+    type.source.generateEscape(builder);
+  }
+
   AType handleDynamicCall(AType receiver, Arguments arguments) {
-    receiver.source.generateEscape(builder);
+    handleEscapingType(receiver);
     for (var argument in arguments.positional) {
-      var type = visitExpression(argument);
-      type.source.generateEscape(builder);
+      handleEscapingExpression(argument);
     }
     for (var argument in arguments.named) {
-      var type = visitExpression(argument.value);
-      type.source.generateEscape(builder);
+      handleEscapingExpression(argument.value);
     }
     return extractor.topType;
   }
@@ -1022,7 +1029,7 @@ class TypeCheckingVisitor
   @override
   AType visitPropertyGet(PropertyGet node) {
     if (node.interfaceTarget == null) {
-      visitExpression(node.receiver);
+      handleEscapingExpression(node.receiver);
       return extractor.topType;
     } else {
       var receiver = getReceiverType(node, node.receiver, node.interfaceTarget);
@@ -1039,7 +1046,8 @@ class TypeCheckingVisitor
       var setterType = binding.getSetterType(node.interfaceTarget);
       checkAssignable(node.value, value, receiver.substituteType(setterType));
     } else {
-      visitExpression(node.receiver);
+      handleEscapingExpression(node.receiver);
+      handleEscapingType(value);
     }
     return value;
   }
