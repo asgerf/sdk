@@ -283,7 +283,29 @@ class FunctionAType extends AType {
     if (value.canBeNull) {
       printer.write('?');
     }
-    printer.write('<Function>'); // TODO
+    if (typeParameters.isNotEmpty) {
+      printer.writeSymbol('<');
+      printer.writeList(typeParameters, (AType type) {
+        type.writeTo(printer);
+      });
+      printer.writeSymbol('>');
+    }
+    printer.writeSymbol('(');
+    if (positionalParameters.length > 0) {
+      printer.writeList(positionalParameters.take(requiredParameterCount),
+          (AType p) => p.writeTo(printer));
+      if (requiredParameterCount < positionalParameters.length) {
+        if (requiredParameterCount > 0) {
+          printer.writeComma();
+        }
+        printer.writeSymbol('[');
+        printer.writeList(positionalParameters.skip(requiredParameterCount),
+            (AType p) => p.writeTo(printer));
+        printer.writeSymbol(']');
+      }
+    }
+    printer.writeSymbol(') => ');
+    returnType.writeTo(printer);
   }
 }
 

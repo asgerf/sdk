@@ -18,6 +18,8 @@ main(List<String> args) {
   testArithmetic();
   testGenericDowncast();
   testGenericDynamic();
+  testCurry();
+  testCallbackEscapeDynamic();
 }
 
 void takeExact(Foo foo) => takeExact2(foo);
@@ -307,13 +309,12 @@ void testGenericDynamic() {
 
 typedef void TakeIntFunction(int x);
 
-void testClosure() {
-  void nonNullable(int x) {}
-  nonNullable(5);
+void testCurry() {
+  void takeInt(int x) {}
+  takeInt(5);
 
-  void nullable(int x) {}
-  nullable(5);
-  nullable(null);
+  var closure = (int x) {};
+  closure(5);
 
   TakeIntFunction curryNonNullable() => (int x) {};
   curryNonNullable()(5);
@@ -321,4 +322,16 @@ void testClosure() {
   TakeIntFunction curryNullable() => (int x) {};
   curryNullable()(5);
   curryNullable()(null);
+}
+
+void testCallbackEscapeDynamic() {
+  void takeNullable(int x) {}
+  dynamic dynamicTakeNullable = takeNullable;
+  dynamicTakeNullable(5);
+  dynamicTakeNullable(null);
+
+  TakeIntFunction curryNullable() => (int x) {};
+  dynamic dynamicCurryNullable = curryNullable;
+  dynamicCurryNullable()(5);
+  dynamicCurryNullable()(null);
 }

@@ -45,6 +45,7 @@ class ConstraintExtractor {
   Value stringValue;
   Value boolValue;
   Value nullValue;
+  Value functionValue;
 
   Value nullableIntValue;
   Value nullableDoubleValue;
@@ -95,6 +96,8 @@ class ConstraintExtractor {
     stringValue = new Value(coreTypes.stringClass, Flags.string);
     boolValue = new Value(coreTypes.boolClass, Flags.boolean);
     nullValue = new Value(null, Flags.null_);
+    functionValue = new Value(
+        coreTypes.functionClass, Flags.other | Flags.inexactBaseClass);
     nullableIntValue =
         new Value(coreTypes.intClass, Flags.null_ | Flags.integer);
     nullableDoubleValue =
@@ -277,6 +280,9 @@ class TypeCheckingVisitor
   ConstraintBuilder get builder => extractor.builder;
   Class get currentClass => currentMember.enclosingClass;
 
+  Uri get currentUri => currentMember.enclosingLibrary.importUri;
+  bool get isFileUri => currentUri.scheme == 'file';
+
   InterfaceAType thisType;
   Substitution thisSubstitution;
 
@@ -299,8 +305,10 @@ class TypeCheckingVisitor
     extractor.checkAssignable(where, from, to, scope);
   }
 
-  void checkAssignableExpression(Expression from, AType to) {
-    extractor.checkAssignable(from, visitExpression(from), to, scope);
+  AType checkAssignableExpression(Expression from, AType to) {
+    var type = visitExpression(from);
+    extractor.checkAssignable(from, type, to, scope);
+    return type;
   }
 
   void checkConditionExpression(Expression condition) {
@@ -317,15 +325,13 @@ class TypeCheckingVisitor
   AType visitExpression(Expression node) {
     var type = node.accept(this);
     var source = type.source;
-    if (source is Key) {
-      if (source.owner != modifiers.classOrMember) {
-        var newKey = modifiers.newModifier();
-        newKey.generateAssignmentFrom(builder, source, Flags.all);
-        type = type.withSource(newKey);
-        node.inferredValueIndex = newKey.index;
-      } else {
-        node.inferredValueIndex = source.index;
-      }
+    if (source is Key && source.owner == modifiers.classOrMember) {
+      node.inferredValueIndex = source.index;
+    } else {
+      var newKey = modifiers.newModifier();
+      newKey.generateAssignmentFrom(builder, source, Flags.all);
+      type = type.withSource(newKey);
+      node.inferredValueIndex = newKey.index;
     }
     return type;
   }
@@ -471,23 +477,37 @@ class TypeCheckingVisitor
       scope.typeParameterBounds[parameter] =
           modifiers.augmentBound(parameter.bound);
     }
+    var typeTerms = <AType>[];
     for (var parameter in node.positionalParameters) {
-      scope.variables[parameter] = modifiers.augmentType(parameter.type);
+      parameter.inferredValueOffset = modifiers.nextIndex;
+      var type = modifiers.augmentType(parameter.type);
+      scope.variables[parameter] = type;
+      typeTerms.add(type);
     }
     for (var parameter in node.namedParameters) {
-      scope.variables[parameter] = modifiers.augmentType(parameter.type);
+      parameter.inferredValueOffset = modifiers.nextIndex;
+      var type = modifiers.augmentType(parameter.type);
+      scope.variables[parameter] = type;
+      typeTerms.add(type);
     }
     AType augmentedReturnType = modifiers.augmentType(node.returnType);
-    var key = modifiers.newModifier();
+    typeTerms.add(augmentedReturnType);
+    var functionObject = modifiers.newModifier();
     var type = new FunctionAType(
-        key,
-        key,
+        functionObject,
+        functionObject,
         node.typeParameters.map(getTypeParameterBound).toList(growable: false),
         node.requiredParameterCount,
         node.positionalParameters.map(getVariableType).toList(growable: false),
         node.namedParameters.map((v) => v.name).toList(growable: false),
         node.namedParameters.map(getVariableType).toList(growable: false),
         augmentedReturnType);
+    addAllocationConstraint(functionObject, extractor.functionValue, typeTerms);
+    extractor.onAnalysisComplete(() {
+      if (isFileUri) {
+        print('$type at ${node.location}');
+      }
+    });
     if (selfReference != null) {
       scope.variables[selfReference] = type;
     }
@@ -925,7 +945,14 @@ class TypeCheckingVisitor
     for (int i = 0; i < arguments.positional.length; ++i) {
       var expectedType =
           instantiation.substituteType(function.positionalParameters[i]);
-      checkAssignableExpression(arguments.positional[i], expectedType);
+      var type =
+          checkAssignableExpression(arguments.positional[i], expectedType);
+      if (isFileUri) {
+        extractor.onAnalysisComplete(() {
+          var arg = arguments.positional[i];
+          print('$type <: $expectedType in call at ${where.location}');
+        });
+      }
     }
     for (int i = 0; i < arguments.named.length; ++i) {
       var argument = arguments.named[i];
