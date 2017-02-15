@@ -16,6 +16,7 @@ main(List<String> args) {
   testBox();
   testInitializers();
   testArithmetic();
+  testDowncast();
 }
 
 void takeExact(Foo foo) => takeExact2(foo);
@@ -248,4 +249,17 @@ class GenericSubclass<E> extends GenericBase<E> {
   dynamic/*=T*/ map/*<T>*/(dynamic/*=T*/ callback(E arg)) {
     return callback(value);
   }
+}
+
+class MutableBox<T> {
+  T field;
+  MutableBox(this.field);
+}
+
+void testDowncast() {
+  var box = new MutableBox<int>(5);
+  Object object = box;
+  MutableBox<int> casted = object as MutableBox<int>;
+  casted.field = null;
+  int nullableInt = box.field;
 }

@@ -13,6 +13,8 @@ abstract class ValueSource {
   void generateAssignmentTo(
       ConstraintBuilder builder, Key destination, int mask);
 
+  void generateEscape(ConstraintBuilder builder);
+
   bool isBottom(int mask);
 
   Value get value;
@@ -27,6 +29,10 @@ class ValueSourceWithNullability extends ValueSource {
       ConstraintBuilder builder, Key destination, int mask) {
     base.generateAssignmentTo(builder, destination, mask);
     nullability.generateAssignmentTo(builder, destination, Flags.null_);
+  }
+
+  void generateEscape(ConstraintBuilder builder) {
+    base.generateEscape(builder);
   }
 
   bool isBottom(int mask) => base.isBottom(mask) && nullability.isBottom(mask);
@@ -44,6 +50,7 @@ abstract class ValueSink {
       ConstraintBuilder builder, ValueSource source, int mask);
 
   static final ValueSink nowhere = new NowhereSink();
+  static final ValueSink escape = new EscapingSink();
 
   static ValueSink error(String reason) => new ErrorSink(reason);
 }
@@ -63,6 +70,14 @@ class ErrorSink extends ValueSink {
   void generateAssignmentFrom(
       ConstraintBuilder builder, ValueSource source, int mask) {
     throw 'Cannot assign to $what';
+  }
+}
+
+class EscapingSink extends ValueSink {
+  @override
+  void generateAssignmentFrom(
+      ConstraintBuilder builder, ValueSource source, int mask) {
+    source.generateEscape(builder);
   }
 }
 
@@ -93,6 +108,11 @@ class Key extends ValueSource implements ValueSink {
   void generateAssignmentFrom(
       ConstraintBuilder builder, ValueSource source, int mask) {
     source.generateAssignmentTo(builder, this, mask);
+  }
+
+  @override
+  void generateEscape(ConstraintBuilder builder) {
+    builder.addConstraint(new EscapeConstraint(this));
   }
 
   @override

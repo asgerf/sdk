@@ -394,8 +394,8 @@ class TypeCheckingVisitor
     node.initializers.forEach(visitInitializer);
     handleFunctionBody(node.function);
     if (node.isExternal || seenTypeError) {
-      modifiers.type.accept(new ExternalVisitor(
-          extractor, extractor.externalModel.isNicelyBehaved(node), true, false));
+      modifiers.type.accept(new ExternalVisitor(extractor,
+          extractor.externalModel.isNicelyBehaved(node), true, false));
     }
   }
 
@@ -407,8 +407,8 @@ class TypeCheckingVisitor
     recordParameterTypes(modifiers, node.function);
     handleFunctionBody(node.function);
     if (node.isExternal || seenTypeError) {
-      modifiers.type.accept(new ExternalVisitor(
-          extractor, extractor.externalModel.isNicelyBehaved(node), true, false));
+      modifiers.type.accept(new ExternalVisitor(extractor,
+          extractor.externalModel.isNicelyBehaved(node), true, false));
     }
   }
 
@@ -653,10 +653,68 @@ class TypeCheckingVisitor
     }
   }
 
+  bool listEquals<T>(List<T> first, List<T> second) {
+    if (first.length != second.length) return false;
+    for (int i = 0; i < first.length; ++i) {
+      if (first[i] != second[i]) return false;
+    }
+    return true;
+  }
+
+  bool isEscapingDowncast(AType from, DartType to) {
+    if (to is InterfaceType) {
+      if (to.typeArguments.isEmpty) return false;
+      if (from is InterfaceAType) {
+        // Handle simple cases like cast from Iterable<T> to List<T>
+        if (from.classNode.typeParameters.length != to.typeArguments.length) {
+          return true;
+        }
+        var casted =
+            baseHierarchy.getClassAsInstanceOf(to.classNode, from.classNode);
+        if (casted == null) return true;
+        for (int i = 0; i < casted.typeArguments.length; ++i) {
+          var argument = casted.typeArguments[i];
+          if (argument is TypeParameterType &&
+              argument.parameter == from.classNode.typeParameters[i]) {
+            continue;
+          }
+          return true;
+        }
+        return false;
+      }
+      return true;
+    } else if (to is FunctionType) {
+      return true;
+    }
+    return false;
+  }
+
+  void escapeSubterms(AType type) {
+    if (type is InterfaceAType) {
+      for (var argument in type.typeArguments) {
+        argument.accept(new ExternalVisitor.bivariant(extractor));
+      }
+    } else if (type is FunctionAType) {
+      for (var argument in type.positionalParameters) {
+        argument.accept(new ExternalVisitor.covariant(extractor));
+      }
+      for (var argument in type.namedParameters) {
+        argument.accept(new ExternalVisitor.covariant(extractor));
+      }
+      type.returnType.accept(new ExternalVisitor.contravariant(extractor));
+    }
+  }
+
   @override
   AType visitAsExpression(AsExpression node) {
-    visitExpression(node.operand);
-    return modifiers.augmentType(node.type);
+    var input = visitExpression(node.operand);
+    var output = modifiers.augmentType(node.type);
+    output.sink.generateAssignmentFrom(builder, input.source, Flags.all);
+    if (isEscapingDowncast(input, node.type)) {
+      escapeSubterms(output);
+      input.source.generateEscape(builder);
+    }
+    return output;
   }
 
   AType unfutureType(AType type) {
@@ -699,17 +757,24 @@ class TypeCheckingVisitor
     Constructor target = node.target;
     Arguments arguments = node.arguments;
     Class class_ = target.enclosingClass;
-    node.arguments.inferredTypeArgumentIndex = modifiers.nextIndex;
+    int index = node.arguments.inferredTypeArgumentIndex = modifiers.nextIndex;
     var typeArguments = modifiers.augmentTypeList(arguments.types);
+    int endOfTypeArguments = modifiers.nextIndex;
     Substitution substitution =
         Substitution.fromPairs(class_.typeParameters, typeArguments);
     handleCall(arguments, target, receiver: substitution);
-    var modifier = modifiers.newModifier();
+    var createdObject = modifiers.newModifier();
+    // Add first-order constraint for the created object.
     builder.addConstraint(new ValueConstraint(
-        modifier, new Value(class_, flagsFromExactClass(class_))));
-    // TODO: Generate TypeArgumentConstraints
+        createdObject, new Value(class_, flagsFromExactClass(class_))));
+    // Add escape constraints for the type arguments.
+    for (int i = index; i < modifiers.modifiers.length; ++i) {
+      Key typeArgument = modifiers.modifiers[i];
+      builder.addConstraint(
+          new TypeArgumentConstraint(createdObject, typeArgument));
+    }
     return new InterfaceAType(
-        modifier,
+        createdObject,
         ValueSink.error('result of an expression'),
         target.enclosingClass,
         typeArguments);
@@ -817,14 +882,14 @@ class TypeCheckingVisitor
   }
 
   AType handleDynamicCall(AType receiver, Arguments arguments) {
-    builder.addConstraint(new EscapeConstraint(receiver.source));
+    receiver.source.generateEscape(builder);
     for (var argument in arguments.positional) {
       var type = visitExpression(argument);
-      builder.addConstraint(new EscapeConstraint(type.source));
+      type.source.generateEscape(builder);
     }
     for (var argument in arguments.named) {
       var type = visitExpression(argument.value);
-      builder.addConstraint(new EscapeConstraint(type.source));
+      type.source.generateEscape(builder);
     }
     return extractor.topType;
   }
@@ -1356,22 +1421,37 @@ class TypeCheckingVisitor
 
 /// Generates constraints for external code based on its type.
 ///
-/// If [covariant] this generates constraints for values that can enter the
-/// program from external code.  If [contravariant], this generates constraints
+/// If [isCovariant] this generates constraints for values that can enter the
+/// program from external code.  If [isContravariant], this generates constraints
 /// for values that escape into external code.
 class ExternalVisitor extends ATypeVisitor {
   final ConstraintExtractor extractor;
-  final bool covariant, contravariant;
+  final bool isCovariant, isContravariant;
   final bool isNice;
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ConstraintBuilder get builder => extractor.builder;
 
   ExternalVisitor(
-      this.extractor, this.isNice, this.covariant, this.contravariant);
+      this.extractor, this.isNice, this.isCovariant, this.isContravariant);
+
+  ExternalVisitor.bivariant(this.extractor)
+      : isNice = false,
+        isCovariant = true,
+        isContravariant = true;
+
+  ExternalVisitor.covariant(this.extractor)
+      : isNice = false,
+        isCovariant = true,
+        isContravariant = false;
+
+  ExternalVisitor.contravariant(this.extractor)
+      : isNice = false,
+        isCovariant = false,
+        isContravariant = true;
 
   ExternalVisitor get inverseVisitor {
-    return new ExternalVisitor(extractor, isNice, contravariant, covariant);
+    return new ExternalVisitor(extractor, isNice, isContravariant, isCovariant);
   }
 
   ExternalVisitor get bivariantVisitor {
@@ -1388,12 +1468,12 @@ class ExternalVisitor extends ATypeVisitor {
   @override
   visitFunctionAType(FunctionAType type) {
     var source = type.source;
-    if (covariant && source is Key) {
+    if (isCovariant && source is Key) {
       source.generateAssignmentFrom(
           builder, new Value(coreTypes.objectClass, Flags.other), Flags.all);
     }
     var sink = type.sink;
-    if (contravariant && sink is Key) {
+    if (isContravariant && sink is Key) {
       sink.generateAssignmentFrom(builder, Value.escaping, Flags.escaping);
     }
     type.typeParameters.forEach(visitBound);
@@ -1408,14 +1488,14 @@ class ExternalVisitor extends ATypeVisitor {
   @override
   visitInterfaceAType(InterfaceAType type) {
     var source = type.source;
-    if (covariant && source is Key) {
+    if (isCovariant && source is Key) {
       source.generateAssignmentFrom(
           builder,
           extractor.getWorstCaseValue(type.classNode, isNice: isNice),
           Flags.valueFlags);
     }
     var sink = type.sink;
-    if (!isNice && contravariant && sink is Key) {
+    if (!isNice && isContravariant && sink is Key) {
       sink.generateAssignmentFrom(builder, Value.escaping, Flags.escaping);
     }
     type.typeArguments.forEach(visitBound);
@@ -1423,4 +1503,36 @@ class ExternalVisitor extends ATypeVisitor {
 
   @override
   visitTypeParameterAType(TypeParameterAType type) {}
+}
+
+class AllocationVisitor extends ATypeVisitor {
+  final ConstraintExtractor extractor;
+  final Key object;
+
+  AllocationVisitor(this.extractor, this.object);
+
+  void handleType(AType type) {}
+
+  @override
+  visitBottomAType(BottomAType type) {}
+
+  @override
+  visitFunctionAType(FunctionAType type) {
+    // TODO: implement visitFunctionAType
+  }
+
+  @override
+  visitFunctionTypeParameterAType(FunctionTypeParameterAType type) {
+    // TODO: implement visitFunctionTypeParameterAType
+  }
+
+  @override
+  visitInterfaceAType(InterfaceAType type) {
+    // TODO: implement visitInterfaceAType
+  }
+
+  @override
+  visitTypeParameterAType(TypeParameterAType type) {
+    // TODO: implement visitTypeParameterAType
+  }
 }

@@ -102,6 +102,9 @@ class Value extends ValueSource {
     builder.addConstraint(new ValueConstraint(destination, masked(mask)));
   }
 
+  @override
+  void generateEscape(ConstraintBuilder builder) {}
+
   bool isBottom(int mask) {
     return flags & mask == 0;
   }
