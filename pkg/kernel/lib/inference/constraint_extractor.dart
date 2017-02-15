@@ -653,43 +653,26 @@ class TypeCheckingVisitor
     }
   }
 
-  bool listEquals<T>(List<T> first, List<T> second) {
-    if (first.length != second.length) return false;
-    for (int i = 0; i < first.length; ++i) {
-      if (first[i] != second[i]) return false;
+  /// True if [castType] has type arguments which must be considered tainted
+  /// after the cast.
+  ///
+  /// For example, when casting from `Object` to `List<int>`, we must consider
+  /// the `int` type to be nullable, because we do not track where it came from.
+  bool isTaintingDowncast(DartType castType) {
+    // Potential improvement: Consider both input type and output type, and
+    //   taint only type arguments that cannot be connected to a type in the
+    //   input type. For example, casting `List<num>` to `List<int>` or
+    //   `Iterable<int>` to `List<int>` does not require taint.
+    if (castType is InterfaceType) {
+      return castType.typeArguments.isNotEmpty;
     }
-    return true;
-  }
-
-  bool isEscapingDowncast(AType from, DartType to) {
-    if (to is InterfaceType) {
-      if (to.typeArguments.isEmpty) return false;
-      if (from is InterfaceAType) {
-        // Handle simple cases like cast from Iterable<T> to List<T>
-        if (from.classNode.typeParameters.length != to.typeArguments.length) {
-          return true;
-        }
-        var casted =
-            baseHierarchy.getClassAsInstanceOf(to.classNode, from.classNode);
-        if (casted == null) return true;
-        for (int i = 0; i < casted.typeArguments.length; ++i) {
-          var argument = casted.typeArguments[i];
-          if (argument is TypeParameterType &&
-              argument.parameter == from.classNode.typeParameters[i]) {
-            continue;
-          }
-          return true;
-        }
-        return false;
-      }
-      return true;
-    } else if (to is FunctionType) {
+    if (castType is FunctionType) {
       return true;
     }
     return false;
   }
 
-  void escapeSubterms(AType type) {
+  void taintSubterms(AType type) {
     if (type is InterfaceAType) {
       for (var argument in type.typeArguments) {
         argument.accept(new ExternalVisitor.bivariant(extractor));
@@ -710,8 +693,8 @@ class TypeCheckingVisitor
     var input = visitExpression(node.operand);
     var output = modifiers.augmentType(node.type);
     output.sink.generateAssignmentFrom(builder, input.source, Flags.all);
-    if (isEscapingDowncast(input, node.type)) {
-      escapeSubterms(output);
+    if (isTaintingDowncast(node.type)) {
+      taintSubterms(output);
       input.source.generateEscape(builder);
     }
     return output;
