@@ -107,6 +107,10 @@ class ConstraintSolver {
     propagateForward(constraint.value, constraint.destination);
   }
 
+  void transferEscapeConstraint(EscapeConstraint constraint) {
+    propagateBackward(constraint.escaping, Value.escaping);
+  }
+
   /// The [constraint] must be executed whenever the forward properties of
   /// the given [key] changes.
   void addForwardDependency(Key key, Constraint constraint) {
@@ -129,6 +133,8 @@ class ConstraintSolver {
   }
 
   void registerValueConstraint(ValueConstraint constraint) {}
+
+  void registerEscapeConstraint(EscapeConstraint constraint) {}
 
   void solve() {
     for (var constraint in constraints) {

@@ -817,9 +817,15 @@ class TypeCheckingVisitor
   }
 
   AType handleDynamicCall(AType receiver, Arguments arguments) {
-    // TODO: Escape values
-    arguments.positional.forEach(visitExpression);
-    arguments.named.forEach((NamedExpression n) => visitExpression(n.value));
+    builder.addConstraint(new EscapeConstraint(receiver.source));
+    for (var argument in arguments.positional) {
+      var type = visitExpression(argument);
+      builder.addConstraint(new EscapeConstraint(type.source));
+    }
+    for (var argument in arguments.named) {
+      var type = visitExpression(argument.value);
+      builder.addConstraint(new EscapeConstraint(type.source));
+    }
     return extractor.topType;
   }
 

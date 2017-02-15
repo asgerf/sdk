@@ -69,6 +69,24 @@ class ValueConstraint extends Constraint {
   }
 }
 
+class EscapeConstraint extends Constraint {
+  final Key escaping;
+
+  EscapeConstraint(this.escaping);
+
+  void transfer(ConstraintSolver solver) {
+    solver.transferEscapeConstraint(this);
+  }
+
+  void register(ConstraintSolver solver) {
+    solver.registerEscapeConstraint(this);
+  }
+
+  String toString() {
+    return 'escape $escaping';
+  }
+}
+
 /// If [createdObject] is escaping, then [typeArgument] must be top.
 ///
 /// This is generated for each type argument term inside an allocation site.
