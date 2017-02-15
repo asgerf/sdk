@@ -1328,6 +1328,20 @@ class TypeCheckingVisitor
 
   @override
   visitInvalidInitializer(InvalidInitializer node) {}
+
+  @override
+  AType visitCheckLibraryIsLoaded(CheckLibraryIsLoaded node) {
+    return checker.topType;
+  }
+
+  @override
+  AType visitLoadLibrary(LoadLibrary node) {
+    return new InterfaceAType(
+        new Value(coreTypes.futureClass, Flags.other),
+        ValueSink.error('return value of expression'),
+        coreTypes.futureClass,
+        [checker.topType]);
+  }
 }
 
 class ExternalVisitor extends ATypeVisitor {
