@@ -768,7 +768,7 @@ class TypeCheckingVisitor
     builder.addConstraint(new ValueConstraint(
         createdObject, new Value(class_, flagsFromExactClass(class_))));
     // Add escape constraints for the type arguments.
-    for (int i = index; i < modifiers.modifiers.length; ++i) {
+    for (int i = index; i < endOfTypeArguments; ++i) {
       Key typeArgument = modifiers.modifiers[i];
       builder.addConstraint(
           new TypeArgumentConstraint(createdObject, typeArgument));
