@@ -752,27 +752,33 @@ class TypeCheckingVisitor
     return Flags.other;
   }
 
+  void addAllocationConstraint(Key createdObject, Value value,
+      int beginTypeArguments, int endTypeArguments) {
+    builder.addConstraint(new ValueConstraint(createdObject, value));
+    // Add escape constraints for the type arguments.
+    for (int i = beginTypeArguments; i < endTypeArguments; ++i) {
+      Key typeArgument = modifiers.modifiers[i];
+      builder.addConstraint(
+          new TypeArgumentConstraint(createdObject, typeArgument));
+    }
+  }
+
   @override
   AType visitConstructorInvocation(ConstructorInvocation node) {
     Constructor target = node.target;
     Arguments arguments = node.arguments;
     Class class_ = target.enclosingClass;
-    int index = node.arguments.inferredTypeArgumentIndex = modifiers.nextIndex;
+    int beginTypeArguments = modifiers.nextIndex;
     var typeArguments = modifiers.augmentTypeList(arguments.types);
     int endOfTypeArguments = modifiers.nextIndex;
+    node.arguments.inferredTypeArgumentIndex = beginTypeArguments;
     Substitution substitution =
         Substitution.fromPairs(class_.typeParameters, typeArguments);
     handleCall(arguments, target, receiver: substitution);
     var createdObject = modifiers.newModifier();
-    // Add first-order constraint for the created object.
-    builder.addConstraint(new ValueConstraint(
-        createdObject, new Value(class_, flagsFromExactClass(class_))));
-    // Add escape constraints for the type arguments.
-    for (int i = index; i < endOfTypeArguments; ++i) {
-      Key typeArgument = modifiers.modifiers[i];
-      builder.addConstraint(
-          new TypeArgumentConstraint(createdObject, typeArgument));
-    }
+    var value = new Value(class_, flagsFromExactClass(class_));
+    addAllocationConstraint(
+        createdObject, value, beginTypeArguments, endOfTypeArguments);
     return new InterfaceAType(
         createdObject,
         ValueSink.error('result of an expression'),
@@ -840,16 +846,19 @@ class TypeCheckingVisitor
 
   @override
   AType visitListLiteral(ListLiteral node) {
+    int beginTypeArguments = modifiers.nextIndex;
     node.inferredTypeArgumentIndex = modifiers.nextIndex;
     var typeArgument = modifiers.augmentType(node.typeArgument);
+    int endTypeArguments = modifiers.nextIndex;
     for (var item in node.expressions) {
       checkAssignableExpression(item, typeArgument);
     }
-    var modifier = modifiers.newModifier();
-    builder.addConstraint(new ValueConstraint(
-        modifier, new Value(coreTypes.listClass, Flags.other)));
+    var createdObject = modifiers.newModifier();
+    var value = new Value(coreTypes.listClass, Flags.other);
+    addAllocationConstraint(
+        createdObject, value, beginTypeArguments, endTypeArguments);
     return new InterfaceAType(
-        modifier,
+        createdObject,
         ValueSink.error('result of an expression'),
         coreTypes.listClass,
         <AType>[typeArgument]);
@@ -864,18 +873,21 @@ class TypeCheckingVisitor
 
   @override
   AType visitMapLiteral(MapLiteral node) {
-    node.inferredTypeArgumentIndex = modifiers.nextIndex;
+    int beginTypeArguments = modifiers.nextIndex;
+    node.inferredTypeArgumentIndex = beginTypeArguments;
     var keyType = modifiers.augmentType(node.keyType);
     var valueType = modifiers.augmentType(node.valueType);
+    int endTypeArguments = modifiers.nextIndex;
     for (var entry in node.entries) {
       checkAssignableExpression(entry.key, keyType);
       checkAssignableExpression(entry.value, valueType);
     }
-    var modifier = modifiers.newModifier();
-    builder.addConstraint(new ValueConstraint(
-        modifier, new Value(coreTypes.mapClass, Flags.other)));
+    var createdObject = modifiers.newModifier();
+    var value = new Value(coreTypes.mapClass, Flags.other);
+    addAllocationConstraint(
+        createdObject, value, beginTypeArguments, endTypeArguments);
     return new InterfaceAType(
-        modifier,
+        createdObject,
         ValueSink.error('result of an expression'),
         coreTypes.mapClass,
         <AType>[keyType, valueType]);

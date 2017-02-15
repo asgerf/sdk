@@ -258,8 +258,26 @@ class MutableBox<T> {
 
 void testDowncast() {
   var box = new MutableBox<int>(5);
-  Object object = box;
-  MutableBox<int> casted = object as MutableBox<int>;
-  casted.field = null;
-  int nullableInt = box.field;
+  Object upcastBox = box;
+  MutableBox<int> downcastBox = upcastBox as MutableBox<int>;
+  downcastBox.field = null;
+  int nullableIntFromBox = box.field;
+
+  var list = <int>[5];
+  Object upcastList = list;
+  List<int> downcastList = upcastList as List<int>;
+  downcastList.add(null);
+  int nullableIntFromList = list.last;
+
+  var kmap = <int, int>{5: 6};
+  Object upcastKMap = kmap;
+  Map<int, int> downcastKMap = upcastKMap as Map<int, int>;
+  downcastKMap[null] = 3;
+  int nullableIntFromKMap = kmap.keys.first;
+
+  var vmap = <int, int>{5: 6};
+  Object upcastVMap = vmap;
+  Map<int, int> downcastVMap = upcastVMap as Map<int, int>;
+  downcastVMap[5] = null;
+  int nullableIntFromVMap = vmap[5];
 }
