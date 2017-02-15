@@ -91,9 +91,7 @@ class ConstraintSolver {
   void transferTypeArgumentConstraint(TypeArgumentConstraint constraint) {
     Value createdObject = constraint.createdObject.value;
     if (createdObject.isEscaping) {
-      Value worstCase =
-          new Value(rootClass, Flags.all); // TODO: exploit interface type
-      propagateForward(worstCase, constraint.typeArgument);
+      propagateForward(constraint.value, constraint.typeArgument);
     }
   }
 

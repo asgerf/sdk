@@ -181,6 +181,15 @@ class ConstraintExtractor {
     print('$where: $message');
   }
 
+  Value getWorstCaseValueForType(AType type) {
+    if (type is InterfaceAType) return getWorstCaseValue(type.classNode);
+    if (type is FunctionAType) {
+      return new Value(
+          coreTypes.functionClass, Flags.other | Flags.inexactBaseClass);
+    }
+    return new Value(coreTypes.objectClass, Flags.all);
+  }
+
   Value getWorstCaseValue(Class classNode, {bool isNice: false}) {
     if (isNice) return getNiceCaseValue(classNode);
     if (classNode == coreTypes.intClass) return nullableIntValue;
@@ -735,14 +744,16 @@ class TypeCheckingVisitor
     return Flags.other;
   }
 
-  void addAllocationConstraint(Key createdObject, Value value,
-      int beginTypeArguments, int endTypeArguments) {
+  void addAllocationTypeArgument(Key createdObject, AType typeArgument) {
+    new AllocationVisitor(extractor, createdObject).visit(typeArgument);
+  }
+
+  void addAllocationConstraint(
+      Key createdObject, Value value, List<AType> typeArguments) {
     builder.addConstraint(new ValueConstraint(createdObject, value));
     // Add escape constraints for the type arguments.
-    for (int i = beginTypeArguments; i < endTypeArguments; ++i) {
-      Key typeArgument = modifiers.modifiers[i];
-      builder.addConstraint(
-          new TypeArgumentConstraint(createdObject, typeArgument));
+    for (var type in typeArguments) {
+      new AllocationVisitor(extractor, createdObject).visit(type);
     }
   }
 
@@ -751,17 +762,14 @@ class TypeCheckingVisitor
     Constructor target = node.target;
     Arguments arguments = node.arguments;
     Class class_ = target.enclosingClass;
-    int beginTypeArguments = modifiers.nextIndex;
+    node.arguments.inferredTypeArgumentIndex = modifiers.nextIndex;
     var typeArguments = modifiers.augmentTypeList(arguments.types);
-    int endOfTypeArguments = modifiers.nextIndex;
-    node.arguments.inferredTypeArgumentIndex = beginTypeArguments;
     Substitution substitution =
         Substitution.fromPairs(class_.typeParameters, typeArguments);
     handleCall(arguments, target, receiver: substitution);
     var createdObject = modifiers.newModifier();
     var value = new Value(class_, flagsFromExactClass(class_));
-    addAllocationConstraint(
-        createdObject, value, beginTypeArguments, endOfTypeArguments);
+    addAllocationConstraint(createdObject, value, typeArguments);
     return new InterfaceAType(
         createdObject,
         ValueSink.error('result of an expression'),
@@ -829,17 +837,14 @@ class TypeCheckingVisitor
 
   @override
   AType visitListLiteral(ListLiteral node) {
-    int beginTypeArguments = modifiers.nextIndex;
     node.inferredTypeArgumentIndex = modifiers.nextIndex;
     var typeArgument = modifiers.augmentType(node.typeArgument);
-    int endTypeArguments = modifiers.nextIndex;
     for (var item in node.expressions) {
       checkAssignableExpression(item, typeArgument);
     }
     var createdObject = modifiers.newModifier();
     var value = new Value(coreTypes.listClass, Flags.other);
-    addAllocationConstraint(
-        createdObject, value, beginTypeArguments, endTypeArguments);
+    addAllocationConstraint(createdObject, value, [typeArgument]);
     return new InterfaceAType(
         createdObject,
         ValueSink.error('result of an expression'),
@@ -856,19 +861,16 @@ class TypeCheckingVisitor
 
   @override
   AType visitMapLiteral(MapLiteral node) {
-    int beginTypeArguments = modifiers.nextIndex;
-    node.inferredTypeArgumentIndex = beginTypeArguments;
+    node.inferredTypeArgumentIndex = modifiers.nextIndex;
     var keyType = modifiers.augmentType(node.keyType);
     var valueType = modifiers.augmentType(node.valueType);
-    int endTypeArguments = modifiers.nextIndex;
     for (var entry in node.entries) {
       checkAssignableExpression(entry.key, keyType);
       checkAssignableExpression(entry.value, valueType);
     }
     var createdObject = modifiers.newModifier();
     var value = new Value(coreTypes.mapClass, Flags.other);
-    addAllocationConstraint(
-        createdObject, value, beginTypeArguments, endTypeArguments);
+    addAllocationConstraint(createdObject, value, [keyType, valueType]);
     return new InterfaceAType(
         createdObject,
         ValueSink.error('result of an expression'),
@@ -1511,31 +1513,48 @@ class ExternalVisitor extends ATypeVisitor {
 class AllocationVisitor extends ATypeVisitor {
   final ConstraintExtractor extractor;
   final Key object;
+  bool isCovariant;
 
-  AllocationVisitor(this.extractor, this.object);
+  AllocationVisitor(this.extractor, this.object, {this.isCovariant: true});
 
-  void handleType(AType type) {}
+  AllocationVisitor get inverse =>
+      new AllocationVisitor(extractor, object, isCovariant: !isCovariant);
+
+  void visit(AType type) {
+    var source = type.source;
+    if (isCovariant && source is Key) {
+      extractor.builder.addConstraint(new TypeArgumentConstraint(
+          object, source, extractor.getWorstCaseValueForType(type)));
+    }
+    var sink = type.sink;
+    if (!isCovariant && sink is Key) {
+      // TODO: Check if this works
+      extractor.builder.addConstraint(
+          new TypeArgumentConstraint(object, sink, Value.escaping));
+    }
+    type.accept(this);
+  }
 
   @override
   visitBottomAType(BottomAType type) {}
 
   @override
   visitFunctionAType(FunctionAType type) {
-    // TODO: implement visitFunctionAType
+    type.positionalParameters.forEach(inverse.visit);
+    type.namedParameters.forEach(inverse.visit);
+    visit(type.returnType);
   }
 
   @override
-  visitFunctionTypeParameterAType(FunctionTypeParameterAType type) {
-    // TODO: implement visitFunctionTypeParameterAType
-  }
+  visitFunctionTypeParameterAType(FunctionTypeParameterAType type) {}
 
   @override
   visitInterfaceAType(InterfaceAType type) {
-    // TODO: implement visitInterfaceAType
+    for (var argument in type.typeArguments) {
+      visit(argument);
+    }
   }
 
   @override
-  visitTypeParameterAType(TypeParameterAType type) {
-    // TODO: implement visitTypeParameterAType
-  }
+  visitTypeParameterAType(TypeParameterAType type) {}
 }

@@ -103,7 +103,10 @@ class TypeArgumentConstraint extends Constraint {
   final Key createdObject;
   final Key typeArgument;
 
-  TypeArgumentConstraint(this.createdObject, this.typeArgument) {
+  /// The value to assign to [typeArgument] if [createdObject] escapes.
+  final Value value;
+
+  TypeArgumentConstraint(this.createdObject, this.typeArgument, this.value) {
     assert(createdObject != null);
     assert(typeArgument != null);
   }
