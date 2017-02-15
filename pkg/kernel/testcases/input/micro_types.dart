@@ -304,3 +304,21 @@ void testGenericDynamic() {
   dynamicVMap[5] = null;
   int nullableIntFromVMap = vmap[5];
 }
+
+typedef void TakeIntFunction(int x);
+
+void testClosure() {
+  void nonNullable(int x) {}
+  nonNullable(5);
+
+  void nullable(int x) {}
+  nullable(5);
+  nullable(null);
+
+  TakeIntFunction curryNonNullable() => (int x) {};
+  curryNonNullable()(5);
+
+  TakeIntFunction curryNullable() => (int x) {};
+  curryNullable()(5);
+  curryNullable()(null);
+}
