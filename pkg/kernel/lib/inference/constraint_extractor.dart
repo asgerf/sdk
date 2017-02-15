@@ -48,7 +48,7 @@ class ConstraintExtractor {
   Value nullableStringValue;
   Value nullableBoolValue;
 
-  void checkProgram(Program program) {
+  void extractFromProgram(Program program) {
     coreTypes ??= new CoreTypes(program);
     baseHierarchy ??= new ClassHierarchy(program);
     binding ??= new Binding(coreTypes);
@@ -251,16 +251,16 @@ class TypeCheckingVisitor
         StatementVisitor<bool>,
         MemberVisitor<Null>,
         InitializerVisitor<Null> {
-  final ConstraintExtractor checker;
+  final ConstraintExtractor extractor;
   final Member currentMember;
   final ModifierBank modifiers;
   final ClassBank classModifiers;
 
-  CoreTypes get coreTypes => checker.coreTypes;
-  ClassHierarchy get baseHierarchy => checker.baseHierarchy;
-  AugmentedHierarchy get hierarchy => checker.hierarchy;
-  Binding get binding => checker.binding;
-  ConstraintBuilder get builder => checker.builder;
+  CoreTypes get coreTypes => extractor.coreTypes;
+  ClassHierarchy get baseHierarchy => extractor.baseHierarchy;
+  AugmentedHierarchy get hierarchy => extractor.hierarchy;
+  Binding get binding => extractor.binding;
+  ConstraintBuilder get builder => extractor.builder;
   Class get currentClass => currentMember.enclosingClass;
 
   InterfaceAType thisType;
@@ -274,7 +274,7 @@ class TypeCheckingVisitor
   final LocalScope scope = new LocalScope();
   final bool isUncheckedLibrary;
 
-  TypeCheckingVisitor(this.checker, this.currentMember, this.modifiers,
+  TypeCheckingVisitor(this.extractor, this.currentMember, this.modifiers,
       this.classModifiers, this.isUncheckedLibrary);
 
   void checkTypeBound(TreeNode where, AType type, AType bound) {
@@ -282,20 +282,20 @@ class TypeCheckingVisitor
   }
 
   void checkAssignable(TreeNode where, AType from, AType to) {
-    checker.checkAssignable(where, from, to, scope);
+    extractor.checkAssignable(where, from, to, scope);
   }
 
   void checkAssignableExpression(Expression from, AType to) {
-    checker.checkAssignable(from, visitExpression(from), to, scope);
+    extractor.checkAssignable(from, visitExpression(from), to, scope);
   }
 
   void checkConditionExpression(Expression condition) {
-    checkAssignableExpression(condition, checker.conditionType);
+    checkAssignableExpression(condition, extractor.conditionType);
   }
 
   void fail(TreeNode node, String message) {
     if (!isUncheckedLibrary) {
-      checker.reportTypeError(node, message);
+      extractor.reportTypeError(node, message);
     }
     seenTypeError = true;
   }
@@ -376,8 +376,8 @@ class TypeCheckingVisitor
       checkAssignableExpression(node.initializer, fieldType);
     }
     if (node.isExternal || seenTypeError) {
-      modifiers.type.accept(new ExternalVisitor(checker,
-          checker.externalModel.isNicelyBehaved(node), true, !node.isFinal));
+      modifiers.type.accept(new ExternalVisitor(extractor,
+          extractor.externalModel.isNicelyBehaved(node), true, !node.isFinal));
     }
   }
 
@@ -390,7 +390,7 @@ class TypeCheckingVisitor
     handleFunctionBody(node.function);
     if (node.isExternal || seenTypeError) {
       modifiers.type.accept(new ExternalVisitor(
-          checker, checker.externalModel.isNicelyBehaved(node), true, false));
+          extractor, extractor.externalModel.isNicelyBehaved(node), true, false));
     }
   }
 
@@ -403,7 +403,7 @@ class TypeCheckingVisitor
     handleFunctionBody(node.function);
     if (node.isExternal || seenTypeError) {
       modifiers.type.accept(new ExternalVisitor(
-          checker, checker.externalModel.isNicelyBehaved(node), true, false));
+          extractor, extractor.externalModel.isNicelyBehaved(node), true, false));
     }
   }
 
@@ -445,7 +445,7 @@ class TypeCheckingVisitor
       bool completes = visitStatement(node.body);
       if (completes && returnType != null) {
         returnType.sink
-            .generateAssignmentFrom(builder, checker.nullValue, Flags.null_);
+            .generateAssignmentFrom(builder, extractor.nullValue, Flags.null_);
       }
     }
     currentAsyncMarker = oldAsyncMarker;
@@ -502,7 +502,7 @@ class TypeCheckingVisitor
     } else {
       getVariableType(parameter)
           .sink
-          .generateAssignmentFrom(builder, checker.nullValue, Flags.null_);
+          .generateAssignmentFrom(builder, extractor.nullValue, Flags.null_);
     }
   }
 
@@ -612,7 +612,7 @@ class TypeCheckingVisitor
         if (returnType is InterfaceAType && returnType.classNode == container) {
           return returnType.typeArguments.single;
         }
-        return checker.escapingType;
+        return extractor.escapingType;
 
       case AsyncMarker.SyncStar:
       case AsyncMarker.AsyncStar:
@@ -638,7 +638,7 @@ class TypeCheckingVisitor
         if (returnType is InterfaceAType && returnType.classNode == container) {
           return returnType.typeArguments.single;
         }
-        return checker.escapingType;
+        return extractor.escapingType;
 
       case AsyncMarker.SyncYielding:
         return returnType;
@@ -669,7 +669,7 @@ class TypeCheckingVisitor
 
   @override
   AType visitBoolLiteral(BoolLiteral node) {
-    return checker.boolType;
+    return extractor.boolType;
   }
 
   @override
@@ -734,7 +734,7 @@ class TypeCheckingVisitor
 
   @override
   AType visitDoubleLiteral(DoubleLiteral node) {
-    return checker.doubleType;
+    return extractor.doubleType;
   }
 
   @override
@@ -744,7 +744,7 @@ class TypeCheckingVisitor
 
   @override
   AType visitIntLiteral(IntLiteral node) {
-    return checker.intType;
+    return extractor.intType;
   }
 
   @override
@@ -755,7 +755,7 @@ class TypeCheckingVisitor
   @override
   AType visitIsExpression(IsExpression node) {
     visitExpression(node.operand);
-    return checker.boolType;
+    return extractor.boolType;
   }
 
   @override
@@ -789,7 +789,7 @@ class TypeCheckingVisitor
   AType visitLogicalExpression(LogicalExpression node) {
     checkConditionExpression(node.left);
     checkConditionExpression(node.right);
-    return checker.boolType;
+    return extractor.boolType;
   }
 
   @override
@@ -815,7 +815,7 @@ class TypeCheckingVisitor
     // TODO: Escape values
     arguments.positional.forEach(visitExpression);
     arguments.named.forEach((NamedExpression n) => visitExpression(n.value));
-    return checker.topType;
+    return extractor.topType;
   }
 
   AType handleFunctionCall(
@@ -897,13 +897,13 @@ class TypeCheckingVisitor
       // Note that the result cannot be null because that would fail at runtime,
       // so do not return 'type1' or 'type2'.
       if (class1 == coreTypes.intClass && class2 == coreTypes.intClass) {
-        return checker.intType;
+        return extractor.intType;
       }
       if (class1 == coreTypes.doubleClass || class2 == coreTypes.doubleClass) {
-        return checker.doubleType;
+        return extractor.doubleType;
       }
     }
-    return checker.numType;
+    return extractor.numType;
   }
 
   @override
@@ -914,7 +914,7 @@ class TypeCheckingVisitor
       if (node.name.name == '==') {
         // TODO: Handle value escaping through == operator.
         visitExpression(node.arguments.positional.single);
-        return checker.boolType;
+        return extractor.boolType;
       }
       if (node.name.name == 'call' && receiver is FunctionAType) {
         return handleFunctionCall(node, receiver, node.arguments);
@@ -935,7 +935,7 @@ class TypeCheckingVisitor
   AType visitPropertyGet(PropertyGet node) {
     if (node.interfaceTarget == null) {
       visitExpression(node.receiver);
-      return checker.topType;
+      return extractor.topType;
     } else {
       var receiver = getReceiverType(node, node.receiver, node.interfaceTarget);
       var getterType = binding.getGetterType(node.interfaceTarget);
@@ -959,7 +959,7 @@ class TypeCheckingVisitor
   @override
   AType visitNot(Not node) {
     checkConditionExpression(node.operand);
-    return checker.boolType;
+    return extractor.boolType;
   }
 
   @override
@@ -993,12 +993,12 @@ class TypeCheckingVisitor
   @override
   AType visitStringConcatenation(StringConcatenation node) {
     node.expressions.forEach(visitExpression);
-    return checker.stringType;
+    return extractor.stringType;
   }
 
   @override
   AType visitStringLiteral(StringLiteral node) {
-    return checker.stringType;
+    return extractor.stringType;
   }
 
   @override
@@ -1014,7 +1014,7 @@ class TypeCheckingVisitor
   @override
   AType visitSuperPropertyGet(SuperPropertyGet node) {
     if (node.interfaceTarget == null) {
-      return checker.topType;
+      return extractor.topType;
     } else {
       var receiver = getSuperReceiverType(node.interfaceTarget);
       var getterType = binding.getGetterType(node.interfaceTarget);
@@ -1035,7 +1035,7 @@ class TypeCheckingVisitor
 
   @override
   AType visitSymbolLiteral(SymbolLiteral node) {
-    return checker.symbolType;
+    return extractor.symbolType;
   }
 
   @override
@@ -1052,7 +1052,7 @@ class TypeCheckingVisitor
 
   @override
   AType visitTypeLiteral(TypeLiteral node) {
-    return checker.typeType;
+    return extractor.typeType;
   }
 
   @override
@@ -1144,33 +1144,33 @@ class TypeCheckingVisitor
     if (iterable is InterfaceAType) {
       var iteratorGetter =
           baseHierarchy.getInterfaceMember(iterable.classNode, iteratorName);
-      if (iteratorGetter == null) return checker.topType;
+      if (iteratorGetter == null) return extractor.topType;
       var iteratorType = Substitution
           .fromInterfaceType(iterable)
           .substituteType(binding.getGetterType(iteratorGetter));
       if (iteratorType is InterfaceAType) {
         var nextGetter =
             baseHierarchy.getInterfaceMember(iteratorType.classNode, nextName);
-        if (nextGetter == null) return checker.topType;
+        if (nextGetter == null) return extractor.topType;
         return Substitution
             .fromInterfaceType(iteratorType)
             .substituteType(binding.getGetterType(nextGetter));
       }
     }
-    return checker.topType;
+    return extractor.topType;
   }
 
   AType getStreamElementType(AType stream) {
     if (stream is InterfaceAType) {
       var asStream = hierarchy.getClassAsInstanceOf(
           stream.classNode, coreTypes.streamClass);
-      if (asStream == null) return checker.topType;
+      if (asStream == null) return extractor.topType;
       var parameter = coreTypes.streamClass.typeParameters[0];
       var modifier = modifiers.newModifier();
       return asStream
           .getSubstitute(new TypeParameterAType(modifier, modifier, parameter));
     }
-    return checker.topType;
+    return extractor.topType;
   }
 
   @override
@@ -1242,9 +1242,9 @@ class TypeCheckingVisitor
     bool catchCompletes = false;
     for (var catchClause in node.catches) {
       // TODO: Set precise types on catch parameters
-      scope.variables[catchClause.exception] = checker.topType;
+      scope.variables[catchClause.exception] = extractor.topType;
       if (catchClause.stackTrace != null) {
-        scope.variables[catchClause.stackTrace] = checker.topType;
+        scope.variables[catchClause.stackTrace] = extractor.topType;
       }
       bool completes = visitStatement(catchClause.body);
       if (completes) {
@@ -1330,7 +1330,7 @@ class TypeCheckingVisitor
 
   @override
   AType visitCheckLibraryIsLoaded(CheckLibraryIsLoaded node) {
-    return checker.topType;
+    return extractor.topType;
   }
 
   @override
@@ -1339,7 +1339,7 @@ class TypeCheckingVisitor
         new Value(coreTypes.futureClass, Flags.other),
         ValueSink.error('return value of expression'),
         coreTypes.futureClass,
-        [checker.topType]);
+        [extractor.topType]);
   }
 }
 

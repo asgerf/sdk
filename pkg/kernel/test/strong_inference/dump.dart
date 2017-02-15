@@ -5,7 +5,7 @@ import 'package:kernel/kernel.dart';
 main(List<String> args) {
   args = ['micro.dill'];
   var program = loadProgramFromBinary(args[0]);
-  var extractor = new ConstraintExtractor()..checkProgram(program);
+  var extractor = new ConstraintExtractor()..extractFromProgram(program);
   var constraints = extractor.builder.constraints;
   print('Extracted ${constraints.length} constraints');
   print(constraints
