@@ -16,6 +16,10 @@ import 'package:kernel/inference/key.dart';
 import 'package:kernel/inference/value.dart';
 import 'substitution.dart';
 
+/// Generates constraints from an AST.
+///
+/// This follows like the type checking, where each subtyping judgement gives
+/// rise to constraints.
 class ConstraintExtractor {
   CoreTypes coreTypes;
   Binding binding;
@@ -245,6 +249,7 @@ class LocalScope extends TypeParameterScope {
   }
 }
 
+/// Generates constraints from the body of a member.
 class TypeCheckingVisitor
     implements
         ExpressionVisitor<AType>,
@@ -1343,6 +1348,11 @@ class TypeCheckingVisitor
   }
 }
 
+/// Generates constraints for external code based on its type.
+///
+/// If [covariant] this generates constraints for values that can enter the
+/// program from external code.  If [contravariant], this generates constraints
+/// for values that escape into external code.
 class ExternalVisitor extends ATypeVisitor {
   final ConstraintExtractor extractor;
   final bool covariant, contravariant;
