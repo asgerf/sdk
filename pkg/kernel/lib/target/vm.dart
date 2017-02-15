@@ -8,12 +8,10 @@ import '../class_hierarchy.dart';
 import '../core_types.dart';
 import '../transformations/continuation.dart' as cont;
 import '../transformations/erasure.dart';
-import '../transformations/insert_covariance_checks.dart';
 import '../transformations/insert_type_checks.dart';
 import '../transformations/mixin_full_resolution.dart' as mix;
 import '../transformations/sanitize_for_vm.dart';
 import '../transformations/setup_builtin_library.dart' as setup_builtin_library;
-import '../transformations/treeshaker.dart';
 import 'targets.dart';
 
 /// Specializes the kernel IR to the Dart VM.

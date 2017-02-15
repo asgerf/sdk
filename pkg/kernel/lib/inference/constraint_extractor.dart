@@ -14,7 +14,6 @@ import 'package:kernel/inference/constraint_builder.dart';
 import 'package:kernel/inference/external_model.dart';
 import 'package:kernel/inference/key.dart';
 import 'package:kernel/inference/value.dart';
-import 'package:kernel/text/ast_to_text.dart';
 import 'substitution.dart';
 
 class ConstraintExtractor {
