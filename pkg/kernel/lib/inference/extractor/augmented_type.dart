@@ -10,6 +10,7 @@ import 'substitution.dart';
 import 'package:kernel/text/ast_to_text.dart';
 import '../value.dart';
 import 'value_source.dart';
+import 'value_sink.dart';
 
 class ASupertype {
   final Class classNode;

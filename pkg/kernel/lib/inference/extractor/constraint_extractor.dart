@@ -15,6 +15,7 @@ import 'constraint_builder.dart';
 import 'external_model.dart';
 import 'hierarchy.dart';
 import 'substitution.dart';
+import 'value_sink.dart';
 
 /// Generates constraints from an AST.
 ///
