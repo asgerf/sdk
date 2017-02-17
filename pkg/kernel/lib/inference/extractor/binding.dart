@@ -3,10 +3,10 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.strong_inference.binding;
 
-import '../ast.dart';
-import '../core_types.dart';
+import '../../ast.dart';
+import '../../core_types.dart';
+import '../key.dart';
 import 'augmented_type.dart';
-import 'package:kernel/inference/key.dart';
 
 /// Constructs augmented types and type modifier variables.
 class Binding {

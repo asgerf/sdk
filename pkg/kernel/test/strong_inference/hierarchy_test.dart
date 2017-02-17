@@ -1,13 +1,13 @@
 // Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-import 'package:kernel/inference/augmented_type.dart';
-import 'package:test/test.dart';
-import 'package:kernel/kernel.dart';
-import 'package:kernel/inference/hierarchy.dart';
 import 'package:kernel/class_hierarchy.dart';
-import 'package:kernel/inference/binding.dart';
 import 'package:kernel/core_types.dart';
+import 'package:kernel/inference/extractor/augmented_type.dart';
+import 'package:kernel/inference/extractor/binding.dart';
+import 'package:kernel/inference/extractor/hierarchy.dart';
+import 'package:kernel/kernel.dart';
+import 'package:test/test.dart';
 
 main(List<String> args) {
   var program = loadProgramFromBinary(args[0]);

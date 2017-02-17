@@ -3,17 +3,17 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.type_checker;
 
-import '../ast.dart';
-import '../class_hierarchy.dart';
-import '../core_types.dart';
+import '../../ast.dart';
+import '../../class_hierarchy.dart';
+import '../../core_types.dart';
+import '../constraints.dart';
+import '../key.dart';
+import '../value.dart';
 import 'augmented_type.dart';
 import 'binding.dart';
-import 'constraints.dart';
+import 'constraint_builder.dart';
+import 'external_model.dart';
 import 'hierarchy.dart';
-import 'package:kernel/inference/constraint_builder.dart';
-import 'package:kernel/inference/external_model.dart';
-import 'package:kernel/inference/key.dart';
-import 'package:kernel/inference/value.dart';
 import 'substitution.dart';
 
 /// Generates constraints from an AST.

@@ -3,10 +3,10 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.strong_inference.substitution;
 
-import '../ast.dart';
+import '../../ast.dart';
+import '../key.dart';
+import '../value.dart';
 import 'augmented_type.dart';
-import 'package:kernel/inference/key.dart';
-import 'package:kernel/inference/value.dart';
 
 abstract class Substitution {
   const Substitution();

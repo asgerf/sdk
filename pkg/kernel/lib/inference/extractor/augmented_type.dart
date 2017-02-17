@@ -3,12 +3,12 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.augmented_type;
 
-import '../ast.dart';
+import '../../ast.dart';
 import 'constraint_builder.dart';
-import 'key.dart';
-import 'package:kernel/inference/substitution.dart';
+import '../key.dart';
+import 'substitution.dart';
 import 'package:kernel/text/ast_to_text.dart';
-import 'value.dart';
+import '../value.dart';
 
 class ASupertype {
   final Class classNode;

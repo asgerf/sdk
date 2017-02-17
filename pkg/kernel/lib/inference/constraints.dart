@@ -5,7 +5,7 @@ library kernel.inference.constraints;
 
 import 'key.dart';
 import 'package:kernel/ast.dart';
-import 'solver.dart';
+import 'solver/solver.dart';
 import 'value.dart';
 
 abstract class Constraint {

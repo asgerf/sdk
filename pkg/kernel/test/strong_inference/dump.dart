@@ -1,5 +1,5 @@
-import 'package:kernel/inference/constraint_extractor.dart';
-import 'package:kernel/inference/solver.dart';
+import 'package:kernel/inference/extractor/constraint_extractor.dart';
+import 'package:kernel/inference/solver/solver.dart';
 import 'package:kernel/kernel.dart';
 
 main(List<String> args) {

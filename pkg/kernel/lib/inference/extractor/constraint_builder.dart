@@ -1,9 +1,10 @@
 library kernel.inference.constraint_builder;
 
 import 'package:kernel/ast.dart';
-import 'package:kernel/inference/augmented_type.dart';
-import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/hierarchy.dart';
+
+import '../constraints.dart';
+import 'augmented_type.dart';
+import 'hierarchy.dart';
 
 class ConstraintBuilder {
   final List<Constraint> constraints = <Constraint>[];

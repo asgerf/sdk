@@ -3,12 +3,13 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.value;
 
-import '../ast.dart';
-import 'constraint_builder.dart';
-import 'constraints.dart';
-import 'key.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/text/ast_to_text.dart';
+
+import '../ast.dart';
+import 'constraints.dart';
+import 'extractor/constraint_builder.dart';
+import 'key.dart';
 
 class Value extends ValueSource {
   final Class baseClass;

@@ -3,8 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.strong_inference.hierarchy;
 
-import '../ast.dart';
-import '../class_hierarchy.dart';
+import '../../ast.dart';
+import '../../class_hierarchy.dart';
 import 'augmented_type.dart';
 import 'binding.dart';
 import 'substitution.dart';

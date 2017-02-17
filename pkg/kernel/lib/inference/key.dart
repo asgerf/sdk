@@ -4,9 +4,9 @@
 library kernel.inference.key;
 
 import '../ast.dart';
-import 'package:kernel/inference/constraint_builder.dart';
-import 'package:kernel/inference/constraints.dart';
-import 'solver.dart';
+import 'extractor/constraint_builder.dart';
+import 'constraints.dart';
+import 'solver/solver.dart';
 import 'value.dart';
 
 abstract class ValueSource {
