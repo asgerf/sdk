@@ -10,56 +10,6 @@ import 'key.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/text/ast_to_text.dart';
 
-class Flags {
-  static const int inexactBaseClass = 1 << 0;
-
-  static const int null_ = 1 << 1;
-  static const int integer = 1 << 2;
-  static const int string = 1 << 3;
-  static const int double_ = 1 << 4;
-  static const int boolean = 1 << 5;
-  static const int other = 1 << 6;
-
-  static const int valueFlags =
-      null_ | integer | string | double_ | boolean | other;
-  static const int forward = inexactBaseClass | valueFlags;
-
-  static const int escaping = 1 << 7;
-
-  static const int backward = escaping;
-
-  static const int numberOfFlags = 8;
-  static const int all = (1 << numberOfFlags) - 1;
-  static const int none = 0;
-
-  static const int notNull = all & ~null_;
-  static const int nonNullValue = valueFlags & ~null_;
-
-  static const List<String> flagNames = const <String>[
-    'inexactBaseClass',
-    'Null', // Captialize to avoid confusion with null.toString().
-    'integer',
-    'string',
-    'double',
-    'boolean',
-    'other',
-    'escaping',
-  ];
-
-  static String flagsToString(int bitmask) {
-    if (bitmask == all) return 'all';
-    if (bitmask == none) return 'none';
-    assert(flagNames.length == numberOfFlags);
-    var names = <String>[];
-    for (int i = 0; i < numberOfFlags; ++i) {
-      if (bitmask & (1 << i) != 0) {
-        names.add(flagNames[i]);
-      }
-    }
-    return names.join(',');
-  }
-}
-
 class Value extends ValueSource {
   final Class baseClass;
   final int flags;
@@ -143,5 +93,55 @@ class Value extends ValueSource {
         printer.write('?');
       }
     }
+  }
+}
+
+class Flags {
+  static const int inexactBaseClass = 1 << 0;
+
+  static const int null_ = 1 << 1;
+  static const int integer = 1 << 2;
+  static const int string = 1 << 3;
+  static const int double_ = 1 << 4;
+  static const int boolean = 1 << 5;
+  static const int other = 1 << 6;
+
+  static const int valueFlags =
+      null_ | integer | string | double_ | boolean | other;
+  static const int forward = inexactBaseClass | valueFlags;
+
+  static const int escaping = 1 << 7;
+
+  static const int backward = escaping;
+
+  static const int numberOfFlags = 8;
+  static const int all = (1 << numberOfFlags) - 1;
+  static const int none = 0;
+
+  static const int notNull = all & ~null_;
+  static const int nonNullValue = valueFlags & ~null_;
+
+  static const List<String> flagNames = const <String>[
+    'inexactBaseClass',
+    'Null', // Captialize to avoid confusion with null.toString().
+    'integer',
+    'string',
+    'double',
+    'boolean',
+    'other',
+    'escaping',
+  ];
+
+  static String flagsToString(int bitmask) {
+    if (bitmask == all) return 'all';
+    if (bitmask == none) return 'none';
+    assert(flagNames.length == numberOfFlags);
+    var names = <String>[];
+    for (int i = 0; i < numberOfFlags; ++i) {
+      if (bitmask & (1 << i) != 0) {
+        names.add(flagNames[i]);
+      }
+    }
+    return names.join(',');
   }
 }
