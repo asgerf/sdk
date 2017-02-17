@@ -40,7 +40,7 @@ abstract class AType {
   /// which values should be recorded.
   ///
   /// Alternatives are [NowhereSink] that ignores incoming values and
-  /// [ErrorSink] that throws an exception because the type should never
+  /// [UnassignableSink] that throws an exception because the type should never
   /// occur as a left-hand value (e.g. it is an error to try to use the
   /// "this type" as a sink).
   ///

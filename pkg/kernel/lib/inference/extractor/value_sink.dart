@@ -4,6 +4,7 @@
 library kernel.inference.extractor.value_sink;
 
 import 'constraint_builder.dart';
+import 'package:kernel/ast.dart';
 import 'package:kernel/inference/key.dart';
 import 'value_source.dart';
 
@@ -11,7 +12,9 @@ abstract class ValueSink {
   static final ValueSink nowhere = new NowhereSink();
   static final ValueSink escape = new EscapingSink();
 
-  static ValueSink error(String reason) => new ErrorSink(reason);
+  static ValueSink unassignable(String what, [TreeNode where]) {
+    return new UnassignableSink(what, where);
+  }
 
   void generateAssignmentFrom(
       ConstraintBuilder builder, ValueSource source, int mask);
@@ -29,19 +32,20 @@ class NowhereSink extends ValueSink {
   }
 }
 
-class ErrorSink extends ValueSink {
+class UnassignableSink extends ValueSink {
   final String what;
+  final TreeNode where;
 
-  ErrorSink(this.what);
+  UnassignableSink(this.what, [this.where]);
 
   @override
   void generateAssignmentFrom(
       ConstraintBuilder builder, ValueSource source, int mask) {
-    throw 'Cannot assign to $what';
+    throw 'Cannot assign to $what (${where.location})';
   }
 
   T acceptSink<T>(ValueSinkVisitor<T> visitor) {
-    return visitor.visitErrorSink(this);
+    return visitor.visitUnassignableSink(this);
   }
 }
 
@@ -60,6 +64,6 @@ class EscapingSink extends ValueSink {
 abstract class ValueSinkVisitor<T> {
   T visitKey(Key key);
   T visitNowhereSink(NowhereSink sink);
-  T visitErrorSink(ErrorSink sink);
+  T visitUnassignableSink(UnassignableSink sink);
   T visitEscapingSink(EscapingSink sink);
 }

@@ -379,7 +379,10 @@ class TypeCheckingVisitor
       }
       var value = new Value(class_, Flags.inexactBaseClass);
       thisType = new InterfaceAType(
-          value, ValueSink.error('this type in $class_'), class_, thisTypeArgs);
+          value,
+          ValueSink.unassignable("type of 'this'", class_),
+          class_,
+          thisTypeArgs);
       thisSubstitution = Substitution.fromInterfaceType(thisType);
     } else {
       thisSubstitution = Substitution.empty;
@@ -793,7 +796,7 @@ class TypeCheckingVisitor
     addAllocationConstraint(createdObject, value, typeArguments);
     return new InterfaceAType(
         createdObject,
-        ValueSink.error('result of an expression'),
+        ValueSink.unassignable('result of an expression', node),
         target.enclosingClass,
         typeArguments);
   }
@@ -868,7 +871,7 @@ class TypeCheckingVisitor
     addAllocationConstraint(createdObject, value, [typeArgument]);
     return new InterfaceAType(
         createdObject,
-        ValueSink.error('result of an expression'),
+        ValueSink.unassignable('result of an expression', node),
         coreTypes.listClass,
         <AType>[typeArgument]);
   }
@@ -894,7 +897,7 @@ class TypeCheckingVisitor
     addAllocationConstraint(createdObject, value, [keyType, valueType]);
     return new InterfaceAType(
         createdObject,
-        ValueSink.error('result of an expression'),
+        ValueSink.unassignable('result of an expression', node),
         coreTypes.mapClass,
         <AType>[keyType, valueType]);
   }
@@ -1439,7 +1442,7 @@ class TypeCheckingVisitor
   AType visitLoadLibrary(LoadLibrary node) {
     return new InterfaceAType(
         new Value(coreTypes.futureClass, Flags.other),
-        ValueSink.error('return value of expression'),
+        ValueSink.unassignable('return value of expression', node),
         coreTypes.futureClass,
         [extractor.topType]);
   }
