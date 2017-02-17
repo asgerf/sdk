@@ -9,6 +9,7 @@ import '../key.dart';
 import 'substitution.dart';
 import 'package:kernel/text/ast_to_text.dart';
 import '../value.dart';
+import 'value_source.dart';
 
 class ASupertype {
   final Class classNode;

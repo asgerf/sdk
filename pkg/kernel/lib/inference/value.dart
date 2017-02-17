@@ -9,6 +9,7 @@ import 'package:kernel/text/ast_to_text.dart';
 import '../ast.dart';
 import 'constraints.dart';
 import 'extractor/constraint_builder.dart';
+import 'extractor/value_source.dart';
 import 'key.dart';
 
 class Value extends ValueSource {

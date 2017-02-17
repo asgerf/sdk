@@ -7,6 +7,7 @@ import '../../ast.dart';
 import '../key.dart';
 import '../value.dart';
 import 'augmented_type.dart';
+import 'value_source.dart';
 
 abstract class Substitution {
   const Substitution();
