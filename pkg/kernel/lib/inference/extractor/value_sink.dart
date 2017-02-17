@@ -7,13 +7,13 @@ import 'constraint_builder.dart';
 import 'value_source.dart';
 
 abstract class ValueSink {
-  void generateAssignmentFrom(
-      ConstraintBuilder builder, ValueSource source, int mask);
-
   static final ValueSink nowhere = new NowhereSink();
   static final ValueSink escape = new EscapingSink();
 
   static ValueSink error(String reason) => new ErrorSink(reason);
+
+  void generateAssignmentFrom(
+      ConstraintBuilder builder, ValueSource source, int mask);
 }
 
 class NowhereSink extends ValueSink {
