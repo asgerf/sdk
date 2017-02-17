@@ -512,7 +512,7 @@ class ConstraintExtractorVisitor
         node.namedParameters.map((v) => v.name).toList(growable: false),
         node.namedParameters.map(getVariableType).toList(growable: false),
         augmentedReturnType);
-    addAllocationConstraint(functionObject, extractor.functionValue, typeTerms);
+    addAllocationConstraint(functionObject, extractor.functionValue, type);
     extractor.onAnalysisComplete(() {
       if (isFileUri) {
         print('$type at ${node.location}');
@@ -778,12 +778,9 @@ class ConstraintExtractorVisitor
   }
 
   void addAllocationConstraint(
-      Key createdObject, Value value, List<AType> typeArguments) {
+      Key createdObject, Value value, AType type) {
     builder.addConstraint(new ValueConstraint(createdObject, value));
-    // Add escape constraints for the type arguments.
-    for (var type in typeArguments) {
-      new AllocationVisitor(extractor, createdObject).visit(type);
-    }
+    new AllocationVisitor(extractor, createdObject).visitSubterms(type);
   }
 
   @override
@@ -798,12 +795,13 @@ class ConstraintExtractorVisitor
     handleCall(arguments, target, receiver: substitution);
     var createdObject = modifiers.newModifier();
     var value = new Value(class_, flagsFromExactClass(class_));
-    addAllocationConstraint(createdObject, value, typeArguments);
-    return new InterfaceAType(
+    var type = new InterfaceAType(
         createdObject,
         ValueSink.unassignable('result of an expression', node),
         target.enclosingClass,
         typeArguments);
+    addAllocationConstraint(createdObject, value, type);
+    return type;
   }
 
   @override
@@ -873,12 +871,13 @@ class ConstraintExtractorVisitor
     }
     var createdObject = modifiers.newModifier();
     var value = new Value(coreTypes.listClass, Flags.other);
-    addAllocationConstraint(createdObject, value, [typeArgument]);
-    return new InterfaceAType(
+    var type = new InterfaceAType(
         createdObject,
         ValueSink.unassignable('result of an expression', node),
         coreTypes.listClass,
         <AType>[typeArgument]);
+    addAllocationConstraint(createdObject, value, type);
+    return type;
   }
 
   @override
@@ -899,12 +898,13 @@ class ConstraintExtractorVisitor
     }
     var createdObject = modifiers.newModifier();
     var value = new Value(coreTypes.mapClass, Flags.other);
-    addAllocationConstraint(createdObject, value, [keyType, valueType]);
-    return new InterfaceAType(
+    var type = new InterfaceAType(
         createdObject,
         ValueSink.unassignable('result of an expression', node),
         coreTypes.mapClass,
         <AType>[keyType, valueType]);
+    addAllocationConstraint(createdObject, value, type);
+    return type;
   }
 
   void handleEscapingExpression(Expression node) {
@@ -1547,17 +1547,28 @@ class AllocationVisitor extends ATypeVisitor {
   AllocationVisitor get inverse =>
       new AllocationVisitor(extractor, object, isCovariant: !isCovariant);
 
+  void visitSubterms(AType type) {
+    type.accept(this);
+  }
+
   void visit(AType type) {
-    var source = type.source;
-    if (isCovariant && source is Key) {
-      extractor.builder.addConstraint(new TypeArgumentConstraint(
+    if (isCovariant) {
+      var source = type.source;
+      if (source is Key) {
+        extractor.builder.addConstraint(new TypeArgumentConstraint(
           object, source, extractor.getWorstCaseValueForType(type)));
-    }
-    var sink = type.sink;
-    if (!isCovariant && sink is Key) {
-      // TODO: Check if this works
-      extractor.builder.addConstraint(
-          new TypeArgumentConstraint(object, sink, Value.escaping));
+      }
+      var sink = type.sink;
+      if (sink is Key) {
+        extractor.builder.addEscape(sink);
+      }
+    } else {
+      extractor.builder.addEscape(type.source);
+      var sink = type.sink;
+      if (sink is Key) {
+        extractor.builder.addConstraint(new TypeArgumentConstraint(
+          object, sink, extractor.getWorstCaseValueForType(type)));
+      }
     }
     type.accept(this);
   }
