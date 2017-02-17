@@ -3,10 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.extractor.value_sink;
 
-import 'constraint_builder.dart';
 import 'package:kernel/ast.dart';
 import 'package:kernel/inference/key.dart';
-import 'value_source.dart';
 
 abstract class ValueSink {
   static final ValueSink nowhere = new NowhereSink();
@@ -16,17 +14,10 @@ abstract class ValueSink {
     return new UnassignableSink(what, where);
   }
 
-  void generateAssignmentFrom(
-      ConstraintBuilder builder, ValueSource source, int mask);
-
   T acceptSink<T>(ValueSinkVisitor<T> visitor);
 }
 
 class NowhereSink extends ValueSink {
-  @override
-  void generateAssignmentFrom(
-      ConstraintBuilder builder, ValueSource source, int mask) {}
-
   T acceptSink<T>(ValueSinkVisitor<T> visitor) {
     return visitor.visitNowhereSink(this);
   }
@@ -38,24 +29,27 @@ class UnassignableSink extends ValueSink {
 
   UnassignableSink(this.what, [this.where]);
 
-  @override
-  void generateAssignmentFrom(
-      ConstraintBuilder builder, ValueSource source, int mask) {
-    throw 'Cannot assign to $what (${where.location})';
-  }
-
   T acceptSink<T>(ValueSinkVisitor<T> visitor) {
     return visitor.visitUnassignableSink(this);
   }
 }
 
-class EscapingSink extends ValueSink {
-  @override
-  void generateAssignmentFrom(
-      ConstraintBuilder builder, ValueSource source, int mask) {
-    source.generateEscape(builder);
-  }
+class UnassignableSinkError {
+  final UnassignableSink sink;
+  Location assignmentLocation;
 
+  UnassignableSinkError(this.sink, [this.assignmentLocation]);
+
+  String toString() {
+    var message = 'Cannot assign to ${sink.what} (${sink.where?.location})}';
+    if (assignmentLocation != null) {
+      message += '\nat $assignmentLocation';
+    }
+    return message;
+  }
+}
+
+class EscapingSink extends ValueSink {
   T acceptSink<T>(ValueSinkVisitor<T> visitor) {
     return visitor.visitEscapingSink(this);
   }

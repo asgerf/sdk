@@ -6,8 +6,8 @@ library kernel.ast_to_text;
 import '../ast.dart';
 import '../import_table.dart';
 import '../type_propagation/type_propagation.dart';
-import 'package:kernel/inference/augmented_type.dart';
-import 'package:kernel/inference/binding.dart';
+import 'package:kernel/inference/extractor/augmented_type.dart';
+import 'package:kernel/inference/extractor/binding.dart';
 import 'package:kernel/inference/key.dart';
 
 class Namer<T> {

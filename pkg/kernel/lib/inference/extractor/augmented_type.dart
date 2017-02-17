@@ -65,7 +65,7 @@ abstract class AType {
   /// Generates constraints to ensure this type is more specific than
   /// [supertype].
   void generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
-    supertype.sink.generateAssignmentFrom(builder, this.source, Flags.all);
+    builder.addAssignment(source, sink, Flags.all);
     _generateSubtypeConstraintsForSubterms(supertype, builder);
   }
 
@@ -74,11 +74,11 @@ abstract class AType {
   void generateSubBoundConstraint(AType superbound, ConstraintBuilder builder) {
     if (superbound.source is Key) {
       Key superSource = superbound.source as Key;
-      superSource.generateAssignmentFrom(builder, this.source, Flags.all);
+      builder.addAssignment(source, superSource, Flags.all);
     }
     if (superbound.sink is Key) {
       Key superSink = superbound.sink as Key;
-      this.sink.generateAssignmentFrom(builder, superSink, Flags.all);
+      builder.addAssignment(superSink, sink, Flags.all);
     }
     _generateSubtypeConstraintsForSubterms(superbound, builder);
   }

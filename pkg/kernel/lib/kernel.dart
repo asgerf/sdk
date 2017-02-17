@@ -18,7 +18,6 @@ import 'binary/ast_to_binary.dart';
 import 'binary/loader.dart';
 import 'dart:async';
 import 'dart:io';
-import 'package:kernel/inference/binding.dart';
 import 'repository.dart';
 import 'text/ast_to_text.dart';
 

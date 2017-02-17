@@ -4,8 +4,6 @@
 library kernel.inference.key;
 
 import '../ast.dart';
-import 'constraints.dart';
-import 'extractor/constraint_builder.dart';
 import 'extractor/value_sink.dart';
 import 'extractor/value_source.dart';
 import 'solver/solver.dart';
@@ -34,23 +32,6 @@ class Key extends ValueSource implements ValueSink {
 
   T acceptSource<T>(ValueSourceVisitor<T> visitor) {
     return visitor.visitKey(this);
-  }
-
-  @override
-  void generateAssignmentTo(
-      ConstraintBuilder builder, Key destination, int mask) {
-    builder.addConstraint(new SubtypeConstraint(this, destination, mask));
-  }
-
-  @override
-  void generateAssignmentFrom(
-      ConstraintBuilder builder, ValueSource source, int mask) {
-    source.generateAssignmentTo(builder, this, mask);
-  }
-
-  @override
-  void generateEscape(ConstraintBuilder builder) {
-    builder.addConstraint(new EscapeConstraint(this));
   }
 
   @override

@@ -177,7 +177,13 @@ class ConstraintExtractor {
     // assert(!from.containsPlaceholder);
     // assert(!to.containsPlaceholder);
     // TODO: Expose type parameters in 'scope' and check closedness
-    from.generateSubtypeConstraints(to, builder);
+    try {
+      from.generateSubtypeConstraints(to, builder);
+    } on UnassignableSinkError catch (e) {
+      e.assignmentLocation = where.location;
+      print('$from <: $to');
+      rethrow;
+    }
   }
 
   /// Indicates that type checking failed.
@@ -330,7 +336,7 @@ class TypeCheckingVisitor
       node.inferredValueIndex = source.index;
     } else {
       var newKey = modifiers.newModifier();
-      newKey.generateAssignmentFrom(builder, source, Flags.all);
+      builder.addAssignment(source, newKey, Flags.all);
       type = type.withSource(newKey);
       node.inferredValueIndex = newKey.index;
     }
@@ -468,8 +474,8 @@ class TypeCheckingVisitor
     if (node.body != null) {
       bool completes = visitStatement(node.body);
       if (completes && returnType != null) {
-        returnType.sink
-            .generateAssignmentFrom(builder, extractor.nullValue, Flags.null_);
+        builder.addAssignment(
+            extractor.nullValue, returnType.sink, Flags.null_);
       }
     }
     currentAsyncMarker = oldAsyncMarker;
@@ -538,9 +544,8 @@ class TypeCheckingVisitor
       checkAssignableExpression(
           parameter.initializer, getVariableType(parameter));
     } else {
-      getVariableType(parameter)
-          .sink
-          .generateAssignmentFrom(builder, extractor.nullValue, Flags.null_);
+      builder.addAssignment(
+          extractor.nullValue, getVariableType(parameter).sink, Flags.null_);
     }
   }
 
@@ -725,10 +730,10 @@ class TypeCheckingVisitor
   AType visitAsExpression(AsExpression node) {
     var input = visitExpression(node.operand);
     var output = modifiers.augmentType(node.type);
-    output.sink.generateAssignmentFrom(builder, input.source, Flags.all);
+    builder.addAssignment(input.source, output.sink, Flags.all);
     if (isTaintingDowncast(node.type)) {
       taintSubterms(output);
-      input.source.generateEscape(builder);
+      builder.addEscape(input.source);
     }
     return output;
   }
@@ -908,7 +913,7 @@ class TypeCheckingVisitor
   }
 
   void handleEscapingType(AType type) {
-    type.source.generateEscape(builder);
+    builder.addEscape(type.source);
   }
 
   AType handleDynamicCall(AType receiver, Arguments arguments) {
@@ -1498,12 +1503,12 @@ class ExternalVisitor extends ATypeVisitor {
   visitFunctionAType(FunctionAType type) {
     var source = type.source;
     if (isCovariant && source is Key) {
-      source.generateAssignmentFrom(
-          builder, new Value(coreTypes.objectClass, Flags.other), Flags.all);
+      var anyValue = new Value(coreTypes.objectClass, Flags.other);
+      builder.addAssignment(anyValue, source, Flags.all);
     }
     var sink = type.sink;
     if (isContravariant && sink is Key) {
-      sink.generateAssignmentFrom(builder, Value.escaping, Flags.escaping);
+      builder.addEscape(sink);
     }
     type.typeParameters.forEach(visitBound);
     type.positionalParameters.forEach(visitInverse);
@@ -1518,14 +1523,12 @@ class ExternalVisitor extends ATypeVisitor {
   visitInterfaceAType(InterfaceAType type) {
     var source = type.source;
     if (isCovariant && source is Key) {
-      source.generateAssignmentFrom(
-          builder,
-          extractor.getWorstCaseValue(type.classNode, isNice: isNice),
-          Flags.valueFlags);
+      var value = extractor.getWorstCaseValue(type.classNode, isNice: isNice);
+      builder.addAssignment(value, source, Flags.valueFlags);
     }
     var sink = type.sink;
     if (!isNice && isContravariant && sink is Key) {
-      sink.generateAssignmentFrom(builder, Value.escaping, Flags.escaping);
+      builder.addEscape(sink);
     }
     type.typeArguments.forEach(visitBound);
   }

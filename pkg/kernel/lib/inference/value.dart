@@ -7,10 +7,7 @@ import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/text/ast_to_text.dart';
 
 import '../ast.dart';
-import 'constraints.dart';
-import 'extractor/constraint_builder.dart';
 import 'extractor/value_source.dart';
-import 'key.dart';
 
 class Value extends ValueSource {
   final Class baseClass;
@@ -50,16 +47,6 @@ class Value extends ValueSource {
   T acceptSource<T>(ValueSourceVisitor<T> visitor) {
     return visitor.visitValue(this);
   }
-
-  @override
-  void generateAssignmentTo(
-      ConstraintBuilder builder, Key destination, int mask) {
-    if (flags & mask == 0) return;
-    builder.addConstraint(new ValueConstraint(destination, masked(mask)));
-  }
-
-  @override
-  void generateEscape(ConstraintBuilder builder) {}
 
   bool isBottom(int mask) {
     return flags & mask == 0;
