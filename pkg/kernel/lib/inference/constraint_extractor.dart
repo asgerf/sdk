@@ -945,14 +945,7 @@ class TypeCheckingVisitor
     for (int i = 0; i < arguments.positional.length; ++i) {
       var expectedType =
           instantiation.substituteType(function.positionalParameters[i]);
-      var type =
-          checkAssignableExpression(arguments.positional[i], expectedType);
-      if (isFileUri) {
-        extractor.onAnalysisComplete(() {
-          var arg = arguments.positional[i];
-          print('$type <: $expectedType in call at ${where.location}');
-        });
-      }
+      checkAssignableExpression(arguments.positional[i], expectedType);
     }
     for (int i = 0; i < arguments.named.length; ++i) {
       var argument = arguments.named[i];
