@@ -3,8 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.constraints;
 
+import '../ast.dart';
 import 'key.dart';
-import 'package:kernel/ast.dart';
 import 'solver/solver.dart';
 import 'value.dart';
 
