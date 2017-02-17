@@ -383,9 +383,10 @@ class TypeParameterAType extends AType {
   @override
   void _generateSubtypeConstraintsForSubterms(
       AType supertype, SubtypingScope scope) {
+    if (supertype is TypeParameterAType && supertype.parameter == parameter) {
+      return;
+    }
     var bound = scope.scope.getTypeParameterBound(parameter);
-    // TODO: filter out nullability, since the local nullability modifier took
-    // care of that.
     bound.generateSubtypeConstraints(supertype, scope);
   }
 
