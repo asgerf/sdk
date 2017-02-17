@@ -178,7 +178,7 @@ class ConstraintExtractor {
     // assert(!to.containsPlaceholder);
     // TODO: Expose type parameters in 'scope' and check closedness
     try {
-      from.generateSubtypeConstraints(to, builder);
+      from.generateSubtypeConstraints(to, new SubtypingScope(builder, scope));
     } on UnassignableSinkError catch (e) {
       e.assignmentLocation = where.location;
       print('$from <: $to');
@@ -305,7 +305,7 @@ class ConstraintExtractorVisitor
       this.classModifiers, this.isUncheckedLibrary);
 
   void checkTypeBound(TreeNode where, AType type, AType bound) {
-    type.generateSubBoundConstraint(bound, builder);
+    type.generateSubBoundConstraint(bound, new SubtypingScope(builder, scope));
   }
 
   void checkAssignable(TreeNode where, AType from, AType to) {

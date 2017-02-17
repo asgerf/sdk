@@ -8,6 +8,7 @@ import '../../text/ast_to_text.dart';
 import '../key.dart';
 import '../value.dart';
 import 'constraint_builder.dart';
+import 'constraint_extractor.dart';
 import 'substitution.dart';
 import 'value_sink.dart';
 import 'value_source.dart';
@@ -22,6 +23,13 @@ class ASupertype {
     if (typeArguments.isEmpty) return '$classNode';
     return '$classNode<${typeArguments.join(",")}>';
   }
+}
+
+class SubtypingScope {
+  final ConstraintBuilder constraints;
+  final TypeParameterScope scope;
+
+  SubtypingScope(this.constraints, this.scope);
 }
 
 abstract class AType {
@@ -64,28 +72,28 @@ abstract class AType {
 
   /// Generates constraints to ensure this type is more specific than
   /// [supertype].
-  void generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
-    builder.addAssignment(source, supertype.sink, Flags.all);
-    _generateSubtypeConstraintsForSubterms(supertype, builder);
+  void generateSubtypeConstraints(AType supertype, SubtypingScope scope) {
+    scope.constraints.addAssignment(source, supertype.sink, Flags.all);
+    _generateSubtypeConstraintsForSubterms(supertype, scope);
   }
 
   /// Generates constraints to ensure this bound is more specific than
   /// [superbound].
-  void generateSubBoundConstraint(AType superbound, ConstraintBuilder builder) {
+  void generateSubBoundConstraint(AType superbound, SubtypingScope scope) {
     if (superbound.source is Key) {
       Key superSource = superbound.source as Key;
-      builder.addAssignment(source, superSource, Flags.all);
+      scope.constraints.addAssignment(source, superSource, Flags.all);
     }
     if (superbound.sink is Key) {
       Key superSink = superbound.sink as Key;
-      builder.addAssignment(superSink, sink, Flags.all);
+      scope.constraints.addAssignment(superSink, sink, Flags.all);
     }
-    _generateSubtypeConstraintsForSubterms(superbound, builder);
+    _generateSubtypeConstraintsForSubterms(superbound, scope);
   }
 
   /// Generates subtyping constraints specific to a subclass.
   void _generateSubtypeConstraintsForSubterms(
-      AType supertype, ConstraintBuilder builder);
+      AType supertype, SubtypingScope scope);
 
   /// True if this type or any of its subterms match [predicate].
   bool containsAny(bool predicate(AType type)) => predicate(this);
@@ -124,14 +132,14 @@ class InterfaceAType extends AType {
   accept(ATypeVisitor visitor) => visitor.visitInterfaceAType(this);
 
   void _generateSubtypeConstraintsForSubterms(
-      AType supertype, ConstraintBuilder builder) {
+      AType supertype, SubtypingScope scope) {
     if (supertype is InterfaceAType) {
-      var casted = builder.getTypeAsInstanceOf(this, supertype.classNode);
+      var casted = scope.constraints.getTypeAsInstanceOf(this, supertype.classNode);
       if (casted == null) return;
       for (int i = 0; i < casted.typeArguments.length; ++i) {
         var subtypeArgument = casted.typeArguments[i];
         var supertypeArgument = supertype.typeArguments[i];
-        subtypeArgument.generateSubBoundConstraint(supertypeArgument, builder);
+        subtypeArgument.generateSubBoundConstraint(supertypeArgument, scope);
       }
     }
   }
@@ -202,18 +210,18 @@ class FunctionAType extends AType {
 
   @override
   void _generateSubtypeConstraintsForSubterms(
-      AType supertype, ConstraintBuilder builder) {
+      AType supertype, SubtypingScope scope) {
     if (supertype is FunctionAType) {
       for (int i = 0; i < typeParameters.length; ++i) {
         if (i < supertype.typeParameters.length) {
           supertype.typeParameters[i]
-              .generateSubtypeConstraints(typeParameters[i], builder);
+              .generateSubtypeConstraints(typeParameters[i], scope);
         }
       }
       for (int i = 0; i < positionalParameters.length; ++i) {
         if (i < supertype.positionalParameters.length) {
           supertype.positionalParameters[i]
-              .generateSubtypeConstraints(positionalParameters[i], builder);
+              .generateSubtypeConstraints(positionalParameters[i], scope);
         }
       }
       for (int i = 0; i < namedParameters.length; ++i) {
@@ -221,10 +229,10 @@ class FunctionAType extends AType {
         int j = supertype.namedParameterNames.indexOf(name);
         if (j != -1) {
           supertype.namedParameters[j]
-              .generateSubtypeConstraints(namedParameters[i], builder);
+              .generateSubtypeConstraints(namedParameters[i], scope);
         }
       }
-      returnType.generateSubtypeConstraints(supertype.returnType, builder);
+      returnType.generateSubtypeConstraints(supertype.returnType, scope);
     }
   }
 
@@ -321,7 +329,7 @@ class FunctionTypeParameterAType extends AType {
 
   @override
   void _generateSubtypeConstraintsForSubterms(
-      AType supertype, ConstraintBuilder builder) {}
+      AType supertype, SubtypingScope scope) {}
 
   FunctionTypeParameterAType substitute(Substitution substitution) => this;
 
@@ -344,7 +352,7 @@ class BottomAType extends AType {
 
   @override
   void _generateSubtypeConstraintsForSubterms(
-      AType supertype, ConstraintBuilder builder) {}
+      AType supertype, SubtypingScope scope) {}
 
   BottomAType substitute(Substitution substitution) => this;
 
@@ -374,8 +382,11 @@ class TypeParameterAType extends AType {
 
   @override
   void _generateSubtypeConstraintsForSubterms(
-      AType supertype, ConstraintBuilder builder) {
-    // TODO: Use bound.
+      AType supertype, SubtypingScope scope) {
+    var bound = scope.scope.getTypeParameterBound(parameter);
+    // TODO: filter out nullability, since the local nullability modifier took
+    // care of that.
+    bound.generateSubtypeConstraints(supertype, scope);
   }
 
   AType substitute(Substitution substitution) {

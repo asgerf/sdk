@@ -32,7 +32,7 @@ class Binding {
   ModifierBank _initializeClassBank(Class class_) {
     var modifiers = new ClassBank(class_, coreTypes);
     modifiers.typeParameters = class_.typeParameters
-        .map((p) => modifiers.augmentType(p.bound))
+        .map((p) => modifiers.augmentBound(p.bound))
         .toList(growable: false);
     modifiers.supertypes = class_.supers
         .map((s) => modifiers.augmentSuper(s))
