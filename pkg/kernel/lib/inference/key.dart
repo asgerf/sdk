@@ -28,6 +28,14 @@ class Key extends ValueSource implements ValueSink {
 
   String toString() => '$owner:$index';
 
+  T acceptSink<T>(ValueSinkVisitor<T> visitor) {
+    return visitor.visitKey(this);
+  }
+
+  T acceptSource<T>(ValueSourceVisitor<T> visitor) {
+    return visitor.visitKey(this);
+  }
+
   @override
   void generateAssignmentTo(
       ConstraintBuilder builder, Key destination, int mask) {

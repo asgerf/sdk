@@ -16,6 +16,8 @@ abstract class ValueSource {
   bool isBottom(int mask);
 
   Value get value;
+
+  T acceptSource<T>(ValueSourceVisitor<T> visitor);
 }
 
 class ValueSourceWithNullability extends ValueSource {
@@ -41,4 +43,14 @@ class ValueSourceWithNullability extends ValueSource {
     if (baseValue.canBeNull || !nullabilityValue.canBeNull) return baseValue;
     return new Value(baseValue.baseClass, baseValue.flags | Flags.null_);
   }
+
+  T acceptSource<T>(ValueSourceVisitor<T> visitor) {
+    return visitor.visitValueSourceWithNullability(this);
+  }
+}
+
+abstract class ValueSourceVisitor<T> {
+  T visitKey(Key key);
+  T visitValue(Value value);
+  T visitValueSourceWithNullability(ValueSourceWithNullability source);
 }

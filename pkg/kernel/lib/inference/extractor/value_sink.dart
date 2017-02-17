@@ -4,6 +4,7 @@
 library kernel.inference.extractor.value_sink;
 
 import 'constraint_builder.dart';
+import 'package:kernel/inference/key.dart';
 import 'value_source.dart';
 
 abstract class ValueSink {
@@ -14,12 +15,18 @@ abstract class ValueSink {
 
   void generateAssignmentFrom(
       ConstraintBuilder builder, ValueSource source, int mask);
+
+  T acceptSink<T>(ValueSinkVisitor<T> visitor);
 }
 
 class NowhereSink extends ValueSink {
   @override
   void generateAssignmentFrom(
       ConstraintBuilder builder, ValueSource source, int mask) {}
+
+  T acceptSink<T>(ValueSinkVisitor<T> visitor) {
+    return visitor.visitNowhereSink(this);
+  }
 }
 
 class ErrorSink extends ValueSink {
@@ -32,6 +39,10 @@ class ErrorSink extends ValueSink {
       ConstraintBuilder builder, ValueSource source, int mask) {
     throw 'Cannot assign to $what';
   }
+
+  T acceptSink<T>(ValueSinkVisitor<T> visitor) {
+    return visitor.visitErrorSink(this);
+  }
 }
 
 class EscapingSink extends ValueSink {
@@ -40,4 +51,15 @@ class EscapingSink extends ValueSink {
       ConstraintBuilder builder, ValueSource source, int mask) {
     source.generateEscape(builder);
   }
+
+  T acceptSink<T>(ValueSinkVisitor<T> visitor) {
+    return visitor.visitEscapingSink(this);
+  }
+}
+
+abstract class ValueSinkVisitor<T> {
+  T visitKey(Key key);
+  T visitNowhereSink(NowhereSink sink);
+  T visitErrorSink(ErrorSink sink);
+  T visitEscapingSink(EscapingSink sink);
 }

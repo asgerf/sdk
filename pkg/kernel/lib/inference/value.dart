@@ -47,6 +47,10 @@ class Value extends ValueSource {
     return '$baseClass$baseClassSuffix$nullability($suffix)';
   }
 
+  T acceptSource<T>(ValueSourceVisitor<T> visitor) {
+    return visitor.visitValue(this);
+  }
+
   @override
   void generateAssignmentTo(
       ConstraintBuilder builder, Key destination, int mask) {
