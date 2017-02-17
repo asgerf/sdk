@@ -3,10 +3,9 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.value;
 
-import 'package:kernel/class_hierarchy.dart';
-import 'package:kernel/text/ast_to_text.dart';
-
 import '../ast.dart';
+import '../class_hierarchy.dart';
+import '../text/ast_to_text.dart';
 import 'extractor/value_source.dart';
 
 class Value extends ValueSource {
