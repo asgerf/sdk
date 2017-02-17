@@ -20,6 +20,7 @@ main(List<String> args) {
   testGenericDynamic();
   testCurry();
   testCallbackEscapeDynamic();
+  testGenericCasts();
 }
 
 void takeExact(Foo foo) => takeExact2(foo);
@@ -334,4 +335,20 @@ void testCallbackEscapeDynamic() {
   dynamic dynamicCurryNullable = curryNullable;
   dynamicCurryNullable()(5);
   dynamicCurryNullable()(null);
+}
+
+class Generic<T> {
+  final T field;
+
+  Generic(this.field);
+
+  Object nullableReturnFromT(T x) {
+    return x;
+  }
+}
+
+void testGenericCasts() {
+  Generic<int> generic = new Generic<int>(null);
+  Object nullableReturn = generic.nullableReturnFromT(null);
+  Object nullableField = generic.field;
 }

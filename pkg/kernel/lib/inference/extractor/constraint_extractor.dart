@@ -513,11 +513,6 @@ class ConstraintExtractorVisitor
         node.namedParameters.map(getVariableType).toList(growable: false),
         augmentedReturnType);
     addAllocationConstraint(functionObject, extractor.functionValue, type);
-    extractor.onAnalysisComplete(() {
-      if (isFileUri) {
-        print('$type at ${node.location}');
-      }
-    });
     if (selfReference != null) {
       scope.variables[selfReference] = type;
     }
@@ -587,6 +582,15 @@ class ConstraintExtractorVisitor
     return hierarchy.getClassAsInstanceOf(currentClass, member.enclosingClass);
   }
 
+  void checkTypeParameterBounds(TreeNode where, List<AType> arguments,
+      List<AType> bounds, Substitution substitution) {
+    for (int i = 0; i < arguments.length; ++i) {
+      var argument = arguments[i];
+      var bound = substitution.substituteBound(bounds[i]);
+      checkTypeBound(where, argument, bound);
+    }
+  }
+
   AType handleCall(Arguments arguments, Member member,
       {Substitution receiver: Substitution.empty}) {
     var function = member.function;
@@ -614,11 +618,8 @@ class ConstraintExtractorVisitor
       assert(typeParameters.isEmpty);
     }
     var substitution = Substitution.either(receiver, instantiation);
-    for (int i = 0; i < typeParameters.length; ++i) {
-      var argument = typeArguments[i];
-      var bound = substitution.substituteBound(target.typeParameters[i]);
-      checkTypeBound(arguments, argument, bound);
-    }
+    checkTypeParameterBounds(
+        arguments, typeArguments, target.typeParameters, substitution);
     for (int i = 0; i < arguments.positional.length; ++i) {
       var expectedType =
           substitution.substituteType(target.positionalParameters[i]);
@@ -777,8 +778,7 @@ class ConstraintExtractorVisitor
     new AllocationVisitor(extractor, createdObject).visit(typeArgument);
   }
 
-  void addAllocationConstraint(
-      Key createdObject, Value value, AType type) {
+  void addAllocationConstraint(Key createdObject, Value value, AType type) {
     builder.addConstraint(new ValueConstraint(createdObject, value));
     new AllocationVisitor(extractor, createdObject).visitSubterms(type);
   }
@@ -792,6 +792,8 @@ class ConstraintExtractorVisitor
     var typeArguments = modifiers.augmentTypeList(arguments.types);
     Substitution substitution =
         Substitution.fromPairs(class_.typeParameters, typeArguments);
+    checkTypeParameterBounds(node, typeArguments,
+        binding.getClassBank(class_).typeParameters, substitution);
     handleCall(arguments, target, receiver: substitution);
     var createdObject = modifiers.newModifier();
     var value = new Value(class_, flagsFromExactClass(class_));
@@ -1556,7 +1558,7 @@ class AllocationVisitor extends ATypeVisitor {
       var source = type.source;
       if (source is Key) {
         extractor.builder.addConstraint(new TypeArgumentConstraint(
-          object, source, extractor.getWorstCaseValueForType(type)));
+            object, source, extractor.getWorstCaseValueForType(type)));
       }
       var sink = type.sink;
       if (sink is Key) {
@@ -1567,7 +1569,7 @@ class AllocationVisitor extends ATypeVisitor {
       var sink = type.sink;
       if (sink is Key) {
         extractor.builder.addConstraint(new TypeArgumentConstraint(
-          object, sink, extractor.getWorstCaseValueForType(type)));
+            object, sink, extractor.getWorstCaseValueForType(type)));
       }
     }
     type.accept(this);
