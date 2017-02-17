@@ -20,6 +20,7 @@ import 'dart:async';
 import 'dart:io';
 import 'repository.dart';
 import 'text/ast_to_text.dart';
+import 'inference/extractor/binding.dart';
 
 export 'ast.dart';
 export 'repository.dart';

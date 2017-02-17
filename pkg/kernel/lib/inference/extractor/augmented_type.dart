@@ -65,7 +65,7 @@ abstract class AType {
   /// Generates constraints to ensure this type is more specific than
   /// [supertype].
   void generateSubtypeConstraints(AType supertype, ConstraintBuilder builder) {
-    builder.addAssignment(source, sink, Flags.all);
+    builder.addAssignment(source, supertype.sink, Flags.all);
     _generateSubtypeConstraintsForSubterms(supertype, builder);
   }
 
