@@ -1,7 +1,7 @@
 // Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-library kernel.type_checker;
+library kernel.inference.extractor.constraint_extractor;
 
 import '../../ast.dart';
 import '../../class_hierarchy.dart';
@@ -137,7 +137,7 @@ class ConstraintExtractor {
     builder.currentOwner = member;
     var class_ = member.enclosingClass;
     var classBank = class_ == null ? null : binding.getClassBank(class_);
-    var visitor = new TypeCheckingVisitor(this, member,
+    var visitor = new ConstraintExtractorVisitor(this, member,
         binding.getMemberBank(member), classBank, isUncheckedLibrary);
     visitor.analyzeMember();
   }
@@ -269,7 +269,7 @@ class LocalScope extends TypeParameterScope {
 }
 
 /// Generates constraints from the body of a member.
-class TypeCheckingVisitor
+class ConstraintExtractorVisitor
     implements
         ExpressionVisitor<AType>,
         StatementVisitor<bool>,
@@ -301,7 +301,7 @@ class TypeCheckingVisitor
   final LocalScope scope = new LocalScope();
   final bool isUncheckedLibrary;
 
-  TypeCheckingVisitor(this.extractor, this.currentMember, this.modifiers,
+  ConstraintExtractorVisitor(this.extractor, this.currentMember, this.modifiers,
       this.classModifiers, this.isUncheckedLibrary);
 
   void checkTypeBound(TreeNode where, AType type, AType bound) {
