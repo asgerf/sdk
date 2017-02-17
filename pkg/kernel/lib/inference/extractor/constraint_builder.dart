@@ -1,11 +1,13 @@
+// Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
+// for details. All rights reserved. Use of this source code is governed by a
+// BSD-style license that can be found in the LICENSE file.
 library kernel.inference.constraint_builder;
 
-import 'package:kernel/ast.dart';
-import 'package:kernel/inference/extractor/value_sink.dart';
-import 'package:kernel/inference/extractor/value_source.dart';
-import 'package:kernel/inference/key.dart';
-import 'package:kernel/inference/value.dart';
-
+import '../../ast.dart';
+import '../../inference/extractor/value_sink.dart';
+import '../../inference/extractor/value_source.dart';
+import '../../inference/key.dart';
+import '../../inference/value.dart';
 import '../constraints.dart';
 import 'augmented_type.dart';
 import 'hierarchy.dart';
