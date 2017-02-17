@@ -4,13 +4,13 @@
 library kernel.inference.augmented_type;
 
 import '../../ast.dart';
-import 'constraint_builder.dart';
+import '../../text/ast_to_text.dart';
 import '../key.dart';
-import 'substitution.dart';
-import 'package:kernel/text/ast_to_text.dart';
 import '../value.dart';
-import 'value_source.dart';
+import 'constraint_builder.dart';
+import 'substitution.dart';
 import 'value_sink.dart';
+import 'value_source.dart';
 
 class ASupertype {
   final Class classNode;

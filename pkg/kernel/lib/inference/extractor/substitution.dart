@@ -4,10 +4,10 @@
 library kernel.strong_inference.substitution;
 
 import '../../ast.dart';
+import '../value.dart';
 import 'augmented_type.dart';
 import 'value_sink.dart';
 import 'value_source.dart';
-import '../value.dart';
 
 abstract class Substitution {
   const Substitution();

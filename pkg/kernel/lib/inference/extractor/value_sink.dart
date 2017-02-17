@@ -3,8 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.extractor.value_sink;
 
-import 'package:kernel/ast.dart';
-import 'package:kernel/inference/key.dart';
+import '../../ast.dart';
+import '../../inference/key.dart';
 
 abstract class ValueSink {
   static final ValueSink nowhere = new NowhereSink();
