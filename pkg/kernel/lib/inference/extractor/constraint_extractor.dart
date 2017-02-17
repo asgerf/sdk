@@ -512,7 +512,7 @@ class ConstraintExtractorVisitor
         node.namedParameters.map((v) => v.name).toList(growable: false),
         node.namedParameters.map(getVariableType).toList(growable: false),
         augmentedReturnType);
-    addAllocationConstraint(functionObject, extractor.functionValue, type);
+    addAllocationConstraints(functionObject, extractor.functionValue, type);
     if (selfReference != null) {
       scope.variables[selfReference] = type;
     }
@@ -778,7 +778,7 @@ class ConstraintExtractorVisitor
     new AllocationVisitor(extractor, createdObject).visit(typeArgument);
   }
 
-  void addAllocationConstraint(Key createdObject, Value value, AType type) {
+  void addAllocationConstraints(Key createdObject, Value value, AType type) {
     builder.addConstraint(new ValueConstraint(createdObject, value));
     new AllocationVisitor(extractor, createdObject).visitSubterms(type);
   }
@@ -802,7 +802,7 @@ class ConstraintExtractorVisitor
         ValueSink.unassignable('result of an expression', node),
         target.enclosingClass,
         typeArguments);
-    addAllocationConstraint(createdObject, value, type);
+    addAllocationConstraints(createdObject, value, type);
     return type;
   }
 
@@ -878,7 +878,7 @@ class ConstraintExtractorVisitor
         ValueSink.unassignable('result of an expression', node),
         coreTypes.listClass,
         <AType>[typeArgument]);
-    addAllocationConstraint(createdObject, value, type);
+    addAllocationConstraints(createdObject, value, type);
     return type;
   }
 
@@ -905,7 +905,7 @@ class ConstraintExtractorVisitor
         ValueSink.unassignable('result of an expression', node),
         coreTypes.mapClass,
         <AType>[keyType, valueType]);
-    addAllocationConstraint(createdObject, value, type);
+    addAllocationConstraints(createdObject, value, type);
     return type;
   }
 
