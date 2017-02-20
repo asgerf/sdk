@@ -18,7 +18,7 @@ class StorageLocationBaseClass {
   StorageLocationBaseClass() {
     forward = new WorkItem(this);
     backward = new WorkItem(this);
- }
+  }
 }
 
 class WorkItem {
