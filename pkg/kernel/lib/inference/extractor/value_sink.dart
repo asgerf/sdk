@@ -6,6 +6,10 @@ library kernel.inference.extractor.value_sink;
 import '../../ast.dart';
 import '../storage_location.dart';
 
+/// Describes the effects of moving a value somewhere.
+///
+/// In the common case this is a [StorageLocation], but in some cases there is
+/// no storage location.
 abstract class ValueSink {
   static final ValueSink nowhere = new NowhereSink();
   static final ValueSink escape = new EscapingSink();
@@ -17,12 +21,27 @@ abstract class ValueSink {
   T acceptSink<T>(ValueSinkVisitor<T> visitor);
 }
 
+/// A sink that ignores incoming values.
+///
+/// This is used to simplify constraint generation, since some helper methods
+/// can return a type that can be assigned into, but it has no consequence.
+///
+/// For example, the condition to an `if` is assigned to the boolean type, but
+/// it has no consequence that the value flows into the `bool` type.
 class NowhereSink extends ValueSink {
   T acceptSink<T>(ValueSinkVisitor<T> visitor) {
     return visitor.visitNowhereSink(this);
   }
 }
 
+/// A sink to use for a type that should not be used as a sink.
+///
+/// For instance, the type of an expression, or the type of 'this', have
+/// unassignable sinks because the constraint generator should not use
+/// them as sinks.
+///
+/// Unassignable sinks carry some information to help track down the source of
+/// the error.
 class UnassignableSink extends ValueSink {
   final String what;
   final TreeNode where;
@@ -49,6 +68,8 @@ class UnassignableSinkError {
   }
 }
 
+/// Sink that causes incoming values to "escape" but is otherwise not tracked
+/// any further.
 class EscapingSink extends ValueSink {
   T acceptSink<T>(ValueSinkVisitor<T> visitor) {
     return visitor.visitEscapingSink(this);
