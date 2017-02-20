@@ -26,13 +26,13 @@ import 'extractor/value_source.dart';
 ///
 /// See [ValueFlags] for more details about the flags.
 class Value extends ValueSource implements Printable {
+  static final Value bottom = new Value(null, ValueFlags.none);
+  static final Value null_ = new Value(null, ValueFlags.null_);
+
   final Class baseClass;
   final int flags;
 
   Value(this.baseClass, this.flags);
-
-  static final Value bottom = new Value(null, ValueFlags.none);
-  static final Value null_ = new Value(null, ValueFlags.null_);
 
   int get valueSets => flags & ValueFlags.allValueSets;
   bool get hasExactBaseClass => flags & ValueFlags.inexactBaseClass == 0;
@@ -45,15 +45,16 @@ class Value extends ValueSource implements Printable {
     return new Value(baseClass, maskedFlags);
   }
 
-  T acceptSource<T>(ValueSourceVisitor<T> visitor) {
-    return visitor.visitValue(this);
-  }
-
   bool isBottom([int mask = ValueFlags.allValueSets]) {
     return flags & mask == 0;
   }
 
   Value get value => this;
+
+  @override
+  T acceptSource<T>(ValueSourceVisitor<T> visitor) {
+    return visitor.visitValue(this);
+  }
 
   @override
   void printTo(Printer printer) {
