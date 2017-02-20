@@ -4,7 +4,7 @@
 library kernel.inference.extractor.augmented_type;
 
 import '../../ast.dart';
-import '../../text/ast_to_text.dart';
+import '../../text/printable.dart';
 import '../storage_location.dart';
 import '../value.dart';
 import 'constraint_builder.dart';
@@ -32,7 +32,7 @@ class SubtypingScope {
   SubtypingScope(this.constraints, this.scope);
 }
 
-abstract class AType {
+abstract class AType implements Printable {
   /// Describes the abstract values one may obtain by reading from a storage
   /// location with this type.
   ///
@@ -107,8 +107,6 @@ abstract class AType {
         (t) => t is TypeParameterAType && !scope.contains(t.parameter));
   }
 
-  void writeTo(Printer printer);
-
   static bool listContainsAny(
       Iterable<AType> types, bool predicate(AType type)) {
     return types.any((t) => t.containsAny(predicate));
@@ -119,6 +117,8 @@ abstract class AType {
     if (types.isEmpty) return const <AType>[];
     return types.map((t) => t.substitute(substitution)).toList(growable: false);
   }
+
+  String toString() => Printable.show(this);
 }
 
 class InterfaceAType extends AType {
@@ -164,9 +164,9 @@ class InterfaceAType extends AType {
     return '$classNode($value)$typeArgumentPart';
   }
 
-  void writeTo(Printer printer) {
+  void printTo(Printer printer) {
     Value value = source.value;
-    value.print(printer);
+    value.printTo(printer);
     if (value.baseClass != classNode) {
       printer.writeSymbol('&');
       printer.writeClassReference(classNode);
@@ -174,12 +174,12 @@ class InterfaceAType extends AType {
     if (typeArguments.isNotEmpty) {
       printer.writeSymbol('<');
       printer.writeList(typeArguments, (AType bound) {
-        bound.writeTo(printer);
+        bound.printTo(printer);
         var sink = bound.sink;
         if (sink is StorageLocation) {
           printer.writeSymbol('/');
           if (!sink.value.isBottom(ValueFlags.allValueSets)) {
-            sink.value.print(printer);
+            sink.value.printTo(printer);
           }
         }
       });
@@ -289,7 +289,7 @@ class FunctionAType extends AType {
         returnType);
   }
 
-  void writeTo(Printer printer) {
+  void printTo(Printer printer) {
     Value value = source.value;
     if (value.canBeNull) {
       printer.write('?');
@@ -297,26 +297,26 @@ class FunctionAType extends AType {
     if (typeParameters.isNotEmpty) {
       printer.writeSymbol('<');
       printer.writeList(typeParameters, (AType type) {
-        type.writeTo(printer);
+        type.printTo(printer);
       });
       printer.writeSymbol('>');
     }
     printer.writeSymbol('(');
     if (positionalParameters.length > 0) {
       printer.writeList(positionalParameters.take(requiredParameterCount),
-          (AType p) => p.writeTo(printer));
+          (AType p) => p.printTo(printer));
       if (requiredParameterCount < positionalParameters.length) {
         if (requiredParameterCount > 0) {
           printer.writeComma();
         }
         printer.writeSymbol('[');
         printer.writeList(positionalParameters.skip(requiredParameterCount),
-            (AType p) => p.writeTo(printer));
+            (AType p) => p.printTo(printer));
         printer.writeSymbol(']');
       }
     }
     printer.writeSymbol(') => ');
-    returnType.writeTo(printer);
+    returnType.printTo(printer);
   }
 }
 
@@ -340,7 +340,7 @@ class FunctionTypeParameterAType extends AType {
     return new FunctionTypeParameterAType(source, sink, index);
   }
 
-  void writeTo(Printer printer) {
+  void printTo(Printer printer) {
     printer.writeWord('FunctionTypeParameter($index)');
   }
 }
@@ -368,8 +368,8 @@ class BottomAType extends AType {
     return new BottomAType(source, sink);
   }
 
-  void writeTo(Printer printer) {
-    source.value.print(printer);
+  void printTo(Printer printer) {
+    source.value.printTo(printer);
   }
 }
 
@@ -401,7 +401,7 @@ class TypeParameterAType extends AType {
     return new TypeParameterAType(newSource, sink, parameter);
   }
 
-  void writeTo(Printer printer) {
+  void printTo(Printer printer) {
     printer.writeTypeParameterReference(parameter);
     if (source.value.canBeNull) {
       printer.write('?');

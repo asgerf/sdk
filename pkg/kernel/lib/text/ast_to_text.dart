@@ -213,6 +213,12 @@ class Printer extends Visitor<Null> {
         showOffsets = parent.showOffsets,
         binding = parent.binding;
 
+  static String generate(Node node) {
+    var sb = new StringBuffer();
+    new Printer(sb).writeNode(node);
+    return '$sb';
+  }
+
   String getLibraryName(Library node) {
     return node.name ?? syntheticNames.nameLibrary(node);
   }
@@ -428,11 +434,11 @@ class Printer extends Visitor<Null> {
   void writeBound(DartType type, [Augmentor augmentor]) {
     if (augmentor != null) {
       AType augmented = augmentor.augmentBound(type);
-      augmented.writeTo(this);
+      augmented.printTo(this);
       writeSymbol('/');
       if (augmented.sink is StorageLocation) {
         StorageLocation key = augmented.sink;
-        key.value.print(this);
+        key.value.printTo(this);
       }
     } else {
       type.accept(this);
@@ -443,7 +449,7 @@ class Printer extends Visitor<Null> {
   void writeType(DartType type, [Augmentor augmentor]) {
     if (augmentor != null) {
       AType augmented = augmentor.augmentType(type);
-      augmented.writeTo(this);
+      augmented.printTo(this);
     } else {
       type.accept(this);
     }

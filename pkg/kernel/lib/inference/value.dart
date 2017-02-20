@@ -4,7 +4,7 @@
 library kernel.inference.value;
 
 import '../ast.dart';
-import '../text/ast_to_text.dart';
+import '../text/printable.dart';
 import 'extractor/value_source.dart';
 
 /// An abstract value, denoting a set of possible concrete values.
@@ -25,7 +25,7 @@ import 'extractor/value_source.dart';
 /// that is, all non-null concrete values are exact instances of the base class.
 ///
 /// See [ValueFlags] for more details about the flags.
-class Value extends ValueSource {
+class Value extends ValueSource implements Printable {
   final Class baseClass;
   final int flags;
 
@@ -55,7 +55,8 @@ class Value extends ValueSource {
 
   Value get value => this;
 
-  void print(Printer printer) {
+  @override
+  void printTo(Printer printer) {
     if (value.baseClass == null) {
       if (value.canBeNull) {
         printer.write('Null');
@@ -75,18 +76,7 @@ class Value extends ValueSource {
     }
   }
 
-  String toString() {
-    if (baseClass == null) {
-      if (flags == ValueFlags.null_) return 'Null';
-      if (flags == 0) return 'bottom';
-      return 'bottom(${ValueFlags.flagsToString(flags)})';
-    }
-    String nullability = canBeNull ? '?' : '';
-    String baseClassSuffix = hasExactBaseClass ? '!' : '+';
-    int otherFlags = flags & ~(ValueFlags.null_ | ValueFlags.inexactBaseClass);
-    String suffix = ValueFlags.flagsToString(otherFlags);
-    return '$baseClass$baseClassSuffix$nullability($suffix)';
-  }
+  String toString() => Printable.show(this);
 }
 
 /// Defines the flags tracked by [Value.flags].
