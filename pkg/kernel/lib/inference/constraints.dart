@@ -17,16 +17,17 @@ abstract class Constraint {
 /// Any value in [source] matching [mask] can flow into [destination].
 ///
 /// If [destination] escapes, so does [source], unless [mask] does not contain
-/// [Flags.escaping].
+/// [ValueFlags.escaping].
 ///
-/// In most cases, the [mask] contains all the flags in [Flags.all], but in
+/// In most cases, the [mask] contains all the flags in [ValueFlags.all], but in
 /// some cases it is used to specifically propagate nullability.
 class SubtypeConstraint extends Constraint {
   final StorageLocation source;
   final StorageLocation destination;
   final int mask;
 
-  SubtypeConstraint(this.source, this.destination, [this.mask = Flags.all]) {
+  SubtypeConstraint(this.source, this.destination,
+      [this.mask = ValueFlags.all]) {
     assert(source != null);
     assert(destination != null);
     assert(mask != null);
@@ -41,7 +42,8 @@ class SubtypeConstraint extends Constraint {
   }
 
   String toString() {
-    var suffix = (mask == Flags.all) ? '' : ' (${Flags.flagsToString(mask)})';
+    var suffix =
+        (mask == ValueFlags.all) ? '' : ' (${ValueFlags.flagsToString(mask)})';
     return '$source <: $destination$suffix';
   }
 }

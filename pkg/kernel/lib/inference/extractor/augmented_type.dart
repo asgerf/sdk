@@ -73,7 +73,7 @@ abstract class AType {
   /// Generates constraints to ensure this type is more specific than
   /// [supertype].
   void generateSubtypeConstraints(AType supertype, SubtypingScope scope) {
-    scope.constraints.addAssignment(source, supertype.sink, Flags.all);
+    scope.constraints.addAssignment(source, supertype.sink, ValueFlags.all);
     _generateSubtypeConstraintsForSubterms(supertype, scope);
   }
 
@@ -82,11 +82,11 @@ abstract class AType {
   void generateSubBoundConstraint(AType superbound, SubtypingScope scope) {
     if (superbound.source is StorageLocation) {
       StorageLocation superSource = superbound.source as StorageLocation;
-      scope.constraints.addAssignment(source, superSource, Flags.all);
+      scope.constraints.addAssignment(source, superSource, ValueFlags.all);
     }
     if (superbound.sink is StorageLocation) {
       StorageLocation superSink = superbound.sink as StorageLocation;
-      scope.constraints.addAssignment(superSink, sink, Flags.all);
+      scope.constraints.addAssignment(superSink, sink, ValueFlags.all);
     }
     _generateSubtypeConstraintsForSubterms(superbound, scope);
   }
@@ -178,7 +178,7 @@ class InterfaceAType extends AType {
         var sink = bound.sink;
         if (sink is StorageLocation) {
           printer.writeSymbol('/');
-          if (!sink.value.isBottom(Flags.valueFlags)) {
+          if (!sink.value.isBottom(ValueFlags.allValueSets)) {
             sink.value.print(printer);
           }
         }

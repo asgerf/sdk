@@ -55,7 +55,7 @@ class ValueSourceWithNullability extends ValueSource {
     var baseValue = base.value;
     var nullabilityValue = nullability.value;
     if (baseValue.canBeNull || !nullabilityValue.canBeNull) return baseValue;
-    return new Value(baseValue.baseClass, baseValue.flags | Flags.null_);
+    return new Value(baseValue.baseClass, baseValue.flags | ValueFlags.null_);
   }
 
   T acceptSource<T>(ValueSourceVisitor<T> visitor) {

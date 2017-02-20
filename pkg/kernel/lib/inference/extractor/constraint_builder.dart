@@ -74,8 +74,8 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
   AssignmentFromValueSource(this.builder, this.sink, this.mask);
 
   AssignmentFromValueSource get nullabilityVisitor {
-    if (mask & ~Flags.null_ == 0) return this;
-    return new AssignmentFromValueSource(builder, sink, Flags.null_);
+    if (mask & ~ValueFlags.null_ == 0) return this;
+    return new AssignmentFromValueSource(builder, sink, ValueFlags.null_);
   }
 
   @override

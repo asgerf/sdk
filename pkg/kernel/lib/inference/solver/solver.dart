@@ -57,7 +57,7 @@ class ConstraintSolver {
     Class newBaseClass = oldBaseClass;
     if (inputBaseClass != null && oldBaseClass != inputBaseClass) {
       if (oldBaseClass != null) {
-        newFlags |= Flags.inexactBaseClass;
+        newFlags |= ValueFlags.inexactBaseClass;
       }
       newBaseClass = getCommonBaseClass(oldBaseClass, inputBaseClass);
     }

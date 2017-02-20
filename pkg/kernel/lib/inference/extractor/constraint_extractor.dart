@@ -64,50 +64,65 @@ class ConstraintExtractor {
     conditionType = new InterfaceAType(
         Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
     escapingType = new BottomAType(Value.bottom, ValueSink.escape);
-    boolType = new InterfaceAType(new Value(coreTypes.boolClass, Flags.string),
-        ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
-    intType = new InterfaceAType(new Value(coreTypes.intClass, Flags.integer),
-        ValueSink.nowhere, coreTypes.intClass, const <AType>[]);
+    boolType = new InterfaceAType(
+        new Value(coreTypes.boolClass, ValueFlags.string),
+        ValueSink.nowhere,
+        coreTypes.boolClass, const <AType>[]);
+    intType = new InterfaceAType(
+        new Value(coreTypes.intClass, ValueFlags.integer),
+        ValueSink.nowhere,
+        coreTypes.intClass, const <AType>[]);
     doubleType = new InterfaceAType(
-        new Value(coreTypes.doubleClass, Flags.double_),
+        new Value(coreTypes.doubleClass, ValueFlags.double_),
         ValueSink.nowhere,
         coreTypes.doubleClass, const <AType>[]);
     stringType = new InterfaceAType(
-        new Value(coreTypes.stringClass, Flags.string),
+        new Value(coreTypes.stringClass, ValueFlags.string),
         ValueSink.nowhere,
         coreTypes.stringClass, const <AType>[]);
-    topType = new InterfaceAType(new Value(coreTypes.objectClass, Flags.all),
-        ValueSink.nowhere, coreTypes.objectClass, const <AType>[]);
+    topType = new InterfaceAType(
+        new Value(coreTypes.objectClass, ValueFlags.all),
+        ValueSink.nowhere,
+        coreTypes.objectClass, const <AType>[]);
     numType = new InterfaceAType(
-        new Value(coreTypes.numClass,
-            Flags.integer | Flags.double_ | Flags.inexactBaseClass),
+        new Value(
+            coreTypes.numClass,
+            ValueFlags.integer |
+                ValueFlags.double_ |
+                ValueFlags.inexactBaseClass),
         ValueSink.nowhere,
         coreTypes.numClass,
         const <AType>[]);
     symbolType = new InterfaceAType(
-        new Value(coreTypes.symbolClass, Flags.other),
+        new Value(coreTypes.symbolClass, ValueFlags.other),
         ValueSink.nowhere,
         coreTypes.symbolClass, const <AType>[]);
-    typeType = new InterfaceAType(new Value(coreTypes.typeClass, Flags.other),
-        ValueSink.nowhere, coreTypes.typeClass, const <AType>[]);
-    intValue = new Value(coreTypes.intClass, Flags.integer);
-    doubleValue = new Value(coreTypes.doubleClass, Flags.double_);
+    typeType = new InterfaceAType(
+        new Value(coreTypes.typeClass, ValueFlags.other),
+        ValueSink.nowhere,
+        coreTypes.typeClass, const <AType>[]);
+    intValue = new Value(coreTypes.intClass, ValueFlags.integer);
+    doubleValue = new Value(coreTypes.doubleClass, ValueFlags.double_);
     numValue = new Value(coreTypes.numClass,
-        Flags.integer | Flags.double_ | Flags.inexactBaseClass);
-    stringValue = new Value(coreTypes.stringClass, Flags.string);
-    boolValue = new Value(coreTypes.boolClass, Flags.boolean);
-    nullValue = new Value(null, Flags.null_);
-    functionValue = new Value(
-        coreTypes.functionClass, Flags.other | Flags.inexactBaseClass);
+        ValueFlags.integer | ValueFlags.double_ | ValueFlags.inexactBaseClass);
+    stringValue = new Value(coreTypes.stringClass, ValueFlags.string);
+    boolValue = new Value(coreTypes.boolClass, ValueFlags.boolean);
+    nullValue = new Value(null, ValueFlags.null_);
+    functionValue = new Value(coreTypes.functionClass,
+        ValueFlags.other | ValueFlags.inexactBaseClass);
     nullableIntValue =
-        new Value(coreTypes.intClass, Flags.null_ | Flags.integer);
+        new Value(coreTypes.intClass, ValueFlags.null_ | ValueFlags.integer);
     nullableDoubleValue =
-        new Value(coreTypes.doubleClass, Flags.null_ | Flags.double_);
-    nullableNumValue = new Value(coreTypes.numClass,
-        Flags.null_ | Flags.integer | Flags.double_ | Flags.inexactBaseClass);
+        new Value(coreTypes.doubleClass, ValueFlags.null_ | ValueFlags.double_);
+    nullableNumValue = new Value(
+        coreTypes.numClass,
+        ValueFlags.null_ |
+            ValueFlags.integer |
+            ValueFlags.double_ |
+            ValueFlags.inexactBaseClass);
     nullableStringValue =
-        new Value(coreTypes.stringClass, Flags.null_ | Flags.string);
-    nullableBoolValue = new Value(coreTypes.boolClass, Flags.boolean);
+        new Value(coreTypes.stringClass, ValueFlags.null_ | ValueFlags.string);
+    nullableBoolValue = new Value(coreTypes.boolClass, ValueFlags.boolean);
     for (var library in program.libraries) {
       for (var class_ in library.classes) {
         baseHierarchy.forEachOverridePair(class_,
@@ -194,10 +209,10 @@ class ConstraintExtractor {
   Value getWorstCaseValueForType(AType type) {
     if (type is InterfaceAType) return getWorstCaseValue(type.classNode);
     if (type is FunctionAType) {
-      return new Value(
-          coreTypes.functionClass, Flags.other | Flags.inexactBaseClass);
+      return new Value(coreTypes.functionClass,
+          ValueFlags.other | ValueFlags.inexactBaseClass);
     }
-    return new Value(coreTypes.objectClass, Flags.all);
+    return new Value(coreTypes.objectClass, ValueFlags.all);
   }
 
   Value getWorstCaseValue(Class classNode, {bool isNice: false}) {
@@ -208,7 +223,7 @@ class ConstraintExtractor {
     if (classNode == coreTypes.stringClass) return nullableStringValue;
     if (classNode == coreTypes.boolClass) return nullableBoolValue;
     if (classNode == coreTypes.nullClass) return nullValue;
-    return new Value(coreTypes.objectClass, Flags.all);
+    return new Value(coreTypes.objectClass, ValueFlags.all);
   }
 
   Value getNiceCaseValue(Class classNode) {
@@ -218,7 +233,7 @@ class ConstraintExtractor {
     if (classNode == coreTypes.stringClass) return stringValue;
     if (classNode == coreTypes.boolClass) return boolValue;
     if (classNode == coreTypes.nullClass) return nullValue;
-    return new Value(coreTypes.objectClass, Flags.all);
+    return new Value(coreTypes.objectClass, ValueFlags.all);
   }
 
   final List<Function> analysisCompleteHooks = <Function>[];
@@ -336,7 +351,7 @@ class ConstraintExtractorVisitor
       node.inferredValueIndex = source.index;
     } else {
       var newKey = modifiers.newModifier();
-      builder.addAssignment(source, newKey, Flags.all);
+      builder.addAssignment(source, newKey, ValueFlags.all);
       type = type.withSource(newKey);
       node.inferredValueIndex = newKey.index;
     }
@@ -383,7 +398,7 @@ class ConstraintExtractorVisitor
         thisTypeArgs
             .add(new TypeParameterAType(bound.source, bound.sink, parameter));
       }
-      var value = new Value(class_, Flags.inexactBaseClass);
+      var value = new Value(class_, ValueFlags.inexactBaseClass);
       thisType = new InterfaceAType(
           value,
           ValueSink.unassignable("type of 'this'", class_),
@@ -475,7 +490,7 @@ class ConstraintExtractorVisitor
       bool completes = visitStatement(node.body);
       if (completes && returnType != null) {
         builder.addAssignment(
-            extractor.nullValue, returnType.sink, Flags.null_);
+            extractor.nullValue, returnType.sink, ValueFlags.null_);
       }
     }
     currentAsyncMarker = oldAsyncMarker;
@@ -539,8 +554,8 @@ class ConstraintExtractorVisitor
       checkAssignableExpression(
           parameter.initializer, getVariableType(parameter));
     } else {
-      builder.addAssignment(
-          extractor.nullValue, getVariableType(parameter).sink, Flags.null_);
+      builder.addAssignment(extractor.nullValue,
+          getVariableType(parameter).sink, ValueFlags.null_);
     }
   }
 
@@ -731,7 +746,7 @@ class ConstraintExtractorVisitor
   AType visitAsExpression(AsExpression node) {
     var input = visitExpression(node.operand);
     var output = modifiers.augmentType(node.type);
-    builder.addAssignment(input.source, output.sink, Flags.all);
+    builder.addAssignment(input.source, output.sink, ValueFlags.all);
     if (isTaintingDowncast(node.type)) {
       taintSubterms(output);
       builder.addEscape(input.source);
@@ -767,11 +782,11 @@ class ConstraintExtractorVisitor
   }
 
   int flagsFromExactClass(Class class_) {
-    if (class_ == coreTypes.intClass) return Flags.integer;
-    if (class_ == coreTypes.doubleClass) return Flags.double_;
-    if (class_ == coreTypes.stringClass) return Flags.string;
-    if (class_ == coreTypes.boolClass) return Flags.boolean;
-    return Flags.other;
+    if (class_ == coreTypes.intClass) return ValueFlags.integer;
+    if (class_ == coreTypes.doubleClass) return ValueFlags.double_;
+    if (class_ == coreTypes.stringClass) return ValueFlags.string;
+    if (class_ == coreTypes.boolClass) return ValueFlags.boolean;
+    return ValueFlags.other;
   }
 
   void addAllocationTypeArgument(
@@ -874,7 +889,7 @@ class ConstraintExtractorVisitor
       checkAssignableExpression(item, typeArgument);
     }
     var createdObject = modifiers.newModifier();
-    var value = new Value(coreTypes.listClass, Flags.other);
+    var value = new Value(coreTypes.listClass, ValueFlags.other);
     var type = new InterfaceAType(
         createdObject,
         ValueSink.unassignable('result of an expression', node),
@@ -901,7 +916,7 @@ class ConstraintExtractorVisitor
       checkAssignableExpression(entry.value, valueType);
     }
     var createdObject = modifiers.newModifier();
-    var value = new Value(coreTypes.mapClass, Flags.other);
+    var value = new Value(coreTypes.mapClass, ValueFlags.other);
     var type = new InterfaceAType(
         createdObject,
         ValueSink.unassignable('result of an expression', node),
@@ -1450,7 +1465,7 @@ class ConstraintExtractorVisitor
   @override
   AType visitLoadLibrary(LoadLibrary node) {
     return new InterfaceAType(
-        new Value(coreTypes.futureClass, Flags.other),
+        new Value(coreTypes.futureClass, ValueFlags.other),
         ValueSink.unassignable('return value of expression', node),
         coreTypes.futureClass,
         [extractor.topType]);
@@ -1507,8 +1522,8 @@ class ExternalVisitor extends ATypeVisitor {
   visitFunctionAType(FunctionAType type) {
     var source = type.source;
     if (isCovariant && source is StorageLocation) {
-      var anyValue = new Value(coreTypes.objectClass, Flags.other);
-      builder.addAssignment(anyValue, source, Flags.all);
+      var anyValue = new Value(coreTypes.objectClass, ValueFlags.other);
+      builder.addAssignment(anyValue, source, ValueFlags.all);
     }
     var sink = type.sink;
     if (isContravariant && sink is StorageLocation) {
@@ -1528,7 +1543,7 @@ class ExternalVisitor extends ATypeVisitor {
     var source = type.source;
     if (isCovariant && source is StorageLocation) {
       var value = extractor.getWorstCaseValue(type.classNode, isNice: isNice);
-      builder.addAssignment(value, source, Flags.valueFlags);
+      builder.addAssignment(value, source, ValueFlags.allValueSets);
     }
     var sink = type.sink;
     if (!isNice && isContravariant && sink is StorageLocation) {

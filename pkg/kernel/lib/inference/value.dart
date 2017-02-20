@@ -14,13 +14,13 @@ class Value extends ValueSource {
 
   Value(this.baseClass, this.flags);
 
-  static final Value bottom = new Value(null, Flags.none);
-  static final Value null_ = new Value(null, Flags.null_);
+  static final Value bottom = new Value(null, ValueFlags.none);
+  static final Value null_ = new Value(null, ValueFlags.null_);
 
-  int get valueFlags => flags & Flags.valueFlags;
-  bool get hasExactBaseClass => flags & Flags.inexactBaseClass == 0;
-  bool get canBeNull => flags & Flags.null_ != 0;
-  bool get canBeNonNull => flags & Flags.nonNullValue != 0;
+  int get basicValueFlags => flags & ValueFlags.allValueSets;
+  bool get hasExactBaseClass => flags & ValueFlags.inexactBaseClass == 0;
+  bool get canBeNull => flags & ValueFlags.null_ != 0;
+  bool get canBeNonNull => flags & ValueFlags.nonNullValueSets != 0;
 
   Value masked(int mask) {
     int maskedFlags = flags & mask;
@@ -30,14 +30,14 @@ class Value extends ValueSource {
 
   String toString() {
     if (baseClass == null) {
-      if (flags == Flags.null_) return 'Null';
+      if (flags == ValueFlags.null_) return 'Null';
       if (flags == 0) return 'bottom';
-      return 'bottom(${Flags.flagsToString(flags)})';
+      return 'bottom(${ValueFlags.flagsToString(flags)})';
     }
     String nullability = canBeNull ? '?' : '';
     String baseClassSuffix = hasExactBaseClass ? '!' : '+';
-    int otherFlags = flags & ~(Flags.null_ | Flags.inexactBaseClass);
-    String suffix = Flags.flagsToString(otherFlags);
+    int otherFlags = flags & ~(ValueFlags.null_ | ValueFlags.inexactBaseClass);
+    String suffix = ValueFlags.flagsToString(otherFlags);
     return '$baseClass$baseClassSuffix$nullability($suffix)';
   }
 
@@ -45,7 +45,7 @@ class Value extends ValueSource {
     return visitor.visitValue(this);
   }
 
-  bool isBottom(int mask) {
+  bool isBottom([int mask = ValueFlags.allValueSets]) {
     return flags & mask == 0;
   }
 
@@ -60,7 +60,7 @@ class Value extends ValueSource {
     int newFlags = flags | other.flags;
     if (baseClass != null && baseClass != base ||
         other.baseClass != null && other.baseClass != base) {
-      newFlags |= Flags.inexactBaseClass;
+      newFlags |= ValueFlags.inexactBaseClass;
     }
     return new Value(base, newFlags);
   }
@@ -86,25 +86,25 @@ class Value extends ValueSource {
   }
 }
 
-class Flags {
-  static const int inexactBaseClass = 1 << 0;
+class ValueFlags {
+  static const int null_ = 1 << 0;
+  static const int integer = 1 << 1;
+  static const int string = 1 << 2;
+  static const int double_ = 1 << 3;
+  static const int boolean = 1 << 4;
+  static const int other = 1 << 5;
 
-  static const int null_ = 1 << 1;
-  static const int integer = 1 << 2;
-  static const int string = 1 << 3;
-  static const int double_ = 1 << 4;
-  static const int boolean = 1 << 5;
-  static const int other = 1 << 6;
+  static const int numberOfValueSets = 6;
+  static const int allValueSets = (1 << numberOfValueSets) - 1;
 
-  static const int valueFlags =
-      null_ | integer | string | double_ | boolean | other;
+  static const int inexactBaseClass = 1 << 6;
 
   static const int numberOfFlags = 7;
   static const int all = (1 << numberOfFlags) - 1;
   static const int none = 0;
 
   static const int notNull = all & ~null_;
-  static const int nonNullValue = valueFlags & ~null_;
+  static const int nonNullValueSets = allValueSets & ~null_;
 
   static const List<String> flagNames = const <String>[
     'inexactBaseClass',
