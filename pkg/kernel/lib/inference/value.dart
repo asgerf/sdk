@@ -4,7 +4,6 @@
 library kernel.inference.value;
 
 import '../ast.dart';
-import '../class_hierarchy.dart';
 import '../text/ast_to_text.dart';
 import 'extractor/value_source.dart';
 
@@ -68,20 +67,6 @@ class Value extends ValueSource {
   }
 
   Value get value => this;
-
-  Value concreteJoin(Value other, ClassHierarchy hierarchy) {
-    var base = baseClass == null
-        ? other.baseClass
-        : other.baseClass == null
-            ? this.baseClass
-            : hierarchy.getCommonBaseClass(baseClass, other.baseClass);
-    int newFlags = flags | other.flags;
-    if (baseClass != null && baseClass != base ||
-        other.baseClass != null && other.baseClass != base) {
-      newFlags |= ValueFlags.inexactBaseClass;
-    }
-    return new Value(base, newFlags);
-  }
 
   void print(Printer printer) {
     if (value.baseClass == null) {
