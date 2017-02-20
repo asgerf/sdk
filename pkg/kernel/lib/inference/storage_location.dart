@@ -16,7 +16,7 @@ import 'value.dart';
 /// - a [Value] summarizing what can flow in here
 /// - how the values that flow in here can escape
 ///
-class StorageLocation extends ValueSource implements ValueSink {
+class StorageLocation implements ValueSource, ValueSink {
   final TreeNode owner; // Class or Member
   final int index;
 
