@@ -115,7 +115,7 @@ class Flags {
 
   static const List<String> flagNames = const <String>[
     'inexactBaseClass',
-    'Null', // Captialize to avoid confusion with null.toString().
+    'Null', // Capitalize to avoid confusion with null.toString().
     'integer',
     'string',
     'double',
