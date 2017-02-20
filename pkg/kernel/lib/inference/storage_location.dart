@@ -1,7 +1,7 @@
 // Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-library kernel.inference.key;
+library kernel.inference.storage_location;
 
 import '../ast.dart';
 import 'extractor/value_sink.dart';
@@ -9,6 +9,13 @@ import 'extractor/value_source.dart';
 import 'solver/solver.dart';
 import 'value.dart';
 
+/// An abstract storage location, with which the type inference will associate
+/// an abstract value.
+///
+/// The inference algorithm must associate two things with a storage location:
+/// - a [Value] summarizing what can flow in here
+/// - how the values that flow in here can escape
+///
 class StorageLocation extends ValueSource implements ValueSink {
   final TreeNode owner; // Class or Member
   final int index;
