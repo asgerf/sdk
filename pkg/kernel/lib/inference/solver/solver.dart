@@ -6,11 +6,11 @@ library kernel.inference.solver.solver;
 import '../../ast.dart';
 import '../../class_hierarchy.dart';
 import '../constraints.dart';
-import '../key.dart';
+import '../storage_location.dart';
 import '../value.dart';
 
 class WorkItem {
-  final Key key;
+  final StorageLocation key;
   final List<Constraint> dependencies = <Constraint>[];
   bool isInWorklist = false;
 
@@ -65,7 +65,7 @@ class ConstraintSolver {
     return subtype;
   }
 
-  void propagateForward(Value subtype, Key supertype) {
+  void propagateForward(Value subtype, StorageLocation supertype) {
     var joined = mergeForward(subtype, supertype.value);
     if (!identical(joined, supertype.value)) {
       supertype.value = joined;
@@ -73,7 +73,7 @@ class ConstraintSolver {
     }
   }
 
-  void propagateBackward(Key subtype, Value supertype) {
+  void propagateBackward(StorageLocation subtype, Value supertype) {
     var joined = mergeBackward(subtype.value, supertype);
     if (!identical(joined, subtype.value)) {
       subtype.value = joined;
@@ -111,13 +111,13 @@ class ConstraintSolver {
 
   /// The [constraint] must be executed whenever the forward properties of
   /// the given [key] changes.
-  void addForwardDependency(Key key, Constraint constraint) {
+  void addForwardDependency(StorageLocation key, Constraint constraint) {
     key.forward.dependencies.add(constraint);
   }
 
   /// The [constraint] must be executed whenever the backward properties of
   /// the given [key] changes.
-  void addBackwardDependency(Key key, Constraint constraint) {
+  void addBackwardDependency(StorageLocation key, Constraint constraint) {
     key.backward.dependencies.add(constraint);
   }
 

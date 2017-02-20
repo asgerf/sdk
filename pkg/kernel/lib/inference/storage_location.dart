@@ -9,7 +9,7 @@ import 'extractor/value_source.dart';
 import 'solver/solver.dart';
 import 'value.dart';
 
-class Key extends ValueSource implements ValueSink {
+class StorageLocation extends ValueSource implements ValueSink {
   final TreeNode owner; // Class or Member
   final int index;
 
@@ -19,7 +19,7 @@ class Key extends ValueSource implements ValueSink {
   Value value = new Value(null, Flags.none);
   WorkItem forward, backward;
 
-  Key(this.owner, this.index) {
+  StorageLocation(this.owner, this.index) {
     forward = new WorkItem(this);
     backward = new WorkItem(this);
   }
@@ -27,11 +27,11 @@ class Key extends ValueSource implements ValueSink {
   String toString() => '$owner:$index';
 
   T acceptSink<T>(ValueSinkVisitor<T> visitor) {
-    return visitor.visitKey(this);
+    return visitor.visitStorageLocation(this);
   }
 
   T acceptSource<T>(ValueSourceVisitor<T> visitor) {
-    return visitor.visitKey(this);
+    return visitor.visitStorageLocation(this);
   }
 
   @override

@@ -6,9 +6,9 @@ library kernel.ast_to_text;
 import '../ast.dart';
 import '../import_table.dart';
 import '../type_propagation/type_propagation.dart';
-import 'package:kernel/inference/extractor/augmented_type.dart';
-import 'package:kernel/inference/extractor/binding.dart';
-import 'package:kernel/inference/key.dart';
+import '../inference/extractor/augmented_type.dart';
+import '../inference/extractor/binding.dart';
+import '../inference/storage_location.dart';
 
 class Namer<T> {
   int index = 0;
@@ -430,8 +430,8 @@ class Printer extends Visitor<Null> {
       AType augmented = augmentor.augmentBound(type);
       augmented.writeTo(this);
       writeSymbol('/');
-      if (augmented.sink is Key) {
-        Key key = augmented.sink;
+      if (augmented.sink is StorageLocation) {
+        StorageLocation key = augmented.sink;
         key.value.print(this);
       }
     } else {

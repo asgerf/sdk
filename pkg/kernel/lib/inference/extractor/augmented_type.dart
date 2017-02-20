@@ -5,7 +5,7 @@ library kernel.inference.extractor.augmented_type;
 
 import '../../ast.dart';
 import '../../text/ast_to_text.dart';
-import '../key.dart';
+import '../storage_location.dart';
 import '../value.dart';
 import 'constraint_builder.dart';
 import 'constraint_extractor.dart';
@@ -36,7 +36,7 @@ abstract class AType {
   /// Describes the abstract values one may obtain by reading from a storage
   /// location with this type.
   ///
-  /// This can be a [Value] or a [Key], depending on whether the abstract value
+  /// This can be a [Value] or a [StorageLocation], depending on whether the abstract value
   /// is statically known, or is a symbolic value determined during type
   /// propagation.
   final ValueSource source;
@@ -44,7 +44,7 @@ abstract class AType {
   /// Describes the effects of assigning a value into a storage location with
   /// this type.
   ///
-  /// In most cases this is a [Key], denoting an abstract storage location into
+  /// In most cases this is a [StorageLocation], denoting an abstract storage location into
   /// which values should be recorded.
   ///
   /// Alternatives are [NowhereSink] that ignores incoming values and
@@ -55,7 +55,7 @@ abstract class AType {
   /// For variables, fields, parameters, return types, and allocation-site
   /// type arguments, this equals the [source].  When a type occurs as type
   /// argument to an interface type, it represents a type bound, and then the
-  /// source and sinks are separate [Key] values.
+  /// source and sinks are separate [StorageLocation] values.
   final ValueSink sink;
 
   AType(this.source, this.sink) {
@@ -80,12 +80,12 @@ abstract class AType {
   /// Generates constraints to ensure this bound is more specific than
   /// [superbound].
   void generateSubBoundConstraint(AType superbound, SubtypingScope scope) {
-    if (superbound.source is Key) {
-      Key superSource = superbound.source as Key;
+    if (superbound.source is StorageLocation) {
+      StorageLocation superSource = superbound.source as StorageLocation;
       scope.constraints.addAssignment(source, superSource, Flags.all);
     }
-    if (superbound.sink is Key) {
-      Key superSink = superbound.sink as Key;
+    if (superbound.sink is StorageLocation) {
+      StorageLocation superSink = superbound.sink as StorageLocation;
       scope.constraints.addAssignment(superSink, sink, Flags.all);
     }
     _generateSubtypeConstraintsForSubterms(superbound, scope);
@@ -175,7 +175,7 @@ class InterfaceAType extends AType {
       printer.writeList(typeArguments, (AType bound) {
         bound.writeTo(printer);
         var sink = bound.sink;
-        if (sink is Key) {
+        if (sink is StorageLocation) {
           printer.writeSymbol('/');
           if (!sink.value.isBottom(Flags.valueFlags)) {
             sink.value.print(printer);

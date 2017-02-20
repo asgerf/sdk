@@ -7,7 +7,7 @@ import '../../ast.dart';
 import '../../class_hierarchy.dart';
 import '../../core_types.dart';
 import '../constraints.dart';
-import '../key.dart';
+import '../storage_location.dart';
 import '../value.dart';
 import 'augmented_type.dart';
 import 'binding.dart';
@@ -332,7 +332,7 @@ class ConstraintExtractorVisitor
   AType visitExpression(Expression node) {
     var type = node.accept(this);
     var source = type.source;
-    if (source is Key && source.owner == modifiers.classOrMember) {
+    if (source is StorageLocation && source.owner == modifiers.classOrMember) {
       node.inferredValueIndex = source.index;
     } else {
       var newKey = modifiers.newModifier();
@@ -774,11 +774,11 @@ class ConstraintExtractorVisitor
     return Flags.other;
   }
 
-  void addAllocationTypeArgument(Key createdObject, AType typeArgument) {
+  void addAllocationTypeArgument(StorageLocation createdObject, AType typeArgument) {
     new AllocationVisitor(extractor, createdObject).visit(typeArgument);
   }
 
-  void addAllocationConstraints(Key createdObject, Value value, AType type) {
+  void addAllocationConstraints(StorageLocation createdObject, Value value, AType type) {
     builder.addConstraint(new ValueConstraint(createdObject, value));
     new AllocationVisitor(extractor, createdObject).visitSubterms(type);
   }
@@ -1504,12 +1504,12 @@ class ExternalVisitor extends ATypeVisitor {
   @override
   visitFunctionAType(FunctionAType type) {
     var source = type.source;
-    if (isCovariant && source is Key) {
+    if (isCovariant && source is StorageLocation) {
       var anyValue = new Value(coreTypes.objectClass, Flags.other);
       builder.addAssignment(anyValue, source, Flags.all);
     }
     var sink = type.sink;
-    if (isContravariant && sink is Key) {
+    if (isContravariant && sink is StorageLocation) {
       builder.addEscape(sink);
     }
     type.typeParameters.forEach(visitBound);
@@ -1524,12 +1524,12 @@ class ExternalVisitor extends ATypeVisitor {
   @override
   visitInterfaceAType(InterfaceAType type) {
     var source = type.source;
-    if (isCovariant && source is Key) {
+    if (isCovariant && source is StorageLocation) {
       var value = extractor.getWorstCaseValue(type.classNode, isNice: isNice);
       builder.addAssignment(value, source, Flags.valueFlags);
     }
     var sink = type.sink;
-    if (!isNice && isContravariant && sink is Key) {
+    if (!isNice && isContravariant && sink is StorageLocation) {
       builder.addEscape(sink);
     }
     type.typeArguments.forEach(visitBound);
@@ -1541,7 +1541,7 @@ class ExternalVisitor extends ATypeVisitor {
 
 class AllocationVisitor extends ATypeVisitor {
   final ConstraintExtractor extractor;
-  final Key object;
+  final StorageLocation object;
   bool isCovariant;
 
   AllocationVisitor(this.extractor, this.object, {this.isCovariant: true});
@@ -1556,18 +1556,18 @@ class AllocationVisitor extends ATypeVisitor {
   void visit(AType type) {
     if (isCovariant) {
       var source = type.source;
-      if (source is Key) {
+      if (source is StorageLocation) {
         extractor.builder.addConstraint(new TypeArgumentConstraint(
             object, source, extractor.getWorstCaseValueForType(type)));
       }
       var sink = type.sink;
-      if (sink is Key) {
+      if (sink is StorageLocation) {
         extractor.builder.addEscape(sink);
       }
     } else {
       extractor.builder.addEscape(type.source);
       var sink = type.sink;
-      if (sink is Key) {
+      if (sink is StorageLocation) {
         extractor.builder.addConstraint(new TypeArgumentConstraint(
             object, sink, extractor.getWorstCaseValueForType(type)));
       }

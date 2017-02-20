@@ -3,7 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.extractor.value_source;
 
-import '../key.dart';
+import '../storage_location.dart';
 import '../value.dart';
 
 abstract class ValueSource {
@@ -34,7 +34,7 @@ class ValueSourceWithNullability extends ValueSource {
 }
 
 abstract class ValueSourceVisitor<T> {
-  T visitKey(Key key);
+  T visitStorageLocation(StorageLocation key);
   T visitValue(Value value);
   T visitValueSourceWithNullability(ValueSourceWithNullability source);
 }

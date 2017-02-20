@@ -4,7 +4,7 @@
 library kernel.inference.extractor.value_sink;
 
 import '../../ast.dart';
-import '../../inference/key.dart';
+import '../storage_location.dart';
 
 abstract class ValueSink {
   static final ValueSink nowhere = new NowhereSink();
@@ -56,7 +56,7 @@ class EscapingSink extends ValueSink {
 }
 
 abstract class ValueSinkVisitor<T> {
-  T visitKey(Key key);
+  T visitStorageLocation(StorageLocation key);
   T visitNowhereSink(NowhereSink sink);
   T visitUnassignableSink(UnassignableSink sink);
   T visitEscapingSink(EscapingSink sink);

@@ -6,7 +6,7 @@ library kernel.inference.extractor.constraint_builder;
 import '../../ast.dart';
 import '../../inference/extractor/value_sink.dart';
 import '../../inference/extractor/value_source.dart';
-import '../../inference/key.dart';
+import '../../inference/storage_location.dart';
 import '../../inference/value.dart';
 import '../constraints.dart';
 import 'augmented_type.dart';
@@ -31,7 +31,7 @@ class ConstraintBuilder {
     sink.acceptSink(new AssignmentToValueSink(this, source, mask));
   }
 
-  void addAssignmentToKey(ValueSource source, Key sink, int mask) {
+  void addAssignmentToKey(ValueSource source, StorageLocation sink, int mask) {
     source.acceptSource(new AssignmentFromValueSource(this, sink, mask));
   }
 
@@ -53,7 +53,7 @@ class AssignmentToValueSink extends ValueSinkVisitor {
   }
 
   @override
-  visitKey(Key key) {
+  visitStorageLocation(StorageLocation key) {
     builder.addAssignmentToKey(source, key, mask);
   }
 
@@ -68,7 +68,7 @@ class AssignmentToValueSink extends ValueSinkVisitor {
 
 class AssignmentFromValueSource extends ValueSourceVisitor {
   final ConstraintBuilder builder;
-  final Key sink;
+  final StorageLocation sink;
   final int mask;
 
   AssignmentFromValueSource(this.builder, this.sink, this.mask);
@@ -79,7 +79,7 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
   }
 
   @override
-  visitKey(Key key) {
+  visitStorageLocation(StorageLocation key) {
     builder.addConstraint(new SubtypeConstraint(key, sink, mask));
   }
 
@@ -102,7 +102,7 @@ class EscapeVisitor extends ValueSourceVisitor {
   EscapeVisitor(this.builder);
 
   @override
-  visitKey(Key key) {
+  visitStorageLocation(StorageLocation key) {
     builder.addConstraint(new EscapeConstraint(key));
   }
 

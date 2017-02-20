@@ -5,7 +5,7 @@ library kernel.inference.extractor.binding;
 
 import '../../ast.dart';
 import '../../core_types.dart';
-import '../key.dart';
+import '../storage_location.dart';
 import 'augmented_type.dart';
 
 /// Constructs augmented types and type modifier variables.
@@ -85,7 +85,7 @@ class Binding {
 
 abstract class ModifierBank {
   final CoreTypes coreTypes;
-  final List<Key> modifiers = <Key>[];
+  final List<StorageLocation> modifiers = <StorageLocation>[];
 
   ModifierBank(this.coreTypes);
 
@@ -93,8 +93,8 @@ abstract class ModifierBank {
 
   int get nextIndex => modifiers.length;
 
-  Key newModifier() {
-    var modifier = new Key(classOrMember, modifiers.length);
+  StorageLocation newModifier() {
+    var modifier = new StorageLocation(classOrMember, modifiers.length);
     modifiers.add(modifier);
     return modifier;
   }
@@ -173,7 +173,7 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
   final CoreTypes coreTypes;
   final ModifierBank modifiers;
   final List<List<TypeParameter>> innerTypeParameters = <List<TypeParameter>>[];
-  Key source, sink;
+  StorageLocation source, sink;
   int index;
 
   AugmentorVisitor(this.coreTypes, this.modifiers, this.index);
@@ -182,7 +182,7 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
 
   AType augmentBound(DartType type) => makeBound(type);
 
-  Key nextModifier() {
+  StorageLocation nextModifier() {
     if (index == null) {
       return modifiers.newModifier();
     } else {

@@ -4,7 +4,7 @@
 library kernel.inference.constraints;
 
 import '../ast.dart';
-import 'key.dart';
+import 'storage_location.dart';
 import 'solver/solver.dart';
 import 'value.dart';
 
@@ -22,8 +22,8 @@ abstract class Constraint {
 /// In most cases, the [mask] contains all the flags in [Flags.all], but in
 /// some cases it is used to specifically propagate nullability.
 class SubtypeConstraint extends Constraint {
-  final Key source;
-  final Key destination;
+  final StorageLocation source;
+  final StorageLocation destination;
   final int mask;
 
   SubtypeConstraint(this.source, this.destination, [this.mask = Flags.all]) {
@@ -48,7 +48,7 @@ class SubtypeConstraint extends Constraint {
 
 /// The given [value] can flow into [destination].
 class ValueConstraint extends Constraint {
-  final Key destination;
+  final StorageLocation destination;
   final Value value;
 
   ValueConstraint(this.destination, this.value) {
@@ -70,7 +70,7 @@ class ValueConstraint extends Constraint {
 }
 
 class EscapeConstraint extends Constraint {
-  final Key escaping;
+  final StorageLocation escaping;
 
   EscapeConstraint(this.escaping);
 
@@ -100,8 +100,8 @@ class EscapeConstraint extends Constraint {
 ///     Map<String+?, List+?<Uri+?>>
 ///
 class TypeArgumentConstraint extends Constraint {
-  final Key createdObject;
-  final Key typeArgument;
+  final StorageLocation createdObject;
+  final StorageLocation typeArgument;
 
   /// The value to assign to [typeArgument] if [createdObject] escapes.
   final Value value;
