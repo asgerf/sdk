@@ -9,6 +9,9 @@ import '../value.dart';
 /// Denotes a value that is either immediately known or must be determined by
 /// the constraint solver.
 ///
+/// This is used by constraint generation to work with types that represent a
+/// source of values that are not just a [StorageLocation].
+///
 /// This can be a [Value] or [StorageLocation], wrapped in any number of
 /// [ValueSourceWithNullability] objects.
 abstract class ValueSource {

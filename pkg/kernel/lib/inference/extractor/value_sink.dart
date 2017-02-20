@@ -8,8 +8,8 @@ import '../storage_location.dart';
 
 /// Describes the effects of moving a value somewhere.
 ///
-/// In the common case this is a [StorageLocation], but in some cases there is
-/// no storage location.
+/// This abstraction is used by constraint generation to work with types that
+/// do not have an associated [StorageLocation].
 abstract class ValueSink {
   static final ValueSink nowhere = new NowhereSink();
   static final ValueSink escape = new EscapingSink();
