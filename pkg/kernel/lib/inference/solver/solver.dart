@@ -61,7 +61,7 @@ class ConstraintSolver {
       }
       newBaseClass = getCommonBaseClass(oldBaseClass, inputBaseClass);
     }
-    if (newBaseClass != oldValue.baseClass || newFlags != oldFlags) {
+    if (newBaseClass != oldBaseClass || newFlags != oldFlags) {
       return new Value(newBaseClass, newFlags);
     }
     return oldValue;
