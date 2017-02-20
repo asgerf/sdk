@@ -36,16 +36,16 @@ abstract class AType {
   /// Describes the abstract values one may obtain by reading from a storage
   /// location with this type.
   ///
-  /// This can be a [Value] or a [StorageLocation], depending on whether the abstract value
-  /// is statically known, or is a symbolic value determined during type
-  /// propagation.
+  /// This is typically a [Value] or a [StorageLocation], depending on whether
+  /// the abstract value is statically known, or is a symbolic value determined
+  /// by the constraint solver.
   final ValueSource source;
 
   /// Describes the effects of assigning a value into a storage location with
   /// this type.
   ///
-  /// In most cases this is a [StorageLocation], denoting an abstract storage location into
-  /// which values should be recorded.
+  /// This is typically a [StorageLocation], denoting an abstract storage
+  /// location into which values should be recorded.
   ///
   /// Alternatives are [NowhereSink] that ignores incoming values and
   /// [UnassignableSink] that throws an exception because the type should never
