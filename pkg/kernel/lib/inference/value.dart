@@ -106,22 +106,27 @@ class Value extends ValueSource {
 
 /// Defines the flags tracked by [Value.flags].
 ///
-/// The "value set" flags divide the space of possible Dart values into N
-/// disjoint value sets, such that all concrete values belong to exactly one of
-/// these sets.  There is a flag for each such set.  If the corresponding flag
-/// is zero, then the value cannot be anything from that set.  For example, if
-/// the [integer] flag is 0, then the value cannot be an integer. Conversely,
-/// if [integer] is the only value set flags that is 1, then the value must be
-/// an integer.
+/// A subset of these flags are the "value-set flags", which partions the space
+/// of possible Dart values into disjoint sets, such that all concrete values
+/// belong to exactly one of these sets.  These flags are [null_], [integer],
+/// [string], [double], [boolean], and [other].  If the corresponding flag is
+/// zero, then the value cannot be anything from that set.
 ///
-/// There are other flags which are orthogonal to the value set flags, i.e. they
-/// further restrict the set of possible values (if zero).
+/// For example, if the [integer] flag is 0, then the value can't be an integer.
+/// Conversely, if [integer] is the only value-set flag that is 1, then the
+/// value must be an integer.
+///
+/// The remaining flags are orthogonal to the value-set flags, i.e. they further
+/// restrict the set of possible values (if zero).
 class ValueFlags {
   static const int null_ = 1 << 0;
   static const int integer = 1 << 1;
   static const int string = 1 << 2;
   static const int double_ = 1 << 3;
   static const int boolean = 1 << 4;
+
+  /// Denotes any value not included by the other value-set flags.  This ensures
+  /// the value-set denotes a complete partition of the value space.
   static const int other = 1 << 5;
 
   static const int numberOfValueSets = 6;
