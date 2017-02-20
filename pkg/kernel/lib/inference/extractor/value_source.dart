@@ -6,6 +6,11 @@ library kernel.inference.extractor.value_source;
 import '../storage_location.dart';
 import '../value.dart';
 
+/// Denotes a value that is either immediately known or must be determined by
+/// the constraint solver.
+///
+/// This can be a [Value] or [StorageLocation], wrapped in any number of
+/// [ValueSourceWithNullability] objects.
 abstract class ValueSource {
   bool isBottom(int mask);
 
@@ -14,6 +19,31 @@ abstract class ValueSource {
   T acceptSource<T>(ValueSourceVisitor<T> visitor);
 }
 
+/// Denotes the value of [base], with the additional `null` value if
+/// [nullability] is nullable.
+///
+/// That is, this is nullable if either [base] or [nullability] is nullable.
+///
+/// To motivate why this is needed, consider this example (we use Greek letters
+/// to denote storage locations):
+///
+///     class Foo<T> {
+///       T_β value() { [body hidden]; }
+///     }
+///     void doSomething(Foo<String_α> foo) {
+///       String_γ value = foo.value();
+///     }
+///
+/// The call to `box.value()` has a nullable return type in two cases:
+///
+///    - The type of foo is actually `Foo<String?>`, i.e `α` is nullable.
+///    - The `Foo.value()` method actually returns `T?`, i.e. `β` is nullable.
+///
+/// We therefore build an intermediate return type for `foo.value()` that
+/// references both storage locations, `String_αβ`.  This is represented by
+/// [ValueSourceWithNullability], which `α` being the base and `β` being
+/// the nullability.
+///
 class ValueSourceWithNullability extends ValueSource {
   final ValueSource base, nullability;
 
