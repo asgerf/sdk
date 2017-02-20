@@ -3,7 +3,7 @@ import 'package:kernel/inference/solver/solver.dart';
 import 'package:kernel/kernel.dart';
 
 main(List<String> args) {
-  args = ['micro.dill'];
+  if (args.isEmpty) args = ['micro.dill'];
   var program = loadProgramFromBinary(args[0]);
   var extractor = new ConstraintExtractor()..extractFromProgram(program);
   var constraints = extractor.builder.constraints;

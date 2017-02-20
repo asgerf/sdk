@@ -166,6 +166,7 @@ class ClassBank extends ModifierBank {
 abstract class Augmentor {
   int index;
   AType augmentType(DartType type);
+  AType augmentBound(DartType type);
 }
 
 class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
@@ -178,6 +179,8 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
   AugmentorVisitor(this.coreTypes, this.modifiers, this.index);
 
   AType augmentType(DartType type) => makeType(type);
+
+  AType augmentBound(DartType type) => makeBound(type);
 
   Key nextModifier() {
     if (index == null) {

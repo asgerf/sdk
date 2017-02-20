@@ -427,7 +427,7 @@ class Printer extends Visitor<Null> {
 
   void writeBound(DartType type, [Augmentor augmentor]) {
     if (augmentor != null) {
-      AType augmented = augmentor.augmentType(type);
+      AType augmented = augmentor.augmentBound(type);
       augmented.writeTo(this);
       writeSymbol('/');
       if (augmented.sink is Key) {
