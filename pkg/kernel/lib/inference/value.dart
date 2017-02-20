@@ -8,6 +8,24 @@ import '../class_hierarchy.dart';
 import '../text/ast_to_text.dart';
 import 'extractor/value_source.dart';
 
+/// An abstract value, denoting a set of possible concrete values.
+///
+/// This consists of a [baseClass] and a fixed-size bitmask, [flags].
+///
+/// The base class denotes the best known superclass of the concrete values,
+/// or `null` if set of concrete values is empty or contains only null.
+/// Nullability is ignored when determining the base class, and interface types
+/// are not considered base class candidates (interface types can be generally
+/// be derived by type checking anyway).
+///
+/// The [flags] are a bitmask with the flags defined in [ValueFlags]. By
+/// convention, a 1-bit is always imprecise but safe, whereas a 0-bit is
+/// precise but potentially unsafe.
+///
+/// If the bit [ValueFlags.inexactBaseClass] is 0, then the base class is exact,
+/// that is, all non-null concrete values are exact instances of the base class.
+///
+/// See [ValueFlags] for more details about the flags.
 class Value extends ValueSource {
   final Class baseClass;
   final int flags;
@@ -86,6 +104,18 @@ class Value extends ValueSource {
   }
 }
 
+/// Defines the flags tracked by [Value.flags].
+///
+/// The "value set" flags divide the space of possible Dart values into N
+/// disjoint value sets, such that all concrete values belong to exactly one of
+/// these sets.  There is a flag for each such set.  If the corresponding flag
+/// is zero, then the value cannot be anything from that set.  For example, if
+/// the [integer] flag is 0, then the value cannot be an integer. Conversely,
+/// if [integer] is the only value set flags that is 1, then the value must be
+/// an integer.
+///
+/// There are other flags which are orthogonal to the value set flags, i.e. they
+/// further restrict the set of possible values (if zero).
 class ValueFlags {
   static const int null_ = 1 << 0;
   static const int integer = 1 << 1;
@@ -97,6 +127,8 @@ class ValueFlags {
   static const int numberOfValueSets = 6;
   static const int allValueSets = (1 << numberOfValueSets) - 1;
 
+  /// Set if the [Value.baseClass] is a superclass of the concrete values,
+  /// not necessarily the exact class.
   static const int inexactBaseClass = 1 << 6;
 
   static const int numberOfFlags = 7;
