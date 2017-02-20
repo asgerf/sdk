@@ -134,7 +134,8 @@ class InterfaceAType extends AType {
   void _generateSubtypeConstraintsForSubterms(
       AType supertype, SubtypingScope scope) {
     if (supertype is InterfaceAType) {
-      var casted = scope.constraints.getTypeAsInstanceOf(this, supertype.classNode);
+      var casted =
+          scope.constraints.getTypeAsInstanceOf(this, supertype.classNode);
       if (casted == null) return;
       for (int i = 0; i < casted.typeArguments.length; ++i) {
         var subtypeArgument = casted.typeArguments[i];

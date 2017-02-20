@@ -774,11 +774,13 @@ class ConstraintExtractorVisitor
     return Flags.other;
   }
 
-  void addAllocationTypeArgument(StorageLocation createdObject, AType typeArgument) {
+  void addAllocationTypeArgument(
+      StorageLocation createdObject, AType typeArgument) {
     new AllocationVisitor(extractor, createdObject).visit(typeArgument);
   }
 
-  void addAllocationConstraints(StorageLocation createdObject, Value value, AType type) {
+  void addAllocationConstraints(
+      StorageLocation createdObject, Value value, AType type) {
     builder.addConstraint(new ValueConstraint(createdObject, value));
     new AllocationVisitor(extractor, createdObject).visitSubterms(type);
   }
