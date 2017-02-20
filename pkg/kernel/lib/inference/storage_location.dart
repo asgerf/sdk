@@ -6,7 +6,7 @@ library kernel.inference.storage_location;
 import '../ast.dart';
 import 'extractor/value_sink.dart';
 import 'extractor/value_source.dart';
-import 'solver/solver.dart';
+import 'solver/solver.dart' show StorageLocationBaseClass;
 import 'value.dart';
 
 /// An abstract storage location, with which the type inference will associate
@@ -16,20 +16,14 @@ import 'value.dart';
 /// - a [Value] summarizing what can flow in here
 /// - how the values that flow in here can escape
 ///
-class StorageLocation implements ValueSource, ValueSink {
+class StorageLocation extends StorageLocationBaseClass
+    implements ValueSource, ValueSink {
   final TreeNode owner; // Class or Member
   final int index;
 
   bool isNullabilityKey = false;
 
-  // Used by solver
-  Value value = new Value(null, Flags.none);
-  WorkItem forward, backward;
-
-  StorageLocation(this.owner, this.index) {
-    forward = new WorkItem(this);
-    backward = new WorkItem(this);
-  }
+  StorageLocation(this.owner, this.index);
 
   String toString() => '$owner:$index';
 

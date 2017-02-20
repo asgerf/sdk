@@ -9,6 +9,18 @@ import '../constraints.dart';
 import '../storage_location.dart';
 import '../value.dart';
 
+/// A base class for [StorageLocation] with some fields that are owned by the
+/// constraint solver.
+class StorageLocationBaseClass {
+  Value value = new Value(null, Flags.none);
+  WorkItem forward, backward;
+
+  StorageLocationBaseClass() {
+    forward = new WorkItem(this);
+    backward = new WorkItem(this);
+ }
+}
+
 class WorkItem {
   final StorageLocation key;
   final List<Constraint> dependencies = <Constraint>[];
