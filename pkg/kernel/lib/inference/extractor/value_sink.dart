@@ -40,8 +40,8 @@ class NowhereSink extends ValueSink {
 /// unassignable sinks because the constraint generator should not use
 /// them as sinks.
 ///
-/// Unassignable sinks carry some information to help track down the source of
-/// the error.
+/// Unassignable sinks carry some debugging information to help track down the
+/// source of the error.
 class UnassignableSink extends ValueSink {
   final String what;
   final TreeNode where;
