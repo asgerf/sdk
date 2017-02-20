@@ -27,7 +27,7 @@ abstract class ValueSink {
 /// can return a type that can be assigned into, but it has no consequence.
 ///
 /// For example, the condition to an `if` is assigned to the boolean type, but
-/// it has no consequence that the value flows into the `bool` type.
+/// it has no consequence that a given value flows into the `bool` type.
 class NowhereSink extends ValueSink {
   T acceptSink<T>(ValueSinkVisitor<T> visitor) {
     return visitor.visitNowhereSink(this);
