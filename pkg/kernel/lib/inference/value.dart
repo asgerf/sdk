@@ -107,13 +107,13 @@ class ValueFlags {
   static const int nonNullValueSets = allValueSets & ~null_;
 
   static const List<String> flagNames = const <String>[
-    'inexactBaseClass',
     'Null', // Capitalize to avoid confusion with null.toString().
     'integer',
     'string',
     'double',
     'boolean',
     'other',
+    'inexactBaseClass',
   ];
 
   static String flagsToString(int bitmask) {
