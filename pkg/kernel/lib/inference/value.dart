@@ -45,19 +45,6 @@ class Value extends ValueSource {
     return new Value(baseClass, maskedFlags);
   }
 
-  String toString() {
-    if (baseClass == null) {
-      if (flags == ValueFlags.null_) return 'Null';
-      if (flags == 0) return 'bottom';
-      return 'bottom(${ValueFlags.flagsToString(flags)})';
-    }
-    String nullability = canBeNull ? '?' : '';
-    String baseClassSuffix = hasExactBaseClass ? '!' : '+';
-    int otherFlags = flags & ~(ValueFlags.null_ | ValueFlags.inexactBaseClass);
-    String suffix = ValueFlags.flagsToString(otherFlags);
-    return '$baseClass$baseClassSuffix$nullability($suffix)';
-  }
-
   T acceptSource<T>(ValueSourceVisitor<T> visitor) {
     return visitor.visitValue(this);
   }
@@ -86,6 +73,19 @@ class Value extends ValueSource {
         printer.write('?');
       }
     }
+  }
+
+  String toString() {
+    if (baseClass == null) {
+      if (flags == ValueFlags.null_) return 'Null';
+      if (flags == 0) return 'bottom';
+      return 'bottom(${ValueFlags.flagsToString(flags)})';
+    }
+    String nullability = canBeNull ? '?' : '';
+    String baseClassSuffix = hasExactBaseClass ? '!' : '+';
+    int otherFlags = flags & ~(ValueFlags.null_ | ValueFlags.inexactBaseClass);
+    String suffix = ValueFlags.flagsToString(otherFlags);
+    return '$baseClass$baseClassSuffix$nullability($suffix)';
   }
 }
 
