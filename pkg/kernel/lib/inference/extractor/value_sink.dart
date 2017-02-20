@@ -68,7 +68,7 @@ class UnassignableSinkError {
   }
 }
 
-/// Sink that causes incoming values to "escape" but is otherwise not tracked
+/// Sink that causes incoming values to escape but are otherwise not tracked
 /// any further.
 class EscapingSink extends ValueSink {
   T acceptSink<T>(ValueSinkVisitor<T> visitor) {
