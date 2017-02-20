@@ -63,7 +63,7 @@ class ConstraintExtractor {
     builder ??= new ConstraintBuilder(hierarchy);
     conditionType = new InterfaceAType(
         Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
-    escapingType = new BottomAType(Value.escaping, ValueSink.nowhere);
+    escapingType = new BottomAType(Value.bottom, ValueSink.escape);
     boolType = new InterfaceAType(new Value(coreTypes.boolClass, Flags.string),
         ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
     intType = new InterfaceAType(new Value(coreTypes.intClass, Flags.integer),
@@ -218,7 +218,7 @@ class ConstraintExtractor {
     if (classNode == coreTypes.stringClass) return stringValue;
     if (classNode == coreTypes.boolClass) return boolValue;
     if (classNode == coreTypes.nullClass) return nullValue;
-    return new Value(coreTypes.objectClass, Flags.all & ~Flags.escaping);
+    return new Value(coreTypes.objectClass, Flags.all);
   }
 
   final List<Function> analysisCompleteHooks = <Function>[];

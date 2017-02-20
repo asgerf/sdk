@@ -13,11 +13,16 @@ import '../value.dart';
 /// constraint solver.
 class StorageLocationBaseClass {
   Value value = Value.bottom;
+  int escapeFlags = EscapeFlags.none;
   WorkItem forward, backward;
 
   StorageLocationBaseClass() {
     forward = new WorkItem(this);
     backward = new WorkItem(this);
+  }
+
+  bool get isEscaping {
+    return escapeFlags & EscapeFlags.escaping != 0;
   }
 }
 
@@ -66,30 +71,21 @@ class ConstraintSolver {
     return hierarchy.getCommonBaseClass(first, second);
   }
 
-  /// Update [subtype] to contain the escape information of [supertype].
-  Value mergeBackward(Value subtype, Value supertype) {
-    int oldFlags = subtype.flags;
-    int inputFlags = supertype.flags & Flags.backward;
-    int newFlags = oldFlags | inputFlags;
-    if (newFlags != oldFlags) {
-      return new Value(subtype.baseClass, newFlags);
-    }
-    return subtype;
-  }
-
-  void propagateForward(Value subtype, StorageLocation supertype) {
-    var joined = mergeForward(subtype, supertype.value);
-    if (!identical(joined, supertype.value)) {
-      supertype.value = joined;
-      enqueue(supertype.forward);
+  void propagateForward(StorageLocation location, Value inputValue) {
+    Value oldValue = location.value;
+    Value newValue = mergeForward(inputValue, oldValue);
+    if (!identical(newValue, oldValue)) {
+      location.value = newValue;
+      enqueue(location.forward);
     }
   }
 
-  void propagateBackward(StorageLocation subtype, Value supertype) {
-    var joined = mergeBackward(subtype.value, supertype);
-    if (!identical(joined, subtype.value)) {
-      subtype.value = joined;
-      enqueue(subtype.backward);
+  void propagateBackward(StorageLocation location, int escapeFlags) {
+    int oldFlags = location.escapeFlags;
+    var newFlags = oldFlags | escapeFlags;
+    if (oldFlags != newFlags) {
+      location.escapeFlags = newFlags;
+      enqueue(location.backward);
     }
   }
 
@@ -101,24 +97,23 @@ class ConstraintSolver {
   }
 
   void transferTypeArgumentConstraint(TypeArgumentConstraint constraint) {
-    Value createdObject = constraint.createdObject.value;
-    if (createdObject.isEscaping) {
-      propagateForward(constraint.value, constraint.typeArgument);
+    if (constraint.createdObject.isEscaping) {
+      propagateForward(constraint.typeArgument, constraint.value);
     }
   }
 
   void transferSubtypeConstraint(SubtypeConstraint constraint) {
-    propagateForward(constraint.source.value.masked(constraint.mask),
-        constraint.destination);
-    propagateBackward(constraint.source, constraint.destination.value);
+    propagateForward(constraint.destination,
+        constraint.source.value.masked(constraint.mask));
+    propagateBackward(constraint.source, constraint.destination.escapeFlags);
   }
 
   void transferValueConstraint(ValueConstraint constraint) {
-    propagateForward(constraint.value, constraint.destination);
+    propagateForward(constraint.destination, constraint.value);
   }
 
   void transferEscapeConstraint(EscapeConstraint constraint) {
-    propagateBackward(constraint.escaping, Value.escaping);
+    propagateBackward(constraint.escaping, EscapeFlags.escaping);
   }
 
   /// The [constraint] must be executed whenever the forward properties of
@@ -161,4 +156,9 @@ class ConstraintSolver {
       }
     }
   }
+}
+
+class EscapeFlags {
+  static const int none = 0;
+  static const int escaping = 1 << 0;
 }

@@ -362,7 +362,7 @@ class BottomAType extends AType {
   static final BottomAType nonNullable =
       new BottomAType(Value.bottom, ValueSink.nowhere);
   static final BottomAType nullable =
-      new BottomAType(Value.nullValue, ValueSink.nowhere);
+      new BottomAType(Value.null_, ValueSink.nowhere);
 
   AType withSource(ValueSource source) {
     return new BottomAType(source, sink);

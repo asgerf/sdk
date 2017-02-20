@@ -15,14 +15,12 @@ class Value extends ValueSource {
   Value(this.baseClass, this.flags);
 
   static final Value bottom = new Value(null, Flags.none);
-  static final Value nullValue = new Value(null, Flags.null_);
-  static final Value escaping = new Value(null, Flags.escaping);
+  static final Value null_ = new Value(null, Flags.null_);
 
   int get valueFlags => flags & Flags.valueFlags;
   bool get hasExactBaseClass => flags & Flags.inexactBaseClass == 0;
   bool get canBeNull => flags & Flags.null_ != 0;
   bool get canBeNonNull => flags & Flags.nonNullValue != 0;
-  bool get isEscaping => flags & Flags.escaping != 0;
 
   Value masked(int mask) {
     int maskedFlags = flags & mask;
@@ -102,11 +100,7 @@ class Flags {
       null_ | integer | string | double_ | boolean | other;
   static const int forward = inexactBaseClass | valueFlags;
 
-  static const int escaping = 1 << 7;
-
-  static const int backward = escaping;
-
-  static const int numberOfFlags = 8;
+  static const int numberOfFlags = 7;
   static const int all = (1 << numberOfFlags) - 1;
   static const int none = 0;
 
@@ -121,7 +115,6 @@ class Flags {
     'double',
     'boolean',
     'other',
-    'escaping',
   ];
 
   static String flagsToString(int bitmask) {
