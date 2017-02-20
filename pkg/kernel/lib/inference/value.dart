@@ -42,6 +42,8 @@ class Value extends ValueSource implements Printable {
   Value masked(int mask) {
     int maskedFlags = flags & mask;
     if (maskedFlags == flags) return this;
+    if (maskedFlags == 0) return bottom;
+    if (maskedFlags == ValueFlags.null_) return null_;
     return new Value(baseClass, maskedFlags);
   }
 
