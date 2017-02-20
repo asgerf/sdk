@@ -43,24 +43,28 @@ class ConstraintSolver {
 
   Class get rootClass => hierarchy.classes[0];
 
-  /// Update [supertype] to contain the values of [subtype].
-  Value mergeForward(Value subtype, Value supertype) {
-    int oldFlags = supertype.flags;
-    int inputFlags = subtype.flags & Flags.forward;
+  /// Returns the least upper bound of the two values, and reuses the [oldValue]
+  /// object if it is equal to the result.
+  ///
+  /// The caller may check if the result is `identical` to [oldValue] to detect
+  /// if the value has changed.
+  Value joinValues(Value oldValue, Value inputValue) {
+    int oldFlags = oldValue.flags;
+    int inputFlags = inputValue.flags;
     int newFlags = oldFlags | inputFlags;
-    Class oldBaseClass = supertype.baseClass;
+    Class oldBaseClass = oldValue.baseClass;
+    Class inputBaseClass = inputValue.baseClass;
     Class newBaseClass = oldBaseClass;
-    Class inputBaseClass = subtype.baseClass;
     if (inputBaseClass != null && oldBaseClass != inputBaseClass) {
       if (oldBaseClass != null) {
         newFlags |= Flags.inexactBaseClass;
       }
-      newBaseClass = getCommonBaseClass(supertype.baseClass, subtype.baseClass);
+      newBaseClass = getCommonBaseClass(oldBaseClass, inputBaseClass);
     }
-    if (newBaseClass != supertype.baseClass || newFlags != oldFlags) {
+    if (newBaseClass != oldValue.baseClass || newFlags != oldFlags) {
       return new Value(newBaseClass, newFlags);
     }
-    return supertype;
+    return oldValue;
   }
 
   /// Returns the least upper bound of two base classes, where `null` represents
@@ -71,16 +75,16 @@ class ConstraintSolver {
     return hierarchy.getCommonBaseClass(first, second);
   }
 
-  void propagateForward(StorageLocation location, Value inputValue) {
+  void propagateValue(StorageLocation location, Value inputValue) {
     Value oldValue = location.value;
-    Value newValue = mergeForward(inputValue, oldValue);
-    if (!identical(newValue, oldValue)) {
+    Value newValue = joinValues(oldValue, inputValue);
+    if (!identical(oldValue, newValue)) {
       location.value = newValue;
       enqueue(location.forward);
     }
   }
 
-  void propagateBackward(StorageLocation location, int escapeFlags) {
+  void propagateEscape(StorageLocation location, int escapeFlags) {
     int oldFlags = location.escapeFlags;
     var newFlags = oldFlags | escapeFlags;
     if (oldFlags != newFlags) {
@@ -98,22 +102,22 @@ class ConstraintSolver {
 
   void transferTypeArgumentConstraint(TypeArgumentConstraint constraint) {
     if (constraint.createdObject.isEscaping) {
-      propagateForward(constraint.typeArgument, constraint.value);
+      propagateValue(constraint.typeArgument, constraint.value);
     }
   }
 
   void transferSubtypeConstraint(SubtypeConstraint constraint) {
-    propagateForward(constraint.destination,
+    propagateValue(constraint.destination,
         constraint.source.value.masked(constraint.mask));
-    propagateBackward(constraint.source, constraint.destination.escapeFlags);
+    propagateEscape(constraint.source, constraint.destination.escapeFlags);
   }
 
   void transferValueConstraint(ValueConstraint constraint) {
-    propagateForward(constraint.destination, constraint.value);
+    propagateValue(constraint.destination, constraint.value);
   }
 
   void transferEscapeConstraint(EscapeConstraint constraint) {
-    propagateBackward(constraint.escaping, EscapeFlags.escaping);
+    propagateEscape(constraint.escaping, EscapeFlags.escaping);
   }
 
   /// The [constraint] must be executed whenever the forward properties of

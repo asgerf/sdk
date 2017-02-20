@@ -98,7 +98,6 @@ class Flags {
 
   static const int valueFlags =
       null_ | integer | string | double_ | boolean | other;
-  static const int forward = inexactBaseClass | valueFlags;
 
   static const int numberOfFlags = 7;
   static const int all = (1 << numberOfFlags) - 1;
