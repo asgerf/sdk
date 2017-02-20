@@ -12,7 +12,7 @@ import '../value.dart';
 /// A base class for [StorageLocation] with some fields that are owned by the
 /// constraint solver.
 class StorageLocationBaseClass {
-  Value value = new Value(null, Flags.none);
+  Value value = Value.bottom;
   WorkItem forward, backward;
 
   StorageLocationBaseClass() {
