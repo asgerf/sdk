@@ -35,7 +35,7 @@ class Value extends ValueSource {
   static final Value bottom = new Value(null, ValueFlags.none);
   static final Value null_ = new Value(null, ValueFlags.null_);
 
-  int get basicValueFlags => flags & ValueFlags.allValueSets;
+  int get valueSets => flags & ValueFlags.allValueSets;
   bool get hasExactBaseClass => flags & ValueFlags.inexactBaseClass == 0;
   bool get canBeNull => flags & ValueFlags.null_ != 0;
   bool get canBeNonNull => flags & ValueFlags.nonNullValueSets != 0;
@@ -106,6 +106,9 @@ class Value extends ValueSource {
 
 /// Defines the flags tracked by [Value.flags].
 ///
+/// By convention, a 1-bit is always imprecise but safe, whereas a 0-bit is
+/// precise but potentially unsafe.
+///
 /// A subset of these flags are the "value-set flags", which partions the space
 /// of possible Dart values into disjoint sets, such that all concrete values
 /// belong to exactly one of these sets.  These flags are [null_], [integer],
@@ -119,6 +122,7 @@ class Value extends ValueSource {
 /// The remaining flags are orthogonal to the value-set flags, i.e. they further
 /// restrict the set of possible values (if zero).
 class ValueFlags {
+  // -------- Value-set flags ----------
   static const int null_ = 1 << 0;
   static const int integer = 1 << 1;
   static const int string = 1 << 2;
@@ -132,9 +136,14 @@ class ValueFlags {
   static const int numberOfValueSets = 6;
   static const int allValueSets = (1 << numberOfValueSets) - 1;
 
+  // -------- Flags that are not part of the value-set partition ----------
+
   /// Set if the [Value.baseClass] is a superclass of the concrete values,
   /// not necessarily the exact class.
   static const int inexactBaseClass = 1 << 6;
+
+
+  // -------- Utility stuff ----------
 
   static const int numberOfFlags = 7;
   static const int all = (1 << numberOfFlags) - 1;
