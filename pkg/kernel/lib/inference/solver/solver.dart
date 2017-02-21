@@ -126,8 +126,8 @@ class ConstraintSolver {
     propagateValue(constraint.destination,
         constraint.source.value.masked(constraint.mask));
     if (constraint.canLeadToEscape) {
-      propagateEscapingLocation(constraint.source,
-        constraint.destination.escapeFlags & constraint.mask);
+      propagateEscapingLocation(
+          constraint.source, constraint.destination.escapeFlags);
     }
   }
 
