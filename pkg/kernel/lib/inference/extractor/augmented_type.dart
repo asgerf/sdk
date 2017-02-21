@@ -20,12 +20,7 @@ class ASupertype implements Printable {
   ASupertype(this.classNode, this.typeArguments);
 
   void printTo(Printer printer) {
-    Value value = source.value;
-    value.printTo(printer);
-    if (value.baseClass != classNode) {
-      printer.writeSymbol('&');
-      printer.writeClassReference(classNode);
-    }
+    printer.writeClassReference(classNode);
     if (typeArguments.isNotEmpty) {
       printer.writeSymbol('<');
       printer.writeList(typeArguments, (AType argument) {
