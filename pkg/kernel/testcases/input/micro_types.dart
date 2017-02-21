@@ -358,9 +358,16 @@ void testGenericCasts() {
 }
 
 class Escaping {
+  static void escape(dynamic x) {
+    x.escapingField = null;
+    x.escapingMethod(null);
+    x.escapingIdentity(null);
+  }
+
   static int globalVar = 0;
   int escapingField = 0;
   int dependentField = 0;
+
   void escapingMethod(int x) {
     globalVar = x;
     dependentField = escapingField;
@@ -369,15 +376,31 @@ class Escaping {
   int identity(int x) => x;
 }
 
-void escape(dynamic x) {
-  x.escapingField = null;
-  x.escapingMethod(null);
-  x.escapingIdentity(null);
+class EscapingThis {
+  static void escape(dynamic obj) {
+    obj.escapingField2 = null;
+  }
+
+  int escapingField2 = 5;
+
+  void escapeThis() {
+    escape(this);
+  }
+}
+
+class EscapingBaseClass {
+  int escapingField3 = 7;
+}
+
+class EscapingSubclass extends EscapingBaseClass {
+  static void escape(dynamic x) {
+    x.escapingField3 = null;
+  }
 }
 
 void testEscapeNonGeneric() {
   var escaped = new Escaping();
-  escape(escaped);
+  Escaping.escape(escaped);
   int nullableInt1 = escaped.escapingField;
   int nullableInt2 = Escaping.globalVar;
   int nonNullableInt3 = escaped.escapingIdentity(3);
@@ -389,4 +412,18 @@ void testEscapeNonGeneric() {
   int nonNullableInt6 = nonEscaped.escapingIdentity(5);
   int nonNullableInt7 = nonEscaped.identity(6);
   int nonNullableInt8 = escaped.dependentField;
+
+  var escapedThis = new EscapingThis();
+  escapedThis.escapeThis();
+  int nullableInt9 = escapedThis.escapingField2;
+
+  var nonEscapedThis = new EscapingThis();
+  int nonNullableInt10 = nonEscapedThis.escapingField2;
+
+  var escapedSubclass = new EscapingSubclass();
+  EscapingSubclass.escape(escapedSubclass);
+  int nullableInt11 = escapedSubclass.escapingField3;
+
+  var nonEscapedSubclass = new EscapingSubclass();
+  int nonNullableInt12 = nonEscapedSubclass.escapingField3;
 }
