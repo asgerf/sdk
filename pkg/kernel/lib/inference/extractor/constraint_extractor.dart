@@ -311,7 +311,7 @@ class ConstraintExtractorVisitor
   final Member currentMember;
   final StorageLocationBank bank;
   final ClassBank classBank;
-  Augmentor augmentor;
+  TypeAugmentor augmentor;
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ClassHierarchy get baseHierarchy => extractor.baseHierarchy;

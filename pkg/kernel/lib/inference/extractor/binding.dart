@@ -101,7 +101,7 @@ abstract class StorageLocationBank {
     return location;
   }
 
-  Augmentor getAugmentor([int offset]) {
+  TypeAugmentor getAugmentor([int offset]) {
     return new AugmentorVisitor(coreTypes, this, offset);
   }
 }

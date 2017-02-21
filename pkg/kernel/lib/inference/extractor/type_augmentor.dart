@@ -9,7 +9,8 @@ import '../storage_location.dart';
 import '../../ast.dart';
 import '../../core_types.dart';
 
-abstract class Augmentor {
+abstract class TypeAugmentor {
+  StorageLocationBank get bank;
   int index;
   AType augmentType(DartType type);
   AType augmentBound(DartType type);
@@ -19,7 +20,7 @@ abstract class Augmentor {
   List<ASupertype> augmentSuperList(List<Supertype> types);
 }
 
-class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
+class AugmentorVisitor extends DartTypeVisitor<AType> implements TypeAugmentor {
   final CoreTypes coreTypes;
   final StorageLocationBank bank;
   final List<List<TypeParameter>> innerTypeParameters = <List<TypeParameter>>[];
