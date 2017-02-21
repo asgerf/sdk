@@ -33,6 +33,9 @@ class SubtypeConstraint extends Constraint {
     assert(mask != null);
   }
 
+  /// If true, any value in [source] escapes if [destination] leads to escape.
+  bool get canLeadToEscape => mask & ValueFlags.escaping != 0;
+
   void transfer(ConstraintSolver solver) {
     solver.transferSubtypeConstraint(this);
   }

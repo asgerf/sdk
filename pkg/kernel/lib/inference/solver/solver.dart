@@ -125,7 +125,10 @@ class ConstraintSolver {
   void transferSubtypeConstraint(SubtypeConstraint constraint) {
     propagateValue(constraint.destination,
         constraint.source.value.masked(constraint.mask));
-    propagateEscapingLocation(constraint.source, constraint.destination.escapeFlags);
+    if (constraint.canLeadToEscape) {
+      propagateEscapingLocation(constraint.source,
+        constraint.destination.escapeFlags & constraint.mask);
+    }
   }
 
   void transferValueConstraint(ValueConstraint constraint) {
