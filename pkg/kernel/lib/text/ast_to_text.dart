@@ -8,6 +8,7 @@ import '../import_table.dart';
 import '../type_propagation/type_propagation.dart';
 import '../inference/extractor/augmented_type.dart';
 import '../inference/extractor/binding.dart';
+import '../inference/extractor/type_augmentor.dart';
 import '../inference/storage_location.dart';
 
 class Namer<T> {

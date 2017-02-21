@@ -14,6 +14,7 @@ import 'binding.dart';
 import 'constraint_builder.dart';
 import 'external_model.dart';
 import 'hierarchy.dart';
+import 'package:kernel/inference/extractor/type_augmentor.dart';
 import 'substitution.dart';
 import 'value_sink.dart';
 
