@@ -13,16 +13,29 @@ import 'substitution.dart';
 import 'value_sink.dart';
 import 'value_source.dart';
 
-class ASupertype {
+class ASupertype implements Printable {
   final Class classNode;
   final List<AType> typeArguments;
 
   ASupertype(this.classNode, this.typeArguments);
 
-  String toString() {
-    if (typeArguments.isEmpty) return '$classNode';
-    return '$classNode<${typeArguments.join(",")}>';
+  void printTo(Printer printer) {
+    Value value = source.value;
+    value.printTo(printer);
+    if (value.baseClass != classNode) {
+      printer.writeSymbol('&');
+      printer.writeClassReference(classNode);
+    }
+    if (typeArguments.isNotEmpty) {
+      printer.writeSymbol('<');
+      printer.writeList(typeArguments, (AType argument) {
+        argument.printTo(printer);
+      });
+      printer.writeSymbol('>');
+    }
   }
+
+  String toString() => Printable.show(this);
 }
 
 class SubtypingScope {
@@ -157,13 +170,6 @@ class InterfaceAType extends AType {
     return new InterfaceAType(source, sink, classNode, typeArguments);
   }
 
-  String toString() {
-    String typeArgumentPart =
-        typeArguments.isEmpty ? '' : '<${typeArguments.join(',')}>';
-    var value = source.value;
-    return '$classNode($value)$typeArgumentPart';
-  }
-
   void printTo(Printer printer) {
     Value value = source.value;
     value.printTo(printer);
@@ -257,26 +263,6 @@ class FunctionAType extends AType {
         returnType.substitute(substitution));
   }
 
-  String toString() {
-    var typeParameterString =
-        typeParameters.isEmpty ? '' : '<${typeParameters.join(",")}>';
-    List<Object> parameters = <Object>[];
-    parameters.addAll(positionalParameters.take(requiredParameterCount));
-    if (requiredParameterCount > 0) {
-      var optional =
-          positionalParameters.skip(requiredParameterCount).join(',');
-      parameters.add('[$optional]');
-    }
-    if (namedParameters.length > 0) {
-      var named = new List.generate(namedParameters.length,
-          (i) => '${namedParameterNames[i]}: ${namedParameters[i]}').join(',');
-      parameters.add('{$named}');
-    }
-    var value = source.value;
-    return 'Function($value)$typeParameterString($parameters) '
-        '=> $returnType';
-  }
-
   AType withSource(ValueSource source) {
     return new FunctionAType(
         source,
@@ -334,8 +320,6 @@ class FunctionTypeParameterAType extends AType {
 
   FunctionTypeParameterAType substitute(Substitution substitution) => this;
 
-  String toString() => 'FunctionTypeParameter($index)';
-
   AType withSource(ValueSource source) {
     return new FunctionTypeParameterAType(source, sink, index);
   }
@@ -356,8 +340,6 @@ class BottomAType extends AType {
       AType supertype, SubtypingScope scope) {}
 
   BottomAType substitute(Substitution substitution) => this;
-
-  String toString() => 'Bottom(${source.value})';
 
   static final BottomAType nonNullable =
       new BottomAType(Value.bottom, ValueSink.nowhere);
@@ -394,8 +376,6 @@ class TypeParameterAType extends AType {
   AType substitute(Substitution substitution) {
     return substitution.getSubstitute(this);
   }
-
-  String toString() => '$parameter(${source}=${source.value})';
 
   AType withSource(ValueSource newSource) {
     return new TypeParameterAType(newSource, sink, parameter);
