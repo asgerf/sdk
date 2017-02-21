@@ -12,7 +12,7 @@ abstract class ExternalModel {
   bool isNicelyBehaved(Member member);
 }
 
-class BasicExternalModel extends ExternalModel {
+class VmExternalModel extends ExternalModel {
   final CoreTypes coreTypes;
   Class externalNameAnnotation;
 
@@ -72,7 +72,7 @@ class BasicExternalModel extends ExternalModel {
     'StringToSystemEncoding',
   ]);
 
-  BasicExternalModel(this.coreTypes) {
+  VmExternalModel(this.coreTypes) {
     externalNameAnnotation =
         coreTypes.getCoreClass('dart:_internal', 'ExternalName');
   }

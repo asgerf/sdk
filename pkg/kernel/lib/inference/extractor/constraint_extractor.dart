@@ -59,7 +59,7 @@ class ConstraintExtractor {
     baseHierarchy ??= new ClassHierarchy(program);
     binding ??= new Binding(coreTypes);
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
-    externalModel ??= new BasicExternalModel(coreTypes);
+    externalModel ??= new VmExternalModel(coreTypes);
     builder ??= new ConstraintBuilder(hierarchy);
     conditionType = new InterfaceAType(
         Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
