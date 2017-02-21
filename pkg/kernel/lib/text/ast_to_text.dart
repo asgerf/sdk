@@ -600,13 +600,13 @@ class Printer extends Visitor<Null> {
 
   Augmentor getAugmentor(int offset) {
     if (modifiers == null || offset == -1) return null;
-    return modifiers?.getIteratingAugmentor(offset);
+    return modifiers?.getAugmentor(offset);
   }
 
   Augmentor getExpressionAugmentor(Expression node, int offset) {
     if (modifiers == null) return null;
     if (node.inferredValueIndex == -1) return null;
-    return modifiers?.getIteratingAugmentor(node.inferredValueIndex + offset);
+    return modifiers?.getAugmentor(node.inferredValueIndex + offset);
   }
 
   void writeReturnType(DartType type, Augmentor augmentor) {
@@ -771,7 +771,7 @@ class Printer extends Visitor<Null> {
     }
     writeFunction(node.function,
         name: getMemberName(node),
-        augmentor: modifiers?.getIteratingAugmentor(1));
+        augmentor: modifiers?.getAugmentor(1));
   }
 
   visitConstructor(Constructor node) {
@@ -784,7 +784,7 @@ class Printer extends Visitor<Null> {
     writeFunction(node.function,
         name: node.name,
         initializers: node.initializers,
-        augmentor: modifiers?.getIteratingAugmentor(1));
+        augmentor: modifiers?.getAugmentor(1));
   }
 
   visitClass(Class node) {
@@ -794,7 +794,7 @@ class Printer extends Visitor<Null> {
     writeModifier(node.isAbstract, 'abstract');
     writeWord('class');
     writeWord(getClassName(node));
-    var augmentor = modifiers?.getIteratingAugmentor(0);
+    var augmentor = modifiers?.getAugmentor(0);
     writeTypeParameterList(node.typeParameters, augmentor);
     if (node.isMixinApplication) {
       writeSpaced('=');

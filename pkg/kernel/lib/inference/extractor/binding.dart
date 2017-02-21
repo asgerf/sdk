@@ -99,7 +99,7 @@ abstract class ModifierBank {
     return modifier;
   }
 
-  Augmentor getIteratingAugmentor(int offset) {
+  Augmentor getAugmentor(int offset) {
     return new AugmentorVisitor(coreTypes, this, offset);
   }
 
