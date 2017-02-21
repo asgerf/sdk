@@ -15,9 +15,15 @@ final List<String> targetNames = targets.keys.toList();
 class TargetFlags {
   bool strongMode;
   bool treeShake;
+  bool checkInference;
   List<ProgramRoot> programRoots;
 
-  TargetFlags({this.strongMode: false, this.treeShake: false, this.programRoots: const <ProgramRoot>[]});
+  TargetFlags({
+    this.strongMode: false,
+    this.treeShake: false,
+    this.checkInference,
+    this.programRoots: const <ProgramRoot>[],
+  });
 }
 
 typedef Target _TargetBuilder(TargetFlags flags);

@@ -85,7 +85,11 @@ ArgParser parser = new ArgParser(allowTrailingOptions: true)
   ..addFlag('show-offsets',
       help: 'When printing a library as text, also print node offsets')
   ..addFlag('tree-shake',
-      defaultsTo: false, help: 'Enable tree-shaking if the target supports it');
+      defaultsTo: false, help: 'Enable tree-shaking if the target supports it')
+  ..addFlag('check-inference',
+      negatable: false,
+      help: 'Insert runtime checks to verify the results of type inference.\n'
+        'Only for internal use. Generates very slow code.');
 
 String getUsage() => """
 Usage: dartk [options] FILE
@@ -305,6 +309,7 @@ Future<CompilerOutcome> batchMain(
   TargetFlags targetFlags = new TargetFlags(
       strongMode: options['strong'],
       treeShake: options['tree-shake'],
+      checkInference: options['check-inference'],
       programRoots: programRoots);
   Target target = getTarget(options['target'], targetFlags);
 

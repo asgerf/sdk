@@ -600,13 +600,13 @@ class Printer extends Visitor<Null> {
 
   Augmentor getAugmentor(int offset) {
     if (modifiers == null || offset == -1) return null;
-    return modifiers.getIteratingAugmentor(offset);
+    return modifiers?.getIteratingAugmentor(offset);
   }
 
   Augmentor getExpressionAugmentor(Expression node, int offset) {
     if (modifiers == null) return null;
     if (node.inferredValueIndex == -1) return null;
-    return modifiers.getIteratingAugmentor(node.inferredValueIndex + offset);
+    return modifiers?.getIteratingAugmentor(node.inferredValueIndex + offset);
   }
 
   void writeReturnType(DartType type, Augmentor augmentor) {
@@ -719,7 +719,7 @@ class Printer extends Visitor<Null> {
   visitLibrary(Library node) {}
 
   visitField(Field node) {
-    modifiers = binding.getMemberBank(node);
+    modifiers = binding?.getMemberBank(node);
     writeAnnotationList(node.annotations);
     writeIndentation();
     writeModifier(node.isStatic, 'static');
@@ -756,7 +756,7 @@ class Printer extends Visitor<Null> {
   }
 
   visitProcedure(Procedure node) {
-    modifiers = binding.getMemberBank(node);
+    modifiers = binding?.getMemberBank(node);
     writeAnnotationList(node.annotations);
     writeIndentation();
     writeModifier(node.isExternal, 'external');
@@ -771,11 +771,11 @@ class Printer extends Visitor<Null> {
     }
     writeFunction(node.function,
         name: getMemberName(node),
-        augmentor: modifiers.getIteratingAugmentor(1));
+        augmentor: modifiers?.getIteratingAugmentor(1));
   }
 
   visitConstructor(Constructor node) {
-    modifiers = binding.getMemberBank(node);
+    modifiers = binding?.getMemberBank(node);
     writeAnnotationList(node.annotations);
     writeIndentation();
     writeModifier(node.isExternal, 'external');
@@ -784,17 +784,17 @@ class Printer extends Visitor<Null> {
     writeFunction(node.function,
         name: node.name,
         initializers: node.initializers,
-        augmentor: modifiers.getIteratingAugmentor(1));
+        augmentor: modifiers?.getIteratingAugmentor(1));
   }
 
   visitClass(Class node) {
-    modifiers = binding.getClassBank(node);
+    modifiers = binding?.getClassBank(node);
     writeAnnotationList(node.annotations);
     writeIndentation();
     writeModifier(node.isAbstract, 'abstract');
     writeWord('class');
     writeWord(getClassName(node));
-    var augmentor = modifiers.getIteratingAugmentor(0);
+    var augmentor = modifiers?.getIteratingAugmentor(0);
     writeTypeParameterList(node.typeParameters, augmentor);
     if (node.isMixinApplication) {
       writeSpaced('=');

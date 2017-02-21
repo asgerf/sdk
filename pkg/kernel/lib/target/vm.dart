@@ -12,6 +12,7 @@ import '../transformations/insert_type_checks.dart';
 import '../transformations/mixin_full_resolution.dart' as mix;
 import '../transformations/sanitize_for_vm.dart';
 import '../transformations/setup_builtin_library.dart' as setup_builtin_library;
+import 'package:kernel/transformations/check_inference.dart';
 import 'targets.dart';
 
 /// Specializes the kernel IR to the Dart VM.
@@ -79,6 +80,10 @@ class VmTarget extends Target {
       //         programRoots: flags.programRoots)
       //     .transform(program);
       _hierarchy = null; // Hierarchy must be recomputed.
+    }
+
+    if (flags.checkInference) {
+      new CheckInference().transformProgram(program);
     }
 
     cont.transformProgram(program);
