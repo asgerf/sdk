@@ -155,7 +155,6 @@ class ConstraintExtractor {
     var function = program.mainMethod?.function;
     if (function != null && function.positionalParameters.isNotEmpty) {
       var bank = binding.getFunctionBank(program.mainMethod);
-      var argument = function.positionalParameters.first;
       var value = new Value(
           coreTypes.listClass, ValueFlags.inexactBaseClass | ValueFlags.other);
       var stringListType = new InterfaceAType(
@@ -311,6 +310,7 @@ class ConstraintExtractorVisitor
   final Member currentMember;
   final ModifierBank modifiers;
   final ClassBank classModifiers;
+  Augmentor augmentor;
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ClassHierarchy get baseHierarchy => extractor.baseHierarchy;
@@ -403,6 +403,7 @@ class ConstraintExtractorVisitor
   }
 
   void analyzeMember() {
+    augmentor = modifiers.getAugmentor();
     var class_ = currentClass;
     if (class_ != null) {
       var typeParameters = class_.typeParameters;
@@ -517,22 +518,22 @@ class ConstraintExtractorVisitor
       [VariableDeclaration selfReference]) {
     for (var parameter in node.typeParameters) {
       scope.typeParameterBounds[parameter] =
-          modifiers.augmentBound(parameter.bound);
+          augmentor.augmentBound(parameter.bound);
     }
     var typeTerms = <AType>[];
     for (var parameter in node.positionalParameters) {
       parameter.inferredValueOffset = modifiers.nextIndex;
-      var type = modifiers.augmentType(parameter.type);
+      var type = augmentor.augmentType(parameter.type);
       scope.variables[parameter] = type;
       typeTerms.add(type);
     }
     for (var parameter in node.namedParameters) {
       parameter.inferredValueOffset = modifiers.nextIndex;
-      var type = modifiers.augmentType(parameter.type);
+      var type = augmentor.augmentType(parameter.type);
       scope.variables[parameter] = type;
       typeTerms.add(type);
     }
-    AType augmentedReturnType = modifiers.augmentType(node.returnType);
+    AType augmentedReturnType = augmentor.augmentType(node.returnType);
     typeTerms.add(augmentedReturnType);
     var functionObject = modifiers.newModifier();
     var type = new FunctionAType(
@@ -640,7 +641,7 @@ class ConstraintExtractorVisitor
     List<AType> typeArguments = const [];
     if (member is! Constructor) {
       typeArguments =
-          modifiers.augmentTypeList(arguments.types).toList(growable: false);
+          augmentor.augmentTypeList(arguments.types).toList(growable: false);
       if (typeArguments.length != typeParameters.length) {
         fail(arguments, 'Wrong number of type arguments');
         return BottomAType.nonNullable;
@@ -762,7 +763,7 @@ class ConstraintExtractorVisitor
   @override
   AType visitAsExpression(AsExpression node) {
     var input = visitExpression(node.operand);
-    var output = modifiers.augmentType(node.type);
+    var output = augmentor.augmentType(node.type);
     builder.addAssignment(input.source, output.sink, ValueFlags.all);
     if (isTaintingDowncast(node.type)) {
       taintSubterms(output);
@@ -792,7 +793,7 @@ class ConstraintExtractorVisitor
   @override
   AType visitConditionalExpression(ConditionalExpression node) {
     checkConditionExpression(node.condition);
-    var type = modifiers.augmentType(node.staticType);
+    var type = augmentor.augmentType(node.staticType);
     checkAssignableExpression(node.then, type);
     checkAssignableExpression(node.otherwise, type);
     return type;
@@ -824,7 +825,7 @@ class ConstraintExtractorVisitor
     Arguments arguments = node.arguments;
     Class class_ = target.enclosingClass;
     node.arguments.inferredTypeArgumentIndex = modifiers.nextIndex;
-    var typeArguments = modifiers.augmentTypeList(arguments.types);
+    var typeArguments = augmentor.augmentTypeList(arguments.types);
     Substitution substitution =
         Substitution.fromPairs(class_.typeParameters, typeArguments);
     checkTypeParameterBounds(node, typeArguments,
@@ -894,7 +895,7 @@ class ConstraintExtractorVisitor
     var value = visitExpression(node.variable.initializer);
     // TODO(asgerf): Make sure let variable is not 'dynamic'.
     var type = scope.variables[node.variable] =
-        modifiers.augmentType(node.variable.type);
+        augmentor.augmentType(node.variable.type);
     checkAssignable(node, value, type);
     return visitExpression(node.body);
   }
@@ -902,7 +903,7 @@ class ConstraintExtractorVisitor
   @override
   AType visitListLiteral(ListLiteral node) {
     node.inferredTypeArgumentIndex = modifiers.nextIndex;
-    var typeArgument = modifiers.augmentType(node.typeArgument);
+    var typeArgument = augmentor.augmentType(node.typeArgument);
     for (var item in node.expressions) {
       checkAssignableExpression(item, typeArgument);
     }
@@ -927,8 +928,8 @@ class ConstraintExtractorVisitor
   @override
   AType visitMapLiteral(MapLiteral node) {
     node.inferredTypeArgumentIndex = modifiers.nextIndex;
-    var keyType = modifiers.augmentType(node.keyType);
-    var valueType = modifiers.augmentType(node.valueType);
+    var keyType = augmentor.augmentType(node.keyType);
+    var valueType = augmentor.augmentType(node.valueType);
     for (var entry in node.entries) {
       checkAssignableExpression(entry.key, keyType);
       checkAssignableExpression(entry.value, valueType);
@@ -978,7 +979,7 @@ class ConstraintExtractorVisitor
       fail(where, 'Wrong number of type arguments');
       return BottomAType.nonNullable;
     }
-    List<AType> typeArguments = modifiers.augmentTypeList(arguments.types);
+    List<AType> typeArguments = augmentor.augmentTypeList(arguments.types);
     if (typeArguments.isNotEmpty) {
       fail(where, 'Function type arguments not yet supported');
     }
@@ -1206,7 +1207,7 @@ class ConstraintExtractorVisitor
   AType visitVariableGet(VariableGet node) {
     if (node.promotedType != null) {
       // TODO: Ensure dataflow from variable base type
-      return modifiers.augmentType(node.promotedType);
+      return augmentor.augmentType(node.promotedType);
     }
     return getVariableType(node.variable);
   }
@@ -1269,7 +1270,7 @@ class ConstraintExtractorVisitor
 
   @override
   bool visitForInStatement(ForInStatement node) {
-    scope.variables[node.variable] = modifiers.augmentType(node.variable.type);
+    scope.variables[node.variable] = augmentor.augmentType(node.variable.type);
     var iterable = visitExpression(node.iterable);
     // TODO(asgerf): Store interface targets on for-in loops or desugar them,
     // instead of doing the ad-hoc resolution here.
@@ -1412,7 +1413,7 @@ class ConstraintExtractorVisitor
   bool visitVariableDeclaration(VariableDeclaration node) {
     assert(!scope.variables.containsKey(node));
     node.inferredValueOffset = modifiers.nextIndex;
-    var type = scope.variables[node] = modifiers.augmentType(node.type);
+    var type = scope.variables[node] = augmentor.augmentType(node.type);
     if (node.initializer != null) {
       checkAssignableExpression(node.initializer, type);
     }

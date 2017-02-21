@@ -19,23 +19,26 @@ class Binding {
   MemberBank _initializeMemberBank(Member member) {
     if (member is Field) {
       var modifiers = new FieldBank(member, coreTypes);
-      modifiers.type = modifiers.augmentType(member.type);
+      var augmentor = modifiers.getAugmentor();
+      modifiers.type = augmentor.augmentType(member.type);
       return modifiers;
     } else {
       var modifiers = new FunctionMemberBank(member, coreTypes);
+      var augmentor = modifiers.getAugmentor();
       var function = member.function;
-      modifiers.type = modifiers.augmentType(function.functionType);
+      modifiers.type = augmentor.augmentType(function.functionType);
       return modifiers;
     }
   }
 
   ModifierBank _initializeClassBank(Class class_) {
     var modifiers = new ClassBank(class_, coreTypes);
+    var augmentor = modifiers.getAugmentor();
     modifiers.typeParameters = class_.typeParameters
-        .map((p) => modifiers.augmentBound(p.bound))
+        .map((p) => augmentor.augmentBound(p.bound))
         .toList(growable: false);
     modifiers.supertypes = class_.supers
-        .map((s) => modifiers.augmentSuper(s))
+        .map((s) => augmentor.augmentSuper(s))
         .toList(growable: false);
     return modifiers;
   }
@@ -99,28 +102,8 @@ abstract class ModifierBank {
     return modifier;
   }
 
-  Augmentor getAugmentor(int offset) {
+  Augmentor getAugmentor([int offset]) {
     return new AugmentorVisitor(coreTypes, this, offset);
-  }
-
-  AType augmentBound(DartType type, [int offset]) {
-    return new AugmentorVisitor(coreTypes, this, offset).makeBound(type);
-  }
-
-  AType augmentType(DartType type, [int offset]) {
-    return new AugmentorVisitor(coreTypes, this, offset).makeType(type);
-  }
-
-  List<AType> augmentTypeList(Iterable<DartType> types, [int offset]) {
-    return types.map((t) => augmentType(t, offset)).toList(growable: false);
-  }
-
-  ASupertype augmentSuper(Supertype type, [int offset]) {
-    return new AugmentorVisitor(coreTypes, this, offset).makeSuper(type);
-  }
-
-  List<ASupertype> augmentSuperList(Iterable<Supertype> types, [int offset]) {
-    return types.map((t) => augmentSuper(t, offset)).toList(growable: false);
   }
 }
 
@@ -167,6 +150,10 @@ abstract class Augmentor {
   int index;
   AType augmentType(DartType type);
   AType augmentBound(DartType type);
+  ASupertype augmentSuper(Supertype type);
+  List<AType> augmentTypeList(List<DartType> types);
+  List<AType> augmentBoundList(List<DartType> types);
+  List<ASupertype> augmentSuperList(List<Supertype> types);
 }
 
 class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
@@ -178,9 +165,33 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
 
   AugmentorVisitor(this.coreTypes, this.modifiers, this.index);
 
-  AType augmentType(DartType type) => makeType(type);
+  AType augmentType(DartType type) {
+    source = sink = nextModifier();
+    return type.accept(this);
+  }
 
-  AType augmentBound(DartType type) => makeBound(type);
+  AType augmentBound(DartType type) {
+    source = nextModifier();
+    sink = nextModifier();
+    return type.accept(this);
+  }
+
+  ASupertype augmentSuper(Supertype type) {
+    return new ASupertype(type.classNode,
+        type.typeArguments.map(augmentType).toList(growable: false));
+  }
+
+  List<AType> augmentTypeList(List<DartType> types) {
+    return types.map(augmentType).toList(growable: false);
+  }
+
+  List<AType> augmentBoundList(List<DartType> types) {
+    return types.map(augmentBound).toList(growable: false);
+  }
+
+  List<ASupertype> augmentSuperList(List<Supertype> types) {
+    return types.map(augmentSuper).toList(growable: false);
+  }
 
   StorageLocation nextModifier() {
     if (index == null) {
@@ -188,22 +199,6 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
     } else {
       return modifiers.modifiers[index++];
     }
-  }
-
-  AType makeType(DartType type) {
-    source = sink = nextModifier();
-    return type.accept(this);
-  }
-
-  AType makeBound(DartType type) {
-    source = nextModifier();
-    sink = nextModifier();
-    return type.accept(this);
-  }
-
-  ASupertype makeSuper(Supertype type) {
-    return new ASupertype(type.classNode,
-        type.typeArguments.map(makeType).toList(growable: false));
   }
 
   visitInvalidType(InvalidType node) {
@@ -226,7 +221,7 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
 
   visitInterfaceType(InterfaceType node) {
     return new InterfaceAType(source, sink, node.classNode,
-        node.typeArguments.map(makeBound).toList(growable: false));
+        node.typeArguments.map(augmentBound).toList(growable: false));
   }
 
   visitFunctionType(FunctionType node) {
@@ -235,15 +230,15 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
         source,
         sink,
         node.typeParameters
-            .map((p) => makeBound(p.bound))
+            .map((p) => augmentBound(p.bound))
             .toList(growable: false),
         node.requiredParameterCount,
-        node.positionalParameters.map(makeType).toList(growable: false),
+        node.positionalParameters.map(augmentType).toList(growable: false),
         node.namedParameters.map((t) => t.name).toList(growable: false),
         node.namedParameters
-            .map((t) => makeType(t.type))
+            .map((t) => augmentType(t.type))
             .toList(growable: false),
-        makeType(node.returnType));
+        augmentType(node.returnType));
     innerTypeParameters.removeLast();
     return type;
   }
