@@ -2,6 +2,9 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+// ignore: unused_local_variable
+library micro_types;
+
 class Foo {}
 
 class Subclass extends Foo {}
@@ -21,6 +24,7 @@ main(List<String> args) {
   testCurry();
   testCallbackEscapeDynamic();
   testGenericCasts();
+  testEscapeNonGeneric();
 }
 
 void takeExact(Foo foo) => takeExact2(foo);
@@ -351,4 +355,38 @@ void testGenericCasts() {
   Generic<int> generic = new Generic<int>(null);
   Object nullableReturn = generic.nullableReturnFromT(null);
   Object nullableField = generic.field;
+}
+
+class Escaping {
+  static int globalVar = 0;
+  int escapingField = 0;
+  int dependentField = 0;
+  void escapingMethod(int x) {
+    globalVar = x;
+    dependentField = escapingField;
+  }
+  int escapingIdentity(int x) => x;
+  int identity(int x) => x;
+}
+
+void escape(dynamic x) {
+  x.escapingField = null;
+  x.escapingMethod(null);
+  x.escapingIdentity(null);
+}
+
+void testEscapeNonGeneric() {
+  var escaped = new Escaping();
+  escape(escaped);
+  int nullableInt1 = escaped.escapingField;
+  int nullableInt2 = Escaping.globalVar;
+  int nonNullableInt3 = escaped.escapingIdentity(3);
+  int nullableInt4 = escaped.dependentField;
+
+  var nonEscaped = new Escaping();
+  nonEscaped.escapingMethod(5);
+  int nonNullableInt5 = nonEscaped.escapingField;
+  int nonNullableInt6 = nonEscaped.escapingIdentity(5);
+  int nonNullableInt7 = nonEscaped.identity(6);
+  int nonNullableInt8 = escaped.dependentField;
 }
