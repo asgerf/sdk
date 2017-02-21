@@ -84,12 +84,28 @@ class ConstraintSolver {
     }
   }
 
-  void propagateEscape(StorageLocation location, int escapeFlags) {
+  void propagateEscapingLocation(StorageLocation location, int escapeFlags) {
     int oldFlags = location.escapeFlags;
     var newFlags = oldFlags | escapeFlags;
     if (oldFlags != newFlags) {
       location.escapeFlags = newFlags;
       enqueue(location.backward);
+    }
+  }
+
+  void propagateEscapingValue(StorageLocation location) {
+    // The escaping bit on values propagate forward (i.e. the value has escaped)
+    // whereas the escaping bit on locations propagate backwards (i.e. incoming
+    // values will escape).  This method propagates the bit from an escaping
+    // location to the value in that location.
+    if (location.isEscaping) {
+      Value oldValue = location.value;
+      int oldFlags = oldValue.flags;
+      if (oldFlags & ValueFlags.escaping == 0) {
+        int newFlags = oldFlags | ValueFlags.escaping;
+        location.value = new Value(oldValue.baseClass, newFlags);
+        enqueue(location.forward);
+      }
     }
   }
 
@@ -109,15 +125,18 @@ class ConstraintSolver {
   void transferSubtypeConstraint(SubtypeConstraint constraint) {
     propagateValue(constraint.destination,
         constraint.source.value.masked(constraint.mask));
-    propagateEscape(constraint.source, constraint.destination.escapeFlags);
+    propagateEscapingLocation(constraint.source, constraint.destination.escapeFlags);
   }
 
   void transferValueConstraint(ValueConstraint constraint) {
     propagateValue(constraint.destination, constraint.value);
+    if (constraint.canEscape) {
+      propagateEscapingValue(constraint.destination);
+    }
   }
 
   void transferEscapeConstraint(EscapeConstraint constraint) {
-    propagateEscape(constraint.escaping, EscapeFlags.escaping);
+    propagateEscapingLocation(constraint.escaping, EscapeFlags.escaping);
   }
 
   /// The [constraint] must be executed whenever the forward properties of

@@ -49,13 +49,19 @@ class SubtypeConstraint extends Constraint {
 }
 
 /// The given [value] can flow into [destination].
+///
+/// If [canEscape] is set, the value will be marked as escaping if the
+/// [destination] can lead to escape.  If the value is unaffected by escaping,
+/// e.g. if the value is null or a number, then [canEscape] should be false.
 class ValueConstraint extends Constraint {
   final StorageLocation destination;
   final Value value;
+  final bool canEscape;
 
-  ValueConstraint(this.destination, this.value) {
+  ValueConstraint(this.destination, this.value, {this.canEscape: false}) {
     assert(destination != null);
     assert(value != null);
+    assert(canEscape != null);
   }
 
   void transfer(ConstraintSolver solver) {

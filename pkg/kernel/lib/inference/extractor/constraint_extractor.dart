@@ -796,7 +796,8 @@ class ConstraintExtractorVisitor
 
   void addAllocationConstraints(
       StorageLocation createdObject, Value value, AType type) {
-    builder.addConstraint(new ValueConstraint(createdObject, value));
+    builder.addConstraint(
+        new ValueConstraint(createdObject, value, canEscape: true));
     new AllocationVisitor(extractor, createdObject).visitSubterms(type);
   }
 
