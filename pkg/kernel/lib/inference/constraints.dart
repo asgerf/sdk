@@ -34,7 +34,7 @@ class SubtypeConstraint extends Constraint {
   }
 
   /// If true, any value in [source] escapes if [destination] leads to escape.
-  bool get canLeadToEscape => mask & ValueFlags.escaping != 0;
+  bool get canEscape => mask & ValueFlags.escaping != 0;
 
   void transfer(ConstraintSolver solver) {
     solver.transferSubtypeConstraint(this);
@@ -51,14 +51,15 @@ class SubtypeConstraint extends Constraint {
   }
 }
 
-/// The given [value] can flow into [destination].
-///
-/// If [canEscape] is set, the value will be marked as escaping if the
-/// [destination] can lead to escape.  If the value is unaffected by escaping,
-/// e.g. if the value is null or a number, then [canEscape] should be false.
+/// The given [value] can flow into [destination], possibly escaping if
+/// [canEscape] is set.
 class ValueConstraint extends Constraint {
   final StorageLocation destination;
   final Value value;
+
+  /// If [canEscape] is set, the value will be marked as escaping if the
+  /// [destination] can lead to escape.  If the value is unaffected by escaping,
+  /// e.g. if the value is null or a number, then [canEscape] should be false.
   final bool canEscape;
 
   ValueConstraint(this.destination, this.value, {this.canEscape: false}) {

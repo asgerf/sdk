@@ -13,16 +13,12 @@ import '../value.dart';
 /// constraint solver.
 class StorageLocationBaseClass {
   Value value = Value.bottom;
-  int escapeFlags = EscapeFlags.none;
+  bool leadsToEscape = false;
   WorkItem forward, backward;
 
   StorageLocationBaseClass() {
     forward = new WorkItem(this);
     backward = new WorkItem(this);
-  }
-
-  bool get isEscaping {
-    return escapeFlags & EscapeFlags.escaping != 0;
   }
 }
 
@@ -84,11 +80,9 @@ class ConstraintSolver {
     }
   }
 
-  void propagateEscapingLocation(StorageLocation location, int escapeFlags) {
-    int oldFlags = location.escapeFlags;
-    var newFlags = oldFlags | escapeFlags;
-    if (oldFlags != newFlags) {
-      location.escapeFlags = newFlags;
+  void propagateEscapingLocation(StorageLocation location) {
+    if (!location.leadsToEscape) {
+      location.leadsToEscape = true;
       enqueue(location.backward);
     }
   }
@@ -98,11 +92,11 @@ class ConstraintSolver {
     // whereas the escaping bit on locations propagate backwards (i.e. incoming
     // values will escape).  This method propagates the bit from an escaping
     // location to the value in that location.
-    if (location.isEscaping) {
+    if (location.leadsToEscape) {
       Value oldValue = location.value;
       int oldFlags = oldValue.flags;
-      if (oldFlags & ValueFlags.escaping == 0) {
-        int newFlags = oldFlags | ValueFlags.escaping;
+      int newFlags = oldFlags | ValueFlags.escaping;
+      if (oldFlags != newFlags) {
         location.value = new Value(oldValue.baseClass, newFlags);
         enqueue(location.forward);
       }
@@ -117,17 +111,17 @@ class ConstraintSolver {
   }
 
   void transferTypeArgumentConstraint(TypeArgumentConstraint constraint) {
-    if (constraint.createdObject.isEscaping) {
+    if (constraint.createdObject.leadsToEscape) {
       propagateValue(constraint.typeArgument, constraint.value);
     }
   }
 
   void transferSubtypeConstraint(SubtypeConstraint constraint) {
-    propagateValue(constraint.destination,
-        constraint.source.value.masked(constraint.mask));
-    if (constraint.canLeadToEscape) {
-      propagateEscapingLocation(
-          constraint.source, constraint.destination.escapeFlags);
+    var source = constraint.source;
+    var destination = constraint.destination;
+    propagateValue(destination, source.value.masked(constraint.mask));
+    if (constraint.canEscape && destination.leadsToEscape) {
+      propagateEscapingLocation(constraint.source);
     }
   }
 
@@ -139,7 +133,7 @@ class ConstraintSolver {
   }
 
   void transferEscapeConstraint(EscapeConstraint constraint) {
-    propagateEscapingLocation(constraint.escaping, EscapeFlags.escaping);
+    propagateEscapingLocation(constraint.escaping);
   }
 
   /// The [constraint] must be executed whenever the forward properties of
@@ -182,9 +176,4 @@ class ConstraintSolver {
       }
     }
   }
-}
-
-class EscapeFlags {
-  static const int none = 0;
-  static const int escaping = 1 << 0;
 }
