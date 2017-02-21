@@ -38,6 +38,7 @@ class Value extends ValueSource implements Printable {
   bool get hasExactBaseClass => flags & ValueFlags.inexactBaseClass == 0;
   bool get canBeNull => flags & ValueFlags.null_ != 0;
   bool get canBeNonNull => flags & ValueFlags.nonNullValueSets != 0;
+  bool get isEscaping => flags & ValueFlags.escaping != 0;
 
   Value masked(int mask) {
     int maskedFlags = flags & mask;
@@ -120,10 +121,12 @@ class ValueFlags {
   /// not necessarily the exact class.
   static const int inexactBaseClass = 1 << 6;
 
+  /// Set if the value can escape.
+  static const int escaping = 1 << 7;
 
   // -------- Utility stuff ----------
 
-  static const int numberOfFlags = 7;
+  static const int numberOfFlags = 8;
   static const int all = (1 << numberOfFlags) - 1;
   static const int none = 0;
 
@@ -138,6 +141,7 @@ class ValueFlags {
     'boolean',
     'other',
     'inexactBaseClass',
+    'escaped',
   ];
 
   static String flagsToString(int bitmask) {
