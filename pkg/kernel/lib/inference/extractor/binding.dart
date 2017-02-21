@@ -105,12 +105,16 @@ abstract class StorageLocationBank {
   }
 }
 
+/// The storage location bank for a member.
+///
+/// Provides access to the augmented public interface of the member.
 abstract class MemberBank extends StorageLocationBank {
   MemberBank(CoreTypes coreTypes) : super(coreTypes);
 
   AType get type;
 }
 
+/// The storage location bank for a field.
 class FieldBank extends MemberBank {
   final Field field;
   AType type;
@@ -120,6 +124,7 @@ class FieldBank extends MemberBank {
   Member get classOrMember => field;
 }
 
+/// The storage location bank for a procedure or constructor.
 class FunctionMemberBank extends MemberBank {
   final Member member;
   FunctionAType type;
@@ -134,6 +139,10 @@ class FunctionMemberBank extends MemberBank {
   Member get classOrMember => member;
 }
 
+/// The storage location bank for a class.
+///
+/// Provides access to the augmented type parameter bounds and augmented
+/// [supertypes].
 class ClassBank extends StorageLocationBank {
   final Class classNode;
   List<AType> typeParameters;
