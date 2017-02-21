@@ -123,6 +123,9 @@ class ConstraintExtractor {
     nullableStringValue =
         new Value(coreTypes.stringClass, ValueFlags.null_ | ValueFlags.string);
     nullableBoolValue = new Value(coreTypes.boolClass, ValueFlags.boolean);
+
+    generateEntryPoint(program);
+
     for (var library in program.libraries) {
       for (var class_ in library.classes) {
         baseHierarchy.forEachOverridePair(class_,
@@ -145,6 +148,20 @@ class ConstraintExtractor {
       for (var field in library.fields) {
         analyzeMember(field, isUncheckedLibrary);
       }
+    }
+  }
+
+  void generateEntryPoint(Program program) {
+    var function = program.mainMethod?.function;
+    if (function != null && function.positionalParameters.isNotEmpty) {
+      var bank = binding.getFunctionBank(program.mainMethod);
+      var argument = function.positionalParameters.first;
+      var value = new Value(
+          coreTypes.listClass, ValueFlags.inexactBaseClass | ValueFlags.other);
+      var stringListType = new InterfaceAType(
+          value, ValueSink.nowhere, coreTypes.listClass, [stringType]);
+      checkAssignable(program.mainMethod, stringListType,
+          bank.positionalParameters.first, new GlobalScope(binding));
     }
   }
 
