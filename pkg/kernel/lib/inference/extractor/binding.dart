@@ -8,7 +8,7 @@ import '../../core_types.dart';
 import '../storage_location.dart';
 import 'augmented_type.dart';
 
-/// Constructs augmented types and type modifier variables.
+/// Constructs augmented types and generates storage location banks.
 class Binding {
   final CoreTypes coreTypes;
   final Map<Class, ClassBank> classBanks = <Class, ClassBank>{};
@@ -18,29 +18,27 @@ class Binding {
 
   MemberBank _initializeMemberBank(Member member) {
     if (member is Field) {
-      var modifiers = new FieldBank(member, coreTypes);
-      var augmentor = modifiers.getAugmentor();
-      modifiers.type = augmentor.augmentType(member.type);
-      return modifiers;
+      var bank = new FieldBank(member, coreTypes);
+      bank.type = bank.getAugmentor().augmentType(member.type);
+      return bank;
     } else {
-      var modifiers = new FunctionMemberBank(member, coreTypes);
-      var augmentor = modifiers.getAugmentor();
+      var bank = new FunctionMemberBank(member, coreTypes);
       var function = member.function;
-      modifiers.type = augmentor.augmentType(function.functionType);
-      return modifiers;
+      bank.type = bank.getAugmentor().augmentType(function.functionType);
+      return bank;
     }
   }
 
-  ModifierBank _initializeClassBank(Class class_) {
-    var modifiers = new ClassBank(class_, coreTypes);
-    var augmentor = modifiers.getAugmentor();
-    modifiers.typeParameters = class_.typeParameters
+  StorageLocationBank _initializeClassBank(Class class_) {
+    var bank = new ClassBank(class_, coreTypes);
+    var augmentor = bank.getAugmentor();
+    bank.typeParameters = class_.typeParameters
         .map((p) => augmentor.augmentBound(p.bound))
         .toList(growable: false);
-    modifiers.supertypes = class_.supers
+    bank.supertypes = class_.supers
         .map((s) => augmentor.augmentSuper(s))
         .toList(growable: false);
-    return modifiers;
+    return bank;
   }
 
   ClassBank getClassBank(Class class_) {
@@ -70,8 +68,8 @@ class Binding {
   AType getGetterType(Member member) {
     if (member is Field) return getFieldType(member);
     if (member is Procedure) {
-      var modifiers = getFunctionBank(member);
-      return member.isGetter ? modifiers.type.returnType : modifiers.type;
+      var bank = getFunctionBank(member);
+      return member.isGetter ? bank.type.returnType : bank.type;
     }
     throw '$member cannot be used as a getter';
   }
@@ -79,27 +77,27 @@ class Binding {
   AType getSetterType(Member member) {
     if (member is Field) return getFieldType(member);
     if (member is Procedure && member.isSetter) {
-      var modifiers = getFunctionBank(member);
-      return modifiers.type.positionalParameters[0];
+      var bank = getFunctionBank(member);
+      return bank.type.positionalParameters[0];
     }
     throw '$member cannot be used as a setter';
   }
 }
 
-abstract class ModifierBank {
+abstract class StorageLocationBank {
   final CoreTypes coreTypes;
-  final List<StorageLocation> modifiers = <StorageLocation>[];
+  final List<StorageLocation> locations = <StorageLocation>[];
 
-  ModifierBank(this.coreTypes);
+  StorageLocationBank(this.coreTypes);
 
   TreeNode get classOrMember;
 
-  int get nextIndex => modifiers.length;
+  int get nextIndex => locations.length;
 
-  StorageLocation newModifier() {
-    var modifier = new StorageLocation(classOrMember, modifiers.length);
-    modifiers.add(modifier);
-    return modifier;
+  StorageLocation newLocation() {
+    var location = new StorageLocation(classOrMember, locations.length);
+    locations.add(location);
+    return location;
   }
 
   Augmentor getAugmentor([int offset]) {
@@ -107,7 +105,7 @@ abstract class ModifierBank {
   }
 }
 
-abstract class MemberBank extends ModifierBank {
+abstract class MemberBank extends StorageLocationBank {
   MemberBank(CoreTypes coreTypes) : super(coreTypes);
 
   AType get type;
@@ -136,7 +134,7 @@ class FunctionMemberBank extends MemberBank {
   Member get classOrMember => member;
 }
 
-class ClassBank extends ModifierBank {
+class ClassBank extends StorageLocationBank {
   final Class classNode;
   List<AType> typeParameters;
   List<ASupertype> supertypes;
@@ -158,21 +156,21 @@ abstract class Augmentor {
 
 class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
   final CoreTypes coreTypes;
-  final ModifierBank modifiers;
+  final StorageLocationBank bank;
   final List<List<TypeParameter>> innerTypeParameters = <List<TypeParameter>>[];
   StorageLocation source, sink;
   int index;
 
-  AugmentorVisitor(this.coreTypes, this.modifiers, this.index);
+  AugmentorVisitor(this.coreTypes, this.bank, this.index);
 
   AType augmentType(DartType type) {
-    source = sink = nextModifier();
+    source = sink = nextLocation();
     return type.accept(this);
   }
 
   AType augmentBound(DartType type) {
-    source = nextModifier();
-    sink = nextModifier();
+    source = nextLocation();
+    sink = nextLocation();
     return type.accept(this);
   }
 
@@ -193,11 +191,11 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements Augmentor {
     return types.map(augmentSuper).toList(growable: false);
   }
 
-  StorageLocation nextModifier() {
+  StorageLocation nextLocation() {
     if (index == null) {
-      return modifiers.newModifier();
+      return bank.newLocation();
     } else {
-      return modifiers.modifiers[index++];
+      return bank.locations[index++];
     }
   }
 
