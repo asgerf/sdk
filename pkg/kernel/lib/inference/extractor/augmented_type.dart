@@ -178,7 +178,7 @@ class InterfaceAType extends AType {
         var sink = bound.sink;
         if (sink is StorageLocation) {
           printer.writeSymbol('/');
-          if (!sink.value.isBottom(ValueFlags.allValueSets)) {
+          if (!sink.value.isBottom()) {
             sink.value.printTo(printer);
           }
         }
