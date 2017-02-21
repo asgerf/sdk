@@ -21,6 +21,9 @@ class StorageLocation extends solver.StorageLocationBaseClass
   final TreeNode owner; // Class or Member
   final int index;
 
+  /// Indicates if this is a partial storage location that only records null
+  /// and escape information.  Needs to be replaced with something more
+  /// expressive.
   bool isNullabilityKey = false;
 
   StorageLocation(this.owner, this.index);

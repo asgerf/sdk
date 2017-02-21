@@ -9,6 +9,7 @@ import 'package:kernel/inference/extractor/augmented_type.dart';
 import 'package:kernel/inference/extractor/binding.dart';
 import 'package:kernel/inference/extractor/constraint_extractor.dart';
 import 'package:kernel/inference/solver/solver.dart';
+import 'package:kernel/inference/storage_location.dart';
 
 class CheckInference {
   Binding binding;
@@ -51,6 +52,10 @@ class CheckInference {
   Statement generateCheck(
       AType type, VariableDeclaration variable, Member where) {
     List<Expression> cases = <Expression>[];
+    var source = type.source;
+    if (source is StorageLocation && source.isNullabilityKey) {
+      return new EmptyStatement();
+    }
     var value = type.source.value;
     if (value.canBeNull) {
       cases.add(buildIsNull(new VariableGet(variable)));
