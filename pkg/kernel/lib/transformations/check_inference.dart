@@ -52,7 +52,6 @@ class CheckInference {
       AType type, VariableDeclaration variable, Member where) {
     List<Expression> cases = <Expression>[];
     var value = type.source.value;
-    print('Value of ${variable.name} in $where is $value');
     if (value.canBeNull) {
       cases.add(buildIsNull(new VariableGet(variable)));
     }
