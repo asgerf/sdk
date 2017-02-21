@@ -9,9 +9,18 @@ import '../storage_location.dart';
 import '../../ast.dart';
 import '../../core_types.dart';
 
+/// Translates ordinary Dart types into augmented types.
+///
+/// Augmented types are tied to specific storage locations - the augmentor takes
+/// these from the given [bank] sequentially from the current [index].
+///
+/// This is a stateful object.  The [index] will advance as types are augmented.
+/// If [index] is `null`, fresh storage locations are generated from the bank
+/// on-the-fly.
 abstract class TypeAugmentor {
   StorageLocationBank get bank;
   int index;
+
   AType augmentType(DartType type);
   AType augmentBound(DartType type);
   ASupertype augmentSuper(Supertype type);
