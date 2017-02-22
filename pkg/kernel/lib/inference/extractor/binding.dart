@@ -109,24 +109,6 @@ class Binding {
   }
 }
 
-class _InitializingAugmentorScope extends AugmentorScope {
-  final ClassBank classBank;
-  final FunctionMemberBank memberBank;
-
-  _InitializingAugmentorScope(this.classBank, this.memberBank);
-
-  TypeParameterStorageLocation getTypeParameterLocation(
-      TypeParameter parameter) {
-    if (parameter.parent == classBank?.owner) {
-      return classTypeParameters[class_.typeParameters.indexOf(parameter)];
-    }
-    if (parameter.parent == memberBank?.member?.function) {
-      return memberTypeParameters[class_.typeParameters.indexOf(parameter)];
-    }
-    throw "Unexpected parameter $parameter";
-  }
-}
-
 class GlobalAugmentorScope extends AugmentorScope {
   final Binding binding;
 

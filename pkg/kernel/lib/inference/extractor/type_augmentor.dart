@@ -10,11 +10,13 @@ import '../../ast.dart';
 import '../../core_types.dart';
 
 abstract class AugmentorScope {
-  TypeParameterStorageLocation getTypeParameterLocation(TypeParameter parameter);
+  TypeParameterStorageLocation getTypeParameterLocation(
+      TypeParameter parameter);
 }
 
 class NullAugmentorScope extends AugmentorScope {
-  TypeParameterStorageLocation getTypeParameterLocation(TypeParameter parameter) {
+  TypeParameterStorageLocation getTypeParameterLocation(
+      TypeParameter parameter) {
     return null;
   }
 }
