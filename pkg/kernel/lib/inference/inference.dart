@@ -14,7 +14,20 @@ import 'package:kernel/inference/value.dart';
 
 export 'value.dart' show Value;
 
-class Inference {
+abstract class Inference {
+  factory Inference(Program program,
+      {CoreTypes coreTypes, ClassHierarchy hierarchy}) = _Inference;
+
+  InferredValueBank getInferredValuesForMember(Member member);
+}
+
+abstract class InferredValueBank {
+  Value getValueOfVariable(VariableDeclaration node);
+  Value getValueOfFunctionReturn(FunctionNode node);
+  Value getValueOfExpression(Expression node);
+}
+
+class _Inference implements Inference {
   final Program program;
   CoreTypes coreTypes;
   ClassHierarchy hierarchy;
@@ -25,7 +38,7 @@ class Inference {
 
   Value _top;
 
-  Inference(this.program, {this.coreTypes, this.hierarchy}) {
+  _Inference(this.program, {this.coreTypes, this.hierarchy}) {
     coreTypes ??= new CoreTypes(program);
     hierarchy ??= new ClassHierarchy(program);
 
@@ -38,18 +51,18 @@ class Inference {
   }
 
   InferredValueBank getInferredValuesForMember(Member member) {
-    return new InferredValueBank(
+    return new _InferredValueBank(
         _binding.getMemberBank(member), _binding, _solver, _top);
   }
 }
 
-class InferredValueBank {
+class _InferredValueBank implements InferredValueBank {
   final StorageLocationBank _bank;
   final Binding _binding;
   final ConstraintSolver _solver;
   final Value _top;
 
-  InferredValueBank(this._bank, this._binding, this._solver, this._top);
+  _InferredValueBank(this._bank, this._binding, this._solver, this._top);
 
   Value _getStorageLocationValue(StorageLocation location) {
     Value value = location.value;
