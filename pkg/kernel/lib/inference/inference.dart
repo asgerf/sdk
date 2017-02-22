@@ -4,94 +4,51 @@
 library kernel.inference;
 
 import '../ast.dart';
-import 'package:kernel/class_hierarchy.dart';
-import 'package:kernel/core_types.dart';
-import 'package:kernel/inference/extractor/binding.dart';
-import 'package:kernel/inference/extractor/constraint_extractor.dart';
-import 'package:kernel/inference/solver/solver.dart';
-import 'package:kernel/inference/storage_location.dart';
-import 'package:kernel/inference/value.dart';
+import '../class_hierarchy.dart';
+import '../core_types.dart';
+import 'extractor/binding.dart';
+import 'extractor/constraint_extractor.dart';
+import 'solver/solver.dart';
+import 'storage_location.dart';
+import 'value.dart';
 
 export 'value.dart' show Value;
 
-/// Encapsulates inferred type information.
-abstract class Inference {
-  /// Analyzes the whole-program type inference at once.
-  factory Inference(Program program,
-      {CoreTypes coreTypes, ClassHierarchy hierarchy}) = _Inference;
+part 'inference_impl.dart';
 
+class Inference {
+  /// Analyzes the whole program and returns the inferred type information.
+  ///
+  /// This invalidates any existing inference results for that program.
+  ///
+  /// AST nodes are annotated with offsets indicating to the inference engine
+  /// where its inferred value can be found (hence the above restriction).
+  static GlobalInferenceResult analyzeWholeProgram(Program program,
+      {CoreTypes coreTypes, ClassHierarchy hierarchy}) {
+    return new _GlobalInferenceResult(program,
+        coreTypes: coreTypes, hierarchy: hierarchy);
+  }
+}
+
+/// Provides access to type information for the whole program.
+///
+/// This is partly backed by information stored on the AST nodes, so this object
+/// should not be seen as a side table, but more as an API for accessing the
+/// inferred types.
+abstract class GlobalInferenceResult {
   /// Returns the values inferred for the given member.
-  InferredValueBank getInferredValuesForMember(Member member);
+  MemberInferenceResult getInferredValuesForMember(Member member);
 }
 
 /// Inferred type information for the body of a member.
-abstract class InferredValueBank {
+abstract class MemberInferenceResult {
+  /// The value of the member itself.
+  ///
+  /// For fields, this is the value of the field, for procedures and
+  /// constructors it describes a function value.
+  Value get value;
+
   Value getValueOfVariable(VariableDeclaration node);
   Value getValueOfFunctionReturn(FunctionNode node);
   Value getValueOfExpression(Expression node);
-}
-
-class _Inference implements Inference {
-  final Program program;
-  CoreTypes coreTypes;
-  ClassHierarchy hierarchy;
-
-  Binding _binding;
-  ConstraintExtractor _extractor;
-  ConstraintSolver _solver;
-
-  Value _top;
-
-  _Inference(this.program, {this.coreTypes, this.hierarchy}) {
-    coreTypes ??= new CoreTypes(program);
-    hierarchy ??= new ClassHierarchy(program);
-
-    _top = new Value(coreTypes.objectClass, ValueFlags.all);
-
-    _extractor = new ConstraintExtractor()..extractFromProgram(program);
-    _binding = _extractor.binding;
-    _solver = new ConstraintSolver(hierarchy, _extractor.builder.constraints);
-    _solver.solve();
-  }
-
-  InferredValueBank getInferredValuesForMember(Member member) {
-    return new _InferredValueBank(
-        _binding.getMemberBank(member), _binding, _solver, _top);
-  }
-}
-
-class _InferredValueBank implements InferredValueBank {
-  final StorageLocationBank _bank;
-  final Binding _binding;
-  final ConstraintSolver _solver;
-  final Value _top;
-
-  _InferredValueBank(this._bank, this._binding, this._solver, this._top);
-
-  Value _getStorageLocationValue(StorageLocation location) {
-    Value value = location.value;
-    // Build a value that summarizes all possible calling contexts.
-    while (location.parameterLocation != null) {
-      location = _binding.getBoundForParameter(location.parameterLocation);
-      value = _solver.joinValues(value, location.value);
-    }
-    return value;
-  }
-
-  Value _getValueAtOffset(int offset) {
-    if (offset == null || offset == -1) return _top;
-    return _getStorageLocationValue(_bank.locations[offset]);
-  }
-
-  Value getValueOfVariable(VariableDeclaration node) {
-    return _getValueAtOffset(node.inferredValueOffset);
-  }
-
-  Value getValueOfFunctionReturn(FunctionNode node) {
-    return _getValueAtOffset(node.inferredReturnValueOffset);
-  }
-
-  Value getValueOfExpression(Expression node) {
-    return _getValueAtOffset(node.inferredValueOffset);
-  }
 }

@@ -8,10 +8,10 @@ import 'package:kernel/frontend/accessors.dart';
 import 'package:kernel/inference/inference.dart';
 
 class CheckInference {
-  Inference inference;
+  GlobalInferenceResult inference;
 
   void transformProgram(Program program) {
-    inference = new Inference(program);
+    inference = Inference.analyzeWholeProgram(program);
     for (var library in program.libraries) {
       if (library.importUri.scheme == 'dart') continue;
       library.members.forEach(instrumentMember);
