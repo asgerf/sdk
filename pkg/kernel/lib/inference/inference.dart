@@ -19,10 +19,8 @@ part 'inference_impl.dart';
 class Inference {
   /// Analyzes the whole program and returns the inferred type information.
   ///
-  /// This invalidates any existing inference results for that program.
-  ///
-  /// AST nodes are annotated with offsets indicating to the inference engine
-  /// where its inferred value can be found (hence the above restriction).
+  /// This invalidates any existing inference results for that program, since
+  /// some of the information is stored directly on AST nodes.
   static GlobalInferenceResult analyzeWholeProgram(Program program,
       {CoreTypes coreTypes, ClassHierarchy hierarchy}) {
     return new _GlobalInferenceResult(program,
