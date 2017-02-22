@@ -14,13 +14,17 @@ import 'package:kernel/inference/value.dart';
 
 export 'value.dart' show Value;
 
+/// Encapsulates inferred type information.
 abstract class Inference {
+  /// Analyzes the whole-program type inference at once.
   factory Inference(Program program,
       {CoreTypes coreTypes, ClassHierarchy hierarchy}) = _Inference;
 
+  /// Returns the values inferred for the given member.
   InferredValueBank getInferredValuesForMember(Member member);
 }
 
+/// Inferred type information for the body of a member.
 abstract class InferredValueBank {
   Value getValueOfVariable(VariableDeclaration node);
   Value getValueOfFunctionReturn(FunctionNode node);
