@@ -35,11 +35,11 @@ class Inference {
 /// inferred types.
 abstract class InferenceResults {
   /// Returns the values inferred for the given member.
-  MemberInferenceResult getInferredValuesForMember(Member member);
+  MemberInferenceResults getInferredValuesForMember(Member member);
 }
 
 /// Inferred type information for the body of a member.
-abstract class MemberInferenceResult {
+abstract class MemberInferenceResults {
   /// The value of the member itself.
   ///
   /// For fields, this is the value of the field, for procedures and
