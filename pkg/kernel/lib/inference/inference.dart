@@ -16,7 +16,7 @@ export 'value.dart' show Value;
 
 part 'inference_impl.dart';
 
-class Inference {
+class InferenceEngine {
   /// Analyzes the whole program and returns the inferred type information.
   ///
   /// This invalidates any existing inference results for that program, since

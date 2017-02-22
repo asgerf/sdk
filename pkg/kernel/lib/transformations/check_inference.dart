@@ -11,7 +11,7 @@ class CheckInference {
   InferenceResults inference;
 
   void transformProgram(Program program) {
-    inference = Inference.analyzeWholeProgram(program);
+    inference = InferenceEngine.analyzeWholeProgram(program);
     for (var library in program.libraries) {
       if (library.importUri.scheme == 'dart') continue;
       library.members.forEach(instrumentMember);
