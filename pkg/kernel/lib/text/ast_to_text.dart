@@ -186,6 +186,7 @@ class Printer extends Visitor<Null> {
   final Annotator annotator;
   final Binding binding;
   StorageLocationBank bank;
+  AugmentorScope augmentorScope = new NullAugmentorScope();
   ImportTable importTable;
   int indentation = 0;
   int column = 0;
@@ -601,13 +602,13 @@ class Printer extends Visitor<Null> {
 
   TypeAugmentor getAugmentor(int offset) {
     if (bank == null || offset == -1) return null;
-    return bank.getAugmentor(offset);
+    return bank.getAugmentor(augmentorScope, offset);
   }
 
   TypeAugmentor getExpressionAugmentor(Expression node, int offset) {
     if (bank == null) return null;
     if (node.inferredValueIndex == -1) return null;
-    return bank?.getAugmentor(node.inferredValueIndex + offset);
+    return bank.getAugmentor(augmentorScope, node.inferredValueIndex + offset);
   }
 
   void writeReturnType(DartType type, TypeAugmentor augmentor) {
@@ -772,7 +773,7 @@ class Printer extends Visitor<Null> {
     }
     writeFunction(node.function,
         name: getMemberName(node),
-        augmentor: bank?.getAugmentor(1));
+        augmentor: bank?.getAugmentor(augmentorScope, 1));
   }
 
   visitConstructor(Constructor node) {
@@ -785,7 +786,7 @@ class Printer extends Visitor<Null> {
     writeFunction(node.function,
         name: node.name,
         initializers: node.initializers,
-        augmentor: bank?.getAugmentor(1));
+        augmentor: bank?.getAugmentor(augmentorScope, 1));
   }
 
   visitClass(Class node) {
@@ -795,7 +796,7 @@ class Printer extends Visitor<Null> {
     writeModifier(node.isAbstract, 'abstract');
     writeWord('class');
     writeWord(getClassName(node));
-    var augmentor = bank?.getAugmentor(0);
+    var augmentor = bank?.getAugmentor(augmentorScope, 0);
     writeTypeParameterList(node.typeParameters, augmentor);
     if (node.isMixinApplication) {
       writeSpaced('=');
@@ -983,7 +984,8 @@ class Printer extends Visitor<Null> {
     }
     if (node.typeArgument != null) {
       writeSymbol('<');
-      var iterator = getAugmentor(node.inferredTypeArgumentIndex);
+      var iterator =
+          getAugmentor(node.inferredTypeArgumentIndex);
       writeType(node.typeArgument, iterator);
       writeSymbol('>');
     }
@@ -999,7 +1001,8 @@ class Printer extends Visitor<Null> {
     }
     if (node.keyType != null) {
       writeSymbol('<');
-      var iterator = getAugmentor(node.inferredTypeArgumentIndex);
+      var iterator =
+          getAugmentor(node.inferredTypeArgumentIndex);
       writeList([node.keyType, node.valueType], (t) => writeType(t, iterator));
       writeSymbol('>');
     }
@@ -1412,7 +1415,8 @@ class Printer extends Visitor<Null> {
 
   visitArguments(Arguments node) {
     if (node.types.isNotEmpty) {
-      var augmentor = getAugmentor(node.inferredTypeArgumentIndex);
+      var augmentor =
+          getAugmentor(node.inferredTypeArgumentIndex);
       writeSymbol('<');
       writeList(node.types, (t) => writeType(t, augmentor));
       writeSymbol('>');

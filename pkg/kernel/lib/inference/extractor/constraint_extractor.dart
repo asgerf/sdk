@@ -404,7 +404,7 @@ class ConstraintExtractorVisitor
   }
 
   void analyzeMember() {
-    augmentor = bank.getAugmentor();
+    augmentor = bank.getAugmentor(binding.globalAugmentorScope);
     var class_ = currentClass;
     if (class_ != null) {
       var typeParameters = class_.typeParameters;

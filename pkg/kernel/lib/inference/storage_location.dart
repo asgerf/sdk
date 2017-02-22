@@ -21,10 +21,7 @@ class StorageLocation extends solver.StorageLocationBaseClass
   final TreeNode owner; // Class or Member
   final int index;
 
-  /// Indicates if this is a partial storage location that only records null
-  /// and escape information.  Needs to be replaced with something more
-  /// expressive.
-  bool isNullabilityKey = false;
+  TypeParameterStorageLocation parameterLocation;
 
   StorageLocation(this.owner, this.index);
 
@@ -42,4 +39,15 @@ class StorageLocation extends solver.StorageLocationBaseClass
   bool isBottom(int mask) {
     return false;
   }
+}
+
+class TypeParameterStorageLocation {
+  final TreeNode owner;
+  final int typeParameterIndex;
+
+  /// Index of the storage location in the [owner]'s bank that corresponds to
+  /// the upper bound of this type parameter.
+  int indexOfBound;
+
+  TypeParameterStorageLocation(this.owner, this.typeParameterIndex);
 }

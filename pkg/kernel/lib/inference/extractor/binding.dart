@@ -15,39 +15,63 @@ class Binding {
   final Map<Class, ClassBank> classBanks = <Class, ClassBank>{};
   final Map<Member, MemberBank> memberBanks = <Member, MemberBank>{};
 
-  Binding(this.coreTypes);
+  GlobalAugmentorScope _augmentorScope;
+
+  Binding(this.coreTypes) {
+    _augmentorScope = new GlobalAugmentorScope(this);
+  }
+
+  AugmentorScope get globalAugmentorScope => _augmentorScope;
 
   MemberBank _initializeMemberBank(Member member) {
     if (member is Field) {
       var bank = new FieldBank(member, coreTypes);
-      bank.type = bank.getAugmentor().augmentType(member.type);
+      memberBanks[member] = bank;
+      bank.type = bank.getAugmentor(_augmentorScope).augmentType(member.type);
       return bank;
     } else {
       var bank = new FunctionMemberBank(member, coreTypes);
+      memberBanks[member] = bank;
       var function = member.function;
-      bank.type = bank.getAugmentor().augmentType(function.functionType);
+      bank.typeParameters = new List<TypeParameterStorageLocation>.generate(
+          function.typeParameters.length,
+          (i) => new TypeParameterStorageLocation(member, i));
+      bank.type =
+          bank.getAugmentor(_augmentorScope).augmentType(function.functionType);
+      for (int i = 0; i < function.typeParameters.length; ++i) {
+        StorageLocation location = bank.typeParameterBounds[i].source;
+        bank.typeParameters[i].indexOfBound = location.index;
+      }
       return bank;
     }
   }
 
   StorageLocationBank _initializeClassBank(Class class_) {
     var bank = new ClassBank(class_, coreTypes);
-    var augmentor = bank.getAugmentor();
+    classBanks[class_] = bank;
+    bank.typeParameters = new List<TypeParameterStorageLocation>.generate(
+        class_.typeParameters.length,
+        (i) => new TypeParameterStorageLocation(class_, i));
+    var augmentor = bank.getAugmentor(_augmentorScope);
     bank.typeParameterBounds = class_.typeParameters
         .map((p) => augmentor.augmentBound(p.bound))
         .toList(growable: false);
     bank.supertypes = class_.supers
         .map((s) => augmentor.augmentSuper(s))
         .toList(growable: false);
+    for (int i = 0; i < class_.typeParameters.length; ++i) {
+      StorageLocation location = bank.typeParameterBounds[i].source;
+      bank.typeParameters[i].indexOfBound = location.index;
+    }
     return bank;
   }
 
   ClassBank getClassBank(Class class_) {
-    return classBanks[class_] ??= _initializeClassBank(class_);
+    return classBanks[class_] ?? _initializeClassBank(class_);
   }
 
   MemberBank getMemberBank(Member member) {
-    return memberBanks[member] ??= _initializeMemberBank(member);
+    return memberBanks[member] ?? _initializeMemberBank(member);
   }
 
   FieldBank getFieldBank(Field field) {
@@ -85,6 +109,44 @@ class Binding {
   }
 }
 
+class _InitializingAugmentorScope extends AugmentorScope {
+  final ClassBank classBank;
+  final FunctionMemberBank memberBank;
+
+  _InitializingAugmentorScope(this.classBank, this.memberBank);
+
+  TypeParameterStorageLocation getTypeParameterLocation(
+      TypeParameter parameter) {
+    if (parameter.parent == classBank?.owner) {
+      return classTypeParameters[class_.typeParameters.indexOf(parameter)];
+    }
+    if (parameter.parent == memberBank?.member?.function) {
+      return memberTypeParameters[class_.typeParameters.indexOf(parameter)];
+    }
+    throw "Unexpected parameter $parameter";
+  }
+}
+
+class GlobalAugmentorScope extends AugmentorScope {
+  final Binding binding;
+
+  GlobalAugmentorScope(this.binding);
+
+  TypeParameterStorageLocation getTypeParameterLocation(
+      TypeParameter parameter) {
+    var parent = parameter.parent;
+    if (parent is Class) {
+      int index = parent.typeParameters.indexOf(parameter);
+      return binding.getClassBank(parent).typeParameters[index];
+    } else {
+      FunctionNode function = parent;
+      Member member = function.parent;
+      int index = function.typeParameters.indexOf(parameter);
+      return binding.getFunctionBank(member).typeParameters[index];
+    }
+  }
+}
+
 abstract class StorageLocationBank {
   final CoreTypes coreTypes;
   final List<StorageLocation> locations = <StorageLocation>[];
@@ -101,8 +163,8 @@ abstract class StorageLocationBank {
     return location;
   }
 
-  TypeAugmentor getAugmentor([int offset]) {
-    return new AugmentorVisitor(coreTypes, this, offset);
+  TypeAugmentor getAugmentor(AugmentorScope scope, [int offset]) {
+    return new AugmentorVisitor(coreTypes, this, scope, offset);
   }
 }
 
@@ -128,6 +190,7 @@ class FieldBank extends MemberBank {
 /// The storage location bank for a procedure or constructor.
 class FunctionMemberBank extends MemberBank {
   final Member member;
+  List<TypeParameterStorageLocation> typeParameters;
   FunctionAType type;
 
   FunctionMemberBank(this.member, CoreTypes coreTypes) : super(coreTypes);
@@ -146,6 +209,7 @@ class FunctionMemberBank extends MemberBank {
 /// [supertypes].
 class ClassBank extends StorageLocationBank {
   final Class classNode;
+  List<TypeParameterStorageLocation> typeParameters;
   List<AType> typeParameterBounds;
   List<ASupertype> supertypes;
 

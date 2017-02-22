@@ -9,6 +9,16 @@ import '../storage_location.dart';
 import '../../ast.dart';
 import '../../core_types.dart';
 
+abstract class AugmentorScope {
+  TypeParameterStorageLocation getTypeParameterLocation(TypeParameter parameter);
+}
+
+class NullAugmentorScope extends AugmentorScope {
+  TypeParameterStorageLocation getTypeParameterLocation(TypeParameter parameter) {
+    return null;
+  }
+}
+
 /// Translates ordinary Dart types into augmented types.
 ///
 /// Augmented types are tied to specific storage locations - the augmentor takes
@@ -33,10 +43,11 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements TypeAugmentor {
   final CoreTypes coreTypes;
   final StorageLocationBank bank;
   final List<List<TypeParameter>> innerTypeParameters = <List<TypeParameter>>[];
+  final AugmentorScope scope;
   StorageLocation source, sink;
   int index;
 
-  AugmentorVisitor(this.coreTypes, this.bank, this.index);
+  AugmentorVisitor(this.coreTypes, this.bank, this.scope, this.index);
 
   AType augmentType(DartType type) {
     source = sink = nextLocation();
@@ -124,8 +135,9 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements TypeAugmentor {
         return new FunctionTypeParameterAType(source, sink, index);
       }
     }
-    source.isNullabilityKey = true;
-    sink.isNullabilityKey = true;
+    var parameterLocation = scope.getTypeParameterLocation(node.parameter);
+    source.parameterLocation = parameterLocation;
+    sink.parameterLocation = parameterLocation;
     return new TypeParameterAType(source, sink, node.parameter);
   }
 }
