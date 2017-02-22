@@ -3,7 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 part of kernel.inference;
 
-class _GlobalInferenceResult extends GlobalInferenceResult {
+class _InferenceResults extends InferenceResults {
   final Program program;
   CoreTypes coreTypes;
   ClassHierarchy hierarchy;
@@ -14,7 +14,7 @@ class _GlobalInferenceResult extends GlobalInferenceResult {
 
   Value _top;
 
-  _GlobalInferenceResult(this.program, {this.coreTypes, this.hierarchy}) {
+  _InferenceResults(this.program, {this.coreTypes, this.hierarchy}) {
     coreTypes ??= new CoreTypes(program);
     hierarchy ??= new ClassHierarchy(program);
 
@@ -26,19 +26,19 @@ class _GlobalInferenceResult extends GlobalInferenceResult {
     _solver.solve();
   }
 
-  MemberInferenceResult getInferredValuesForMember(Member member) {
-    return new _MemberInferenceResult(
+  MemberInferenceResults getInferredValuesForMember(Member member) {
+    return new _MemberInferenceResults(
         _binding.getMemberBank(member), _binding, _solver, _top);
   }
 }
 
-class _MemberInferenceResult implements MemberInferenceResult {
+class _MemberInferenceResults implements MemberInferenceResults {
   final StorageLocationBank _bank;
   final Binding _binding;
   final ConstraintSolver _solver;
   final Value _top;
 
-  _MemberInferenceResult(this._bank, this._binding, this._solver, this._top);
+  _MemberInferenceResults(this._bank, this._binding, this._solver, this._top);
 
   Value _getStorageLocationValue(StorageLocation location) {
     Value value = location.value;

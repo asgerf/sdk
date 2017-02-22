@@ -21,9 +21,9 @@ class Inference {
   ///
   /// This invalidates any existing inference results for that program, since
   /// some of the information is stored directly on AST nodes.
-  static GlobalInferenceResult analyzeWholeProgram(Program program,
+  static InferenceResults analyzeWholeProgram(Program program,
       {CoreTypes coreTypes, ClassHierarchy hierarchy}) {
-    return new _GlobalInferenceResult(program,
+    return new _InferenceResults(program,
         coreTypes: coreTypes, hierarchy: hierarchy);
   }
 }
@@ -33,7 +33,7 @@ class Inference {
 /// This is partly backed by information stored on the AST nodes, so this object
 /// should not be seen as a side table, but more as an API for accessing the
 /// inferred types.
-abstract class GlobalInferenceResult {
+abstract class InferenceResults {
   /// Returns the values inferred for the given member.
   MemberInferenceResult getInferredValuesForMember(Member member);
 }

@@ -8,7 +8,7 @@ import 'package:kernel/frontend/accessors.dart';
 import 'package:kernel/inference/inference.dart';
 
 class CheckInference {
-  GlobalInferenceResult inference;
+  InferenceResults inference;
 
   void transformProgram(Program program) {
     inference = Inference.analyzeWholeProgram(program);
