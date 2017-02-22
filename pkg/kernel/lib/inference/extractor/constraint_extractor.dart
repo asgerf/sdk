@@ -366,12 +366,12 @@ class ConstraintExtractorVisitor
     var type = node.accept(this);
     var source = type.source;
     if (source is StorageLocation && source.owner == bank.classOrMember) {
-      node.inferredValueIndex = source.index;
+      node.inferredValueOffset = source.index;
     } else {
       var newKey = bank.newLocation();
       builder.addAssignment(source, newKey, ValueFlags.all);
       type = type.withSource(newKey);
-      node.inferredValueIndex = newKey.index;
+      node.inferredValueOffset = newKey.index;
     }
     return type;
   }
@@ -481,8 +481,11 @@ class ConstraintExtractorVisitor
     }
   }
 
-  void recordParameterTypes(
-      FunctionMemberBank bank, FunctionNode function) {
+  int getStorageOffsetFromType(AType type) {
+    return (type.source as StorageLocation).index;
+  }
+
+  void recordParameterTypes(FunctionMemberBank bank, FunctionNode function) {
     for (int i = 0; i < function.typeParameters.length; ++i) {
       scope.typeParameterBounds[function.typeParameters[i]] =
           bank.typeParameterBounds[i];
@@ -491,11 +494,16 @@ class ConstraintExtractorVisitor
       var variable = function.positionalParameters[i];
       var type = bank.positionalParameters[i];
       scope.variables[variable] = type;
+      variable.inferredValueOffset = getStorageOffsetFromType(type);
     }
     for (int i = 0; i < function.namedParameters.length; ++i) {
-      scope.variables[function.namedParameters[i]] =
-          bank.namedParameters[i];
+      var variable = function.namedParameters[i];
+      var type = bank.namedParameters[i];
+      scope.variables[variable] = type;
+      variable.inferredValueOffset = getStorageOffsetFromType(type);
     }
+    function.inferredReturnValueOffset =
+        getStorageOffsetFromType(bank.returnType);
   }
 
   void handleFunctionBody(FunctionNode node) {

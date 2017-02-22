@@ -1160,6 +1160,8 @@ class FunctionNode extends TreeNode {
   DartType returnType; // Not null.
   Statement body;
 
+  int inferredReturnValueOffset;
+
   FunctionNode(this.body,
       {List<TypeParameter> typeParameters,
       List<VariableDeclaration> positionalParameters,
@@ -1273,7 +1275,7 @@ enum AsyncMarker {
 
 abstract class Expression extends TreeNode {
   /// Index of the abstract value inferred for this expression.
-  int inferredValueIndex = -1;
+  int inferredValueOffset = -1;
 
   /// Returns the static type of the expression.
   ///

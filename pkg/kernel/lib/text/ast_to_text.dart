@@ -607,8 +607,8 @@ class Printer extends Visitor<Null> {
 
   TypeAugmentor getExpressionAugmentor(Expression node, int offset) {
     if (bank == null) return null;
-    if (node.inferredValueIndex == -1) return null;
-    return bank.getReusingAugmentor(node.inferredValueIndex + offset);
+    if (node.inferredValueOffset == -1) return null;
+    return bank.getReusingAugmentor(node.inferredValueOffset + offset);
   }
 
   void writeReturnType(DartType type, TypeAugmentor augmentor) {

@@ -66,6 +66,16 @@ class Binding {
     return bank;
   }
 
+  StorageLocation getBoundForParameter(TypeParameterStorageLocation parameter) {
+    if (parameter.owner is Class) {
+      var bank = getClassBank(parameter.owner);
+      return bank.locations[parameter.indexOfBound];
+    } else {
+      var bank = getFunctionBank(parameter.owner);
+      return bank.locations[parameter.indexOfBound];
+    }
+  }
+
   ClassBank getClassBank(Class class_) {
     return classBanks[class_] ?? _initializeClassBank(class_);
   }

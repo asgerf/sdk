@@ -34,10 +34,23 @@ class Value extends ValueSource implements Printable {
 
   Value(this.baseClass, this.flags);
 
-  int get valueSets => flags & ValueFlags.allValueSets;
-  bool get hasExactBaseClass => flags & ValueFlags.inexactBaseClass == 0;
   bool get canBeNull => flags & ValueFlags.null_ != 0;
+  bool get canBeInteger => flags & ValueFlags.integer != 0;
+  bool get canBeDouble => flags & ValueFlags.double_ != 0;
+  bool get canBeString => flags & ValueFlags.string != 0;
+
+  bool get isNothing => valueSets == 0;
+
+  bool get isAlwaysNull => flags & ValueFlags.null_ == ValueFlags.null_;
+  bool get isAlwaysInteger => flags & ValueFlags.integer == ValueFlags.integer;
+  bool get isAlwaysDouble => flags & ValueFlags.double_ == ValueFlags.double_;
+  bool get isAlwaysString => flags & ValueFlags.string == ValueFlags.string;
+
   bool get canBeNonNull => flags & ValueFlags.nonNullValueSets != 0;
+
+  bool get hasExactBaseClass => flags & ValueFlags.inexactBaseClass == 0;
+
+  int get valueSets => flags & ValueFlags.allValueSets;
   bool get isEscaping => flags & ValueFlags.escaping != 0;
 
   Value masked(int mask) {

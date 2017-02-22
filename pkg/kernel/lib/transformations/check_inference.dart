@@ -5,20 +5,13 @@ library kernel.transformations.check_inference;
 
 import 'package:kernel/ast.dart';
 import 'package:kernel/frontend/accessors.dart';
-import 'package:kernel/inference/extractor/binding.dart';
-import 'package:kernel/inference/extractor/constraint_extractor.dart';
-import 'package:kernel/inference/solver/solver.dart';
-import 'package:kernel/inference/storage_location.dart';
+import 'package:kernel/inference/inference.dart';
 
 class CheckInference {
-  Binding binding;
+  Inference inference;
 
   void transformProgram(Program program) {
-    var extractor = new ConstraintExtractor()..extractFromProgram(program);
-    binding = extractor.binding;
-    var constraints = extractor.builder.constraints;
-    var solver = new ConstraintSolver(extractor.baseHierarchy, constraints);
-    solver.solve();
+    inference = new Inference(program);
     for (var library in program.libraries) {
       if (library.importUri.scheme == 'dart') continue;
       library.members.forEach(instrumentMember);
@@ -32,12 +25,12 @@ class CheckInference {
     var function = member.function;
     var body = function?.body;
     if (body != null) {
-      var bank = binding.getFunctionBank(member);
+      var inferredValues = inference.getInferredValuesForMember(member);
       List<Statement> checks = <Statement>[];
       for (int i = 0; i < function.positionalParameters.length; ++i) {
         var parameter = function.positionalParameters[i];
-        var type = bank.positionalParameters[i];
-        checks.add(generateCheck(type.source, parameter, member));
+        var value = inferredValues.getValueOfVariable(parameter);
+        checks.add(generateCheck(value, parameter, member));
       }
       if (body is Block) {
         checks.addAll(body.statements);
@@ -49,12 +42,8 @@ class CheckInference {
   }
 
   Statement generateCheck(
-      StorageLocation source, VariableDeclaration variable, Member where) {
+      Value value, VariableDeclaration variable, Member where) {
     List<Expression> cases = <Expression>[];
-    if (source.parameterLocation != null) {
-      return new EmptyStatement();
-    }
-    var value = source.value;
     if (value.canBeNull) {
       cases.add(buildIsNull(new VariableGet(variable)));
     }
