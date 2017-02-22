@@ -27,7 +27,7 @@ class Binding {
     if (member is Field) {
       var bank = new FieldBank(member, coreTypes);
       memberBanks[member] = bank;
-      bank.type = bank.getAugmentor(_augmentorScope).augmentType(member.type);
+      bank.type = bank.getFreshAugmentor(_augmentorScope).augmentType(member.type);
       return bank;
     } else {
       var bank = new FunctionMemberBank(member, coreTypes);
@@ -37,7 +37,7 @@ class Binding {
           function.typeParameters.length,
           (i) => new TypeParameterStorageLocation(member, i));
       bank.type =
-          bank.getAugmentor(_augmentorScope).augmentType(function.functionType);
+          bank.getFreshAugmentor(_augmentorScope).augmentType(function.functionType);
       for (int i = 0; i < function.typeParameters.length; ++i) {
         StorageLocation location = bank.typeParameterBounds[i].source;
         bank.typeParameters[i].indexOfBound = location.index;
@@ -52,7 +52,7 @@ class Binding {
     bank.typeParameters = new List<TypeParameterStorageLocation>.generate(
         class_.typeParameters.length,
         (i) => new TypeParameterStorageLocation(class_, i));
-    var augmentor = bank.getAugmentor(_augmentorScope);
+    var augmentor = bank.getFreshAugmentor(_augmentorScope);
     bank.typeParameterBounds = class_.typeParameters
         .map((p) => augmentor.augmentBound(p.bound))
         .toList(growable: false);
@@ -145,8 +145,12 @@ abstract class StorageLocationBank {
     return location;
   }
 
-  TypeAugmentor getAugmentor(AugmentorScope scope, [int offset]) {
-    return new AugmentorVisitor(coreTypes, this, scope, offset);
+  TypeAugmentor getFreshAugmentor(AugmentorScope scope) {
+    return new AugmentorVisitor.fresh(coreTypes, this, scope);
+  }
+
+  TypeAugmentor getReusingAugmentor(int offset) {
+    return new AugmentorVisitor.reusing(coreTypes, this, offset);
   }
 }
 

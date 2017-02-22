@@ -49,7 +49,13 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements TypeAugmentor {
   StorageLocation source, sink;
   int index;
 
-  AugmentorVisitor(this.coreTypes, this.bank, this.scope, this.index);
+  bool get isGeneratingFreshStorageLocations => scope != null;
+
+  AugmentorVisitor.fresh(this.coreTypes, this.bank, this.scope)
+      : index = null;
+
+  AugmentorVisitor.reusing(this.coreTypes, this.bank, this.index)
+      : scope = null;
 
   AType augmentType(DartType type) {
     source = sink = nextLocation();
@@ -137,9 +143,11 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements TypeAugmentor {
         return new FunctionTypeParameterAType(source, sink, index);
       }
     }
-    var parameterLocation = scope.getTypeParameterLocation(node.parameter);
-    source.parameterLocation = parameterLocation;
-    sink.parameterLocation = parameterLocation;
+    if (isGeneratingFreshStorageLocations) {
+      var parameterLocation = scope.getTypeParameterLocation(node.parameter);
+      source.parameterLocation = parameterLocation;
+      sink.parameterLocation = parameterLocation;
+    }
     return new TypeParameterAType(source, sink, node.parameter);
   }
 }
