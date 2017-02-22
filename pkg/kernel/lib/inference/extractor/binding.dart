@@ -145,10 +145,14 @@ abstract class StorageLocationBank {
     return location;
   }
 
+  /// Returns a type augmentor that generates fresh storage locations from this
+  /// bank for the types that it augments.
   TypeAugmentor getFreshAugmentor(AugmentorScope scope) {
     return new AugmentorVisitor.fresh(coreTypes, this, scope);
   }
 
+  /// Returns a type augmentor that uses existing storage locations from this
+  /// bank for the types that it augments, starting at [offset].
   TypeAugmentor getReusingAugmentor(int offset) {
     return new AugmentorVisitor.reusing(coreTypes, this, offset);
   }
