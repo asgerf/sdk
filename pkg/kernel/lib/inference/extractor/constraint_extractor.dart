@@ -273,12 +273,12 @@ class GlobalScope extends TypeParameterScope {
     TreeNode parent = parameter.parent;
     if (parent is Class) {
       int index = parent.typeParameters.indexOf(parameter);
-      return binding.getClassBank(parent).typeParameters[index];
+      return binding.getClassBank(parent).typeParameterBounds[index];
     } else {
       FunctionNode function = parent;
       Member member = function.parent;
       int index = function.typeParameters.indexOf(parameter);
-      return binding.getFunctionBank(member).type.typeParameters[index];
+      return binding.getFunctionBank(member).type.typeParameterBounds[index];
     }
   }
 }
@@ -411,7 +411,7 @@ class ConstraintExtractorVisitor
       var thisTypeArgs = <AType>[];
       for (int i = 0; i < typeParameters.length; ++i) {
         var parameter = typeParameters[i];
-        var bound = classBank.typeParameters[i];
+        var bound = classBank.typeParameterBounds[i];
         scope.typeParameterBounds[parameter] = bound;
         // TODO
         thisTypeArgs
@@ -477,7 +477,7 @@ class ConstraintExtractorVisitor
     var typeParameters = class_.typeParameters;
     for (int i = 0; i < typeParameters.length; ++i) {
       scope.typeParameterBounds[typeParameters[i]] =
-          classBank.typeParameters[i];
+          classBank.typeParameterBounds[i];
     }
   }
 
@@ -485,7 +485,7 @@ class ConstraintExtractorVisitor
       FunctionMemberBank bank, FunctionNode function) {
     for (int i = 0; i < function.typeParameters.length; ++i) {
       scope.typeParameterBounds[function.typeParameters[i]] =
-          bank.typeParameters[i];
+          bank.typeParameterBounds[i];
     }
     for (int i = 0; i < function.positionalParameters.length; ++i) {
       var variable = function.positionalParameters[i];
@@ -602,7 +602,7 @@ class ConstraintExtractorVisitor
       }
     }
     if (type is FunctionAType && superclass == coreTypes.functionClass) {
-      assert(type.typeParameters.isEmpty);
+      assert(type.typeParameterBounds.isEmpty);
       return Substitution.empty;
     }
     // Note that we do not allow 'dynamic' here.  Dynamic calls should not
@@ -653,7 +653,7 @@ class ConstraintExtractorVisitor
     }
     var substitution = Substitution.either(receiver, instantiation);
     checkTypeParameterBounds(
-        arguments, typeArguments, target.typeParameters, substitution);
+        arguments, typeArguments, target.typeParameterBounds, substitution);
     for (int i = 0; i < arguments.positional.length; ++i) {
       var expectedType =
           substitution.substituteType(target.positionalParameters[i]);
@@ -830,7 +830,7 @@ class ConstraintExtractorVisitor
     Substitution substitution =
         Substitution.fromPairs(class_.typeParameters, typeArguments);
     checkTypeParameterBounds(node, typeArguments,
-        binding.getClassBank(class_).typeParameters, substitution);
+        binding.getClassBank(class_).typeParameterBounds, substitution);
     handleCall(arguments, target, receiver: substitution);
     var createdObject = bank.newLocation();
     var value = new Value(class_, flagsFromExactClass(class_));
@@ -976,7 +976,7 @@ class ConstraintExtractorVisitor
       fail(where, 'Too many positional arguments');
       return BottomAType.nonNullable;
     }
-    if (function.typeParameters.length != arguments.types.length) {
+    if (function.typeParameterBounds.length != arguments.types.length) {
       fail(where, 'Wrong number of type arguments');
       return BottomAType.nonNullable;
     }
@@ -988,7 +988,7 @@ class ConstraintExtractorVisitor
     // var instantiation = Substitution.instantiateFunctionType(typeArguments);
     for (int i = 0; i < typeArguments.length; ++i) {
       checkTypeBound(where, typeArguments[i],
-          instantiation.substituteBound(function.typeParameters[i]));
+          instantiation.substituteBound(function.typeParameterBounds[i]));
     }
     for (int i = 0; i < arguments.positional.length; ++i) {
       var expectedType =
@@ -1549,7 +1549,7 @@ class ExternalVisitor extends ATypeVisitor {
     if (isContravariant && sink is StorageLocation) {
       builder.addEscape(sink);
     }
-    type.typeParameters.forEach(visitBound);
+    type.typeParameterBounds.forEach(visitBound);
     type.positionalParameters.forEach(visitInverse);
     type.namedParameters.forEach(visitInverse);
     visit(type.returnType);

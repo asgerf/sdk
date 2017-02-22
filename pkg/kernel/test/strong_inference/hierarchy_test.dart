@@ -67,7 +67,7 @@ bool isSameType(DartType type, AType augmented) {
         type.positionalParameters.length !=
             augmented.positionalParameters.length ||
         type.namedParameters.length != augmented.namedParameters.length ||
-        type.typeParameters.length != augmented.typeParameters.length) {
+        type.typeParameters.length != augmented.typeParameterBounds.length) {
       return false;
     }
     for (int i = 0; i < type.positionalParameters.length; ++i) {

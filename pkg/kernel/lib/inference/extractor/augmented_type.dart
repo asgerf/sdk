@@ -190,7 +190,7 @@ class InterfaceAType extends AType {
 }
 
 class FunctionAType extends AType {
-  final List<AType> typeParameters;
+  final List<AType> typeParameterBounds;
   final int requiredParameterCount;
   final List<AType> positionalParameters;
   final List<String> namedParameterNames;
@@ -200,7 +200,7 @@ class FunctionAType extends AType {
   FunctionAType(
       ValueSource source,
       ValueSink sink,
-      this.typeParameters,
+      this.typeParameterBounds,
       this.requiredParameterCount,
       this.positionalParameters,
       this.namedParameterNames,
@@ -214,10 +214,10 @@ class FunctionAType extends AType {
   void _generateSubtypeConstraintsForSubterms(
       AType supertype, SubtypingScope scope) {
     if (supertype is FunctionAType) {
-      for (int i = 0; i < typeParameters.length; ++i) {
-        if (i < supertype.typeParameters.length) {
-          supertype.typeParameters[i]
-              .generateSubtypeConstraints(typeParameters[i], scope);
+      for (int i = 0; i < typeParameterBounds.length; ++i) {
+        if (i < supertype.typeParameterBounds.length) {
+          supertype.typeParameterBounds[i]
+              .generateSubtypeConstraints(typeParameterBounds[i], scope);
         }
       }
       for (int i = 0; i < positionalParameters.length; ++i) {
@@ -240,7 +240,7 @@ class FunctionAType extends AType {
 
   bool containsAny(bool predicate(AType type)) {
     return predicate(this) ||
-        AType.listContainsAny(typeParameters, predicate) ||
+        AType.listContainsAny(typeParameterBounds, predicate) ||
         AType.listContainsAny(positionalParameters, predicate) ||
         AType.listContainsAny(namedParameters, predicate) ||
         returnType.containsAny(predicate);
@@ -250,7 +250,7 @@ class FunctionAType extends AType {
     return new FunctionAType(
         source,
         sink,
-        AType.substituteList(typeParameters, substitution),
+        AType.substituteList(typeParameterBounds, substitution),
         requiredParameterCount,
         AType.substituteList(positionalParameters, substitution),
         namedParameterNames,
@@ -262,7 +262,7 @@ class FunctionAType extends AType {
     return new FunctionAType(
         source,
         sink,
-        typeParameters,
+        typeParameterBounds,
         requiredParameterCount,
         positionalParameters,
         namedParameterNames,
@@ -275,9 +275,9 @@ class FunctionAType extends AType {
     if (value.canBeNull) {
       printer.write('?');
     }
-    if (typeParameters.isNotEmpty) {
+    if (typeParameterBounds.isNotEmpty) {
       printer.writeSymbol('<');
-      printer.writeList(typeParameters, (AType type) {
+      printer.writeList(typeParameterBounds, (AType type) {
         type.printTo(printer);
       });
       printer.writeSymbol('>');

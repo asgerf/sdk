@@ -33,7 +33,7 @@ class Binding {
   StorageLocationBank _initializeClassBank(Class class_) {
     var bank = new ClassBank(class_, coreTypes);
     var augmentor = bank.getAugmentor();
-    bank.typeParameters = class_.typeParameters
+    bank.typeParameterBounds = class_.typeParameters
         .map((p) => augmentor.augmentBound(p.bound))
         .toList(growable: false);
     bank.supertypes = class_.supers
@@ -133,7 +133,7 @@ class FunctionMemberBank extends MemberBank {
   FunctionMemberBank(this.member, CoreTypes coreTypes) : super(coreTypes);
 
   AType get returnType => type.returnType;
-  List<AType> get typeParameters => type.typeParameters;
+  List<AType> get typeParameterBounds => type.typeParameterBounds;
   List<AType> get positionalParameters => type.positionalParameters;
   List<AType> get namedParameters => type.namedParameters;
 
@@ -146,7 +146,7 @@ class FunctionMemberBank extends MemberBank {
 /// [supertypes].
 class ClassBank extends StorageLocationBank {
   final Class classNode;
-  List<AType> typeParameters;
+  List<AType> typeParameterBounds;
   List<ASupertype> supertypes;
 
   ClassBank(this.classNode, CoreTypes coreTypes) : super(coreTypes);
