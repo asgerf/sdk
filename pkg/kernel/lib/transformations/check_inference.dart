@@ -12,22 +12,32 @@ import 'package:kernel/inference/inference.dart';
 /// This is for debugging the type inference, not intended for production.
 class CheckInference {
   InferenceResults inferenceResults;
+
+  /// A synthetic field that keeps track of whether an error has been found
+  /// and prevents further checks in the process of throwing an error.
+  ///
+  /// The error-handling code performs string interpolation and calls `toString`
+  /// on an arbitrary value, which can lead to infinite recursion if we don't
+  /// disable the checks.
   Field stopField;
 
   void transformProgram(Program program) {
     inferenceResults = InferenceEngine.analyzeWholeProgram(program);
+    addStopField(program);
     for (var library in program.libraries) {
-      if (stopField == null) {
-        stopField = new Field(new Name('_stopChecks', library),
-            initializer: new BoolLiteral(false), isStatic: true);
-        library.addMember(stopField);
-      }
-      // if (library.importUri.scheme == 'dart') continue;
       library.members.forEach(instrumentMember);
       for (var class_ in library.classes) {
         class_.members.forEach(instrumentMember);
       }
     }
+  }
+
+  void addStopField(Program program) {
+    var library = new Library(Uri.parse('transformer:check_inference'));
+    program.libraries.add(library..parent = library);
+    stopField = new Field(new Name('_stopChecks', library),
+        initializer: new BoolLiteral(false), isStatic: true);
+    library.addMember(stopField);
   }
 
   void instrumentMember(Member member) {
@@ -73,9 +83,7 @@ class CheckInference {
       new ExpressionStatement(new StaticSet(stopField, new BoolLiteral(true))),
       throwStmt
     ]);
-    if (cases.isEmpty) {
-      return failStatement;
-    }
+    assert(cases.isNotEmpty);
     Expression condition =
         cases.reduce((e1, e2) => new LogicalExpression(e1, '||', e2));
     return new IfStatement(new Not(condition), failStatement, null);
