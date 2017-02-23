@@ -8,7 +8,7 @@ import '../ast.dart';
 import '../class_hierarchy.dart';
 import '../core_types.dart';
 import '../type_environment.dart';
-import 'package:kernel/indexer.dart';
+import '../lookup_table.dart';
 
 Program transformProgram(Program program, {List<ProgramRoot> programRoots}) {
   new TreeShaker(program, programRoots: programRoots).transform(program);

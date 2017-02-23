@@ -4,7 +4,7 @@
 library kernel.class_table;
 
 import 'ast.dart';
-import 'indexer.dart';
+import 'lookup_table.dart';
 
 /// Provides access to the classes and libraries in the core libraries.
 class CoreTypes extends LookupTable {
