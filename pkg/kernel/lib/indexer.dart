@@ -4,6 +4,7 @@
 library kernel.indexer;
 
 import 'ast.dart';
+import 'transformations/treeshaker.dart';
 
 /// Provides name-based access to library, class, and member AST nodes.
 class Indexer {
@@ -71,6 +72,18 @@ class Indexer {
   Member getMemberQualified(String library, String className, Name memberName) {
     return _getLibraryIndex(library).getMember(className, memberName);
   }
+
+  Member getMemberFromProgramRoot(ProgramRoot root) {
+    assert(root.klass != null);
+    assert(root.member != null);
+    return getMember(
+        root.library, root.klass ?? topLevel, root.disambiguatedMember);
+  }
+
+  Class getClassFromProgramRoot(ProgramRoot root) {
+    assert(root.klass != null);
+    return getClass(root.library, root.klass);
+  }
 }
 
 class _LibraryIndex {
@@ -85,10 +98,26 @@ class _LibraryIndex {
     }
   }
 
-  Class getClass(String name) => classes[name]?.class_;
+  _ClassIndex _getClassIndex(String name) {
+    var indexer = classes[name];
+    if (indexer == null) {
+      // It can be helpful to indicate if the library is external, since then
+      // the class might be in the library, but just not seen from this build
+      // unit.
+      String libraryName = library.isExternal
+          ? "external library '${library.importUri}'"
+          : "library '${library.importUri}'";
+      throw "Class '$name' not found in $libraryName";
+    }
+    return indexer;
+  }
+
+  Class getClass(String name) {
+    return _getClassIndex(name).class_;
+  }
 
   Member getMember(String className, Name memberName) {
-    return classes[className]?.getMember(memberName);
+    return _getClassIndex(className).getMember(memberName);
   }
 }
 
@@ -108,7 +137,7 @@ class _ClassIndex {
   }
 
   void addMember(Member member) {
-    members[member.name] = member;
+    members[member.disambiguatedName] = member;
   }
 
   Member getMember(Name name) {

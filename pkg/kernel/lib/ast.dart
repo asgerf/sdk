@@ -620,6 +620,10 @@ abstract class Member extends TreeNode {
 
   _MemberAccessor get _getterInterface;
   _MemberAccessor get _setterInterface;
+
+  /// A name derived from [name] that includes a prefix indicating if it is
+  /// a getter or setter (and no prefix otherwise).
+  Name get disambiguatedName => name;
 }
 
 /// A field declaration.
@@ -985,6 +989,20 @@ class Procedure extends Member {
   Location _getLocationInEnclosingFile(int offset) {
     return enclosingProgram.getLocation(fileUri, offset);
   }
+
+  Name get disambiguatedName {
+    switch (kind) {
+      case ProcedureKind.Getter:
+        return new Name(getterPrefix + name.name, name.library);
+      case ProcedureKind.Setter:
+        return new Name(setterPrefix + name.name, name.library);
+      default:
+        return name;
+    }
+  }
+
+  static const String getterPrefix = 'get:';
+  static const String setterPrefix = 'set:';
 }
 
 enum ProcedureKind {

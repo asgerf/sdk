@@ -8,6 +8,7 @@ import '../ast.dart';
 import '../class_hierarchy.dart';
 import '../core_types.dart';
 import '../type_environment.dart';
+import 'package:kernel/indexer.dart';
 
 Program transformProgram(Program program, {List<ProgramRoot> programRoots}) {
   new TreeShaker(program, programRoots: programRoots).transform(program);
@@ -45,6 +46,12 @@ class ProgramRoot {
 
   /// The kind of this program root.
   final ProgramRootKind kind;
+
+  String get disambiguatedMember {
+    if (kind == ProgramRootKind.Getter) return 'get:$member';
+    if (kind == ProgramRootKind.Setter) return 'set:$member';
+    return member;
+  }
 
   ProgramRoot(this.library, this.klass, this.member, this.kind);
 
@@ -223,7 +230,12 @@ class TreeShaker {
     _addDispatchedName(hierarchy.rootClass, new Name('noSuchMethod'));
     _addPervasiveUses();
     _addUsedMember(null, program.mainMethod);
-    programRoots?.forEach(_addUsedRoot);
+    if (programRoots != null) {
+      var indexer = new Indexer(program, programRoots.map((r) => r.library));
+      for (var root in programRoots) {
+        _addUsedRoot(root, indexer);
+      }
+    }
 
     _iterateWorklist();
 
@@ -417,44 +429,33 @@ class TreeShaker {
   }
 
   /// Registers the given root as being used.
-  void _addUsedRoot(ProgramRoot root) {
-    Library rootLibrary = _findLibraryRoot(root, program);
-
+  void _addUsedRoot(ProgramRoot root, Indexer indexer) {
     if (root.kind == ProgramRootKind.ExternallyInstantiatedClass) {
-      Class rootClass = _findClassRoot(root, rootLibrary);
+      Class class_ = indexer.getClassFromProgramRoot(root);
 
       // This is a class which will be instantiated by non-Dart code (whether it
       // has a valid generative construtor or not).
-      _addInstantiatedClass(rootClass);
+      _addInstantiatedClass(class_);
 
       // We keep all the constructors of externally instantiated classes.
       // Sometimes the runtime might do a constructor call and sometimes it
       // might just allocate the class without invoking the constructor.
       // So we try to be on the safe side here!
-      for (var constructor in rootClass.constructors) {
-        _addUsedMember(rootClass, constructor);
+      for (var constructor in class_.constructors) {
+        _addUsedMember(class_, constructor);
       }
 
       // We keep all factory constructors as well for the same reason.
-      for (var member in rootClass.procedures) {
+      for (var member in class_.procedures) {
         if (member.isStatic && member.kind == ProcedureKind.Factory) {
-          _addUsedMember(rootClass, member);
+          _addUsedMember(class_, member);
         }
       }
     } else {
-      if (root.klass != null) {
-        // For class members we mark the Field/Procedure/Constructor as used.
-        // We also mark it as instantiated if it's a constructor.
-        Class rootClass = _findClassRoot(root, rootLibrary);
-        Member rootMember = _findMemberRoot(root, rootClass.members);
-        _addUsedMember(rootClass, rootMember);
-        if (rootMember is Constructor) {
-          _addInstantiatedClass(rootClass);
-        }
-      } else {
-        // For library members we mark the Field/Procedure as used.
-        Member rootMember = _findMemberRoot(root, rootLibrary.members);
-        _addUsedMember(null, rootMember);
+      var member = indexer.getMemberFromProgramRoot(root);
+      _addUsedMember(member.enclosingClass, member);
+      if (member is Constructor) {
+        _addInstantiatedClass(member.enclosingClass);
       }
     }
   }
@@ -1068,53 +1069,3 @@ class _ExternalTypeVisitor extends DartTypeVisitor {
 /// Exception that is thrown to stop the tree shaking analysis when a use
 /// of `dart:mirrors` is found.
 class _UsingMirrorsException {}
-
-Library _findLibraryRoot(ProgramRoot root, Program program) {
-  for (var library in program.libraries) {
-    if (library.importUri.toString() == root.library) {
-      return library;
-    }
-  }
-
-  throw "$root not found!";
-}
-
-Class _findClassRoot(ProgramRoot root, Library rootLibrary) {
-  for (var klass in rootLibrary.classes) {
-    if (klass.name == root.klass) {
-      return klass;
-    }
-  }
-  throw "$root not found!";
-}
-
-Member _findMemberRoot(ProgramRoot root, Iterable<Member> membersToSearch) {
-  for (var member in membersToSearch) {
-    if (member.name.name == root.member) {
-      switch (root.kind) {
-        case ProgramRootKind.Constructor:
-          if (member is Procedure && member.kind == ProcedureKind.Factory ||
-              member is Constructor) {
-            return member;
-          }
-          break;
-        case ProgramRootKind.Setter:
-          if (member is Procedure && member.kind == ProcedureKind.Setter ||
-              member is Field) {
-            return member;
-          }
-          break;
-        case ProgramRootKind.Getter:
-          if (member is Procedure && member.kind == ProcedureKind.Getter ||
-              member is Field) {
-            return member;
-          }
-          break;
-        case ProgramRootKind.Other:
-          return member;
-        default:
-      }
-    }
-  }
-  throw "$root not found!";
-}

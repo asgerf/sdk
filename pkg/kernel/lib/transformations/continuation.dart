@@ -12,6 +12,8 @@ import '../visitor.dart';
 
 import 'async.dart';
 
+import 'package:kernel/indexer.dart';
+
 Program transformProgram(Program program) {
   var helper = new HelperNodes.fromProgram(program);
   var rewriter = new RecursiveContinuationRewriter(helper);
@@ -894,43 +896,26 @@ class HelperNodes {
       this.coreTypes);
 
   factory HelperNodes.fromProgram(Program program) {
+    var indexer = new Indexer(program, ['dart:core', 'dart:async']);
+
     Library findLibrary(String name) {
-      Uri uri = Uri.parse(name);
-      for (var library in program.libraries) {
-        if (library.importUri == uri) return library;
-      }
-      throw 'Library "$name" not found';
+      return indexer.getLibrary(name);
     }
 
     Class findClass(Library library, String name) {
-      for (var klass in library.classes) {
-        if (klass.name == name) return klass;
-      }
-      throw 'Class "$name" not found';
+      return indexer.getClass('${library.importUri}', name);
     }
 
     Procedure findFactoryConstructor(Class klass, String name) {
-      for (var procedure in klass.procedures) {
-        if (procedure.isStatic && procedure.name.name == name) return procedure;
-      }
-      throw 'Factory constructor "$klass.$name" not found';
+      return indexer.getMember('${klass.enclosingLibrary.importUri}', klass.name, name);
     }
 
     Constructor findConstructor(Class klass, String name) {
-      for (var constructor in klass.constructors) {
-        if (constructor.name.name == name) return constructor;
-      }
-      throw 'Constructor "$klass.$name" not found';
+      return indexer.getMember('${klass.enclosingLibrary.importUri}', klass.name, name);
     }
 
     Procedure findProcedure(Library library, String name) {
-      for (var procedure in library.procedures) {
-        if (procedure.name.name == name ||
-            procedure.name.name == '${library.name}::${name}') {
-          return procedure;
-        }
-      }
-      throw 'Procedure "$name" not found';
+      return indexer.getTopLevelMember('${library.importUri}', name);
     }
 
     var asyncLibrary = findLibrary('dart:async');
@@ -939,21 +924,7 @@ class HelperNodes {
     var completerClass = findClass(asyncLibrary, 'Completer');
     var futureClass = findClass(asyncLibrary, 'Future');
     var iteratorClass = findClass(coreLibrary, 'Iterator');
-
-    // The VM's dart:async implementation has renamed _StreamIteratorImpl to
-    // _StreamIterator.  To support both old and new library implementations we
-    // look for the old name first and then the new name.
-    var streamIteratorClass;
-    try {
-      streamIteratorClass = findClass(asyncLibrary, '_StreamIteratorImpl');
-    } catch (e) {
-      if (e == 'Class "_StreamIteratorImpl" not found') {
-        streamIteratorClass = findClass(asyncLibrary, '_StreamIterator');
-      } else {
-        rethrow;
-      }
-    }
-
+    var streamIteratorClass = findClass(asyncLibrary, '_StreamIterator');
     var syncIterableClass = findClass(coreLibrary, '_SyncIterable');
     var streamControllerClass =
         findClass(asyncLibrary, '_AsyncStarStreamController');
