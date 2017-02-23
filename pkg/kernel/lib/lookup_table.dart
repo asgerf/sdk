@@ -4,7 +4,6 @@
 library kernel.indexer;
 
 import 'ast.dart';
-import 'transformations/treeshaker.dart';
 
 /// Provides name-based access to library, class, and member AST nodes.
 ///
@@ -103,18 +102,6 @@ class LookupTable {
   /// An error is thrown if the member is not found.
   Member getMember(String library, String className, String memberName) {
     return _getLibraryIndex(library).getMember(className, memberName);
-  }
-
-  Member getMemberFromProgramRoot(ProgramRoot root) {
-    assert(root.klass != null);
-    assert(root.member != null);
-    return getMember(
-        root.library, root.klass ?? topLevel, root.disambiguatedMember);
-  }
-
-  Class getClassFromProgramRoot(ProgramRoot root) {
-    assert(root.klass != null);
-    return getClass(root.library, root.klass);
   }
 }
 

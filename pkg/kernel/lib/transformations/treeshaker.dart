@@ -47,15 +47,27 @@ class ProgramRoot {
   /// The kind of this program root.
   final ProgramRootKind kind;
 
-  String get disambiguatedMember {
+  ProgramRoot(this.library, this.klass, this.member, this.kind);
+
+  String toString() => "ProgramRoot($library, $klass, $member, $kind)";
+
+  String get disambiguatedName {
     if (kind == ProgramRootKind.Getter) return 'get:$member';
     if (kind == ProgramRootKind.Setter) return 'set:$member';
     return member;
   }
 
-  ProgramRoot(this.library, this.klass, this.member, this.kind);
+  Member getMember(LookupTable table) {
+    assert(klass != null);
+    assert(member != null);
+    return table.getMember(
+        library, klass ?? LookupTable.topLevel, disambiguatedName);
+  }
 
-  String toString() => "ProgramRoot($library, $klass, $member, $kind)";
+  Class getClass(LookupTable table) {
+    assert(klass != null);
+    return table.getClass(library, klass);
+  }
 }
 
 /// Tree shaking based on class hierarchy analysis.
@@ -231,9 +243,9 @@ class TreeShaker {
     _addPervasiveUses();
     _addUsedMember(null, program.mainMethod);
     if (programRoots != null) {
-      var indexer = new LookupTable(program, programRoots.map((r) => r.library));
+      var table = new LookupTable(program, programRoots.map((r) => r.library));
       for (var root in programRoots) {
-        _addUsedRoot(root, indexer);
+        _addUsedRoot(root, table);
       }
     }
 
@@ -429,9 +441,9 @@ class TreeShaker {
   }
 
   /// Registers the given root as being used.
-  void _addUsedRoot(ProgramRoot root, LookupTable indexer) {
+  void _addUsedRoot(ProgramRoot root, LookupTable table) {
     if (root.kind == ProgramRootKind.ExternallyInstantiatedClass) {
-      Class class_ = indexer.getClassFromProgramRoot(root);
+      Class class_ = root.getClass(table);
 
       // This is a class which will be instantiated by non-Dart code (whether it
       // has a valid generative construtor or not).
@@ -452,7 +464,7 @@ class TreeShaker {
         }
       }
     } else {
-      var member = indexer.getMemberFromProgramRoot(root);
+      var member = root.getMember(table);
       _addUsedMember(member.enclosingClass, member);
       if (member is Constructor) {
         _addInstantiatedClass(member.enclosingClass);
