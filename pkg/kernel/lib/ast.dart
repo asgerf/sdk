@@ -50,6 +50,7 @@
 ///
 library kernel.ast;
 
+import 'package:kernel/lookup_table.dart';
 import 'visitor.dart';
 export 'visitor.dart';
 
@@ -1045,16 +1046,13 @@ class Procedure extends Member {
   Name get disambiguatedName {
     switch (kind) {
       case ProcedureKind.Getter:
-        return new Name(getterPrefix + name.name, name.library);
+        return new Name(LookupTable.getterPrefix + name.name, name.library);
       case ProcedureKind.Setter:
-        return new Name(setterPrefix + name.name, name.library);
+        return new Name(LookupTable.setterPrefix + name.name, name.library);
       default:
         return name;
     }
   }
-
-  static const String getterPrefix = 'get:';
-  static const String setterPrefix = 'set:';
 }
 
 enum ProcedureKind {

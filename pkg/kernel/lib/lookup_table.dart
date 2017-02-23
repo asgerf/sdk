@@ -8,6 +8,9 @@ import 'transformations/treeshaker.dart';
 
 /// Provides name-based access to library, class, and member AST nodes.
 class LookupTable {
+  static const String getterPrefix = 'get:';
+  static const String setterPrefix = 'set:';
+
   /// A name that can be used as a class name to access the top-level members
   /// of a library.
   static const String topLevel = '::';
@@ -167,8 +170,14 @@ class _ClassIndex {
   Member getMember(Name name) {
     var member = members[name];
     if (member == null) {
-      throw "A member with disambiguated name '$name' was not found "
+      String message = "A member with disambiguated name '$name' was not found "
           "in $containerName";
+      var getter = new Name(LookupTable.getterPrefix + name.name, name.library);
+      var setter = new Name(LookupTable.setterPrefix + name.name, name.library);
+      if (members[getter] != null || members[setter] != null) {
+        throw "$message. Did you mean '$getter' or '$setter'?";
+      }
+      throw message;
     }
     return member;
   }
