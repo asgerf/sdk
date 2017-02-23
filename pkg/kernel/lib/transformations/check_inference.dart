@@ -12,11 +12,17 @@ import 'package:kernel/inference/inference.dart';
 /// This is for debugging the type inference, not intended for production.
 class CheckInference {
   InferenceResults inferenceResults;
+  Field stopField;
 
   void transformProgram(Program program) {
     inferenceResults = InferenceEngine.analyzeWholeProgram(program);
     for (var library in program.libraries) {
-      if (library.importUri.scheme == 'dart') continue;
+      if (stopField == null) {
+        stopField = new Field(new Name('_stopChecks', library),
+            initializer: new BoolLiteral(false), isStatic: true);
+        library.addMember(stopField);
+      }
+      // if (library.importUri.scheme == 'dart') continue;
       library.members.forEach(instrumentMember);
       for (var class_ in library.classes) {
         class_.members.forEach(instrumentMember);
@@ -47,6 +53,7 @@ class CheckInference {
   Statement generateCheck(
       Value value, VariableDeclaration variable, Member where) {
     List<Expression> cases = <Expression>[];
+    cases.add(new StaticGet(stopField));
     if (value.canBeNull) {
       cases.add(buildIsNull(new VariableGet(variable)));
     }
@@ -56,15 +63,21 @@ class CheckInference {
           new IsExpression(new VariableGet(variable), value.baseClass.rawType));
     }
     Throw throw_ = new Throw(new StringConcatenation([
-      new StringLiteral("'${variable.name}' in $where has unexpected value: "),
-      new VariableGet(variable)
+      new StringLiteral(
+          "Unexpected value of '${variable.name}' in $where.\nActual value: "),
+      new VariableGet(variable),
+      new StringLiteral('\nExpected values: $value')
     ]))..fileOffset = variable.fileOffset ?? where.fileOffset;
     Statement throwStmt = new ExpressionStatement(throw_);
+    Block failStatement = new Block([
+      new ExpressionStatement(new StaticSet(stopField, new BoolLiteral(true))),
+      throwStmt
+    ]);
     if (cases.isEmpty) {
-      return throwStmt;
+      return failStatement;
     }
     Expression condition =
-        cases.reduce((e1,e2) => new LogicalExpression(e1, '||', e2));
-    return new IfStatement(new Not(condition), throwStmt, null);
+        cases.reduce((e1, e2) => new LogicalExpression(e1, '||', e2));
+    return new IfStatement(new Not(condition), failStatement, null);
   }
 }
