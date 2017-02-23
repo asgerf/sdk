@@ -7,6 +7,9 @@ import 'package:kernel/ast.dart';
 import 'package:kernel/frontend/accessors.dart';
 import 'package:kernel/inference/inference.dart';
 
+/// Inserts runtime checks to verify the results of the type inference.
+///
+/// This is for debugging the type inference, not intended for production.
 class CheckInference {
   InferenceResults inferenceResults;
 
