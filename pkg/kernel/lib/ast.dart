@@ -50,7 +50,6 @@
 ///
 library kernel.ast;
 
-import 'package:kernel/lookup_table.dart';
 import 'visitor.dart';
 export 'visitor.dart';
 
@@ -724,13 +723,6 @@ abstract class Member extends NamedNode {
   bool get containsSuperCalls {
     return transformerFlags & TransformerFlag.superCalls != 0;
   }
-
-  /// A name derived from [name] that includes a prefix indicating if it is
-  /// a getter or setter (and no prefix otherwise).
-  ///
-  /// This name is the name by which the member can be found in a [LookupTable],
-  /// but it has no meaning otherwise.
-  Name get disambiguatedName => name;
 }
 
 /// A field declaration.
@@ -1041,17 +1033,6 @@ class Procedure extends Member {
 
   Location _getLocationInEnclosingFile(int offset) {
     return enclosingProgram.getLocation(fileUri, offset);
-  }
-
-  Name get disambiguatedName {
-    switch (kind) {
-      case ProcedureKind.Getter:
-        return new Name(LookupTable.getterPrefix + name.name, name.library);
-      case ProcedureKind.Setter:
-        return new Name(LookupTable.setterPrefix + name.name, name.library);
-      default:
-        return name;
-    }
   }
 }
 
