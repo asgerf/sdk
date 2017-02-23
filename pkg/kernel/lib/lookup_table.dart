@@ -7,6 +7,9 @@ import 'ast.dart';
 import 'transformations/treeshaker.dart';
 
 /// Provides name-based access to library, class, and member AST nodes.
+///
+/// When constructed, the lookup table indexes a given set of libraries, and
+/// will be up-to-date with changes made after it was created.
 class LookupTable {
   static const String getterPrefix = 'get:';
   static const String setterPrefix = 'set:';
@@ -64,25 +67,41 @@ class LookupTable {
 
   Library getLibrary(String uri) => _getLibraryIndex(uri).library;
 
+  /// Returns the class with the given name in the given library.
+  ///
+  /// An error is thrown if the class is not found.
   Class getClass(String library, String className) {
     return _getLibraryIndex(library).getClass(className);
   }
 
+  /// Returns the top-level member with the given name, in the given library.
+  ///
+  /// If a getter or setter is wanted, the `get:` or `set:` prefix must be
+  /// added in front of the member name.
+  ///
+  /// If the member name is private it is considered private to [library].
+  /// It is not possible with this class to lookup members whose name is private
+  /// to a library other than the one containing it.
+  ///
+  /// An error is thrown if the member is not found.
   Member getTopLevelMember(String library, String memberName) {
     return getMember(library, topLevel, memberName);
   }
 
+  /// Returns the member with the given name, in the given class, in the
+  /// given library.
+  ///
+  /// If a getter or setter is wanted, the `get:` or `set:` prefix must be
+  /// added in front of the member name.
+  ///
+  /// The special class name `::` can be used to access top-level members.
+  ///
+  /// If the member name is private it is considered private to [library].
+  /// It is not possible with this class to lookup members whose name is private
+  /// to a library other than the one containing it.
+  ///
+  /// An error is thrown if the member is not found.
   Member getMember(String library, String className, String memberName) {
-    if (memberName.startsWith('_')) {
-      var libraryIndex = _getLibraryIndex(library);
-      var name = new Name(memberName, libraryIndex.library);
-      return libraryIndex.getMember(className, name);
-    } else {
-      return getMemberQualified(library, className, new Name(memberName));
-    }
-  }
-
-  Member getMemberQualified(String library, String className, Name memberName) {
     return _getLibraryIndex(library).getMember(className, memberName);
   }
 
@@ -132,7 +151,7 @@ class _LibraryIndex {
     return _getClassIndex(name).class_;
   }
 
-  Member getMember(String className, Name memberName) {
+  Member getMember(String className, String memberName) {
     return _getClassIndex(className).getMember(memberName);
   }
 }
@@ -140,7 +159,7 @@ class _LibraryIndex {
 class _ClassIndex {
   final _LibraryIndex parent;
   final Class class_; // Null for top-level.
-  final Map<Name, Member> members = <Name, Member>{};
+  final Map<String, Member> members = <String, Member>{};
 
   Library get library => parent.library;
 
@@ -155,8 +174,21 @@ class _ClassIndex {
     library.fields.forEach(addMember);
   }
 
+  String getDisambiguatedName(Member member) {
+    if (member is Procedure) {
+      if (member.isGetter) return LookupTable.getterPrefix + member.name.name;
+      if (member.isSetter) return LookupTable.setterPrefix + member.name.name;
+    }
+    return member.name.name;
+  }
+
   void addMember(Member member) {
-    members[member.disambiguatedName] = member;
+    if (member.name.isPrivate && member.name.library != library) {
+      // Members whose name is private to other libraries cannot currently
+      // be found with the LookupTable.
+      return;
+    }
+    members[getDisambiguatedName(member)] = member;
   }
 
   String get containerName {
@@ -167,13 +199,13 @@ class _ClassIndex {
     }
   }
 
-  Member getMember(Name name) {
+  Member getMember(String name) {
     var member = members[name];
     if (member == null) {
       String message = "A member with disambiguated name '$name' was not found "
           "in $containerName";
-      var getter = new Name(LookupTable.getterPrefix + name.name, name.library);
-      var setter = new Name(LookupTable.setterPrefix + name.name, name.library);
+      var getter = LookupTable.getterPrefix + name;
+      var setter = LookupTable.setterPrefix + name;
       if (members[getter] != null || members[setter] != null) {
         throw "$message. Did you mean '$getter' or '$setter'?";
       }
