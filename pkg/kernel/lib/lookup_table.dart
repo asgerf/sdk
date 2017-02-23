@@ -9,7 +9,7 @@ import 'transformations/treeshaker.dart';
 /// Provides name-based access to library, class, and member AST nodes.
 ///
 /// When constructed, the lookup table indexes a given set of libraries, and
-/// will be up-to-date with changes made after it was created.
+/// will not be up-to-date with changes made after it was created.
 class LookupTable {
   static const String getterPrefix = 'get:';
   static const String setterPrefix = 'set:';
