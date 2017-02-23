@@ -12,8 +12,6 @@ import '../visitor.dart';
 
 import 'async.dart';
 
-import 'package:kernel/indexer.dart';
-
 Program transformProgram(Program program) {
   var helper = new HelperNodes.fromProgram(program);
   var rewriter = new RecursiveContinuationRewriter(helper);
@@ -896,22 +894,22 @@ class HelperNodes {
       this.coreTypes);
 
   factory HelperNodes.fromProgram(Program program) {
-    var indexer = new Indexer(program, ['dart:core', 'dart:async']);
+    var coreTypes = new CoreTypes(program);
     return new HelperNodes(
-        indexer.getLibrary('dart:async'),
-        indexer.getLibrary('dart:core'),
-        indexer.getClass('dart:core', 'Iterator'),
-        indexer.getClass('dart:async', 'Future'),
-        indexer.getClass('dart:async', 'Completer'),
-        indexer.getTopLevelMember('dart:core', 'print'),
-        indexer.getMember('dart:async', 'Completer', 'sync'),
-        indexer.getMember('dart:core', '_SyncIterable', ''),
-        indexer.getMember('dart:async', '_StreamIterator', ''),
-        indexer.getMember('dart:async', 'Future', 'microtask'),
-        indexer.getMember('dart:async', '_AsyncStarStreamController', ''),
-        indexer.getTopLevelMember('dart:async', '_asyncThenWrapperHelper'),
-        indexer.getTopLevelMember('dart:async', '_asyncErrorWrapperHelper'),
-        indexer.getTopLevelMember('dart:async', '_awaitHelper'),
-        new CoreTypes(program));
+        coreTypes.getLibrary('dart:async'),
+        coreTypes.getLibrary('dart:core'),
+        coreTypes.getClass('dart:core', 'Iterator'),
+        coreTypes.getClass('dart:async', 'Future'),
+        coreTypes.getClass('dart:async', 'Completer'),
+        coreTypes.getTopLevelMember('dart:core', 'print'),
+        coreTypes.getMember('dart:async', 'Completer', 'sync'),
+        coreTypes.getMember('dart:core', '_SyncIterable', ''),
+        coreTypes.getMember('dart:async', '_StreamIterator', ''),
+        coreTypes.getMember('dart:async', 'Future', 'microtask'),
+        coreTypes.getMember('dart:async', '_AsyncStarStreamController', ''),
+        coreTypes.getTopLevelMember('dart:async', '_asyncThenWrapperHelper'),
+        coreTypes.getTopLevelMember('dart:async', '_asyncErrorWrapperHelper'),
+        coreTypes.getTopLevelMember('dart:async', '_awaitHelper'),
+        coreTypes);
   }
 }
