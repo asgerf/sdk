@@ -897,53 +897,21 @@ class HelperNodes {
 
   factory HelperNodes.fromProgram(Program program) {
     var indexer = new Indexer(program, ['dart:core', 'dart:async']);
-
-    Library findLibrary(String name) {
-      return indexer.getLibrary(name);
-    }
-
-    Class findClass(Library library, String name) {
-      return indexer.getClass('${library.importUri}', name);
-    }
-
-    Procedure findFactoryConstructor(Class klass, String name) {
-      return indexer.getMember('${klass.enclosingLibrary.importUri}', klass.name, name);
-    }
-
-    Constructor findConstructor(Class klass, String name) {
-      return indexer.getMember('${klass.enclosingLibrary.importUri}', klass.name, name);
-    }
-
-    Procedure findProcedure(Library library, String name) {
-      return indexer.getTopLevelMember('${library.importUri}', name);
-    }
-
-    var asyncLibrary = findLibrary('dart:async');
-    var coreLibrary = findLibrary('dart:core');
-
-    var completerClass = findClass(asyncLibrary, 'Completer');
-    var futureClass = findClass(asyncLibrary, 'Future');
-    var iteratorClass = findClass(coreLibrary, 'Iterator');
-    var streamIteratorClass = findClass(asyncLibrary, '_StreamIterator');
-    var syncIterableClass = findClass(coreLibrary, '_SyncIterable');
-    var streamControllerClass =
-        findClass(asyncLibrary, '_AsyncStarStreamController');
-
     return new HelperNodes(
-        asyncLibrary,
-        coreLibrary,
-        iteratorClass,
-        futureClass,
-        completerClass,
-        findProcedure(coreLibrary, 'print'),
-        findFactoryConstructor(completerClass, 'sync'),
-        findConstructor(syncIterableClass, ''),
-        findConstructor(streamIteratorClass, ''),
-        findFactoryConstructor(futureClass, 'microtask'),
-        findConstructor(streamControllerClass, ''),
-        findProcedure(asyncLibrary, '_asyncThenWrapperHelper'),
-        findProcedure(asyncLibrary, '_asyncErrorWrapperHelper'),
-        findProcedure(asyncLibrary, '_awaitHelper'),
+        indexer.getLibrary('dart:async'),
+        indexer.getLibrary('dart:core'),
+        indexer.getClass('dart:core', 'Iterator'),
+        indexer.getClass('dart:async', 'Future'),
+        indexer.getClass('dart:async', 'Completer'),
+        indexer.getTopLevelMember('dart:core', 'print'),
+        indexer.getMember('dart:async', 'Completer', 'sync'),
+        indexer.getMember('dart:core', '_SyncIterable', ''),
+        indexer.getMember('dart:async', '_StreamIterator', ''),
+        indexer.getMember('dart:async', 'Future', 'microtask'),
+        indexer.getMember('dart:async', '_AsyncStarStreamController', ''),
+        indexer.getTopLevelMember('dart:async', '_asyncThenWrapperHelper'),
+        indexer.getTopLevelMember('dart:async', '_asyncErrorWrapperHelper'),
+        indexer.getTopLevelMember('dart:async', '_awaitHelper'),
         new CoreTypes(program));
   }
 }

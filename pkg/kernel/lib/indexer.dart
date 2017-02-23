@@ -92,22 +92,25 @@ class _LibraryIndex {
 
   void build(Library library) {
     this.library = library;
-    classes[Indexer.topLevel] = new _ClassIndex.topLevel(library);
+    classes[Indexer.topLevel] = new _ClassIndex.topLevel(this);
     for (var class_ in library.classes) {
-      classes[class_.name] = new _ClassIndex(class_);
+      classes[class_.name] = new _ClassIndex(this, class_);
     }
+  }
+
+  String get containerName {
+    // It can be helpful to indicate if the library is external, since then
+    // the class might be in the library, but just not seen from this build
+    // unit.
+    return library.isExternal
+        ? "external library '${library.importUri}'"
+        : "library '${library.importUri}'";
   }
 
   _ClassIndex _getClassIndex(String name) {
     var indexer = classes[name];
     if (indexer == null) {
-      // It can be helpful to indicate if the library is external, since then
-      // the class might be in the library, but just not seen from this build
-      // unit.
-      String libraryName = library.isExternal
-          ? "external library '${library.importUri}'"
-          : "library '${library.importUri}'";
-      throw "Class '$name' not found in $libraryName";
+      throw "Class '$name' not found in $containerName";
     }
     return indexer;
   }
@@ -122,16 +125,19 @@ class _LibraryIndex {
 }
 
 class _ClassIndex {
+  final _LibraryIndex parent;
   final Class class_; // Null for top-level.
   final Map<Name, Member> members = <Name, Member>{};
 
-  _ClassIndex(this.class_) {
+  Library get library => parent.library;
+
+  _ClassIndex(this.parent, this.class_) {
     class_.procedures.forEach(addMember);
     class_.fields.forEach(addMember);
     class_.constructors.forEach(addMember);
   }
 
-  _ClassIndex.topLevel(Library library) : class_ = null {
+  _ClassIndex.topLevel(this.parent) : class_ = null {
     library.procedures.forEach(addMember);
     library.fields.forEach(addMember);
   }
@@ -140,7 +146,20 @@ class _ClassIndex {
     members[member.disambiguatedName] = member;
   }
 
+  String get containerName {
+    if (class_ == null) {
+      return "top-level of ${parent.containerName}";
+    } else {
+      return "class '${class_.name}' in ${parent.containerName}";
+    }
+  }
+
   Member getMember(Name name) {
-    return members[name];
+    var member = members[name];
+    if (member == null) {
+      throw "A member with disambiguated name '$name' was not found "
+          "in $containerName";
+    }
+    return member;
   }
 }
