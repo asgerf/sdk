@@ -11,7 +11,7 @@ class Indexer {
   /// of a library.
   static const String topLevel = '::';
 
-  final Map<String, _LibraryIndex> _libraries = {};
+  final Map<String, _LibraryIndex> _libraries = <String, _LibraryIndex>{};
 
   /// Indexes the libraries with the URIs given in [libraryUris].
   Indexer(Program program, Iterable<String> libraryUris) {
@@ -94,7 +94,7 @@ class _LibraryIndex {
 
 class _ClassIndex {
   final Class class_; // Null for top-level.
-  final Map<Name, Member> members = {};
+  final Map<Name, Member> members = <Name, Member>{};
 
   _ClassIndex(this.class_) {
     class_.procedures.forEach(addMember);
