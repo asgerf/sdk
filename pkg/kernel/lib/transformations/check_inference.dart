@@ -8,10 +8,10 @@ import 'package:kernel/frontend/accessors.dart';
 import 'package:kernel/inference/inference.dart';
 
 class CheckInference {
-  InferenceResults inference;
+  InferenceResults inferenceResults;
 
   void transformProgram(Program program) {
-    inference = InferenceEngine.analyzeWholeProgram(program);
+    inferenceResults = InferenceEngine.analyzeWholeProgram(program);
     for (var library in program.libraries) {
       if (library.importUri.scheme == 'dart') continue;
       library.members.forEach(instrumentMember);
@@ -25,7 +25,7 @@ class CheckInference {
     var function = member.function;
     var body = function?.body;
     if (body != null) {
-      var inferredValues = inference.getInferredValuesForMember(member);
+      var inferredValues = inferenceResults.getInferredValuesForMember(member);
       List<Statement> checks = <Statement>[];
       for (int i = 0; i < function.positionalParameters.length; ++i) {
         var parameter = function.positionalParameters[i];
