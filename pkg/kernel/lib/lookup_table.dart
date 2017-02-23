@@ -73,20 +73,6 @@ class LookupTable {
     return _getLibraryIndex(library).getClass(className);
   }
 
-  /// Returns the top-level member with the given name, in the given library.
-  ///
-  /// If a getter or setter is wanted, the `get:` or `set:` prefix must be
-  /// added in front of the member name.
-  ///
-  /// If the member name is private it is considered private to [library].
-  /// It is not possible with this class to lookup members whose name is private
-  /// to a library other than the one containing it.
-  ///
-  /// An error is thrown if the member is not found.
-  Member getTopLevelMember(String library, String memberName) {
-    return getMember(library, topLevel, memberName);
-  }
-
   /// Returns the member with the given name, in the given class, in the
   /// given library.
   ///
@@ -102,6 +88,20 @@ class LookupTable {
   /// An error is thrown if the member is not found.
   Member getMember(String library, String className, String memberName) {
     return _getLibraryIndex(library).getMember(className, memberName);
+  }
+
+  /// Returns the top-level member with the given name, in the given library.
+  ///
+  /// If a getter or setter is wanted, the `get:` or `set:` prefix must be
+  /// added in front of the member name.
+  ///
+  /// If the member name is private it is considered private to [library].
+  /// It is not possible with this class to lookup members whose name is private
+  /// to a library other than the one containing it.
+  ///
+  /// An error is thrown if the member is not found.
+  Member getTopLevelMember(String library, String memberName) {
+    return getMember(library, topLevel, memberName);
   }
 }
 
