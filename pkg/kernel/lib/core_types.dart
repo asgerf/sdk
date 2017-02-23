@@ -7,7 +7,7 @@ import 'ast.dart';
 import 'indexer.dart';
 
 /// Provides access to the classes and libraries in the core libraries.
-class CoreTypes extends Indexer {
+class CoreTypes extends LookupTable {
   Class objectClass;
   Class nullClass;
   Class boolClass;

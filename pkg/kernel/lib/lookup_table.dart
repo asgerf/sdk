@@ -7,7 +7,7 @@ import 'ast.dart';
 import 'transformations/treeshaker.dart';
 
 /// Provides name-based access to library, class, and member AST nodes.
-class Indexer {
+class LookupTable {
   /// A name that can be used as a class name to access the top-level members
   /// of a library.
   static const String topLevel = '::';
@@ -15,7 +15,7 @@ class Indexer {
   final Map<String, _LibraryIndex> _libraries = <String, _LibraryIndex>{};
 
   /// Indexes the libraries with the URIs given in [libraryUris].
-  Indexer(Program program, Iterable<String> libraryUris) {
+  LookupTable(Program program, Iterable<String> libraryUris) {
     for (var uri in libraryUris) {
       _libraries[uri] = new _LibraryIndex();
     }
@@ -28,11 +28,11 @@ class Indexer {
   }
 
   /// Indexes the libraries with the URIs given in [libraryUris].
-  Indexer.byUri(Program program, Iterable<Uri> libraryUris)
+  LookupTable.byUri(Program program, Iterable<Uri> libraryUris)
       : this(program, libraryUris.map((uri) => '$uri'));
 
   /// Indexes the libraries with the URIs given in [libraryUris].
-  Indexer.coreLibraries(Program program) {
+  LookupTable.coreLibraries(Program program) {
     for (var library in program.libraries) {
       if (library.importUri.scheme == 'dart') {
         _libraries['${library.importUri}'] = new _LibraryIndex()
@@ -45,7 +45,7 @@ class Indexer {
   ///
   /// Consider using another constructor to only index the libraries that
   /// are needed.
-  Indexer.all(Program program) {
+  LookupTable.all(Program program) {
     for (var library in program.libraries) {
       _libraries['${library.importUri}'] = new _LibraryIndex()..build(library);
     }
@@ -102,7 +102,7 @@ class _LibraryIndex {
 
   void build(Library library) {
     this.library = library;
-    classes[Indexer.topLevel] = new _ClassIndex.topLevel(this);
+    classes[LookupTable.topLevel] = new _ClassIndex.topLevel(this);
     for (var class_ in library.classes) {
       classes[class_.name] = new _ClassIndex(this, class_);
     }

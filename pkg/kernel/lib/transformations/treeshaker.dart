@@ -231,7 +231,7 @@ class TreeShaker {
     _addPervasiveUses();
     _addUsedMember(null, program.mainMethod);
     if (programRoots != null) {
-      var indexer = new Indexer(program, programRoots.map((r) => r.library));
+      var indexer = new LookupTable(program, programRoots.map((r) => r.library));
       for (var root in programRoots) {
         _addUsedRoot(root, indexer);
       }
@@ -429,7 +429,7 @@ class TreeShaker {
   }
 
   /// Registers the given root as being used.
-  void _addUsedRoot(ProgramRoot root, Indexer indexer) {
+  void _addUsedRoot(ProgramRoot root, LookupTable indexer) {
     if (root.kind == ProgramRootKind.ExternallyInstantiatedClass) {
       Class class_ = indexer.getClassFromProgramRoot(root);
 
