@@ -31,6 +31,16 @@ class Indexer {
   Indexer.byUri(Program program, Iterable<Uri> libraryUris)
       : this(program, libraryUris.map((uri) => '$uri'));
 
+  /// Indexes the libraries with the URIs given in [libraryUris].
+  Indexer.coreLibraries(Program program) {
+    for (var library in program.libraries) {
+      if (library.importUri.scheme == 'dart') {
+        _libraries['${library.importUri}'] = new _LibraryIndex()
+          ..build(library);
+      }
+    }
+  }
+
   /// Indexes the entire program.
   ///
   /// Consider using another constructor to only index the libraries that
