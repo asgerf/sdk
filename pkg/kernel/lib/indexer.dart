@@ -5,6 +5,7 @@ library kernel.indexer;
 
 import 'package:kernel/ast.dart';
 
+/// Provides name-based access to library, class, and member AST nodes.
 class Indexer {
   /// A name that can be used as a class name to access the top-level members
   /// of a library.
