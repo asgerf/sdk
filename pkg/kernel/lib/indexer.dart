@@ -3,7 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.indexer;
 
-import 'package:kernel/ast.dart';
+import 'ast.dart';
 
 /// Provides name-based access to library, class, and member AST nodes.
 class Indexer {
