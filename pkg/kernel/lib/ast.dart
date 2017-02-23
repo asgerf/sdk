@@ -726,6 +726,9 @@ abstract class Member extends NamedNode {
 
   /// A name derived from [name] that includes a prefix indicating if it is
   /// a getter or setter (and no prefix otherwise).
+  ///
+  /// This name is the name by which the member can be found in a [LookupTable],
+  /// but it has no meaning otherwise.
   Name get disambiguatedName => name;
 }
 
