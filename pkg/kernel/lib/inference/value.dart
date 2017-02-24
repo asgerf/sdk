@@ -24,6 +24,9 @@ import 'extractor/value_source.dart';
 /// If the bit [ValueFlags.inexactBaseClass] is 0, then the base class is exact,
 /// that is, all non-null concrete values are exact instances of the base class.
 ///
+/// The `isAlwaysX` methods return true if the value can only be of type `X`
+/// and is not bottom.
+///
 /// See [ValueFlags] for more details about the flags.
 class Value extends ValueSource implements Printable {
   static final Value bottom = new Value(null, ValueFlags.none);
