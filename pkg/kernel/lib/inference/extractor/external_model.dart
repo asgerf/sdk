@@ -74,7 +74,7 @@ class VmExternalModel extends ExternalModel {
 
   VmExternalModel(this.coreTypes) {
     externalNameAnnotation =
-        coreTypes.getCoreClass('dart:_internal', 'ExternalName');
+        coreTypes.getClass('dart:_internal', 'ExternalName');
   }
 
   ConstructorInvocation getAnnotation(
