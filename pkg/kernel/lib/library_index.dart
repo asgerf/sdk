@@ -40,8 +40,7 @@ class LibraryIndex {
   LibraryIndex.coreLibraries(Program program) {
     for (var library in program.libraries) {
       if (library.importUri.scheme == 'dart') {
-        _libraries['${library.importUri}'] = new _ClassTable()
-          ..build(library);
+        _libraries['${library.importUri}'] = new _ClassTable()..build(library);
       }
     }
   }
@@ -64,7 +63,13 @@ class LibraryIndex {
     return libraryIndex;
   }
 
+  /// Returns the library with the given URI.
+  ///
+  /// Throws an error if it does not exist.
   Library getLibrary(String uri) => _getLibraryIndex(uri).library;
+
+  /// Like [getLibrary] but returns `null` if not found.
+  Library tryGetLibrary(String uri) => _libraries[uri]?.library;
 
   /// True if the library with the given URI exists and was indexed.
   bool containsLibrary(String uri) => _libraries.containsKey(uri);
@@ -74,6 +79,11 @@ class LibraryIndex {
   /// An error is thrown if the class is not found.
   Class getClass(String library, String className) {
     return _getLibraryIndex(library).getClass(className);
+  }
+
+  /// Like [getClass] but returns `null` if not found.
+  Class tryGetClass(String library, String className) {
+    return _libraries[library]?.tryGetClass(className);
   }
 
   /// Returns the member with the given name, in the given class, in the
@@ -93,6 +103,11 @@ class LibraryIndex {
     return _getLibraryIndex(library).getMember(className, memberName);
   }
 
+  /// Like [getMember] but returns `null` if not found.
+  Member tryGetMember(String library, String className, String memberName) {
+    return _libraries[library]?.tryGetMember(className, memberName);
+  }
+
   /// Returns the top-level member with the given name, in the given library.
   ///
   /// If a getter or setter is wanted, the `get:` or `set:` prefix must be
@@ -105,6 +120,12 @@ class LibraryIndex {
   /// An error is thrown if the member is not found.
   Member getTopLevelMember(String library, String memberName) {
     return getMember(library, topLevel, memberName);
+  }
+
+  /// Like [getTopLevelMember] but returns `null` if not found.
+  Member tryGetTopLevelMember(
+      String library, String className, String memberName) {
+    return tryGetMember(library, topLevel, memberName);
   }
 }
 
@@ -142,8 +163,16 @@ class _ClassTable {
     return _getClassIndex(name).class_;
   }
 
+  Class tryGetClass(String name) {
+    return classes[name]?.class_;
+  }
+
   Member getMember(String className, String memberName) {
     return _getClassIndex(className).getMember(memberName);
+  }
+
+  Member tryGetMember(String className, String memberName) {
+    return classes[className]?.tryGetMember(memberName);
   }
 }
 
@@ -204,4 +233,6 @@ class _MemberTable {
     }
     return member;
   }
+
+  Member tryGetMember(String name) => members[name];
 }
