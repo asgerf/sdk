@@ -72,7 +72,7 @@ class AnalysisDriver {
   /**
    * The version of data format, should be incremented on every format change.
    */
-  static const int DATA_VERSION = 22;
+  static const int DATA_VERSION = 24;
 
   /**
    * The number of exception contexts allowed to write. Once this field is
@@ -786,7 +786,6 @@ class AnalysisDriver {
           AnalysisResult result = _getAnalysisResultFromBytes(
               file, signature, bytes,
               content: withUnit ? file.content : null,
-              withErrors: _fileTracker.addedFiles.contains(path),
               resolvedUnit: withUnit ? resolvedUnit : null);
           if (withUnit && _priorityFiles.contains(path)) {
             _priorityResults[path] = result;
@@ -877,11 +876,9 @@ class AnalysisDriver {
    */
   AnalysisResult _getAnalysisResultFromBytes(
       FileState file, String signature, List<int> bytes,
-      {String content, bool withErrors: true, CompilationUnit resolvedUnit}) {
+      {String content, CompilationUnit resolvedUnit}) {
     var unit = new AnalysisDriverResolvedUnit.fromBuffer(bytes);
-    List<AnalysisError> errors = withErrors
-        ? _getErrorsFromSerialized(file, unit.errors)
-        : const <AnalysisError>[];
+    List<AnalysisError> errors = _getErrorsFromSerialized(file, unit.errors);
     return new AnalysisResult(
         this,
         _sourceFactory,

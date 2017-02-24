@@ -7,7 +7,7 @@ library fasta.compile_platform;
 import 'dart:async' show
     Future;
 
-import 'package:kernel/verifier.dart' show
+import 'kernel/verifier.dart' show
     verifyProgram;
 
 import 'ticker.dart' show
@@ -27,9 +27,6 @@ import 'errors.dart' show
 
 import 'kernel/kernel_target.dart' show
     KernelTarget;
-
-import 'package:kernel/ast.dart' show
-    Program;
 
 import 'dill/dill_target.dart' show
     DillTarget;
@@ -63,7 +60,8 @@ Future compilePlatform(CompilerContext c, Ticker ticker) async {
     print("Compiling $patchedSdk to $output");
   }
 
-  TranslateUri uriTranslator = await TranslateUri.parse(patchedSdk);
+  TranslateUri uriTranslator = await TranslateUri.parse(
+      patchedSdk, c.options.packages);
   ticker.logMs("Read packages file");
 
   DillTarget dillTarget = new DillTarget(ticker, uriTranslator);

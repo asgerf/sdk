@@ -13,7 +13,6 @@ import 'package:analyzer/file_system/file_system.dart' as file_system;
 import 'package:analyzer/file_system/file_system.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:analyzer/plugin/resolver_provider.dart';
-import 'package:analyzer/source/analysis_options_provider.dart';
 import 'package:analyzer/source/package_map_provider.dart';
 import 'package:analyzer/source/package_map_resolver.dart';
 import 'package:analyzer/source/pub_package_map_provider.dart';
@@ -32,12 +31,10 @@ import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/source_io.dart';
 import 'package:analyzer/src/generated/utilities_general.dart'
     show PerformanceTag;
-import 'package:analyzer/src/lint/registry.dart';
 import 'package:analyzer/src/source/source_resource.dart';
 import 'package:analyzer/src/summary/idl.dart';
 import 'package:analyzer/src/summary/package_bundle_reader.dart';
 import 'package:analyzer/src/summary/summary_sdk.dart' show SummaryBasedDartSdk;
-import 'package:analyzer/src/task/options.dart';
 import 'package:analyzer_cli/src/analyzer_impl.dart';
 import 'package:analyzer_cli/src/build_mode.dart';
 import 'package:analyzer_cli/src/error_formatter.dart';
@@ -225,11 +222,7 @@ class Driver implements CommandLineStarter {
         sourcesToAnalyze.add(source);
       }
 
-      if (analysisDriver != null) {
-        files.forEach((file) {
-          analysisDriver.addFile(file.path);
-        });
-      } else {
+      if (analysisDriver == null) {
         context.applyChanges(changeSet);
       }
     }
@@ -561,13 +554,8 @@ class Driver implements CommandLineStarter {
     SummaryDataStore summaryDataStore = new SummaryDataStore(
         useSummaries ? options.buildSummaryInputs : <String>[]);
 
-    // Create a temporary source factory without an SDK resolver
-    // for resolving "include:" directives in analysis options files.
-    SourceFactory tempSourceFactory = _chooseUriResolutionPolicy(
-        options, embedderMap, packageInfo, summaryDataStore, false, null);
-
     AnalysisOptionsImpl analysisOptions =
-        createAnalysisOptions(resourceProvider, tempSourceFactory, options);
+        createAnalysisOptionsForCommandLineOptions(resourceProvider, options);
     analysisOptions.analyzeFunctionBodiesPredicate =
         _chooseDietParsingPolicy(options);
 
@@ -740,45 +728,40 @@ class Driver implements CommandLineStarter {
     }
   }
 
-  static AnalysisOptionsImpl createAnalysisOptions(
-      file_system.ResourceProvider resourceProvider,
-      SourceFactory sourceFactory,
-      CommandLineOptions options) {
-    // Prepare context options.
-    AnalysisOptionsImpl analysisOptions =
-        createAnalysisOptionsForCommandLineOptions(options);
-
-    // Process analysis options file (and notify all interested parties).
-    _processAnalysisOptions(
-        resourceProvider, sourceFactory, analysisOptions, options);
-    return analysisOptions;
-  }
-
   static AnalysisOptionsImpl createAnalysisOptionsForCommandLineOptions(
-      CommandLineOptions options) {
-    AnalysisOptionsImpl contextOptions = new AnalysisOptionsImpl();
+      ResourceProvider resourceProvider, CommandLineOptions options) {
+    if (options.analysisOptionsFile != null) {
+      file_system.File file =
+          resourceProvider.getFile(options.analysisOptionsFile);
+      if (!file.exists) {
+        printAndFail('Options file not found: ${options.analysisOptionsFile}',
+            exitCode: ErrorSeverity.ERROR.ordinal);
+      }
+    }
+
+    AnalysisOptionsImpl contextOptions = new ContextBuilder(
+            resourceProvider, null, null,
+            options: options.contextBuilderOptions)
+        .getAnalysisOptions(options.sourceFiles.isNotEmpty
+            ? options.sourceFiles[0]
+            : path.current);
+
     contextOptions.trackCacheDependencies = false;
     contextOptions.disableCacheFlushing = options.disableCacheFlushing;
     contextOptions.hint = !options.disableHints;
-    contextOptions.enableStrictCallChecks = options.enableStrictCallChecks;
-    contextOptions.enableSuperMixins = options.enableSuperMixins;
     contextOptions.generateImplicitErrors = options.showPackageWarnings;
     contextOptions.generateSdkErrors = options.showSdkWarnings;
-    contextOptions.lint = options.lints;
-    contextOptions.strongMode = options.strongMode;
-    contextOptions.implicitCasts = options.implicitCasts;
-    contextOptions.implicitDynamic = options.implicitDynamic;
+
     return contextOptions;
   }
 
   static void setAnalysisContextOptions(
       file_system.ResourceProvider resourceProvider,
-      SourceFactory sourceFactory,
       AnalysisContext context,
       CommandLineOptions options,
       void configureContextOptions(AnalysisOptionsImpl contextOptions)) {
     AnalysisOptionsImpl analysisOptions =
-        createAnalysisOptions(resourceProvider, sourceFactory, options);
+        createAnalysisOptionsForCommandLineOptions(resourceProvider, options);
     configureContextOptions(analysisOptions);
     setupAnalysisContext(context, options, analysisOptions);
   }
@@ -827,55 +810,9 @@ class Driver implements CommandLineStarter {
     return true;
   }
 
-  static file_system.File _getOptionsFile(
-      file_system.ResourceProvider resourceProvider,
-      CommandLineOptions options) {
-    file_system.File file;
-    String filePath = options.analysisOptionsFile;
-    if (filePath != null) {
-      file = resourceProvider.getFile(filePath);
-      if (!file.exists) {
-        printAndFail('Options file not found: $filePath',
-            exitCode: ErrorSeverity.ERROR.ordinal);
-      }
-    } else {
-      filePath = AnalysisEngine.ANALYSIS_OPTIONS_FILE;
-      file = resourceProvider.getFile(filePath);
-      if (!file.exists) {
-        filePath = AnalysisEngine.ANALYSIS_OPTIONS_YAML_FILE;
-        file = resourceProvider.getFile(filePath);
-      }
-    }
-    return file;
-  }
-
   /// Convert [sourcePath] into an absolute path.
   static String _normalizeSourcePath(String sourcePath) =>
       path.normalize(new io.File(sourcePath).absolute.path);
-
-  static void _processAnalysisOptions(
-      file_system.ResourceProvider resourceProvider,
-      SourceFactory sourceFactory,
-      AnalysisOptionsImpl analysisOptions,
-      CommandLineOptions options) {
-    file_system.File file = _getOptionsFile(resourceProvider, options);
-
-    AnalysisOptionsProvider analysisOptionsProvider =
-        new AnalysisOptionsProvider(sourceFactory);
-    Map<String, YamlNode> optionMap =
-        analysisOptionsProvider.getOptionsFromFile(file);
-
-    // Fill in lint rule defaults in case lints are enabled and rules are
-    // not specified in an options file.
-    if (options.lints && !containsLintRuleEntry(optionMap)) {
-      analysisOptions.lintRules = Registry.ruleRegistry.defaultRules;
-    }
-
-    // Ask engine to further process options.
-    if (optionMap != null) {
-      applyToAnalysisOptions(analysisOptions, optionMap);
-    }
-  }
 }
 
 /// Provides a framework to read command line options from stdin and feed them

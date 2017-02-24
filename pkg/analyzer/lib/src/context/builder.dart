@@ -25,6 +25,7 @@ import 'package:analyzer/src/generated/gn.dart';
 import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/workspace.dart';
+import 'package:analyzer/src/lint/registry.dart';
 import 'package:analyzer/src/summary/summary_sdk.dart';
 import 'package:analyzer/src/task/options.dart';
 import 'package:args/args.dart';
@@ -300,7 +301,8 @@ class ContextBuilder {
       Map<String, List<Folder>> packageMap, AnalysisOptions analysisOptions) {
     String summaryPath = builderOptions.dartSdkSummaryPath;
     if (summaryPath != null) {
-      return new SummaryBasedDartSdk(summaryPath, analysisOptions.strongMode);
+      return new SummaryBasedDartSdk(summaryPath, analysisOptions.strongMode,
+          resourceProvider: resourceProvider);
     } else if (packageMap != null) {
       SdkExtensionFinder extFinder = new SdkExtensionFinder(packageMap);
       List<String> extFilePaths = extFinder.extensionFilePaths;
@@ -409,6 +411,10 @@ class ContextBuilder {
       applyToAnalysisOptions(options, optionMap);
       if (builderOptions.argResults != null) {
         applyAnalysisOptionFlags(options, builderOptions.argResults);
+        // If lints turned on but none specified, then enable default lints
+        if (options.lint && options.lintRules.isEmpty) {
+          options.lintRules = Registry.ruleRegistry.defaultRules;
+        }
       }
     }
     return options;

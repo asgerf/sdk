@@ -126,7 +126,7 @@ class AnalysisServer {
    * The subset of notifications are those to which plugins may contribute.
    * This field is `null` when the new plugin support is disabled.
    */
-  final NotificationManager notificationManager = null;
+  final NotificationManager notificationManager;
 
   /**
    * The [ResourceProvider] using which paths are converted into [Resource]s.
@@ -242,11 +242,6 @@ class AnalysisServer {
    * and after startup is complete, this switches to [performanceAfterStartup].
    */
   ServerPerformance _performance;
-
-  /**
-   * The option possibly set from the server initialization which disables error notifications.
-   */
-  bool _noErrorNotification;
 
   /**
    * The [Completer] that completes when analysis is complete.
@@ -374,7 +369,10 @@ class AnalysisServer {
       ResolverProvider fileResolverProvider: null,
       ResolverProvider packageResolverProvider: null,
       bool useSingleContextManager: false,
-      this.rethrowExceptions: true}) {
+      this.rethrowExceptions: true})
+      // TODO(brianwilkerson) Initialize notificationManager to
+      // "new NotificationManager(channel, resourceProvider)"
+      : notificationManager = null {
     _performance = performanceDuringStartup;
     defaultContextOptions.incremental = true;
     defaultContextOptions.incrementalApi =
@@ -424,7 +422,6 @@ class AnalysisServer {
     ServerContextManagerCallbacks contextManagerCallbacks =
         new ServerContextManagerCallbacks(this, resourceProvider);
     contextManager.callbacks = contextManagerCallbacks;
-    _noErrorNotification = options.noErrorNotification;
     AnalysisEngine.instance.logger = new AnalysisLogger(this);
     _onAnalysisStartedController = new StreamController.broadcast();
     _onFileAnalyzedController = new StreamController.broadcast();
@@ -1235,6 +1232,9 @@ class AnalysisServer {
    */
   void setAnalysisRoots(String requestId, List<String> includedPaths,
       List<String> excludedPaths, Map<String, String> packageRoots) {
+    if (notificationManager != null) {
+      notificationManager.setAnalysisRoots(includedPaths, excludedPaths);
+    }
     try {
       contextManager.setRoots(includedPaths, excludedPaths, packageRoots);
     } on UnimplementedError catch (e) {
@@ -1248,6 +1248,9 @@ class AnalysisServer {
    */
   void setAnalysisSubscriptions(
       Map<AnalysisService, Set<String>> subscriptions) {
+    if (notificationManager != null) {
+      notificationManager.setSubscriptions(subscriptions);
+    }
     if (options.enableNewAnalysisDriver) {
       this.analysisServices = subscriptions;
       Iterable<nd.AnalysisDriver> drivers = driverMap.values;
@@ -1441,7 +1444,7 @@ class AnalysisServer {
    * absolute path.
    */
   bool shouldSendErrorsNotificationFor(String file) {
-    return !_noErrorNotification && contextManager.isInAnalysisRoot(file);
+    return contextManager.isInAnalysisRoot(file);
   }
 
   void shutdown() {
@@ -1811,7 +1814,6 @@ class AnalysisServerOptions {
   bool enableIncrementalResolutionValidation = false;
   bool enableNewAnalysisDriver = false;
   bool finerGrainedInvalidation = false;
-  bool noErrorNotification = false;
   bool noIndex = false;
   bool useAnalysisHighlight2 = false;
   String fileReadMode = 'as-is';

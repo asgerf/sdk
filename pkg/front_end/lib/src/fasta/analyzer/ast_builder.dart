@@ -9,6 +9,8 @@ import 'package:analyzer/dart/ast/ast_factory.dart' show AstFactory;
 import 'package:analyzer/dart/ast/standard_ast_factory.dart' as standard;
 import 'package:analyzer/dart/ast/token.dart' as analyzer show Token;
 import 'package:analyzer/dart/element/element.dart' show Element;
+import 'package:front_end/src/fasta/parser/parser.dart'
+    show FormalParameterType;
 import 'package:front_end/src/fasta/scanner/token.dart'
     show BeginGroupToken, Token;
 import 'package:kernel/ast.dart' show AsyncMarker;
@@ -41,6 +43,15 @@ class AstBuilder extends ScopeListener {
 
   @override
   final Uri uri;
+
+  /// If `true`, the first call to [handleIdentifier] should push a
+  /// List<SimpleIdentifier> on the stack, and [handleQualified] should append
+  /// to the list.
+  var accumulateIdentifierComponents = false;
+
+  /// The name of the class currently being parsed, or `null` if no class is
+  /// being parsed.
+  String className;
 
   AstBuilder(this.library, this.member, this.elementStore, Scope scope,
       [Uri uri])
@@ -136,6 +147,8 @@ class AstBuilder extends ScopeListener {
           assert(element != null);
           identifier.staticElement = element;
         }
+      } else if (context == IdentifierContext.classDeclaration) {
+        className = identifier.name;
       }
       push(identifier);
     }
@@ -470,18 +483,60 @@ class AstBuilder extends ScopeListener {
     push(ast.throwExpression(toAnalyzerToken(throwToken), pop()));
   }
 
-  void endFormalParameter(Token thisKeyword) {
+  @override
+  void endOptionalFormalParameters(
+      int count, Token beginToken, Token endToken) {
+    debugEvent("OptionalFormalParameters");
+  }
+
+  void handleValuedFormalParameter(Token equals, Token token) {
+    debugEvent("ValuedFormalParameter");
+    Expression value = pop();
+    push(new _ParameterDefaultValue(equals, value));
+  }
+
+  void handleFormalParameterWithoutValue(Token token) {
+    debugEvent("FormalParameterWithoutValue");
+    push(NullValue.ParameterDefaultValue);
+  }
+
+  void endFormalParameter(Token thisKeyword, FormalParameterType kind) {
     debugEvent("FormalParameter");
-    if (thisKeyword != null) {
-      internalError("'this' can't be used here.");
-    }
+    _ParameterDefaultValue defaultValue = pop();
     SimpleIdentifier name = pop();
     TypeName type = pop();
     Token keyword = _popOptionalSingleModifier();
     pop(); // TODO(paulberry): Metadata.
     // TODO(paulberry): handle covariant keyword.
-    SimpleFormalParameter node = ast.simpleFormalParameter(
-        null, null, toAnalyzerToken(keyword), type, name);
+
+    FormalParameter node;
+    if (thisKeyword == null) {
+      node = ast.simpleFormalParameter(
+          null, null, toAnalyzerToken(keyword), type, name);
+    } else {
+      // TODO(scheglov): Ideally the period token should be passed in.
+      Token period = identical('.', thisKeyword.next?.stringValue)
+          ? thisKeyword.next
+          : null;
+      TypeParameterList typeParameters; // TODO(scheglov)
+      FormalParameterList formalParameters; // TODO(scheglov)
+      node = ast.fieldFormalParameter(
+          null,
+          null,
+          toAnalyzerToken(keyword),
+          type,
+          toAnalyzerToken(thisKeyword),
+          toAnalyzerToken(period),
+          name,
+          typeParameters,
+          formalParameters);
+    }
+
+    if (defaultValue != null) {
+      node = ast.defaultFormalParameter(node, _toAnalyzerParameterKind(kind),
+          toAnalyzerToken(defaultValue.separator), defaultValue.value);
+    }
+
     scope[name.name] = name.staticElement = new AnalyzerParameterElement(node);
     push(node);
   }
@@ -802,6 +857,8 @@ class AstBuilder extends ScopeListener {
     }
     TypeParameterList typeParameters = pop();
     SimpleIdentifier name = pop();
+    assert(className == name.name);
+    className = null;
     Token abstractKeyword = _popOptionalSingleModifier();
     List<Annotation> metadata = pop();
     // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
@@ -1021,7 +1078,7 @@ class AstBuilder extends ScopeListener {
         factoryKeyword = modifier;
       } else {
         // TODO(scheglov): Report error.
-        internalError("Invalid modifier. Report an error.");
+        internalError("Invalid modifier ($value). Report an error.");
       }
     }
 
@@ -1158,6 +1215,16 @@ class AstBuilder extends ScopeListener {
       return null;
     }
   }
+
+  ParameterKind _toAnalyzerParameterKind(FormalParameterType type) {
+    if (type == FormalParameterType.POSITIONAL) {
+      return ParameterKind.POSITIONAL;
+    } else if (type == FormalParameterType.NAMED) {
+      return ParameterKind.NAMED;
+    } else {
+      return ParameterKind.REQUIRED;
+    }
+  }
 }
 
 /// Data structure placed on the stack to represent a class body.
@@ -1189,4 +1256,13 @@ class _MixinApplication {
   final List<TypeName> mixinTypes;
 
   _MixinApplication(this.supertype, this.withKeyword, this.mixinTypes);
+}
+
+/// Data structure placed on the stack to represent the default parameter
+/// value with the separator token.
+class _ParameterDefaultValue {
+  final Token separator;
+  final Expression value;
+
+  _ParameterDefaultValue(this.separator, this.value);
 }
