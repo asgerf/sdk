@@ -14,13 +14,16 @@ class _InferenceResults extends InferenceResults {
 
   Value _top;
 
-  _InferenceResults(this.program, {this.coreTypes, this.hierarchy}) {
+  _InferenceResults(this.program,
+      {this.coreTypes, this.hierarchy, List<ProgramRoot> programRoots}) {
     coreTypes ??= new CoreTypes(program);
     hierarchy ??= new ClassHierarchy(program);
 
     _top = new Value(coreTypes.objectClass, ValueFlags.all);
 
-    _extractor = new ConstraintExtractor()..extractFromProgram(program);
+    var externalModel = new VmExternalModel(program, coreTypes, programRoots);
+    _extractor = new ConstraintExtractor(externalModel)
+      ..extractFromProgram(program);
     _binding = _extractor.binding;
     _solver = new ConstraintSolver(hierarchy, _extractor.builder.constraints);
     _solver.solve();

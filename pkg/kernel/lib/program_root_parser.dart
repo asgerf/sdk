@@ -1,10 +1,8 @@
-// Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
-// for details. All rights reserved. Use of this source code is governed by a
-// BSD-style license that can be found in the LICENSE file.
+library kernel.program_root_parser;
 
 import 'dart:io';
 
-import 'package:kernel/transformations/treeshaker.dart';
+import 'program_root.dart';
 
 /// Parses all given [embedderEntryPointManifests] and returns the program roots
 /// specified in them.

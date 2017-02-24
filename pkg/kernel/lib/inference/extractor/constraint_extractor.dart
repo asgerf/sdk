@@ -14,8 +14,8 @@ import 'binding.dart';
 import 'constraint_builder.dart';
 import 'external_model.dart';
 import 'hierarchy.dart';
-import 'package:kernel/inference/extractor/type_augmentor.dart';
 import 'substitution.dart';
+import 'type_augmentor.dart';
 import 'value_sink.dart';
 
 /// Generates constraints from an AST.
@@ -55,12 +55,14 @@ class ConstraintExtractor {
   Value nullableStringValue;
   Value nullableBoolValue;
 
+  ConstraintExtractor(this.externalModel);
+
   void extractFromProgram(Program program) {
     coreTypes ??= new CoreTypes(program);
     baseHierarchy ??= new ClassHierarchy(program);
     binding ??= new Binding(coreTypes);
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
-    externalModel ??= new VmExternalModel(coreTypes);
+    externalModel ??= new VmExternalModel(program, coreTypes, []);
     builder ??= new ConstraintBuilder(hierarchy);
     conditionType = new InterfaceAType(
         Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
@@ -125,7 +127,7 @@ class ConstraintExtractor {
         new Value(coreTypes.stringClass, ValueFlags.null_ | ValueFlags.string);
     nullableBoolValue = new Value(coreTypes.boolClass, ValueFlags.boolean);
 
-    generateEntryPoint(program);
+    generateMainEntryPoint(program);
 
     for (var library in program.libraries) {
       for (var class_ in library.classes) {
@@ -152,7 +154,7 @@ class ConstraintExtractor {
     }
   }
 
-  void generateEntryPoint(Program program) {
+  void generateMainEntryPoint(Program program) {
     var function = program.mainMethod?.function;
     if (function != null && function.positionalParameters.isNotEmpty) {
       var bank = binding.getFunctionBank(program.mainMethod);
@@ -441,7 +443,11 @@ class ConstraintExtractorVisitor
     }
     if (node.isExternal || seenTypeError) {
       bank.type.accept(new ExternalVisitor(extractor,
-          extractor.externalModel.isNicelyBehaved(node), true, !node.isFinal));
+          extractor.externalModel.isSafeExternal(node), true, !node.isFinal));
+    }
+    if (extractor.externalModel.isEntryPoint(node)) {
+      bank.type
+          .accept(new ExternalVisitor(extractor, false, true, !node.isFinal));
     }
   }
 
@@ -454,7 +460,11 @@ class ConstraintExtractorVisitor
     handleFunctionBody(node.function);
     if (node.isExternal || seenTypeError) {
       bank.type.accept(new ExternalVisitor(extractor,
-          extractor.externalModel.isNicelyBehaved(node), true, false));
+          extractor.externalModel.isSafeExternal(node), true, false));
+    }
+    if (extractor.externalModel.isEntryPoint(node)) {
+      bank.type
+          .accept(new ExternalVisitor(extractor, false, false, true));
     }
   }
 
@@ -467,7 +477,12 @@ class ConstraintExtractorVisitor
     handleFunctionBody(node.function);
     if (node.isExternal || seenTypeError) {
       bank.type.accept(new ExternalVisitor(extractor,
-          extractor.externalModel.isNicelyBehaved(node), true, false));
+          extractor.externalModel.isSafeExternal(node), true, false));
+    }
+    if (extractor.externalModel.isEntryPoint(node)) {
+      print('Treating $node as entry point');
+      bank.type
+          .accept(new ExternalVisitor(extractor, false, false, true));
     }
   }
 

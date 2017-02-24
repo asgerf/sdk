@@ -8,6 +8,8 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:kernel/kernel.dart';
+import 'package:kernel/program_root.dart';
+import 'package:kernel/program_root_parser.dart';
 import 'package:kernel/transformations/closure_conversion.dart' as closures;
 import 'package:kernel/transformations/continuation.dart' as cont;
 import 'package:kernel/transformations/empty.dart' as empty;
@@ -18,7 +20,6 @@ import 'package:kernel/transformations/treeshaker.dart' as treeshaker;
 import 'package:kernel/verifier.dart';
 
 import 'batch_util.dart';
-import 'util.dart';
 
 ArgParser parser = new ArgParser()
   ..addOption('format',
@@ -71,7 +72,7 @@ Future<CompilerOutcome> runTransformation(List<String> arguments) async {
 
   List<String> embedderEntryPointManifests =
       options['embedder-entry-points-manifest'] as List<String>;
-  List<treeshaker.ProgramRoot> programRoots =
+  List<ProgramRoot> programRoots =
       parseProgramRoots(embedderEntryPointManifests);
 
   var program = loadProgramFromBinary(input);

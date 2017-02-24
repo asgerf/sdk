@@ -78,7 +78,7 @@ class VmTarget extends Target {
     }
 
     if (flags.checkInference) {
-      new CheckInference().transformProgram(program);
+      new CheckInference(flags.programRoots).transformProgram(program);
     }
 
     cont.transformProgram(program);

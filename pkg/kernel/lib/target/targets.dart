@@ -5,7 +5,7 @@ library kernel.target.targets;
 
 import '../ast.dart';
 import '../core_types.dart';
-import '../transformations/treeshaker.dart' show ProgramRoot;
+import '../program_root.dart';
 import 'flutter.dart';
 import 'vm.dart';
 import 'vmcc.dart';

@@ -6,11 +6,16 @@ library kernel.transformations.check_inference;
 import 'package:kernel/ast.dart';
 import 'package:kernel/frontend/accessors.dart';
 import 'package:kernel/inference/inference.dart';
+import 'package:kernel/program_root.dart';
 
 /// Inserts runtime checks to verify the results of the type inference.
 ///
 /// This is for debugging the type inference, not intended for production.
 class CheckInference {
+  final List<ProgramRoot> programRoots;
+
+  CheckInference(this.programRoots);
+
   InferenceResults inferenceResults;
 
   /// A synthetic field that keeps track of whether an error has been found
@@ -22,7 +27,8 @@ class CheckInference {
   Field stopField;
 
   void transformProgram(Program program) {
-    inferenceResults = InferenceEngine.analyzeWholeProgram(program);
+    inferenceResults =
+        InferenceEngine.analyzeWholeProgram(program, programRoots);
     addStopField(program);
     for (var library in program.libraries) {
       library.members.forEach(instrumentMember);

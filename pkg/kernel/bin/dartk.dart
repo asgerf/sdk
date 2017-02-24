@@ -7,7 +7,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'batch_util.dart';
-import 'util.dart';
+import 'package:kernel/program_root.dart';
+import 'package:kernel/program_root_parser.dart';
 
 import 'package:args/args.dart';
 import 'package:kernel/analyzer/loader.dart';
@@ -16,7 +17,6 @@ import 'package:kernel/verifier.dart';
 import 'package:kernel/kernel.dart';
 import 'package:kernel/log.dart';
 import 'package:kernel/target/targets.dart';
-import 'package:kernel/transformations/treeshaker.dart';
 import 'package:path/path.dart' as path;
 
 // Returns the path to the current sdk based on `Platform.resolvedExecutable`.
@@ -89,7 +89,7 @@ ArgParser parser = new ArgParser(allowTrailingOptions: true)
   ..addFlag('check-inference',
       negatable: false,
       help: 'Insert runtime checks to verify the results of type inference.\n'
-        'Only for internal use. Generates very slow code.');
+          'Only for internal use. Generates very slow code.');
 
 String getUsage() => """
 Usage: dartk [options] FILE
@@ -243,6 +243,17 @@ bool isSupportedArgument(String arg) {
   return true;
 }
 
+List<String> defaultEntryPointManifests() {
+  Uri sdkCheckout = Platform.script.resolve('../../../');
+  Uri manifestDir = sdkCheckout.resolve('runtime/bin/');
+  var filenames = [
+    'dart_entries.txt',
+    'dart_io_entries.txt',
+    'dart_product_entries.txt'
+  ];
+  return filenames.map((name) => manifestDir.resolve(name).toFilePath()).toList();
+}
+
 Future<CompilerOutcome> batchMain(
     List<String> args, BatchModeState batchModeState) async {
   if (args.contains('--ignore-unrecognized-flags')) {
@@ -310,6 +321,9 @@ Future<CompilerOutcome> batchMain(
 
   List<String> embedderEntryPointManifests =
       options['embedder-entry-points-manifest'] as List<String>;
+  if (embedderEntryPointManifests.isEmpty) {
+    embedderEntryPointManifests = defaultEntryPointManifests();
+  }
   List<ProgramRoot> programRoots =
       parseProgramRoots(embedderEntryPointManifests);
 

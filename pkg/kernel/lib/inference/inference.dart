@@ -6,8 +6,10 @@ library kernel.inference;
 import '../ast.dart';
 import '../class_hierarchy.dart';
 import '../core_types.dart';
+import '../program_root.dart';
 import 'extractor/binding.dart';
 import 'extractor/constraint_extractor.dart';
+import 'package:kernel/inference/extractor/external_model.dart';
 import 'solver/solver.dart';
 import 'storage_location.dart';
 import 'value.dart';
@@ -21,10 +23,11 @@ class InferenceEngine {
   ///
   /// This invalidates any existing inference results for that program, since
   /// some of the information is stored directly on AST nodes.
-  static InferenceResults analyzeWholeProgram(Program program,
+  static InferenceResults analyzeWholeProgram(
+      Program program, List<ProgramRoot> programRoots,
       {CoreTypes coreTypes, ClassHierarchy hierarchy}) {
     return new _InferenceResults(program,
-        coreTypes: coreTypes, hierarchy: hierarchy);
+        coreTypes: coreTypes, hierarchy: hierarchy, programRoots: programRoots);
   }
 }
 
