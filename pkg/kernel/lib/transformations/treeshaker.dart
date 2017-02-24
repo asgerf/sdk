@@ -8,7 +8,7 @@ import '../ast.dart';
 import '../class_hierarchy.dart';
 import '../core_types.dart';
 import '../type_environment.dart';
-import '../lookup_table.dart';
+import '../library_index.dart';
 
 Program transformProgram(Program program, {List<ProgramRoot> programRoots}) {
   new TreeShaker(program, programRoots: programRoots).transform(program);
@@ -57,14 +57,14 @@ class ProgramRoot {
     return member;
   }
 
-  Member getMember(LookupTable table) {
+  Member getMember(LibraryIndex table) {
     assert(klass != null);
     assert(member != null);
     return table.getMember(
-        library, klass ?? LookupTable.topLevel, disambiguatedName);
+        library, klass ?? LibraryIndex.topLevel, disambiguatedName);
   }
 
-  Class getClass(LookupTable table) {
+  Class getClass(LibraryIndex table) {
     assert(klass != null);
     return table.getClass(library, klass);
   }
@@ -243,7 +243,7 @@ class TreeShaker {
     _addPervasiveUses();
     _addUsedMember(null, program.mainMethod);
     if (programRoots != null) {
-      var table = new LookupTable(program, programRoots.map((r) => r.library));
+      var table = new LibraryIndex(program, programRoots.map((r) => r.library));
       for (var root in programRoots) {
         _addUsedRoot(root, table);
       }
@@ -441,7 +441,7 @@ class TreeShaker {
   }
 
   /// Registers the given root as being used.
-  void _addUsedRoot(ProgramRoot root, LookupTable table) {
+  void _addUsedRoot(ProgramRoot root, LibraryIndex table) {
     if (root.kind == ProgramRootKind.ExternallyInstantiatedClass) {
       Class class_ = root.getClass(table);
 

@@ -9,7 +9,7 @@ import 'ast.dart';
 ///
 /// When constructed, the lookup table indexes a given set of libraries, and
 /// will not be up-to-date with changes made after it was created.
-class LookupTable {
+class LibraryIndex {
   static const String getterPrefix = 'get:';
   static const String setterPrefix = 'set:';
 
@@ -17,12 +17,12 @@ class LookupTable {
   /// of a library.
   static const String topLevel = '::';
 
-  final Map<String, _LibraryIndex> _libraries = <String, _LibraryIndex>{};
+  final Map<String, _ClassTable> _libraries = <String, _ClassTable>{};
 
   /// Indexes the libraries with the URIs given in [libraryUris].
-  LookupTable(Program program, Iterable<String> libraryUris) {
+  LibraryIndex(Program program, Iterable<String> libraryUris) {
     for (var uri in libraryUris) {
-      _libraries[uri] = new _LibraryIndex();
+      _libraries[uri] = new _ClassTable();
     }
     for (var library in program.libraries) {
       var index = _libraries['${library.importUri}'];
@@ -33,14 +33,14 @@ class LookupTable {
   }
 
   /// Indexes the libraries with the URIs given in [libraryUris].
-  LookupTable.byUri(Program program, Iterable<Uri> libraryUris)
+  LibraryIndex.byUri(Program program, Iterable<Uri> libraryUris)
       : this(program, libraryUris.map((uri) => '$uri'));
 
   /// Indexes the libraries with the URIs given in [libraryUris].
-  LookupTable.coreLibraries(Program program) {
+  LibraryIndex.coreLibraries(Program program) {
     for (var library in program.libraries) {
       if (library.importUri.scheme == 'dart') {
-        _libraries['${library.importUri}'] = new _LibraryIndex()
+        _libraries['${library.importUri}'] = new _ClassTable()
           ..build(library);
       }
     }
@@ -50,14 +50,14 @@ class LookupTable {
   ///
   /// Consider using another constructor to only index the libraries that
   /// are needed.
-  LookupTable.all(Program program) {
+  LibraryIndex.all(Program program) {
     for (var library in program.libraries) {
-      _libraries['${library.importUri}'] = new _LibraryIndex()..build(library);
+      _libraries['${library.importUri}'] = new _ClassTable()..build(library);
     }
   }
 
-  _LibraryIndex _getLibraryIndex(String uri) {
-    _LibraryIndex libraryIndex = _libraries[uri];
+  _ClassTable _getLibraryIndex(String uri) {
+    _ClassTable libraryIndex = _libraries[uri];
     if (libraryIndex == null) {
       throw "The library '$uri' has not been indexed";
     }
@@ -105,15 +105,15 @@ class LookupTable {
   }
 }
 
-class _LibraryIndex {
+class _ClassTable {
   Library library;
-  final Map<String, _ClassIndex> classes = <String, _ClassIndex>{};
+  final Map<String, _MemberTable> classes = <String, _MemberTable>{};
 
   void build(Library library) {
     this.library = library;
-    classes[LookupTable.topLevel] = new _ClassIndex.topLevel(this);
+    classes[LibraryIndex.topLevel] = new _MemberTable.topLevel(this);
     for (var class_ in library.classes) {
-      classes[class_.name] = new _ClassIndex(this, class_);
+      classes[class_.name] = new _MemberTable(this, class_);
     }
   }
 
@@ -126,7 +126,7 @@ class _LibraryIndex {
         : "library '${library.importUri}'";
   }
 
-  _ClassIndex _getClassIndex(String name) {
+  _MemberTable _getClassIndex(String name) {
     var indexer = classes[name];
     if (indexer == null) {
       throw "Class '$name' not found in $containerName";
@@ -143,28 +143,28 @@ class _LibraryIndex {
   }
 }
 
-class _ClassIndex {
-  final _LibraryIndex parent;
+class _MemberTable {
+  final _ClassTable parent;
   final Class class_; // Null for top-level.
   final Map<String, Member> members = <String, Member>{};
 
   Library get library => parent.library;
 
-  _ClassIndex(this.parent, this.class_) {
+  _MemberTable(this.parent, this.class_) {
     class_.procedures.forEach(addMember);
     class_.fields.forEach(addMember);
     class_.constructors.forEach(addMember);
   }
 
-  _ClassIndex.topLevel(this.parent) : class_ = null {
+  _MemberTable.topLevel(this.parent) : class_ = null {
     library.procedures.forEach(addMember);
     library.fields.forEach(addMember);
   }
 
   String getDisambiguatedName(Member member) {
     if (member is Procedure) {
-      if (member.isGetter) return LookupTable.getterPrefix + member.name.name;
-      if (member.isSetter) return LookupTable.setterPrefix + member.name.name;
+      if (member.isGetter) return LibraryIndex.getterPrefix + member.name.name;
+      if (member.isSetter) return LibraryIndex.setterPrefix + member.name.name;
     }
     return member.name.name;
   }
@@ -191,8 +191,8 @@ class _ClassIndex {
     if (member == null) {
       String message = "A member with disambiguated name '$name' was not found "
           "in $containerName";
-      var getter = LookupTable.getterPrefix + name;
-      var setter = LookupTable.setterPrefix + name;
+      var getter = LibraryIndex.getterPrefix + name;
+      var setter = LibraryIndex.setterPrefix + name;
       if (members[getter] != null || members[setter] != null) {
         throw "$message. Did you mean '$getter' or '$setter'?";
       }
