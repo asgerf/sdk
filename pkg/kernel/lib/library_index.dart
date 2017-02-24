@@ -7,7 +7,7 @@ import 'ast.dart';
 
 /// Provides name-based access to library, class, and member AST nodes.
 ///
-/// When constructed, the a given set of libraries are indexed immediately, and
+/// When constructed, a given set of libraries are indexed immediately, and
 /// will not be up-to-date with changes made after it was created.
 class LibraryIndex {
   static const String getterPrefix = 'get:';
@@ -173,7 +173,7 @@ class _MemberTable {
   void addMember(Member member) {
     if (member.name.isPrivate && member.name.library != library) {
       // Members whose name is private to other libraries cannot currently
-      // be found with the LookupTable.
+      // be found with the LibraryIndex class.
       return;
     }
     members[getDisambiguatedName(member)] = member;
