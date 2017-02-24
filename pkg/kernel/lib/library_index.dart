@@ -7,13 +7,13 @@ import 'ast.dart';
 
 /// Provides name-based access to library, class, and member AST nodes.
 ///
-/// When constructed, the lookup table indexes a given set of libraries, and
+/// When constructed, the a given set of libraries are indexed immediately, and
 /// will not be up-to-date with changes made after it was created.
 class LibraryIndex {
   static const String getterPrefix = 'get:';
   static const String setterPrefix = 'set:';
 
-  /// A name that can be used as a class name to access the top-level members
+  /// A special class name that can be use d to access the top-level members
   /// of a library.
   static const String topLevel = '::';
 
@@ -118,9 +118,10 @@ class _ClassTable {
   }
 
   String get containerName {
-    // It can be helpful to indicate if the library is external, since then
-    // the class might be in the library, but just not seen from this build
-    // unit.
+    // For useful error messages, it can be helpful to indicate if the library
+    // is external.  If a class or member was not found in an external library,
+    // it might be that it exists in the actual library, but its interface was
+    // not included in this build unit.
     return library.isExternal
         ? "external library '${library.importUri}'"
         : "library '${library.importUri}'";
