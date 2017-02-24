@@ -41,10 +41,10 @@ class Value extends ValueSource implements Printable {
 
   bool get isNothing => valueSets == 0;
 
-  bool get isAlwaysNull => flags & ValueFlags.null_ == ValueFlags.null_;
-  bool get isAlwaysInteger => flags & ValueFlags.integer == ValueFlags.integer;
-  bool get isAlwaysDouble => flags & ValueFlags.double_ == ValueFlags.double_;
-  bool get isAlwaysString => flags & ValueFlags.string == ValueFlags.string;
+  bool get isAlwaysNull => valueSets == ValueFlags.null_;
+  bool get isAlwaysInteger => valueSets == ValueFlags.integer;
+  bool get isAlwaysDouble => valueSets == ValueFlags.double_;
+  bool get isAlwaysString => valueSets == ValueFlags.string;
 
   bool get canBeNonNull => flags & ValueFlags.nonNullValueSets != 0;
 
