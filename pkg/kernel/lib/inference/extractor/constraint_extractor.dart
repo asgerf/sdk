@@ -68,7 +68,7 @@ class ConstraintExtractor {
         Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
     escapingType = new BottomAType(Value.bottom, ValueSink.escape);
     boolType = new InterfaceAType(
-        new Value(coreTypes.boolClass, ValueFlags.string),
+        new Value(coreTypes.boolClass, ValueFlags.boolean),
         ValueSink.nowhere,
         coreTypes.boolClass, const <AType>[]);
     intType = new InterfaceAType(
