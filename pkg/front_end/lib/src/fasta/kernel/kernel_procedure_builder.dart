@@ -8,6 +8,7 @@ import 'package:kernel/ast.dart' show
     Arguments,
     AsyncMarker,
     Constructor,
+    ConstructorInvocation,
     DartType,
     DynamicType,
     EmptyStatement,
@@ -23,6 +24,8 @@ import 'package:kernel/ast.dart' show
     ProcedureKind,
     RedirectingInitializer,
     Statement,
+    StaticInvocation,
+    StringLiteral,
     SuperInitializer,
     TypeParameter,
     VariableDeclaration,
@@ -37,13 +40,14 @@ import 'package:kernel/type_algebra.dart' show
 import '../errors.dart' show
     internalError;
 
-import '../modifier.dart' show
-    abstractMask;
+import '../messages.dart' show
+    warning;
 
-import '../util/relativize.dart' show
-    relativizeUri;
+import '../loader.dart' show
+    Loader;
 
 import 'kernel_builder.dart' show
+    Builder,
     ClassBuilder,
     ConstructorReferenceBuilder,
     FormalParameterBuilder,
@@ -53,22 +57,23 @@ import 'kernel_builder.dart' show
     KernelTypeVariableBuilder,
     MetadataBuilder,
     ProcedureBuilder,
-    TypeBuilder,
     TypeVariableBuilder,
     memberError;
 
 abstract class KernelFunctionBuilder
     extends ProcedureBuilder<KernelTypeBuilder> {
+  final String nativeMethodName;
+
   FunctionNode function;
 
   Statement actualBody;
 
-  KernelFunctionBuilder(
-      List<MetadataBuilder> metadata,
-      int modifiers, KernelTypeBuilder returnType, String name,
+  KernelFunctionBuilder(List<MetadataBuilder> metadata, int modifiers,
+      KernelTypeBuilder returnType, String name,
       List<TypeVariableBuilder> typeVariables,
       List<FormalParameterBuilder> formals,
-      KernelLibraryBuilder compilationUnit, int charOffset)
+      KernelLibraryBuilder compilationUnit, int charOffset,
+      this.nativeMethodName)
       : super(metadata, modifiers, returnType, name, typeVariables, formals,
           compilationUnit, charOffset);
 
@@ -84,6 +89,8 @@ abstract class KernelFunctionBuilder
   }
 
   Statement get body => actualBody ??= new EmptyStatement();
+
+  bool get isNative => nativeMethodName != null;
 
   FunctionNode buildFunction() {
     assert(function == null);
@@ -122,7 +129,8 @@ abstract class KernelFunctionBuilder
               substitution[parameter] = const DynamicType();
             }
           }
-          print("Can only use type variables in instance methods.");
+          warning(fileUri, charOffset,
+              "Can only use type variables in instance methods.");
           return substitute(type, substitution);
         }
         Set<TypeParameter> set = typeParameters.toSet();
@@ -145,6 +153,22 @@ abstract class KernelFunctionBuilder
   }
 
   Member build(Library library);
+
+  void becomeNative(Loader loader) {
+    target.isExternal = true;
+    Builder constructor = loader.getNativeAnnotation();
+    Arguments arguments =
+        new Arguments(<Expression>[new StringLiteral(nativeMethodName)]);
+    Expression annotation;
+    if (constructor.isConstructor) {
+      annotation = new ConstructorInvocation(constructor.target, arguments)
+          ..isConst = true;
+    } else {
+      annotation = new StaticInvocation(constructor.target, arguments)
+          ..isConst = true;
+    }
+    target.addAnnotation(annotation);
+  }
 }
 
 class KernelProcedureBuilder extends KernelFunctionBuilder {
@@ -160,11 +184,11 @@ class KernelProcedureBuilder extends KernelFunctionBuilder {
       List<TypeVariableBuilder> typeVariables,
       List<FormalParameterBuilder> formals, this.actualAsyncModifier,
       ProcedureKind kind, KernelLibraryBuilder compilationUnit, int charOffset,
-      [this.redirectionTarget])
+      [String nativeMethodName, this.redirectionTarget])
       : procedure = new Procedure(null, kind, null,
-            fileUri: relativizeUri(compilationUnit?.fileUri)),
+            fileUri: compilationUnit?.relativeFileUri),
         super(metadata, modifiers, returnType, name, typeVariables, formals,
-            compilationUnit, charOffset);
+            compilationUnit, charOffset, nativeMethodName);
 
   ProcedureKind get kind => procedure.kind;
 
@@ -200,62 +224,6 @@ class KernelProcedureBuilder extends KernelFunctionBuilder {
     return procedure;
   }
 
-  KernelFunctionBuilder toConstructor(String name,
-      List<TypeVariableBuilder> classTypeVariables) {
-    assert(procedure.name == null);
-    assert(actualBody == null);
-    if (isFactory) {
-      if (this.typeVariables != null) {
-        return memberError(target, "Factories can't be generic.");
-      }
-      List<KernelTypeVariableBuilder> typeVariables;
-      KernelTypeBuilder returnType = this.returnType;
-      List<FormalParameterBuilder> formals;
-      if (classTypeVariables != null) {
-        typeVariables = <KernelTypeVariableBuilder>[];
-        for (KernelTypeVariableBuilder variable in classTypeVariables) {
-          typeVariables.add(new KernelTypeVariableBuilder(
-                  variable.name, null, -1));
-        }
-        Map<TypeVariableBuilder, TypeBuilder> substitution =
-            <TypeVariableBuilder, TypeBuilder>{};
-        int i = 0;
-        for (KernelTypeVariableBuilder variable in classTypeVariables) {
-          substitution[variable] = typeVariables[i++].asTypeBuilder();
-        }
-        i = 0;
-        for (KernelTypeVariableBuilder variable in classTypeVariables) {
-          typeVariables[i++].bound = variable?.bound?.subst(substitution);
-        }
-        returnType = returnType?.subst(substitution);
-        i = 0;
-        if (this.formals != null) {
-          for (KernelFormalParameterBuilder formal in this.formals) {
-            KernelTypeBuilder type = formal.type?.subst(substitution);
-            if (type != formal.type) {
-              formals ??= this.formals.toList();
-              formals[i] = new KernelFormalParameterBuilder(formal.metadata,
-                  formal.modifiers, type, formal.name, formal.hasThis, null,
-                  -1);
-            }
-            i++;
-          }
-        }
-      }
-      formals ??= this.formals;
-      KernelProcedureBuilder factory = new KernelProcedureBuilder(
-          metadata, modifiers, returnType, name, typeVariables, formals,
-          actualAsyncModifier, kind, null, -1, redirectionTarget)
-          ..parent = parent;
-      factory.procedure.fileUri = procedure.fileUri;
-      return factory;
-    } else {
-      return new KernelConstructorBuilder(metadata, modifiers & ~abstractMask,
-          returnType, name, typeVariables, formals, null, -1)
-          ..parent = parent;
-    }
-  }
-
   Procedure get target => procedure;
 }
 
@@ -274,9 +242,10 @@ class KernelConstructorBuilder extends KernelFunctionBuilder {
       int modifiers, KernelTypeBuilder returnType, String name,
       List<TypeVariableBuilder> typeVariables,
       List<FormalParameterBuilder> formals,
-      KernelLibraryBuilder compilationUnit, int charOffset)
+      KernelLibraryBuilder compilationUnit, int charOffset,
+      [String nativeMethodName])
       : super(metadata, modifiers, returnType, name, typeVariables, formals,
-          compilationUnit, charOffset);
+          compilationUnit, charOffset, nativeMethodName);
 
   bool get isInstanceMember => false;
 

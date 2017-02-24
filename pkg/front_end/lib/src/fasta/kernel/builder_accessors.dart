@@ -16,6 +16,7 @@ import 'package:kernel/core_types.dart' show
     CoreTypes;
 
 import '../errors.dart' show
+    InputError,
     internalError;
 
 import 'frontend_accessors.dart' as kernel show
@@ -23,6 +24,7 @@ import 'frontend_accessors.dart' as kernel show
     NullAwarePropertyAccessor,
     PropertyAccessor,
     StaticAccessor,
+    SuperIndexAccessor,
     SuperPropertyAccessor,
     ThisIndexAccessor,
     ThisPropertyAccessor,
@@ -623,6 +625,28 @@ class ThisIndexAccessor extends kernel.ThisIndexAccessor with BuilderAccessor {
   toString() => "ThisIndexAccessor()";
 }
 
+class SuperIndexAccessor
+    extends kernel.SuperIndexAccessor with BuilderAccessor {
+  final BuilderHelper helper;
+
+  final int charOffset;
+
+  SuperIndexAccessor(this.helper, this.charOffset, Expression index,
+      Member getter, Member setter)
+      : super(index, getter, setter);
+
+  String get plainNameForRead => "[]";
+
+  String get plainNameForWrite => "[]=";
+
+  Expression doInvocation(int charOffset, Arguments arguments) {
+    return buildMethodInvocation(buildSimpleRead(), new Name("call"), arguments,
+        charOffset);
+  }
+
+  toString() => "SuperIndexAccessor()";
+}
+
 class ThisPropertyAccessor extends kernel.ThisPropertyAccessor
     with BuilderAccessor {
   final BuilderHelper helper;
@@ -694,7 +718,7 @@ class VariableAccessor extends kernel.VariableAccessor
 Expression throwNoSuchMethodError(String name, Arguments arguments, Uri uri,
     int charOffset, CoreTypes coreTypes,
     {bool isSuper: false, isGetter: false, isSetter: false}) {
-  print("$uri:$charOffset: method not found: '$name'.");
+  print(new InputError(uri, charOffset, "Method not found: '$name'.").format());
   Constructor constructor = coreTypes.getCoreClass(
       "dart:core", "NoSuchMethodError").constructors.first;
   return new Throw(new ConstructorInvocation(

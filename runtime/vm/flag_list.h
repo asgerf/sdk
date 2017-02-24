@@ -25,6 +25,12 @@
 #define USING_MULTICORE false
 #endif
 
+#if defined(DEBUG)
+#define USING_DEBUG true
+#else
+#define USING_DEBUG false
+#endif
+
 // List of all flags in the VM.
 // Flags can be one of three categories:
 // * P roduct flags: Can be set in any of the deployment modes, including in
@@ -68,6 +74,9 @@
     "Dump megamorphic cache statistics")                                       \
   R(dump_symbol_stats, false, bool, false, "Dump symbol table statistics")     \
   R(enable_asserts, false, bool, false, "Enable assert statements.")           \
+  R(enable_malloc_hooks, false, bool, USING_DEBUG,                             \
+    "Enable native memory statistic collection. Enabled by default in Debug "  \
+    "mode")                                                                    \
   C(enable_mirrors, false, false, bool, true,                                  \
     "Disable to make importing dart:mirrors an error.")                        \
   R(enable_type_checks, false, bool, false, "Enable type checks.")             \
@@ -92,6 +101,8 @@
   P(interpret_irregexp, bool, USING_DBC, "Use irregexp bytecode interpreter")  \
   P(lazy_dispatchers, bool, true, "Generate dispatchers lazily")               \
   P(link_natives_lazily, bool, false, "Link native calls lazily")              \
+  R(limit_ints_to_64_bits, false, bool, false,                                 \
+    "Throw a RangeError on 64-bit integer overflow");                          \
   C(load_deferred_eagerly, true, true, bool, false,                            \
     "Load deferred libraries eagerly.")                                        \
   R(log_marker_tasks, false, bool, false,                                      \

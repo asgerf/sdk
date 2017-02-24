@@ -7,6 +7,9 @@ library fasta.builder;
 import '../errors.dart' show
     internalError;
 
+import '../messages.dart' show
+    nit;
+
 export 'class_builder.dart' show
     ClassBuilder;
 
@@ -96,6 +99,11 @@ abstract class Builder {
 
   Uri get fileUri => null;
 
+  String get relativeFileUri {
+    throw "The relativeFileUri method should be only called on subclasses "
+          "which have an efficient implementation of `relativeFileUri`!";
+  }
+
   /// Resolve types (lookup names in scope) recorded in this builder and return
   /// the number of types resolved.
   int resolveTypes(covariant Builder parent) => 0;
@@ -103,11 +111,6 @@ abstract class Builder {
   /// Resolve constructors (lookup names in scope) recorded in this builder and
   /// return the number of constructors resolved.
   int resolveConstructors(covariant Builder parent) => 0;
-
-  /// Look for methods with the same name as their enclosing class and convert
-  /// them to constructors. Return the number of methods converted to
-  /// constructors.
-  int convertConstructors(covariant Builder parent) => 0;
 
   /// This builder and [other] has been imported into [library] using [name].
   ///
@@ -132,16 +135,17 @@ abstract class Builder {
       preferred = other;
       hidden = this;
     } else {
-      print("${library.uri}: Note: '$name' is imported from both "
+      nit(library.fileUri, -1, "'$name' is imported from both "
           "'${getUri(this)}' and '${getUri(other)}'.");
       return library.buildAmbiguousBuilder(name, this, other, charOffset);
     }
     if (isLocal) {
-      print("${library.uri}: Note: local definition of '$name' hides imported "
+      nit(library.fileUri, -1, "Local definition of '$name' hides imported "
           "version from '${getUri(other)}'.");
     } else {
-      print("${library.uri}: import of '$name' (from '${getUri(preferred)}') "
-          "hides imported version from '${getUri(hidden)}'.");
+      nit(library.fileUri, -1, "Import of '$name' "
+          "(from '${getUri(preferred)}') hides imported version from "
+          "'${getUri(hidden)}'.");
     }
     return preferred;
   }

@@ -10,8 +10,8 @@ import 'package:kernel/ast.dart' show
     Supertype,
     VoidType;
 
-import '../errors.dart' show
-    inputError;
+import '../messages.dart' show
+    warning;
 
 import 'kernel_builder.dart' show
     KernelClassBuilder,
@@ -19,31 +19,30 @@ import 'kernel_builder.dart' show
     KernelTypeBuilder,
     NamedTypeBuilder,
     TypeBuilder,
-    TypeDeclarationBuilder,
     TypeVariableBuilder;
 
-class KernelNamedTypeBuilder extends NamedTypeBuilder<KernelTypeBuilder>
+class KernelNamedTypeBuilder
+    extends NamedTypeBuilder<KernelTypeBuilder, DartType>
     implements KernelTypeBuilder {
-  TypeDeclarationBuilder<KernelTypeBuilder, DartType> builder;
-
   KernelNamedTypeBuilder(String name, List<KernelTypeBuilder> arguments,
       int charOffset, Uri fileUri)
       : super(name, arguments, charOffset, fileUri);
 
   KernelInvalidTypeBuilder buildInvalidType(String name) {
     // TODO(ahe): Record error instead of printing.
-    print("$fileUri:$charOffset: Type not found: $name");
+    warning(fileUri, charOffset, "Type not found: '$name'.");
     return new KernelInvalidTypeBuilder(name, charOffset, fileUri);
   }
 
   DartType handleMissingType() {
     // TODO(ahe): Record error instead of printing.
-    print("$fileUri:$charOffset: No type for: $name");
+    warning(fileUri, charOffset, "No type for: '$name'.");
     return const DynamicType();
   }
 
   Supertype handleMissingSuperType() {
-    throw inputError(fileUri, charOffset, "No type for: $name");
+    warning(fileUri, charOffset,  "No type for: '$name'.");
+    return null;
   }
 
   DartType build() {
@@ -66,7 +65,6 @@ class KernelNamedTypeBuilder extends NamedTypeBuilder<KernelTypeBuilder>
   }
 
   TypeBuilder subst(Map<TypeVariableBuilder, TypeBuilder> substitution) {
-    assert(builder != null);
     TypeBuilder result = substitution[builder];
     if (result != null) {
       assert(builder is TypeVariableBuilder);

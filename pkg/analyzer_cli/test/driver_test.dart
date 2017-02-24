@@ -143,7 +143,7 @@ main() {
           test('generates lints', () async {
             await runLinter();
             expect(outSink.toString(),
-                contains('[lint] Name types using UpperCamelCase.'));
+                contains('[lint] Name types using UpperCamelCase'));
           });
         });
 
@@ -169,7 +169,7 @@ main() {
           test('generates lints', () async {
             await runLinter();
             expect(outSink.toString(),
-                contains('[lint] Name types using UpperCamelCase.'));
+                contains('[lint] Name types using UpperCamelCase'));
           });
         });
 
@@ -318,9 +318,9 @@ linter:
         );
         expect(exitCode, 3);
         expect(outSink.toString(),
-            contains('but doesn\'t end with a return statement.'));
+            contains('but doesn\'t end with a return statement'));
         expect(outSink.toString(), contains('isn\'t defined'));
-        expect(outSink.toString(), contains('Avoid empty else statements.'));
+        expect(outSink.toString(), contains('Avoid empty else statements'));
       });
 
       test('test strong SDK', () async {
@@ -342,7 +342,7 @@ linter:
                 '--dart-sdk',
                 findSdkDirForSummaries(),
                 '--build-mode',
-                '--machine'
+                '--format=machine'
               ]..addAll(additionalArgs),
               options: 'data/options_tests_project/$optionsFileName');
         }

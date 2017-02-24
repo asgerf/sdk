@@ -31,6 +31,8 @@ import '../tree/tree.dart';
 import '../util/util.dart' show Link, LinkBuilder;
 import 'package:front_end/src/fasta/parser.dart'
     show ErrorKind, Listener, ParserError, optional;
+import 'package:front_end/src/fasta/parser/identifier_context.dart'
+    show IdentifierContext;
 import 'partial_elements.dart'
     show
         PartialClassElement,
@@ -264,7 +266,8 @@ class ElementListener extends Listener {
 
   @override
   void endClassDeclaration(int interfacesCount, Token beginToken,
-      Token extendsKeyword, Token implementsKeyword, Token endToken) {
+      Token classKeyword, Token extendsKeyword, Token implementsKeyword,
+      Token endToken) {
     makeNodeList(interfacesCount, implementsKeyword, null, ","); // interfaces
     popNode(); // superType
     popNode(); // typeParameters
@@ -286,10 +289,18 @@ class ElementListener extends Listener {
   }
 
   @override
-  void endFunctionTypeAlias(Token typedefKeyword, Token endToken) {
-    popNode(); // TODO(karlklose): do not throw away typeVariables.
-    Identifier name = popNode();
-    popNode(); // returnType
+  void endFunctionTypeAlias(
+      Token typedefKeyword, Token equals, Token endToken) {
+    Identifier name;
+    if (equals == null) {
+      popNode(); // TODO(karlklose): do not throw away typeVariables.
+      name = popNode();
+      popNode(); // returnType
+    } else {
+      popNode();  // Function type.
+      popNode();  // TODO(karlklose): do not throw away typeVariables.
+      name = popNode();
+    }
     pushElement(new PartialTypedefElement(
         name.source, compilationUnitElement, typedefKeyword, endToken));
     rejectBuiltInIdentifier(name);
@@ -297,7 +308,8 @@ class ElementListener extends Listener {
 
   @override
   void endNamedMixinApplication(
-      Token classKeyword, Token implementsKeyword, Token endToken) {
+      Token beginToken, Token classKeyword, Token equals,
+      Token implementsKeyword, Token endToken) {
     NodeList interfaces = (implementsKeyword != null) ? popNode() : null;
     MixinApplication mixinApplication = popNode();
     NodeList typeParameters = popNode();
@@ -309,7 +321,7 @@ class ElementListener extends Listener {
         modifiers,
         mixinApplication,
         interfaces,
-        classKeyword,
+        beginToken,
         endToken);
 
     int id = idGenerator.getNextFreeId();
@@ -322,13 +334,13 @@ class ElementListener extends Listener {
   @override
   void endMixinApplication() {
     NodeList mixins = popNode();
-    TypeAnnotation superclass = popNode();
+    NominalTypeAnnotation superclass = popNode();
     pushNode(new MixinApplication(superclass, mixins));
   }
 
   @override
   void handleVoidKeyword(Token token) {
-    pushNode(new TypeAnnotation(new Identifier(token), null));
+    pushNode(new NominalTypeAnnotation(new Identifier(token), null));
   }
 
   @override
@@ -383,7 +395,7 @@ class ElementListener extends Listener {
   }
 
   @override
-  void handleIdentifier(Token token) {
+  void handleIdentifier(Token token, IdentifierContext context) {
     pushNode(new Identifier(token));
   }
 
@@ -401,7 +413,7 @@ class ElementListener extends Listener {
 
   @override
   void endTypeVariable(Token token, Token extendsOrSuper) {
-    TypeAnnotation bound = popNode();
+    NominalTypeAnnotation bound = popNode();
     Identifier name = popNode();
     pushNode(new TypeVariable(name, extendsOrSuper, bound));
     rejectBuiltInIdentifier(name);
@@ -428,10 +440,21 @@ class ElementListener extends Listener {
   }
 
   @override
-  void endType(Token beginToken, Token endToken) {
+  void handleType(Token beginToken, Token endToken) {
     NodeList typeArguments = popNode();
     Expression typeName = popNode();
-    pushNode(new TypeAnnotation(typeName, typeArguments));
+    pushNode(new NominalTypeAnnotation(typeName, typeArguments));
+  }
+
+  void handleNoName(Token token) {
+    pushNode(null);
+  }
+
+  @override
+  void handleFunctionType(Token functionToken, Token endToken) {
+    popNode();  // Type parameters.
+    popNode();  // Return type.
+    pushNode(null);
   }
 
   @override
@@ -628,6 +651,10 @@ class ElementListener extends Listener {
       case ErrorKind.NonAsciiWhitespace:
       case ErrorKind.Encoding:
         errorCode = MessageKind.BAD_INPUT_CHARACTER;
+        break;
+
+      case ErrorKind.InvalidInlineFunctionType:
+        errorCode = MessageKind.INVALID_INLINE_FUNCTION_TYPE;
         break;
 
       case ErrorKind.InvalidSyncModifier:

@@ -20,8 +20,10 @@ import 'dart:io' show
 import 'colors.dart' show
     red;
 
-import 'util/relativize.dart' show
-    relativizeUri;
+import 'messages.dart' show
+    errorsAreFatal,
+    format,
+    isVerbose;
 
 const String defaultServerAddress = "http://127.0.0.1:59410/";
 
@@ -34,12 +36,52 @@ bool hasCrashed = false;
 /// [resetCrashReporting].
 Uri firstSourceUri;
 
-dynamic internalError(Object error) {
-  throw error;
+/// Used to report an internal error.
+///
+/// Internal errors should be avoided as best as possible, but are preferred
+/// over assertion failures. Favor error messages that starts with "Internal
+/// error: " and a short description that may help a developer debug the issue.
+/// This method should be called instead of using `throw`, as this allows us to
+/// ensure that there are no throws anywhere in the codebase.
+dynamic internalError(Object error, [Uri uri, int charOffset = -1]) {
+  if (uri == null && charOffset == -1) {
+    throw error;
+  } else {
+    throw format(uri, charOffset, "Internal error: ${safeToString(error)}");
+  }
 }
 
+/// Used to report an error in input.
+///
+/// Avoid using this for reporting compile-time errors, instead use
+/// `LibraryBuilder.addCompileTimeError` for those.
+///
+/// An input error is any error that isn't an internal error. We use the term
+/// "input error" in favor of "user error". This way, if an input error isn't
+/// handled correctly, the user will never see a stack trace that says "user
+/// error".
 dynamic inputError(Uri uri, int charOffset, Object error) {
   throw new InputError(uri, charOffset, error);
+}
+
+String printUnexpected(Uri uri, int charOffset, String message) {
+  if (errorsAreFatal) {
+    if (isVerbose) print(StackTrace.current);
+    throw new InputError(uri, charOffset, message);
+  }
+  message = formatUnexpected(uri, charOffset, message);
+  print(message);
+  return message;
+}
+
+String formatUnexpected(Uri uri, int charOffset, String message) {
+  return format(uri, charOffset, colorError("Error: $message"));
+}
+
+String colorError(String message) {
+  // TODO(ahe): Colors need to be optional. Doesn't work well in Emacs or on
+  // Windows.
+  return red(message);
 }
 
 class InputError {
@@ -54,17 +96,7 @@ class InputError {
 
   toString() => "InputError: $error";
 
-  String format() {
-    // TODO(ahe): Colors need to be optional. Doesn't work well in Emacs or on
-    // Windows.
-    String message = red("Error: ${safeToString(error)}");
-    if (uri != null) {
-      String position = charOffset == -1 ? "" : "$charOffset:";
-      return "${relativizeUri(uri)}:$position $message";
-    } else {
-      return message;
-    }
-  }
+  String format() => formatUnexpected(uri, charOffset, safeToString(error));
 }
 
 class Crash {

@@ -38,23 +38,17 @@ import 'package:source_span/source_span.dart' show SourceSpan;
 /// needed to access the contents of method bodies).
 Future<Program> kernelForProgram(Uri source, CompilerOptions options) async {
   var loader = await _createLoader(options, entry: source);
-  // TODO(sigmund): delete this. At this time we have no need to explicitly list
-  // VM libraries, since they are normally found by chasing dependencies.
-  // `dart:_builtin` is an exception because it is used by the kernel
-  // transformers to inform the VM about where the main entrypoint is. This is
-  // expected to change, and we should be able to remove these lines at that
-  // point. We check for the presense of `dart:developer` in the targetPatches
-  // to ensure we only load this library while running on the VM.
-  if (options.compileSdk &&
-      options.targetPatches.containsKey(Uri.parse('dart:developer'))) {
-    loader.loadLibrary(Uri.parse('dart:_builtin'));
+
+  if (options.compileSdk) {
+    options.additionalLibraries.forEach(loader.loadLibrary);
   }
+
   // TODO(sigmund): merge what we have in loadEverything and the logic below in
   // kernelForBuildUnit so there is a single place where we crawl for
   // dependencies.
-  Program program = loader.loadProgram(source, compileSdk: options.compileSdk);
+  loader.loadProgram(source, compileSdk: options.compileSdk);
   _reportErrors(loader.errors, options.onError);
-  return program;
+  return loader.program;
 }
 
 /// Generates a kernel representation for a build unit.
@@ -92,8 +86,8 @@ Future<Program> kernelForProgram(Uri source, CompilerOptions options) async {
 /// obtained from?
 Future<Program> kernelForBuildUnit(
     List<Uri> sources, CompilerOptions options) async {
-  var repository = new Repository();
-  var loader = await _createLoader(options, repository: repository);
+  var program = new Program();
+  var loader = await _createLoader(options, program: program);
   var context = loader.context;
 
   // Process every library in the build unit.
@@ -112,10 +106,10 @@ Future<Program> kernelForBuildUnit(
   // TODO(sigmund): we should look for dependencies using import, export, and
   // part directives intead of relying on the dartk-loader.  In particular, if a
   // library is imported but not used, the logic below will not detect it.
-  for (int i = 0; i < repository.libraries.length; ++i) {
-    // Note: we don't use a for-in loop because repository.libraries grows as
+  for (int i = 0; i < program.libraries.length; ++i) {
+    // Note: we don't use a for-in loop because program.libraries grows as
     // the loader processes libraries.
-    var lib = repository.libraries[i];
+    var lib = program.libraries[i];
     var source = context.sourceFactory.forUri2(lib.importUri);
     if (source is InSummarySource) continue;
     if (options.chaseDependencies) {
@@ -128,7 +122,6 @@ Future<Program> kernelForBuildUnit(
     }
   }
 
-  Program program = new Program(repository.libraries);
   _reportErrors(loader.errors, options.onError);
   return program;
 }
@@ -138,19 +131,19 @@ Future<Program> kernelForBuildUnit(
 /// If [options] contain no configuration to resolve `.packages`, the [entry]
 /// file will be used to search for a `.packages` file.
 Future<DartLoader> _createLoader(CompilerOptions options,
-    {Repository repository, Uri entry}) async {
+    {Program program, Uri entry}) async {
   var kernelOptions = _convertOptions(options);
   var packages = await createPackages(
       _uriToPath(options.packagesFileUri, options),
       discoveryPath: entry?.path);
-  var loader = new DartLoader(
-      repository ?? new Repository(), kernelOptions, packages);
+  var loader =
+      new DartLoader(program ?? new Program(), kernelOptions, packages);
   var patchPaths = <String, List<String>>{};
 
   // TODO(sigmund,paulberry): use ProcessedOptions so that we can resolve the
   // URIs correctly even if sdkRoot is inferred and not specified explicitly.
   String resolve(Uri patch) =>
-    options.fileSystem.context.fromUri(options.sdkRoot.resolveUri(patch));
+      options.fileSystem.context.fromUri(options.sdkRoot.resolveUri(patch));
 
   options.targetPatches.forEach((uri, patches) {
     patchPaths['$uri'] = patches.map(resolve).toList();

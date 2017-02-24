@@ -15,6 +15,9 @@ import 'package:kernel/ast.dart' show
 import 'package:kernel/type_algebra.dart' show
     substitute;
 
+import '../messages.dart' show
+    warning;
+
 import 'kernel_builder.dart' show
     FormalParameterBuilder,
     FunctionTypeAliasBuilder,
@@ -35,17 +38,18 @@ class KernelFunctionTypeAliasBuilder
   KernelFunctionTypeAliasBuilder(List<MetadataBuilder> metadata,
       KernelTypeBuilder returnType, String name,
       List<TypeVariableBuilder> typeVariables,
-      List<FormalParameterBuilder> formals, List<KernelTypeBuilder> types,
-      LibraryBuilder parent, int charOffset)
-      : super(metadata, returnType, name, typeVariables, formals, types,
-          parent, charOffset);
+      List<FormalParameterBuilder> formals, LibraryBuilder parent,
+      int charOffset)
+      : super(metadata, returnType, name, typeVariables, formals, parent,
+          charOffset);
 
   DartType buildThisType() {
     if (thisType != null) {
       if (thisType == const InvalidType()) {
         thisType = const DynamicType();
         // TODO(ahe): Build an error somehow.
-        print("${parent.uri}: Cyclic typedef: $name.");
+        warning(parent.uri, -1,
+            "The typedef '$name' has a reference to itself.");
       }
       return thisType;
     }

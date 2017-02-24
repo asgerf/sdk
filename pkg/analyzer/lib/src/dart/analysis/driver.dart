@@ -13,11 +13,11 @@ import 'package:analyzer/error/error.dart';
 import 'package:analyzer/error/listener.dart';
 import 'package:analyzer/exception/exception.dart';
 import 'package:analyzer/file_system/file_system.dart';
-import 'package:analyzer/src/dart/analysis/analysis_impl.dart';
 import 'package:analyzer/src/dart/analysis/byte_store.dart';
 import 'package:analyzer/src/dart/analysis/file_state.dart';
 import 'package:analyzer/src/dart/analysis/file_tracker.dart';
 import 'package:analyzer/src/dart/analysis/index.dart';
+import 'package:analyzer/src/dart/analysis/library_analyzer.dart';
 import 'package:analyzer/src/dart/analysis/library_context.dart';
 import 'package:analyzer/src/dart/analysis/search.dart';
 import 'package:analyzer/src/dart/analysis/status.dart';
@@ -72,7 +72,7 @@ class AnalysisDriver {
   /**
    * The version of data format, should be incremented on every format change.
    */
-  static const int DATA_VERSION = 19;
+  static const int DATA_VERSION = 24;
 
   /**
    * The number of exception contexts allowed to write. Once this field is
@@ -179,6 +179,12 @@ class AnalysisDriver {
       <String, List<Completer<AnalysisDriverUnitIndex>>>{};
 
   /**
+   * The mapping from the files for which the unit element key was requested
+   * using [getUnitElementSignature] to the [Completer]s to report the result.
+   */
+  final _unitElementSignatureRequests = <String, List<Completer<String>>>{};
+
+  /**
    * The mapping from the files for which the unit element was requested using
    * [getUnitElement] to the [Completer]s to report the result.
    */
@@ -201,6 +207,11 @@ class AnalysisDriver {
    * The controller for the [results] stream.
    */
   final _resultController = new StreamController<AnalysisResult>();
+
+  /**
+   * Resolution signatures of the most recently produced results for files.
+   */
+  final Map<String, String> _lastProducedSignatures = {};
 
   /**
    * Cached results for [_priorityFiles].
@@ -241,7 +252,7 @@ class AnalysisDriver {
       SourceFactory sourceFactory,
       this._analysisOptions,
       {PackageBundle sdkBundle,
-      this.analyzeWithoutTasks: false})
+      this.analyzeWithoutTasks: true})
       : _logger = logger,
         _sourceFactory = sourceFactory.clone(),
         _sdkBundle = sdkBundle {
@@ -368,6 +379,9 @@ class AnalysisDriver {
       return AnalysisDriverPriority.interactive;
     }
     if (_indexRequestedFiles.isNotEmpty) {
+      return AnalysisDriverPriority.interactive;
+    }
+    if (_unitElementSignatureRequests.isNotEmpty) {
       return AnalysisDriverPriority.interactive;
     }
     if (_unitElementRequestedFiles.isNotEmpty) {
@@ -613,6 +627,27 @@ class AnalysisDriver {
   }
 
   /**
+   * Return a [Future] that completes with the signature for the
+   * [UnitElementResult] for the file with the given [path], or with `null` if
+   * the file cannot be analyzed.
+   *
+   * The signature is based the APIs of the files of the library (including
+   * the file itself) of the requested file and the transitive closure of files
+   * imported and exported by the the library.
+   */
+  Future<String> getUnitElementSignature(String path) {
+    if (!_fileTracker.fsState.hasUri(path)) {
+      return new Future.value();
+    }
+    var completer = new Completer<String>();
+    _unitElementSignatureRequests
+        .putIfAbsent(path, () => <Completer<String>>[])
+        .add(completer);
+    _scheduler.notify(this);
+    return completer.future;
+  }
+
+  /**
    * Return a [Future] that completes with a [ParseResult] for the file
    * with the given [path].
    *
@@ -665,9 +700,15 @@ class AnalysisDriver {
    * Return `null` if the file is a part of an unknown library, so cannot be
    * analyzed yet. But [asIsIfPartWithoutLibrary] is `true`, then the file is
    * analyzed anyway, even without a library.
+   *
+   * Return [AnalysisResult._UNCHANGED] if [skipIfSameSignature] is `true` and
+   * the resolved signature of the file in its library is the same as the one
+   * that was the most recently produced to the client.
    */
   AnalysisResult _computeAnalysisResult(String path,
-      {bool withUnit: false, bool asIsIfPartWithoutLibrary: false}) {
+      {bool withUnit: false,
+      bool asIsIfPartWithoutLibrary: false,
+      bool skipIfSameSignature: false}) {
     FileState file = _fileTracker.fsState.getFileForPath(path);
 
     // Prepare the library - the file itself, or the known library.
@@ -680,12 +721,23 @@ class AnalysisDriver {
       }
     }
 
+    // Prepare the signature and key.
+    String signature = _getResolvedUnitSignature(library, file);
+    String key = _getResolvedUnitKey(signature);
+
+    // Skip reading if the signature, so errors, are the same as the last time.
+    if (skipIfSameSignature) {
+      assert(!withUnit);
+      if (_lastProducedSignatures[path] == signature) {
+        return AnalysisResult._UNCHANGED;
+      }
+    }
+
     // If we don't need the fully resolved unit, check for the cached result.
     if (!withUnit) {
-      String key = _getResolvedUnitKey(library, file);
       List<int> bytes = _byteStore.get(key);
       if (bytes != null) {
-        return _getAnalysisResultFromBytes(file, bytes);
+        return _getAnalysisResultFromBytes(file, signature, bytes);
       }
     }
 
@@ -697,7 +749,7 @@ class AnalysisDriver {
           CompilationUnit resolvedUnit;
           List<int> bytes;
           if (analyzeWithoutTasks) {
-            AnalyzerImpl analyzer = new AnalyzerImpl(
+            LibraryAnalyzer analyzer = new LibraryAnalyzer(
                 analysisOptions,
                 declaredVariables,
                 sourceFactory,
@@ -705,12 +757,19 @@ class AnalysisDriver {
                 libraryContext.store,
                 library);
             Map<FileState, UnitAnalysisResult> results = analyzer.analyze();
-            UnitAnalysisResult fileResult = results[file];
-            resolvedUnit = fileResult.unit;
-
-            // Store the result into the cache.
-            bytes = _storeResolvedUnit(
-                library, file, resolvedUnit, fileResult.errors);
+            for (FileState unitFile in results.keys) {
+              UnitAnalysisResult unitResult = results[unitFile];
+              List<int> unitBytes =
+                  _serializeResolvedUnit(unitResult.unit, unitResult.errors);
+              String unitSignature =
+                  _getResolvedUnitSignature(library, unitFile);
+              String unitKey = _getResolvedUnitKey(unitSignature);
+              _byteStore.put(unitKey, unitBytes);
+              if (unitFile == file) {
+                bytes = unitBytes;
+                resolvedUnit = unitResult.unit;
+              }
+            }
           } else {
             ResolutionResult resolutionResult =
                 libraryContext.resolveUnit(library.source, file.source);
@@ -718,14 +777,15 @@ class AnalysisDriver {
             List<AnalysisError> errors = resolutionResult.errors;
 
             // Store the result into the cache.
-            bytes = _storeResolvedUnit(library, file, resolvedUnit, errors);
+            bytes = _serializeResolvedUnit(resolvedUnit, errors);
+            _byteStore.put(key, bytes);
           }
 
           // Return the result, full or partial.
           _logger.writeln('Computed new analysis result.');
-          AnalysisResult result = _getAnalysisResultFromBytes(file, bytes,
+          AnalysisResult result = _getAnalysisResultFromBytes(
+              file, signature, bytes,
               content: withUnit ? file.content : null,
-              withErrors: _fileTracker.addedFiles.contains(path),
               resolvedUnit: withUnit ? resolvedUnit : null);
           if (withUnit && _priorityFiles.contains(path)) {
             _priorityResults[path] = result;
@@ -759,11 +819,17 @@ class AnalysisDriver {
     try {
       CompilationUnitElement element =
           libraryContext.computeUnitElement(library.source, file.source);
-      String key = _getResolvedUnitKey(library, file);
-      return new UnitElementResult(path, file.contentHash, key, element);
+      String signature = library.transitiveSignature;
+      return new UnitElementResult(path, file.contentHash, signature, element);
     } finally {
       libraryContext.dispose();
     }
+  }
+
+  String _computeUnitElementSignature(String path) {
+    FileState file = _fileTracker.fsState.getFileForPath(path);
+    FileState library = file.library ?? file;
+    return library.transitiveSignature;
   }
 
   /**
@@ -808,12 +874,11 @@ class AnalysisDriver {
    * Load the [AnalysisResult] for the given [file] from the [bytes]. Set
    * optional [content] and [resolvedUnit].
    */
-  AnalysisResult _getAnalysisResultFromBytes(FileState file, List<int> bytes,
-      {String content, bool withErrors: true, CompilationUnit resolvedUnit}) {
+  AnalysisResult _getAnalysisResultFromBytes(
+      FileState file, String signature, List<int> bytes,
+      {String content, CompilationUnit resolvedUnit}) {
     var unit = new AnalysisDriverResolvedUnit.fromBuffer(bytes);
-    List<AnalysisError> errors = withErrors
-        ? _getErrorsFromSerialized(file, unit.errors)
-        : const <AnalysisError>[];
+    List<AnalysisError> errors = _getErrorsFromSerialized(file, unit.errors);
     return new AnalysisResult(
         this,
         _sourceFactory,
@@ -823,6 +888,7 @@ class AnalysisDriver {
         content,
         file.contentHash,
         file.lineInfo,
+        signature,
         resolvedUnit,
         errors,
         unit.index);
@@ -849,16 +915,22 @@ class AnalysisDriver {
   }
 
   /**
-   * Return the key to store fully resolved results for the [file] in the
-   * [library] into the cache. Return `null` if the dependency signature is
-   * not known yet.
+   * Return the key to store fully resolved results for the [signature].
    */
-  String _getResolvedUnitKey(FileState library, FileState file) {
+  String _getResolvedUnitKey(String signature) {
+    return '$signature.resolved';
+  }
+
+  /**
+   * Return the signature that identifies fully resolved results for the [file]
+   * in the [library], e.g. element model, errors, index, etc.
+   */
+  String _getResolvedUnitSignature(FileState library, FileState file) {
     ApiSignature signature = new ApiSignature();
     signature.addUint32List(_salt);
     signature.addString(library.transitiveSignature);
     signature.addString(file.contentHash);
-    return '${signature.toHex()}.resolved';
+    return signature.toHex();
   }
 
   /**
@@ -925,7 +997,17 @@ class AnalysisDriver {
       return;
     }
 
-    // Process a unit request.
+    // Process a unit element key request.
+    if (_unitElementSignatureRequests.isNotEmpty) {
+      String path = _unitElementSignatureRequests.keys.first;
+      String signature = _computeUnitElementSignature(path);
+      _unitElementSignatureRequests.remove(path).forEach((completer) {
+        completer.complete(signature);
+      });
+      return;
+    }
+
+    // Process a unit element request.
     if (_unitElementRequestedFiles.isNotEmpty) {
       String path = _unitElementRequestedFiles.keys.first;
       UnitElementResult result = _computeUnitElement(path);
@@ -988,15 +1070,20 @@ class AnalysisDriver {
       }
     }
 
+    // Analyze a general file.
     if (_fileTracker.hasPendingFiles) {
-      // Analyze a general file.
       String path = _fileTracker.anyPendingFile;
       try {
-        AnalysisResult result = _computeAnalysisResult(path, withUnit: false);
+        AnalysisResult result = _computeAnalysisResult(path,
+            withUnit: false, skipIfSameSignature: true);
         if (result == null) {
           _partsToAnalyze.add(path);
+        } else if (result == AnalysisResult._UNCHANGED) {
+          // We found that the set of errors is the same as we produced the
+          // last time, so we don't need to produce it again now.
         } else {
           _resultController.add(result);
+          _lastProducedSignatures[result.path] = result._signature;
         }
       } catch (exception, stackTrace) {
         _reportException(path, exception, stackTrace);
@@ -1056,6 +1143,25 @@ class AnalysisDriver {
     _exceptionController.add(new ExceptionResult(path, caught, contextKey));
   }
 
+  /**
+   * Serialize the given [resolvedUnit] errors and index into bytes.
+   */
+  List<int> _serializeResolvedUnit(
+      CompilationUnit resolvedUnit, List<AnalysisError> errors) {
+    AnalysisDriverUnitIndexBuilder index = indexUnit(resolvedUnit);
+    return new AnalysisDriverResolvedUnitBuilder(
+            errors: errors
+                .map((error) => new AnalysisDriverUnitErrorBuilder(
+                    offset: error.offset,
+                    length: error.length,
+                    uniqueName: error.errorCode.uniqueName,
+                    message: error.message,
+                    correction: error.correction))
+                .toList(),
+            index: index)
+        .toBuffer();
+  }
+
   String _storeExceptionContext(
       String path, FileState libraryFile, exception, StackTrace stackTrace) {
     if (allowedNumberOfContextsToWrite <= 0) {
@@ -1103,30 +1209,6 @@ class AnalysisDriver {
     } catch (_) {
       return null;
     }
-  }
-
-  /**
-   * Store the fully resolved results for the [file] in the [library] into the
-   * cache and return the stored bytes.
-   */
-  List<int> _storeResolvedUnit(FileState library, FileState file,
-      CompilationUnit resolvedUnit, List<AnalysisError> errors) {
-    AnalysisDriverUnitIndexBuilder index = indexUnit(resolvedUnit);
-
-    String key = _getResolvedUnitKey(library, file);
-    List<int> bytes = new AnalysisDriverResolvedUnitBuilder(
-            errors: errors
-                .map((error) => new AnalysisDriverUnitErrorBuilder(
-                    offset: error.offset,
-                    length: error.length,
-                    uniqueName: error.errorCode.uniqueName,
-                    message: error.message,
-                    correction: error.correction))
-                .toList(),
-            index: index)
-        .toBuffer();
-    _byteStore.put(key, bytes);
-    return bytes;
   }
 }
 
@@ -1328,6 +1410,9 @@ class AnalysisDriverTestView {
  * any previously returned result, even inside of the same library.
  */
 class AnalysisResult {
+  static final _UNCHANGED = new AnalysisResult(
+      null, null, null, null, null, null, null, null, null, null, null, null);
+
   /**
    * The [AnalysisDriver] that produced this result.
    */
@@ -1371,6 +1456,13 @@ class AnalysisResult {
   final LineInfo lineInfo;
 
   /**
+   * The signature of the result based on the content of the file, and the
+   * transitive closure of files imported and exported by the the library of
+   * the requested file.
+   */
+  final String _signature;
+
+  /**
    * The fully resolved compilation unit for the [content].
    */
   final CompilationUnit unit;
@@ -1394,6 +1486,7 @@ class AnalysisResult {
       this.content,
       this.contentHash,
       this.lineInfo,
+      this._signature,
       this.unit,
       this.errors,
       this._index);
@@ -1609,17 +1702,18 @@ class UnitElementResult {
   final String contentHash;
 
   /**
-   * The key of the [element] based on the transitive closure of files imported
-   * and exported by the requested file.
+   * The signature of the [element] is based the APIs of the files of the
+   * library (including the file itself) of the requested file and the
+   * transitive closure of files imported and exported by the the library.
    */
-  final String key;
+  final String signature;
 
   /**
    * The element of the file.
    */
   final CompilationUnitElement element;
 
-  UnitElementResult(this.path, this.contentHash, this.key, this.element);
+  UnitElementResult(this.path, this.contentHash, this.signature, this.element);
 }
 
 /**

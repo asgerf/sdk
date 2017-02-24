@@ -14,12 +14,22 @@ import 'package:analysis_server/plugin/protocol/protocol.dart'
     hide AnalysisOptions, Element;
 import 'package:analysis_server/src/analysis_logger.dart';
 import 'package:analysis_server/src/channel/channel.dart';
+import 'package:analysis_server/src/computer/computer_highlights.dart';
+import 'package:analysis_server/src/computer/computer_highlights2.dart';
+import 'package:analysis_server/src/computer/computer_outline.dart';
 import 'package:analysis_server/src/computer/new_notifications.dart';
 import 'package:analysis_server/src/context_manager.dart';
+import 'package:analysis_server/src/domains/analysis/navigation.dart';
+import 'package:analysis_server/src/domains/analysis/navigation_dart.dart';
+import 'package:analysis_server/src/domains/analysis/occurrences.dart';
+import 'package:analysis_server/src/domains/analysis/occurrences_dart.dart';
 import 'package:analysis_server/src/operation/operation.dart';
 import 'package:analysis_server/src/operation/operation_analysis.dart';
 import 'package:analysis_server/src/operation/operation_queue.dart';
+import 'package:analysis_server/src/plugin/notification_manager.dart';
 import 'package:analysis_server/src/plugin/server_plugin.dart';
+import 'package:analysis_server/src/protocol_server.dart' as server;
+import 'package:analysis_server/src/server/diagnostic_server.dart';
 import 'package:analysis_server/src/services/correction/namespace.dart';
 import 'package:analysis_server/src/services/index/index.dart';
 import 'package:analysis_server/src/services/search/search_engine.dart';
@@ -51,7 +61,6 @@ import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/source_io.dart';
 import 'package:analyzer/src/generated/utilities_general.dart';
-import 'package:analyzer/src/summary/pub_summary.dart';
 import 'package:analyzer/src/task/dart.dart';
 import 'package:analyzer/src/util/glob.dart';
 import 'package:analyzer/task/dart.dart';
@@ -92,7 +101,7 @@ class AnalysisServer {
    * The version of the analysis server. The value should be replaced
    * automatically during the build.
    */
-  static final String VERSION = '1.17.0';
+  static final String VERSION = '1.18.0';
 
   /**
    * The number of milliseconds to perform operations before inserting
@@ -111,6 +120,13 @@ class AnalysisServer {
    * be sent.
    */
   final ServerCommunicationChannel channel;
+
+  /**
+   * The object used to manage sending a subset of notifications to the client.
+   * The subset of notifications are those to which plugins may contribute.
+   * This field is `null` when the new plugin support is disabled.
+   */
+  final NotificationManager notificationManager;
 
   /**
    * The [ResourceProvider] using which paths are converted into [Resource]s.
@@ -228,11 +244,6 @@ class AnalysisServer {
   ServerPerformance _performance;
 
   /**
-   * The option possibly set from the server initialization which disables error notifications.
-   */
-  bool _noErrorNotification;
-
-  /**
    * The [Completer] that completes when analysis is complete.
    */
   Completer _onAnalysisCompleteCompleter;
@@ -320,11 +331,6 @@ class AnalysisServer {
    */
   ResolverProvider packageResolverProvider;
 
-  /**
-   * The manager of pub package summaries.
-   */
-  PubSummaryManager pubSummaryManager;
-
   nd.PerformanceLog _analysisPerformanceLogger;
   ByteStore byteStore;
   nd.AnalysisDriverScheduler analysisDriverScheduler;
@@ -333,6 +339,13 @@ class AnalysisServer {
    * The set of the files that are currently priority.
    */
   final Set<String> priorityFiles = new Set<String>();
+
+  /**
+   * The DiagnosticServer for this AnalysisServer. If available, it can be used
+   * to start an http diagnostics server or return the port for an existing
+   * server.
+   */
+  DiagnosticServer diagnosticServer;
 
   /**
    * Initialize a newly created server to receive requests from and send
@@ -352,10 +365,14 @@ class AnalysisServer {
       this.options,
       this.sdkManager,
       this.instrumentationService,
-      {ResolverProvider fileResolverProvider: null,
+      {this.diagnosticServer,
+      ResolverProvider fileResolverProvider: null,
       ResolverProvider packageResolverProvider: null,
       bool useSingleContextManager: false,
-      this.rethrowExceptions: true}) {
+      this.rethrowExceptions: true})
+      // TODO(brianwilkerson) Initialize notificationManager to
+      // "new NotificationManager(channel, resourceProvider)"
+      : notificationManager = null {
     _performance = performanceDuringStartup;
     defaultContextOptions.incremental = true;
     defaultContextOptions.incrementalApi =
@@ -380,15 +397,7 @@ class AnalysisServer {
       }
       _analysisPerformanceLogger = new nd.PerformanceLog(sink);
     }
-    if (resourceProvider is PhysicalResourceProvider) {
-      byteStore = new MemoryCachingByteStore(
-          new EvictingFileByteStore(
-              resourceProvider.getStateLocation('.analysis-driver').path,
-              1024 * 1024 * 1024 /*1 GiB*/),
-          64 * 1024 * 1024 /*64 MiB*/);
-    } else {
-      byteStore = new MemoryByteStore();
-    }
+    byteStore = _createByteStore();
     analysisDriverScheduler =
         new nd.AnalysisDriverScheduler(_analysisPerformanceLogger);
     analysisDriverScheduler.status.listen(sendStatusNotificationNew);
@@ -413,7 +422,6 @@ class AnalysisServer {
     ServerContextManagerCallbacks contextManagerCallbacks =
         new ServerContextManagerCallbacks(this, resourceProvider);
     contextManager.callbacks = contextManagerCallbacks;
-    _noErrorNotification = options.noErrorNotification;
     AnalysisEngine.instance.logger = new AnalysisLogger(this);
     _onAnalysisStartedController = new StreamController.broadcast();
     _onFileAnalyzedController = new StreamController.broadcast();
@@ -432,8 +440,6 @@ class AnalysisServer {
     } else if (index != null) {
       searchEngine = new SearchEngineImpl(index, getAstProvider);
     }
-    pubSummaryManager =
-        new PubSummaryManager(resourceProvider, '${io.pid}.temp');
     Notification notification = new ServerConnectedParams(VERSION, io.pid,
             sessionId: instrumentationService.sessionId)
         .toNotification();
@@ -837,23 +843,6 @@ class AnalysisServer {
     return null;
   }
 
-// TODO(brianwilkerson) Add the following method after 'prioritySources' has
-// been added to InternalAnalysisContext.
-//  /**
-//   * Return a list containing the full names of all of the sources that are
-//   * priority sources.
-//   */
-//  List<String> getPriorityFiles() {
-//    List<String> priorityFiles = new List<String>();
-//    folderMap.values.forEach((ContextDirectory directory) {
-//      InternalAnalysisContext context = directory.context;
-//      context.prioritySources.forEach((Source source) {
-//        priorityFiles.add(source.fullName);
-//      });
-//    });
-//    return priorityFiles;
-//  }
-
   /**
    * Return a [Future] that completes with the resolved [CompilationUnit] for
    * the Dart file with the given [path], or with `null` if the file is not a
@@ -878,6 +867,23 @@ class AnalysisServer {
       return null;
     });
   }
+
+// TODO(brianwilkerson) Add the following method after 'prioritySources' has
+// been added to InternalAnalysisContext.
+//  /**
+//   * Return a list containing the full names of all of the sources that are
+//   * priority sources.
+//   */
+//  List<String> getPriorityFiles() {
+//    List<String> priorityFiles = new List<String>();
+//    folderMap.values.forEach((ContextDirectory directory) {
+//      InternalAnalysisContext context = directory.context;
+//      context.prioritySources.forEach((Source source) {
+//        priorityFiles.add(source.fullName);
+//      });
+//    });
+//    return priorityFiles;
+//  }
 
   /**
    * Handle a [request] that was read from the communication channel.
@@ -1226,6 +1232,9 @@ class AnalysisServer {
    */
   void setAnalysisRoots(String requestId, List<String> includedPaths,
       List<String> excludedPaths, Map<String, String> packageRoots) {
+    if (notificationManager != null) {
+      notificationManager.setAnalysisRoots(includedPaths, excludedPaths);
+    }
     try {
       contextManager.setRoots(includedPaths, excludedPaths, packageRoots);
     } on UnimplementedError catch (e) {
@@ -1239,6 +1248,9 @@ class AnalysisServer {
    */
   void setAnalysisSubscriptions(
       Map<AnalysisService, Set<String>> subscriptions) {
+    if (notificationManager != null) {
+      notificationManager.setSubscriptions(subscriptions);
+    }
     if (options.enableNewAnalysisDriver) {
       this.analysisServices = subscriptions;
       Iterable<nd.AnalysisDriver> drivers = driverMap.values;
@@ -1432,7 +1444,7 @@ class AnalysisServer {
    * absolute path.
    */
   bool shouldSendErrorsNotificationFor(String file) {
-    return !_noErrorNotification && contextManager.isInAnalysisRoot(file);
+    return contextManager.isInAnalysisRoot(file);
   }
 
   void shutdown() {
@@ -1665,6 +1677,24 @@ class AnalysisServer {
   }
 
   /**
+   * If the state location can be accessed, return the file byte store,
+   * otherwise return the memory byte store.
+   */
+  ByteStore _createByteStore() {
+    const int M = 1024 * 1024 /*1 MiB*/;
+    const int G = 1024 * 1024 * 1024 /*1 GiB*/;
+    if (resourceProvider is PhysicalResourceProvider) {
+      Folder stateLocation =
+          resourceProvider.getStateLocation('.analysis-driver');
+      if (stateLocation != null) {
+        return new MemoryCachingByteStore(
+            new EvictingFileByteStore(stateLocation.path, G), 64 * M);
+      }
+    }
+    return new MemoryCachingByteStore(new NullByteStore(), 64 * M);
+  }
+
+  /**
    * Return a set of all contexts whose associated folder is contained within,
    * or equal to, one of the resources in the given list of [resources].
    */
@@ -1783,9 +1813,7 @@ class AnalysisServerOptions {
   bool enableIncrementalResolutionApi = false;
   bool enableIncrementalResolutionValidation = false;
   bool enableNewAnalysisDriver = false;
-  bool enablePubSummaryManager = false;
   bool finerGrainedInvalidation = false;
-  bool noErrorNotification = false;
   bool noIndex = false;
   bool useAnalysisHighlight2 = false;
   String fileReadMode = 'as-is';
@@ -1837,33 +1865,76 @@ class ServerContextManagerCallbacks extends ContextManagerCallbacks {
     ContextBuilder builder = createContextBuilder(folder, options);
     nd.AnalysisDriver analysisDriver = builder.buildDriver(folder.path);
     analysisDriver.results.listen((result) {
-      new_sendErrorNotification(analysisServer, result);
+      NotificationManager notificationManager =
+          analysisServer.notificationManager;
       String path = result.path;
+      if (notificationManager != null) {
+        notificationManager.recordAnalysisErrors(
+            NotificationManager.serverId,
+            path,
+            server.doAnalysisError_listFromEngine(
+                result.driver.analysisOptions, result.lineInfo, result.errors));
+      } else {
+        new_sendErrorNotification(analysisServer, result);
+      }
       CompilationUnit unit = result.unit;
       if (unit != null) {
-        if (analysisServer._hasAnalysisServiceSubscription(
-            AnalysisService.HIGHLIGHTS, path)) {
-          _runDelayed(() {
-            sendAnalysisNotificationHighlights(analysisServer, path, unit);
-          });
-        }
-        if (analysisServer._hasAnalysisServiceSubscription(
-            AnalysisService.NAVIGATION, path)) {
-          _runDelayed(() {
-            new_sendDartNotificationNavigation(analysisServer, result);
-          });
-        }
-        if (analysisServer._hasAnalysisServiceSubscription(
-            AnalysisService.OCCURRENCES, path)) {
-          _runDelayed(() {
-            new_sendDartNotificationOccurrences(analysisServer, result);
-          });
-        }
-        if (analysisServer._hasAnalysisServiceSubscription(
-            AnalysisService.OVERRIDES, path)) {
-          _runDelayed(() {
-            sendAnalysisNotificationOverrides(analysisServer, path, unit);
-          });
+        if (notificationManager != null) {
+          if (analysisServer._hasAnalysisServiceSubscription(
+              AnalysisService.HIGHLIGHTS, path)) {
+            _runDelayed(() {
+              notificationManager.recordHighlightRegions(
+                  NotificationManager.serverId,
+                  path,
+                  _computeHighlightRegions(unit));
+            });
+          }
+          if (analysisServer._hasAnalysisServiceSubscription(
+              AnalysisService.NAVIGATION, path)) {
+            _runDelayed(() {
+              notificationManager.recordNavigationParams(
+                  NotificationManager.serverId,
+                  path,
+                  _computeNavigationParams(path, unit));
+            });
+          }
+          if (analysisServer._hasAnalysisServiceSubscription(
+              AnalysisService.OCCURRENCES, path)) {
+            _runDelayed(() {
+              notificationManager.recordOccurrences(
+                  NotificationManager.serverId,
+                  path,
+                  _computeOccurrences(unit));
+            });
+          }
+//          if (analysisServer._hasAnalysisServiceSubscription(
+//              AnalysisService.OUTLINE, path)) {
+//            _runDelayed(() {
+//              // TODO(brianwilkerson) Change NotificationManager to store params
+//              // so that fileKind and libraryName can be recorded / passed along.
+//              notificationManager.recordOutlines(NotificationManager.serverId,
+//                  path, _computeOutlineParams(path, unit, result.lineInfo));
+//            });
+//          }
+        } else {
+          if (analysisServer._hasAnalysisServiceSubscription(
+              AnalysisService.HIGHLIGHTS, path)) {
+            _runDelayed(() {
+              sendAnalysisNotificationHighlights(analysisServer, path, unit);
+            });
+          }
+          if (analysisServer._hasAnalysisServiceSubscription(
+              AnalysisService.NAVIGATION, path)) {
+            _runDelayed(() {
+              new_sendDartNotificationNavigation(analysisServer, result);
+            });
+          }
+          if (analysisServer._hasAnalysisServiceSubscription(
+              AnalysisService.OCCURRENCES, path)) {
+            _runDelayed(() {
+              new_sendDartNotificationOccurrences(analysisServer, result);
+            });
+          }
         }
         if (analysisServer._hasAnalysisServiceSubscription(
             AnalysisService.OUTLINE, path)) {
@@ -1876,9 +1947,14 @@ class ServerContextManagerCallbacks extends ContextManagerCallbacks {
                 analysisServer, path, result.lineInfo, sourceKind, unit);
           });
         }
+        if (analysisServer._hasAnalysisServiceSubscription(
+            AnalysisService.OVERRIDES, path)) {
+          _runDelayed(() {
+            sendAnalysisNotificationOverrides(analysisServer, path, unit);
+          });
+        }
+        // TODO(scheglov) Implement notifications for AnalysisService.IMPLEMENTED.
       }
-      // TODO(scheglov) Implement more notifications.
-      // IMPLEMENTED
     });
     analysisDriver.exceptions.listen((nd.ExceptionResult result) {
       String message = 'Analysis failed: ${result.path}';
@@ -1965,9 +2041,6 @@ class ServerContextManagerCallbacks extends ContextManagerCallbacks {
     builderOptions.defaultOptions = options;
     builderOptions.defaultPackageFilePath = defaultPackageFilePath;
     builderOptions.defaultPackagesDirectoryPath = defaultPackagesDirectoryPath;
-    if (analysisServer.options.enablePubSummaryManager) {
-      builderOptions.pubSummaryManager = analysisServer.pubSummaryManager;
-    }
     ContextBuilder builder = new ContextBuilder(resourceProvider,
         analysisServer.sdkManager, analysisServer.overlayState,
         options: builderOptions);
@@ -2011,6 +2084,65 @@ class ServerContextManagerCallbacks extends ContextManagerCallbacks {
     analysisServer._onContextsChangedController
         .add(new ContextsChangedEvent(changed: [context]));
     analysisServer.schedulePerformAnalysisOperation(context);
+  }
+
+  List<server.HighlightRegion> _computeHighlightRegions(CompilationUnit unit) {
+    if (analysisServer.options.useAnalysisHighlight2) {
+      return new DartUnitHighlightsComputer2(unit).compute();
+    } else {
+      return new DartUnitHighlightsComputer(unit).compute();
+    }
+  }
+
+  String _computeLibraryName(CompilationUnit unit) {
+    for (Directive directive in unit.directives) {
+      if (directive is LibraryDirective && directive.name != null) {
+        return directive.name.name;
+      }
+    }
+    for (Directive directive in unit.directives) {
+      if (directive is PartOfDirective && directive.libraryName != null) {
+        return directive.libraryName.name;
+      }
+    }
+    return null;
+  }
+
+  server.AnalysisNavigationParams _computeNavigationParams(
+      String path, CompilationUnit unit) {
+    NavigationCollectorImpl collector = new NavigationCollectorImpl();
+    computeDartNavigation(collector, unit, null, null);
+    collector.createRegions();
+    return new server.AnalysisNavigationParams(
+        path, collector.regions, collector.targets, collector.files);
+  }
+
+  List<Occurrences> _computeOccurrences(CompilationUnit unit) {
+    OccurrencesCollectorImpl collector = new OccurrencesCollectorImpl();
+    addDartOccurrences(collector, unit);
+    return collector.allOccurrences;
+  }
+
+  server.AnalysisOutlineParams _computeOutlineParams(
+      String path, CompilationUnit unit, LineInfo lineInfo) {
+    // compute FileKind
+    SourceKind sourceKind = unit.directives.any((d) => d is PartOfDirective)
+        ? SourceKind.PART
+        : SourceKind.LIBRARY;
+    server.FileKind fileKind = server.FileKind.LIBRARY;
+    if (sourceKind == SourceKind.LIBRARY) {
+      fileKind = server.FileKind.LIBRARY;
+    } else if (sourceKind == SourceKind.PART) {
+      fileKind = server.FileKind.PART;
+    }
+    // compute library name
+    String libraryName = _computeLibraryName(unit);
+    // compute Outline
+    DartUnitOutlineComputer computer =
+        new DartUnitOutlineComputer(path, lineInfo, unit);
+    server.Outline outline = computer.compute();
+    return new server.AnalysisOutlineParams(path, fileKind, outline,
+        libraryName: libraryName);
   }
 
   /**

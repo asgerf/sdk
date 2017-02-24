@@ -267,6 +267,10 @@ class FixProcessor {
       _addFix_createConstructor_insteadOfSyntheticDefault();
       await _addFix_addMissingParameter();
     }
+    if (errorCode == HintCode.MISSING_REQUIRED_PARAM ||
+        errorCode == HintCode.MISSING_REQUIRED_PARAM_WITH_DETAILS) {
+      _addFix_addMissingRequiredArgument();
+    }
     if (errorCode == StaticWarningCode.FUNCTION_WITHOUT_CALL) {
       _addFix_addMissingMethodCall();
     }
@@ -546,6 +550,55 @@ class FixProcessor {
           _addFix(DartFixKind.ADD_MISSING_PARAMETER_POSITIONAL, []);
         }
       }
+    }
+  }
+
+  void _addFix_addMissingRequiredArgument() {
+    Element targetElement;
+    ArgumentList argumentList;
+
+    if (node is SimpleIdentifier) {
+      AstNode invocation = node.parent;
+      if (invocation is MethodInvocation) {
+        targetElement = invocation.methodName.bestElement;
+        argumentList = invocation.argumentList;
+      } else {
+        AstNode ancestor =
+            invocation.getAncestor((p) => p is InstanceCreationExpression);
+        if (ancestor is InstanceCreationExpression) {
+          targetElement = ancestor.staticElement;
+          argumentList = ancestor.argumentList;
+        }
+      }
+    }
+
+    if (targetElement is ExecutableElement) {
+      // Format: "Missing required argument 'foo"
+      List<String> parts = error.message.split("'");
+      if (parts.length < 2) {
+        return;
+      }
+
+      // Grab just the name.
+      String paramName = parts[1];
+
+      // add proposal
+
+      SourceBuilder sb;
+
+      final List<Expression> args = argumentList.arguments;
+      if (args.isEmpty) {
+        sb = new SourceBuilder(file, argumentList.leftParenthesis.end);
+      } else {
+        sb = new SourceBuilder(file, args.last.end);
+        sb.append(', ');
+      }
+
+      // In the future consider better values than null for specific element types.
+      sb.append('$paramName: null');
+
+      _insertBuilder(sb, targetElement);
+      _addFix(DartFixKind.ADD_MISSING_REQUIRED_ARGUMENT, [paramName]);
     }
   }
 

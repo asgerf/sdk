@@ -4,12 +4,15 @@
 
 // VM-specific implementation of the dart:mirrors library.
 
+import "dart:collection" show UnmodifiableListView, UnmodifiableMapView;
+import "dart:_internal" as internal;
+
 var _dirty = false;
 final _emptyList = new UnmodifiableListView([]);
 
 class _InternalMirrorError {
   final String _msg;
-  const _InternalMirrorError(String this._msg);
+  const _InternalMirrorError(this._msg);
   String toString() => _msg;
 }
 

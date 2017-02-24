@@ -10,13 +10,23 @@ import 'package:front_end/src/fasta/parser/error_kind.dart' show
 import 'package:front_end/src/fasta/scanner/error_token.dart' show
     ErrorToken;
 
+import 'package:front_end/src/fasta/scanner/keyword.dart' show
+    Keyword;
+
+import 'package:front_end/src/fasta/scanner/precedence.dart';
+
 import 'package:front_end/src/fasta/scanner/token.dart' show
+    BeginGroupToken,
     KeywordToken,
+    StringToken,
+    SymbolToken,
     Token;
 
 import 'package:front_end/src/fasta/scanner/token_constants.dart';
 
 import 'package:front_end/src/scanner/token.dart' as analyzer show
+    BeginToken,
+    BeginTokenWithComment,
     CommentToken,
     Keyword,
     KeywordToken,
@@ -35,54 +45,437 @@ import 'package:analyzer/dart/ast/token.dart' show
 import '../errors.dart' show
     internalError;
 
-/// Converts a stream of Fasta tokens (starting with [token] and continuing to
-/// EOF) to a stream of analyzer tokens.
+/// Class capable of converting a stream of Fasta tokens to a stream of analyzer
+/// tokens.
 ///
-/// If any error tokens are found in the stream, they are reported using the
-/// [reportError] callback.
-analyzer.Token toAnalyzerTokenStream(
-    Token token,
-    void reportError(analyzer.ScannerErrorCode errorCode, int offset,
-        List<Object> arguments)) {
-  var analyzerTokenHead = new analyzer.Token(null, 0);
-  analyzerTokenHead.previous = analyzerTokenHead;
-  var analyzerTokenTail = analyzerTokenHead;
-  // TODO(paulberry,ahe): Fasta includes comments directly in the token
-  // stream, rather than pointing to them via a "precedingComment" pointer, as
-  // analyzer does.  This seems like it will complicate parsing and other
-  // operations.
-  analyzer.CommentToken currentCommentHead;
-  analyzer.CommentToken currentCommentTail;
-  while (true) {
-    if (token.info.kind == BAD_INPUT_TOKEN) {
-      ErrorToken errorToken = token;
-      _translateErrorToken(errorToken, reportError);
-    } else if (token.info.kind == COMMENT_TOKEN) {
-      // TODO(paulberry,ahe): It would be nice if the scanner gave us an
-      // easier way to distinguish between the two types of comment.
-      var type = token.value.startsWith('/*')
-          ? TokenType.MULTI_LINE_COMMENT
-          : TokenType.SINGLE_LINE_COMMENT;
-      var translatedToken =
-          new analyzer.CommentToken(type, token.value, token.charOffset);
-      if (currentCommentHead == null) {
-        currentCommentHead = currentCommentTail = translatedToken;
+/// This is a class rather than an ordinary method so that it can be subclassed
+/// in tests.
+///
+/// TODO(paulberry,ahe): Fasta includes comments directly in the token
+/// stream, rather than pointing to them via a "precedingComment" pointer, as
+/// analyzer does.  This seems like it will complicate parsing and other
+/// operations.
+class ToAnalyzerTokenStreamConverter {
+  /// Synthetic token pointing to the first token in the analyzer token stream.
+  analyzer.Token _analyzerTokenHead;
+
+  /// The most recently generated analyzer token, or [_analyzerTokenHead] if no
+  /// tokens have been generated yet.
+  analyzer.Token _analyzerTokenTail;
+
+  /// If a sequence of consecutive comment tokens is being processed, the first
+  /// translated analyzer comment token.  Otherwise `null`.
+  analyzer.CommentToken _currentCommentHead;
+
+  /// If a sequence of consecutive comment tokens is being processed, the last
+  /// translated analyzer comment token.  Otherwise `null`.
+  analyzer.CommentToken _currentCommentTail;
+
+  /// Stack of analyzer "begin" tokens which need to be linked up to
+  /// corresponding "end" tokens once those tokens are translated.
+  ///
+  /// The first element of this list is always a sentinel `null` value so that
+  /// we don't have to check if it is empty.
+  ///
+  /// See additional documentation in [_matchGroups].
+  List<analyzer.BeginToken> _beginTokenStack;
+
+  /// Stack of fasta "end" tokens corresponding to the tokens in
+  /// [_endTokenStack].
+  ///
+  /// The first element of this list is always a sentinel `null` value so that
+  /// we don't have to check if it is empty.
+  ///
+  /// See additional documentation in [_matchGroups].
+  List<Token> _endTokenStack;
+
+  /// Converts a stream of Fasta tokens (starting with [token] and continuing to
+  /// EOF) to a stream of analyzer tokens.
+  analyzer.Token convertTokens(Token token) {
+    _analyzerTokenHead = new analyzer.Token(TokenType.EOF, -1);
+    _analyzerTokenHead.previous = _analyzerTokenHead;
+    _analyzerTokenTail = _analyzerTokenHead;
+    _currentCommentHead = null;
+    _currentCommentTail = null;
+    _beginTokenStack = [null];
+    _endTokenStack = <Token>[null];
+
+    while (true) {
+      if (token.info.kind == BAD_INPUT_TOKEN) {
+        ErrorToken errorToken = token;
+        _translateErrorToken(errorToken);
+      } else if (token.info.kind == COMMENT_TOKEN) {
+        var translatedToken = translateCommentToken(token);
+        if (_currentCommentHead == null) {
+          _currentCommentHead = _currentCommentTail = translatedToken;
+        } else {
+          _currentCommentTail.setNext(translatedToken);
+          _currentCommentTail = translatedToken;
+        }
       } else {
-        currentCommentTail.setNext(translatedToken);
-        currentCommentTail = translatedToken;
+        var translatedToken = translateToken(token, _currentCommentHead);
+        _matchGroups(token, translatedToken);
+        translatedToken.setNext(translatedToken);
+        _currentCommentHead = _currentCommentTail = null;
+        _analyzerTokenTail.setNext(translatedToken);
+        translatedToken.previous = _analyzerTokenTail;
+        _analyzerTokenTail = translatedToken;
       }
-    } else {
-      var translatedToken = toAnalyzerToken(token, currentCommentHead);
-      translatedToken.setNext(translatedToken);
-      currentCommentHead = currentCommentTail = null;
-      analyzerTokenTail.setNext(translatedToken);
-      translatedToken.previous = analyzerTokenTail;
-      analyzerTokenTail = translatedToken;
+      if (token.isEof) {
+        return _analyzerTokenHead.next;
+      }
+      token = token.next;
     }
-    if (token.isEof) {
-      return analyzerTokenHead.next;
+  }
+
+  /// Handles an error found during [convertTokens].
+  ///
+  /// Intended to be overridden by derived classes; by default, does nothing.
+  void reportError(analyzer.ScannerErrorCode errorCode, int offset,
+      List<Object> arguments) {}
+
+  /// Translates a single fasta comment token to the corresponding analyzer
+  /// token.
+  analyzer.CommentToken translateCommentToken(Token token) {
+    // TODO(paulberry,ahe): It would be nice if the scanner gave us an
+    // easier way to distinguish between the two types of comment.
+    var type = token.value.startsWith('/*')
+        ? TokenType.MULTI_LINE_COMMENT
+        : TokenType.SINGLE_LINE_COMMENT;
+    return new analyzer.CommentToken(type, token.value, token.charOffset);
+  }
+
+  /// Translates a single fasta non-comment token to the corresponding analyzer
+  /// token.
+  ///
+  /// [precedingComments] is not `null`, the translated token is pointed to it.
+  analyzer.Token translateToken(
+          Token token, analyzer.CommentToken precedingComments) =>
+      toAnalyzerToken(token, precedingComments);
+
+  /// Creates appropriate begin/end token links based on the fact that [token]
+  /// was translated to [translatedToken].
+  ///
+  /// Background: both fasta and analyzer have links from a "BeginToken" to its
+  /// matching "EndToken" in a group (like parentheses and braces).  However,
+  /// fasta may contain synthetic tokens from error recovery that are not mapped
+  /// to the analyzer token stream.  We use [_beginTokenStack] and
+  /// [_endTokenStack] to create the appropriate links for non-synthetic tokens
+  /// in the way analyzer expects.
+  void _matchGroups(Token token, analyzer.Token translatedToken) {
+    if (identical(_endTokenStack.last, token)) {
+      _beginTokenStack.last.endToken = translatedToken;
+      _beginTokenStack.removeLast();
+      _endTokenStack.removeLast();
     }
-    token = token.next;
+    // Synthetic end tokens use the same offset as the begin token.
+    if (translatedToken is analyzer.BeginToken &&
+        token is BeginGroupToken &&
+        token.endGroup != null &&
+        token.endGroup.charOffset != token.charOffset) {
+      _beginTokenStack.add(translatedToken);
+      _endTokenStack.add(token.endGroup);
+    }
+  }
+
+  /// Translates the given error [token] into an analyzer error and reports it
+  /// using [reportError].
+  void _translateErrorToken(ErrorToken token) {
+    int charOffset = token.charOffset;
+    // TODO(paulberry,ahe): why is endOffset sometimes null?
+    int endOffset = token.endOffset ?? charOffset;
+    void _makeError(
+        analyzer.ScannerErrorCode errorCode, List<Object> arguments) {
+      if (_isAtEnd(token, charOffset)) {
+        // Analyzer never generates an error message past the end of the input,
+        // since such an error would not be visible in an editor.
+        // TODO(paulberry,ahe): would it make sense to replicate this behavior
+        // in fasta, or move it elsewhere in analyzer?
+        charOffset--;
+      }
+      reportError(errorCode, charOffset, arguments);
+    }
+
+    var errorCode = token.errorCode;
+    switch (errorCode) {
+      case ErrorKind.UnterminatedString:
+        // TODO(paulberry,ahe): Fasta reports the error location as the entire
+        // string; analyzer expects the end of the string.
+        charOffset = endOffset;
+        return _makeError(
+            analyzer.ScannerErrorCode.UNTERMINATED_STRING_LITERAL, null);
+      case ErrorKind.UnmatchedToken:
+        return null;
+      case ErrorKind.UnterminatedComment:
+        // TODO(paulberry,ahe): Fasta reports the error location as the entire
+        // comment; analyzer expects the end of the comment.
+        charOffset = endOffset;
+        return _makeError(
+            analyzer.ScannerErrorCode.UNTERMINATED_MULTI_LINE_COMMENT, null);
+      case ErrorKind.MissingExponent:
+        // TODO(paulberry,ahe): Fasta reports the error location as the entire
+        // number; analyzer expects the end of the number.
+        charOffset = endOffset;
+        return _makeError(analyzer.ScannerErrorCode.MISSING_DIGIT, null);
+      case ErrorKind.ExpectedHexDigit:
+        // TODO(paulberry,ahe): Fasta reports the error location as the entire
+        // number; analyzer expects the end of the number.
+        charOffset = endOffset;
+        return _makeError(analyzer.ScannerErrorCode.MISSING_HEX_DIGIT, null);
+      case ErrorKind.NonAsciiIdentifier:
+      case ErrorKind.NonAsciiWhitespace:
+        return _makeError(
+            analyzer.ScannerErrorCode.ILLEGAL_CHARACTER, [token.character]);
+      case ErrorKind.UnexpectedDollarInString:
+        return null;
+      default:
+        throw new UnimplementedError('$errorCode');
+    }
+  }
+}
+
+/// Converts a stream of Analyzer tokens (starting with [token] and continuing
+/// to EOF) to a stream of Fasta tokens.
+///
+/// TODO(paulberry): Analyzer tokens do not record error conditions, so a round
+/// trip through this function and [toAnalyzerTokenStream] will lose error
+/// information.
+Token fromAnalyzerTokenStream(analyzer.Token analyzerToken) {
+  Token tokenHead = new SymbolToken(EOF_INFO, -1);
+  Token tokenTail = tokenHead;
+
+  // Both fasta and analyzer have links from a "BeginToken" to its matching
+  // "EndToken" in a group (like parentheses and braces).  However, only fasta
+  // makes these links for angle brackets.  We use these stacks to map the
+  // links from the analyzer token stream into equivalent links in the fasta
+  // token stream, and to create the links that fasta expects for angle
+  // brackets.
+
+  // Note: beginTokenStack and endTokenStack are seeded with a sentinel value
+  // so that we don't have to check if they're empty.
+  var beginTokenStack = <BeginGroupToken>[null];
+  var endTokenStack = <analyzer.Token>[null];
+  var angleBracketStack = <BeginGroupToken>[];
+  void matchGroups(analyzer.Token analyzerToken, Token translatedToken) {
+    if (identical(endTokenStack.last, analyzerToken)) {
+      angleBracketStack.clear();
+      beginTokenStack.last.endGroup = translatedToken;
+      beginTokenStack.removeLast();
+      endTokenStack.removeLast();
+    } else if (translatedToken.info.kind == LT_TOKEN) {
+      BeginGroupToken beginGroupToken = translatedToken;
+      angleBracketStack.add(beginGroupToken);
+    } else if (translatedToken.info.kind == GT_TOKEN &&
+        angleBracketStack.isNotEmpty) {
+      angleBracketStack.removeLast().endGroup = translatedToken;
+    } else if (translatedToken.info.kind == GT_GT_TOKEN &&
+        angleBracketStack.isNotEmpty) {
+      angleBracketStack.removeLast();
+      if (angleBracketStack.isNotEmpty) {
+        angleBracketStack.removeLast().endGroup = translatedToken;
+      }
+    }
+    // TODO(paulberry): generate synthetic closer tokens and "UnmatchedToken"
+    // tokens as appropriate.
+    if (translatedToken is BeginGroupToken &&
+        analyzerToken is analyzer.BeginToken &&
+        analyzerToken.endToken != null) {
+      angleBracketStack.clear();
+      beginTokenStack.add(translatedToken);
+      endTokenStack.add(analyzerToken.endToken);
+    }
+  }
+
+  analyzer.Token translateAndAppend(analyzer.Token analyzerToken) {
+    var token = fromAnalyzerToken(analyzerToken);
+    tokenTail.next = token;
+    tokenTail = token;
+    matchGroups(analyzerToken, token);
+    return analyzerToken.next;
+  }
+
+  while (true) {
+    analyzer.Token commentToken = analyzerToken.precedingComments;
+    while (commentToken != null) {
+      commentToken = translateAndAppend(commentToken);
+    }
+    // TODO(paulberry): join up begingroup/endgroup.
+    if (analyzerToken.type == TokenType.EOF) {
+      tokenTail.next = new SymbolToken(EOF_INFO, analyzerToken.offset);
+      return tokenHead.next;
+    }
+    analyzerToken = translateAndAppend(analyzerToken);
+  }
+}
+
+/// Converts a single analyzer token into a Fasta token.
+Token fromAnalyzerToken(analyzer.Token token) {
+  Token beginGroup(PrecedenceInfo info) =>
+      new BeginGroupToken(info, token.offset);
+  Token string(PrecedenceInfo info) =>
+      new StringToken.fromString(info, token.lexeme, token.offset);
+  Token symbol(PrecedenceInfo info) => new SymbolToken(info, token.offset);
+  switch (token.type) {
+    case TokenType.DOUBLE:
+      return string(DOUBLE_INFO);
+    case TokenType.HEXADECIMAL:
+      return string(HEXADECIMAL_INFO);
+    case TokenType.IDENTIFIER:
+      // Certain identifiers have special grammatical meanings even though they
+      // are neither keywords nor built-in identifiers (e.g. "async").  Analyzer
+      // represents these as identifiers.  Fasta represents them as keywords
+      // with the "isPseudo" property.
+      var keyword = Keyword.keywords[token.lexeme];
+      if (keyword != null) {
+        assert(keyword.isPseudo);
+        return new KeywordToken(keyword, token.offset);
+      } else {
+        return string(IDENTIFIER_INFO);
+      }
+      break;
+    case TokenType.INT:
+      return string(INT_INFO);
+    case TokenType.KEYWORD:
+      var keyword = Keyword.keywords[token.lexeme];
+      if (keyword != null) {
+        return new KeywordToken(keyword, token.offset);
+      } else {
+        return internalError("Unrecognized keyword: '${token.lexeme}'.");
+      }
+      break;
+    case TokenType.MULTI_LINE_COMMENT:
+      return string(COMMENT_INFO);
+    // case TokenType.SCRIPT_TAG
+    case TokenType.SINGLE_LINE_COMMENT:
+      return string(COMMENT_INFO);
+    case TokenType.STRING:
+      return string(STRING_INFO);
+    case TokenType.AMPERSAND:
+      return symbol(AMPERSAND_INFO);
+    case TokenType.AMPERSAND_AMPERSAND:
+      return symbol(AMPERSAND_AMPERSAND_INFO);
+    // case TokenType.AMPERSAND_AMPERSAND_EQ
+    case TokenType.AMPERSAND_EQ:
+      return symbol(AMPERSAND_EQ_INFO);
+    case TokenType.AT:
+      return symbol(AT_INFO);
+    case TokenType.BANG:
+      return symbol(BANG_INFO);
+    case TokenType.BANG_EQ:
+      return symbol(BANG_EQ_INFO);
+    case TokenType.BAR:
+      return symbol(BAR_INFO);
+    case TokenType.BAR_BAR:
+      return symbol(BAR_BAR_INFO);
+    // case TokenType.BAR_BAR_EQ
+    case TokenType.BAR_EQ:
+      return symbol(BAR_EQ_INFO);
+    case TokenType.COLON:
+      return symbol(COLON_INFO);
+    case TokenType.COMMA:
+      return symbol(COMMA_INFO);
+    case TokenType.CARET:
+      return symbol(CARET_INFO);
+    case TokenType.CARET_EQ:
+      return symbol(CARET_EQ_INFO);
+    case TokenType.CLOSE_CURLY_BRACKET:
+      return symbol(CLOSE_CURLY_BRACKET_INFO);
+    case TokenType.CLOSE_PAREN:
+      return symbol(CLOSE_PAREN_INFO);
+    case TokenType.CLOSE_SQUARE_BRACKET:
+      return symbol(CLOSE_SQUARE_BRACKET_INFO);
+    case TokenType.EQ:
+      return symbol(EQ_INFO);
+    case TokenType.EQ_EQ:
+      return symbol(EQ_EQ_INFO);
+    case TokenType.FUNCTION:
+      return symbol(FUNCTION_INFO);
+    case TokenType.GT:
+      return symbol(GT_INFO);
+    case TokenType.GT_EQ:
+      return symbol(GT_EQ_INFO);
+    case TokenType.GT_GT:
+      return symbol(GT_GT_INFO);
+    case TokenType.GT_GT_EQ:
+      return symbol(GT_GT_EQ_INFO);
+    case TokenType.HASH:
+      return symbol(HASH_INFO);
+    case TokenType.INDEX:
+      return symbol(INDEX_INFO);
+    case TokenType.INDEX_EQ:
+      return symbol(INDEX_EQ_INFO);
+    case TokenType.LT:
+      return beginGroup(LT_INFO);
+    case TokenType.LT_EQ:
+      return symbol(LT_EQ_INFO);
+    case TokenType.LT_LT:
+      return symbol(LT_LT_INFO);
+    case TokenType.LT_LT_EQ:
+      return symbol(LT_LT_EQ_INFO);
+    case TokenType.MINUS:
+      return symbol(MINUS_INFO);
+    case TokenType.MINUS_EQ:
+      return symbol(MINUS_EQ_INFO);
+    case TokenType.MINUS_MINUS:
+      return symbol(MINUS_MINUS_INFO);
+    case TokenType.OPEN_CURLY_BRACKET:
+      return beginGroup(OPEN_CURLY_BRACKET_INFO);
+    case TokenType.OPEN_PAREN:
+      return beginGroup(OPEN_PAREN_INFO);
+    case TokenType.OPEN_SQUARE_BRACKET:
+      return beginGroup(OPEN_SQUARE_BRACKET_INFO);
+    case TokenType.PERCENT:
+      return symbol(PERCENT_INFO);
+    case TokenType.PERCENT_EQ:
+      return symbol(PERCENT_EQ_INFO);
+    case TokenType.PERIOD:
+      return symbol(PERIOD_INFO);
+    case TokenType.PERIOD_PERIOD:
+      return symbol(PERIOD_PERIOD_INFO);
+    case TokenType.PLUS:
+      return symbol(PLUS_INFO);
+    case TokenType.PLUS_EQ:
+      return symbol(PLUS_EQ_INFO);
+    case TokenType.PLUS_PLUS:
+      return symbol(PLUS_PLUS_INFO);
+    case TokenType.QUESTION:
+      return symbol(QUESTION_INFO);
+    case TokenType.QUESTION_PERIOD:
+      return symbol(QUESTION_PERIOD_INFO);
+    case TokenType.QUESTION_QUESTION:
+      return symbol(QUESTION_QUESTION_INFO);
+    case TokenType.QUESTION_QUESTION_EQ:
+      return symbol(QUESTION_QUESTION_EQ_INFO);
+    case TokenType.SEMICOLON:
+      return symbol(SEMICOLON_INFO);
+    case TokenType.SLASH:
+      return symbol(SLASH_INFO);
+    case TokenType.SLASH_EQ:
+      return symbol(SLASH_EQ_INFO);
+    case TokenType.STAR:
+      return symbol(STAR_INFO);
+    case TokenType.STAR_EQ:
+      return symbol(STAR_EQ_INFO);
+    case TokenType.STRING_INTERPOLATION_EXPRESSION:
+      return beginGroup(STRING_INTERPOLATION_INFO);
+    case TokenType.STRING_INTERPOLATION_IDENTIFIER:
+      return symbol(STRING_INTERPOLATION_IDENTIFIER_INFO);
+    case TokenType.TILDE:
+      return symbol(TILDE_INFO);
+    case TokenType.TILDE_SLASH:
+      return symbol(TILDE_SLASH_INFO);
+    case TokenType.TILDE_SLASH_EQ:
+      return symbol(TILDE_SLASH_EQ_INFO);
+    case TokenType.BACKPING:
+      return symbol(BACKPING_INFO);
+    case TokenType.BACKSLASH:
+      return symbol(BACKSLASH_INFO);
+    case TokenType.PERIOD_PERIOD_PERIOD:
+      return symbol(PERIOD_PERIOD_PERIOD_INFO);
+    // case TokenType.GENERIC_METHOD_TYPE_ASSIGN
+    // case TokenType.GENERIC_METHOD_TYPE_LIST
+    default:
+      return internalError('Unhandled token type ${token.type}');
   }
 }
 
@@ -102,63 +495,6 @@ bool _isAtEnd(Token token, int charOffset) {
   }
 }
 
-/// Translates the given error [token] into an analyzer error and reports it
-/// using [reportError].
-void _translateErrorToken(
-    ErrorToken token,
-    void reportError(analyzer.ScannerErrorCode errorCode, int offset,
-        List<Object> arguments)) {
-  int charOffset = token.charOffset;
-  // TODO(paulberry,ahe): why is endOffset sometimes null?
-  int endOffset = token.endOffset ?? charOffset;
-  void _makeError(analyzer.ScannerErrorCode errorCode, List<Object> arguments) {
-    if (_isAtEnd(token, charOffset)) {
-      // Analyzer never generates an error message past the end of the input,
-      // since such an error would not be visible in an editor.
-      // TODO(paulberry,ahe): would it make sense to replicate this behavior
-      // in fasta, or move it elsewhere in analyzer?
-      charOffset--;
-    }
-    reportError(errorCode, charOffset, arguments);
-  }
-
-  var errorCode = token.errorCode;
-  switch (errorCode) {
-    case ErrorKind.UnterminatedString:
-      // TODO(paulberry,ahe): Fasta reports the error location as the entire
-      // string; analyzer expects the end of the string.
-      charOffset = endOffset;
-      return _makeError(
-          analyzer.ScannerErrorCode.UNTERMINATED_STRING_LITERAL, null);
-    case ErrorKind.UnmatchedToken:
-      return null;
-    case ErrorKind.UnterminatedComment:
-      // TODO(paulberry,ahe): Fasta reports the error location as the entire
-      // comment; analyzer expects the end of the comment.
-      charOffset = endOffset;
-      return _makeError(
-          analyzer.ScannerErrorCode.UNTERMINATED_MULTI_LINE_COMMENT, null);
-    case ErrorKind.MissingExponent:
-      // TODO(paulberry,ahe): Fasta reports the error location as the entire
-      // number; analyzer expects the end of the number.
-      charOffset = endOffset;
-      return _makeError(analyzer.ScannerErrorCode.MISSING_DIGIT, null);
-    case ErrorKind.ExpectedHexDigit:
-      // TODO(paulberry,ahe): Fasta reports the error location as the entire
-      // number; analyzer expects the end of the number.
-      charOffset = endOffset;
-      return _makeError(analyzer.ScannerErrorCode.MISSING_HEX_DIGIT, null);
-    case ErrorKind.NonAsciiIdentifier:
-    case ErrorKind.NonAsciiWhitespace:
-      return _makeError(
-          analyzer.ScannerErrorCode.ILLEGAL_CHARACTER, [token.character]);
-    case ErrorKind.UnexpectedDollarInString:
-      return null;
-    default:
-      throw new UnimplementedError('$errorCode');
-  }
-}
-
 analyzer.Token toAnalyzerToken(Token token,
     [analyzer.CommentToken commentToken]) {
   if (token == null) return null;
@@ -168,6 +504,15 @@ analyzer.Token toAnalyzerToken(Token token,
     } else {
       return new analyzer.StringTokenWithComment(
           tokenType, token.value, token.charOffset, commentToken);
+    }
+  }
+
+  analyzer.Token makeBeginToken(TokenType tokenType) {
+    if (commentToken == null) {
+      return new analyzer.BeginToken(tokenType, token.charOffset);
+    } else {
+      return new analyzer.BeginTokenWithComment(
+          tokenType, token.charOffset, commentToken);
     }
   }
 
@@ -213,6 +558,12 @@ analyzer.Token toAnalyzerToken(Token token,
 
     case STRING_TOKEN:
       return makeStringToken(TokenType.STRING);
+
+    case OPEN_CURLY_BRACKET_TOKEN:
+    case OPEN_SQUARE_BRACKET_TOKEN:
+    case OPEN_PAREN_TOKEN:
+    case STRING_INTERPOLATION_TOKEN:
+      return makeBeginToken(getTokenType(token));
 
     default:
       if (commentToken == null) {

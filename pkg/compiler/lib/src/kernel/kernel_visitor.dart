@@ -47,6 +47,7 @@ import '../elements/elements.dart'
         GetterElement,
         InitializingFormalElement,
         JumpTarget,
+        LibraryElement,
         LocalElement,
         LocalFunctionElement,
         LocalVariableElement,
@@ -104,6 +105,7 @@ import '../tree/tree.dart'
         ForIn,
         FunctionDeclaration,
         FunctionExpression,
+        FunctionTypeAnnotation,
         Identifier,
         If,
         Label,
@@ -122,6 +124,7 @@ import '../tree/tree.dart'
         NewExpression,
         Node,
         NodeList,
+        NominalTypeAnnotation,
         Operator,
         ParenthesizedExpression,
         RedirectingFactoryBody,
@@ -202,6 +205,13 @@ class KernelVisitor extends Object
   final Map<CascadeReceiver, ir.VariableGet> cascadeReceivers =
       <CascadeReceiver, ir.VariableGet>{};
 
+  // This maps underlying Library elements to the corresponding DeferredImport
+  // object, via the prefix name (aka "bar" in
+  // "import foo.dart deferred as bar"). LibraryElement corresponds to the
+  // imported library element.
+  final Map<LibraryElement, Map<String, ir.DeferredImport>> deferredImports =
+      <LibraryElement, Map<String, ir.DeferredImport>>{};
+
   ir.Node associateElement(ir.Node node, Element element) {
     kernel.nodeToElement[node] = element;
     return node;
@@ -213,6 +223,10 @@ class KernelVisitor extends Object
   }
 
   bool isVoidContext = false;
+
+  /// If non-null, reference to a deferred library that a subsequent getter is
+  /// using.
+  ir.DeferredImport _deferredLibrary;
 
   KernelVisitor(this.currentElement, this.elements, this.kernel);
 
@@ -363,7 +377,15 @@ class KernelVisitor extends Object
   }
 
   @override
-  void previsitDeferredAccess(Send node, PrefixElement prefix, _) {}
+  void previsitDeferredAccess(Send node, PrefixElement prefix, _) {
+    // This is visited before any element access, and if it is deferred,
+    // prefix.isDeferred = true.
+    if (prefix != null && prefix.isDeferred) {
+      _deferredLibrary = getDeferredImport(prefix);
+    } else {
+      _deferredLibrary = null;
+    }
+  }
 
   @override
   internalError(Spannable spannable, String message) {
@@ -1101,14 +1123,28 @@ class KernelVisitor extends Object
 
   @override
   visitTypeAnnotation(TypeAnnotation node) {
-    // Shouldn't be called, as the resolver have already resolved types and
+    // Shouldn't be called, as the resolver has already resolved types and
     // created [DartType] objects.
     return internalError(node, "TypeAnnotation");
   }
 
   @override
+  visitNominalTypeAnnotation(NominalTypeAnnotation node) {
+    // Shouldn't be called, as the resolver has already resolved types and
+    // created [DartType] objects.
+    return internalError(node, "NominalTypeAnnotation");
+  }
+
+  @override
+  visitFunctionTypeAnnotation(FunctionTypeAnnotation node) {
+    // Shouldn't be called, as the resolver has already resolved types and
+    // created [DartType] objects.
+    return internalError(node, "FunctionTypeAnnotation");
+  }
+
+  @override
   visitTypeVariable(TypeVariable node) {
-    // Shouldn't be called, as the resolver have already resolved types and
+    // Shouldn't be called, as the resolver has already resolved types and
     // created [DartType] objects.
     return internalError(node, "TypeVariable");
   }
@@ -1204,9 +1240,12 @@ class KernelVisitor extends Object
   }
 
   @override
-  ir.TypeLiteral visitClassTypeLiteralGet(
+  ir.Expression visitClassTypeLiteralGet(
       Send node, ConstantExpression constant, _) {
-    return buildTypeLiteral(constant);
+    var loadedCheckFunc =
+        _createCheckLibraryLoadedFuncIfNeeded(_deferredLibrary);
+    _deferredLibrary = null;
+    return loadedCheckFunc(buildTypeLiteral(constant));
   }
 
   @override
@@ -1994,7 +2033,10 @@ class KernelVisitor extends Object
   }
 
   ir.Expression buildStaticGet(Element element) {
-    return buildStaticAccessor(element).buildSimpleRead();
+    var loadedCheckFunc =
+        _createCheckLibraryLoadedFuncIfNeeded(_deferredLibrary);
+    _deferredLibrary = null;
+    return loadedCheckFunc(buildStaticAccessor(element).buildSimpleRead());
   }
 
   @override
@@ -2206,14 +2248,13 @@ class KernelVisitor extends Object
   }
 
   @override
-  ir.StaticInvocation handleStaticFunctionInvoke(
-      Send node,
-      MethodElement function,
-      NodeList arguments,
-      CallStructure callStructure,
-      _) {
-    return associateNode(
-        buildStaticInvoke(function, arguments, isConst: false), node);
+  ir.Expression handleStaticFunctionInvoke(Send node, MethodElement function,
+      NodeList arguments, CallStructure callStructure, _) {
+    var loadedCheckFunc =
+        _createCheckLibraryLoadedFuncIfNeeded(_deferredLibrary);
+    _deferredLibrary = null;
+    return loadedCheckFunc(associateNode(
+        buildStaticInvoke(function, arguments, isConst: false), node));
   }
 
   @override
@@ -2229,24 +2270,36 @@ class KernelVisitor extends Object
     return buildIrFunction(ir.ProcedureKind.Getter, getter, body);
   }
 
+  ir.DeferredImport getDeferredImport(PrefixElement prefix) {
+    var map = deferredImports[prefix.deferredImport.importedLibrary] ??=
+        <String, ir.DeferredImport>{};
+    return map[prefix.name] ??= associateElement(
+        new ir.DeferredImport(
+            kernel.libraries[prefix.deferredImport.importedLibrary],
+            prefix.name),
+        prefix);
+  }
+
   @override
   ir.Expression handleStaticGetterGet(Send node, FunctionElement getter, _) {
     if (getter.isDeferredLoaderGetter) {
-      // TODO(ahe): Support deferred load.
-      return new ir.InvalidExpression();
+      return new ir.LoadLibrary(getDeferredImport(getter.enclosingElement));
     }
-    return buildStaticGet(getter);
+    var expression = buildStaticGet(getter);
+    return expression;
   }
 
   @override
   ir.Expression handleStaticGetterInvoke(Send node, FunctionElement getter,
       NodeList arguments, CallStructure callStructure, _) {
+    var expression;
     if (getter.isDeferredLoaderGetter) {
-      // TODO(ahe): Support deferred load.
-      return new ir.InvalidExpression();
+      expression =
+          new ir.LoadLibrary(getDeferredImport(getter.enclosingElement));
+    } else {
+      expression = buildStaticGet(getter);
     }
-    return associateNode(
-        buildCall(buildStaticGet(getter), callStructure, arguments), node);
+    return associateNode(buildCall(expression, callStructure, arguments), node);
   }
 
   @override
@@ -2675,10 +2728,27 @@ class KernelVisitor extends Object
     return buildIrFunction(ir.ProcedureKind.Setter, setter, body);
   }
 
+  /// Return a function that accepts an expression and returns an expression. If
+  /// deferredImport is null, then the function returned is the identity
+  /// expression. Otherwise, it inserts a CheckLibraryIsLoaded call before
+  /// evaluating the expression.
+  _createCheckLibraryLoadedFuncIfNeeded(ir.DeferredImport deferredImport) {
+    if (deferredImport != null) {
+      return (ir.Expression inputExpression) => new ir.Let(
+          makeOrReuseVariable(new ir.CheckLibraryIsLoaded(deferredImport)),
+          inputExpression);
+    } else {
+      return (ir.Expression expr) => expr;
+    }
+  }
+
   @override
-  ir.TypeLiteral visitTypeVariableTypeLiteralGet(
+  ir.Expression visitTypeVariableTypeLiteralGet(
       Send node, TypeVariableElement element, _) {
-    return buildTypeVariable(element);
+    var loadedCheckFunc =
+        _createCheckLibraryLoadedFuncIfNeeded(_deferredLibrary);
+    _deferredLibrary = null;
+    return loadedCheckFunc(buildTypeVariable(element));
   }
 
   @override
@@ -2707,9 +2777,12 @@ class KernelVisitor extends Object
   }
 
   @override
-  ir.TypeLiteral visitTypedefTypeLiteralGet(
+  ir.Expression visitTypedefTypeLiteralGet(
       Send node, ConstantExpression constant, _) {
-    return buildTypeLiteral(constant);
+    var loadedCheckFunc =
+        _createCheckLibraryLoadedFuncIfNeeded(_deferredLibrary);
+    _deferredLibrary = null;
+    return loadedCheckFunc(buildTypeLiteral(constant));
   }
 
   @override

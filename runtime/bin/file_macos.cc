@@ -81,7 +81,7 @@ bool File::IsClosed() {
 }
 
 
-void* File::Map(MapType type, int64_t position, int64_t length) {
+MappedMemory* File::Map(MapType type, int64_t position, int64_t length) {
   ASSERT(handle_->fd() >= 0);
   int prot = PROT_NONE;
   switch (type) {
@@ -98,7 +98,15 @@ void* File::Map(MapType type, int64_t position, int64_t length) {
   if (addr == MAP_FAILED) {
     return NULL;
   }
-  return addr;
+  return new MappedMemory(addr, length);
+}
+
+
+void MappedMemory::Unmap() {
+  int result = munmap(address_, size_);
+  ASSERT(result == 0);
+  address_ = 0;
+  size_ = 0;
 }
 
 
@@ -114,6 +122,26 @@ int64_t File::Write(const void* buffer, int64_t num_bytes) {
 }
 
 
+bool File::VPrint(const char* format, va_list args) {
+  // Measure.
+  va_list measure_args;
+  va_copy(measure_args, args);
+  intptr_t len = vsnprintf(NULL, 0, format, measure_args);
+  va_end(measure_args);
+
+  char* buffer = reinterpret_cast<char*>(malloc(len + 1));
+
+  // Print.
+  va_list print_args;
+  va_copy(print_args, args);
+  vsnprintf(buffer, len + 1, format, print_args);
+  va_end(print_args);
+
+  bool result = WriteFully(buffer, len);
+  free(buffer);
+  return result;
+}
+
 int64_t File::Position() {
   ASSERT(handle_->fd() >= 0);
   return lseek(handle_->fd(), 0, SEEK_CUR);
@@ -124,6 +152,11 @@ bool File::SetPosition(int64_t position) {
   ASSERT(handle_->fd() >= 0);
   return lseek(handle_->fd(), position, SEEK_SET) >= 0;
 }
+
+
+// There is no difference between binary and text translation modes on this
+// platform, so this operation is a no-op.
+void File::SetTranslation(DartFileTranslation translation) {}
 
 
 bool File::Truncate(int64_t length) {

@@ -13,6 +13,7 @@ import '../transformations/mixin_full_resolution.dart' as mix;
 import '../transformations/sanitize_for_vm.dart';
 import '../transformations/setup_builtin_library.dart' as setup_builtin_library;
 import 'package:kernel/transformations/check_inference.dart';
+import 'package:kernel/transformations/treeshaker.dart';
 import 'targets.dart';
 
 /// Specializes the kernel IR to the Dart VM.
@@ -73,13 +74,7 @@ class VmTarget extends Target {
     }
 
     if (flags.treeShake) {
-      // new TreeShaker(program,
-      //         hierarchy: _hierarchy,
-      //         coreTypes: coreTypes,
-      //         strongMode: strongMode,
-      //         programRoots: flags.programRoots)
-      //     .transform(program);
-      _hierarchy = null; // Hierarchy must be recomputed.
+      performTreeShaking(program);
     }
 
     if (flags.checkInference) {
@@ -96,5 +91,16 @@ class VmTarget extends Target {
     }
 
     new SanitizeForVM().transform(program);
+  }
+
+  void performTreeShaking(Program program) {
+    var coreTypes = new CoreTypes(program);
+    new TreeShaker(program,
+        hierarchy: _hierarchy,
+        coreTypes: coreTypes,
+        strongMode: strongMode,
+        programRoots: flags.programRoots)
+        .transform(program);
+    _hierarchy = null; // Hierarchy must be recomputed.
   }
 }

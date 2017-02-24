@@ -1485,7 +1485,7 @@ class StandardTestSuite extends TestSuite {
     }
     args.addAll(additionalOptions(filePath));
     if (configuration['analyzer']) {
-      args.add('--machine');
+      args.add('--format=machine');
       args.add('--no-hints');
     }
 
@@ -1878,8 +1878,7 @@ class AnalyzeLibraryTestSuite extends DartcCompilationTestSuite {
 
   List<String> additionalOptions(Path filePath, {bool showSdkWarnings}) {
     var options = super.additionalOptions(filePath);
-    // NOTE: This flag has been deprecated.
-    options.add('--show-sdk-warnings');
+    options.add('--sdk-warnings');
     return options;
   }
 
@@ -2229,9 +2228,8 @@ class TestUtils {
     if (compiler == "dart2js" && configuration["fast_startup"]) {
       args.add("--fast-startup");
     }
-    if (compiler == "dart2analyzer") {
-      args.add("--show-package-warnings");
-      args.add("--enable-async");
+    if (compiler == "dart2js" && configuration["dart2js_with_kernel"]) {
+      args.add("--use-kernel");
     }
     return args;
   }

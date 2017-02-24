@@ -20,6 +20,7 @@ const String enableInitializingFormalAccessFlag = 'initializing-formal-access';
 const String enableStrictCallChecksFlag = 'enable-strict-call-checks';
 const String enableSuperMixinFlag = 'supermixin';
 const String ignoreUnrecognizedFlagsFlag = 'ignore-unrecognized-flags';
+const String lintsFlag = 'lints';
 const String noImplicitCastsFlag = 'no-implicit-casts';
 const String noImplicitDynamicFlag = 'no-implicit-dynamic';
 const String packageRootOption = 'package-root';
@@ -46,6 +47,13 @@ void applyAnalysisOptionFlags(AnalysisOptionsImpl options, ArgResults args) {
   }
   if (args.wasParsed(strongModeFlag)) {
     options.strongMode = args[strongModeFlag];
+  }
+  try {
+    if (args.wasParsed(lintsFlag)) {
+      options.lint = args[lintsFlag];
+    }
+  } on ArgumentError {
+    // lints were not defined - ignore and fall through
   }
 }
 
@@ -133,46 +141,38 @@ DartSdkManager createDartSdkManager(
  * then remove the [ddc] named argument from this method.
  */
 void defineAnalysisArguments(ArgParser parser, {bool hide: true, ddc: false}) {
+  parser.addOption(sdkPathOption, help: 'The path to the Dart SDK.');
+  parser.addOption(analysisOptionsFileOption,
+      help: 'Path to an analysis options file.');
+  parser.addOption(packageRootOption,
+      help: 'The path to a package root directory (deprecated). '
+          'This option cannot be used with --packages.');
+  parser.addFlag(strongModeFlag,
+      help: 'Enable strong static checks (https://goo.gl/DqcBsw).',
+      defaultsTo: ddc);
+  parser.addFlag(noImplicitCastsFlag,
+      negatable: false,
+      help: 'Disable implicit casts in strong mode (https://goo.gl/cTLz40).');
+  parser.addFlag(noImplicitDynamicFlag,
+      negatable: false,
+      help: 'Disable implicit dynamic (https://goo.gl/m0UgXD).');
+
+  //
+  // Hidden flags and options.
+  //
   parser.addOption(defineVariableOption,
       abbr: 'D',
       allowMultiple: true,
       help: 'Define environment variables. For example, "-Dfoo=bar" defines an '
-          'environment variable named "foo" whose value is "bar".');
-
-  parser.addOption(sdkPathOption, help: 'The path to the Dart SDK.');
-  parser.addOption(sdkSummaryPathOption,
-      help: 'The path to the Dart SDK summary file.', hide: hide);
-
-  parser.addOption(analysisOptionsFileOption,
-      help: 'Path to an analysis options file.');
-
-  parser.addOption(packageRootOption,
-      abbr: 'p',
-      help: 'The path to a package root directory (deprecated). '
-          'This option cannot be used with --packages.');
+          'environment variable named "foo" whose value is "bar".',
+      hide: hide);
   parser.addOption(packagesOption,
       help: 'The path to the package resolution configuration file, which '
-          'supplies a mapping of package names to paths. This option cannot be '
+          'supplies a mapping of package names\nto paths. This option cannot be '
           'used with --package-root.',
       hide: ddc);
-
-  parser.addFlag(strongModeFlag,
-      help: 'Enable strong static checks (https://goo.gl/DqcBsw)',
-      defaultsTo: ddc);
-  parser.addFlag(noImplicitCastsFlag,
-      negatable: false,
-      help: 'Disable implicit casts in strong mode (https://goo.gl/cTLz40)');
-  parser.addFlag(noImplicitDynamicFlag,
-      negatable: false,
-      help: 'Disable implicit dynamic (https://goo.gl/m0UgXD)');
-  //
-  // Hidden flags and options.
-  //
-//  parser.addFlag(enableNullAwareOperatorsFlag, // 'enable-null-aware-operators'
-//      help: 'Enable support for null-aware operators (DEP 9).',
-//      defaultsTo: false,
-//      negatable: false,
-//      hide: hide || ddc);
+  parser.addOption(sdkSummaryPathOption,
+      help: 'The path to the Dart SDK summary file.', hide: hide);
   parser.addFlag(enableStrictCallChecksFlag,
       help: 'Fix issue 21938.',
       defaultsTo: false,
@@ -181,7 +181,7 @@ void defineAnalysisArguments(ArgParser parser, {bool hide: true, ddc: false}) {
   parser.addFlag(enableInitializingFormalAccessFlag,
       help:
           'Enable support for allowing access to field formal parameters in a '
-          'constructor\'s initializer list',
+          'constructor\'s initializer list.',
       defaultsTo: false,
       negatable: false,
       hide: hide || ddc);
@@ -190,11 +190,10 @@ void defineAnalysisArguments(ArgParser parser, {bool hide: true, ddc: false}) {
       defaultsTo: false,
       negatable: false,
       hide: hide);
-//  parser.addFlag('enable_type_checks',
-//      help: 'Check types in constant evaluation.',
-//      defaultsTo: false,
-//      negatable: false,
-//      hide: hide || ddc);
+  if (!ddc) {
+    parser.addFlag(lintsFlag,
+        help: 'Show lint results.', defaultsTo: false, negatable: true);
+  }
 }
 
 /**

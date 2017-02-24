@@ -25,8 +25,7 @@ import 'package:analyzer/src/generated/gn.dart';
 import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/workspace.dart';
-import 'package:analyzer/src/summary/package_bundle_reader.dart';
-import 'package:analyzer/src/summary/pub_summary.dart';
+import 'package:analyzer/src/lint/registry.dart';
 import 'package:analyzer/src/summary/summary_sdk.dart';
 import 'package:analyzer/src/task/options.dart';
 import 'package:args/args.dart';
@@ -140,7 +139,6 @@ class ContextBuilder {
     context.name = path;
     //_processAnalysisOptions(context, optionMap);
     declareVariables(context);
-    configureSummaries(context);
     return context;
   }
 
@@ -162,25 +160,6 @@ class ContextBuilder {
         options);
     declareVariablesInDriver(driver);
     return driver;
-  }
-
-  /**
-   * Configure the context to make use of summaries.
-   */
-  void configureSummaries(InternalAnalysisContext context) {
-    PubSummaryManager manager = builderOptions.pubSummaryManager;
-    if (manager != null) {
-      List<LinkedPubPackage> linkedBundles = manager.getLinkedBundles(context);
-      if (linkedBundles.isNotEmpty) {
-        SummaryDataStore store = new SummaryDataStore([]);
-        for (LinkedPubPackage package in linkedBundles) {
-          store.addBundle(null, package.unlinked);
-          store.addBundle(null, package.linked);
-        }
-        context.resultProvider =
-            new InputPackagesResultProvider(context, store);
-      }
-    }
   }
 
   Map<String, List<Folder>> convertPackagesToMap(Packages packages) {
@@ -252,6 +231,11 @@ class ContextBuilder {
   }
 
   Workspace createWorkspace(String rootPath) {
+    if (_hasPackageFileInPath(rootPath)) {
+      // Bazel workspaces that include package files are treated like normal
+      // (non-Bazel) directories.
+      return _BasicWorkspace.find(resourceProvider, rootPath, this);
+    }
     Workspace workspace = BazelWorkspace.find(resourceProvider, rootPath);
     workspace ??= GnWorkspace.find(resourceProvider, rootPath);
     return workspace ?? _BasicWorkspace.find(resourceProvider, rootPath, this);
@@ -317,7 +301,8 @@ class ContextBuilder {
       Map<String, List<Folder>> packageMap, AnalysisOptions analysisOptions) {
     String summaryPath = builderOptions.dartSdkSummaryPath;
     if (summaryPath != null) {
-      return new SummaryBasedDartSdk(summaryPath, analysisOptions.strongMode);
+      return new SummaryBasedDartSdk(summaryPath, analysisOptions.strongMode,
+          resourceProvider: resourceProvider);
     } else if (packageMap != null) {
       SdkExtensionFinder extFinder = new SdkExtensionFinder(packageMap);
       List<String> extFilePaths = extFinder.extensionFilePaths;
@@ -426,6 +411,10 @@ class ContextBuilder {
       applyToAnalysisOptions(options, optionMap);
       if (builderOptions.argResults != null) {
         applyAnalysisOptionFlags(options, builderOptions.argResults);
+        // If lints turned on but none specified, then enable default lints
+        if (options.lint && options.lintRules.isEmpty) {
+          options.lintRules = Registry.ruleRegistry.defaultRules;
+        }
       }
     }
     return options;
@@ -553,6 +542,22 @@ class ContextBuilder {
     }
     return null;
   }
+
+  /**
+   * Return `true` if either the directory at [rootPath] or a parent of that
+   * directory contains a `.packages` file.
+   */
+  bool _hasPackageFileInPath(String rootPath) {
+    Folder folder = resourceProvider.getFolder(rootPath);
+    while (folder != null) {
+      File file = folder.getChildAssumingFile('.packages');
+      if (file.exists) {
+        return true;
+      }
+      folder = folder.parent;
+    }
+    return false;
+  }
 }
 
 /**
@@ -605,11 +610,6 @@ class ContextBuilderOptions {
    * or `null` if the normal lookup mechanism should be used.
    */
   String defaultPackagesDirectoryPath;
-
-  /**
-   * The manager of pub package summaries.
-   */
-  PubSummaryManager pubSummaryManager;
 
   /**
    * Initialize a newly created set of options
@@ -736,14 +736,14 @@ class _BasicWorkspace extends Workspace {
   _BasicWorkspace._(this.provider, this.root, this._builder);
 
   @override
+  // Alternately, we could check the pubspec for "sdk: flutter"
+  bool get hasFlutterDependency => packageMap.containsKey('flutter');
+
+  @override
   Map<String, List<Folder>> get packageMap {
     _packageMap ??= _builder.convertPackagesToMap(packages);
     return _packageMap;
   }
-
-  @override
-  // Alternately, we could check the pubspec for "sdk: flutter"
-  bool get hasFlutterDependency => packageMap.containsKey('flutter');
 
   Packages get packages {
     _packages ??= _builder.createPackageMap(root);

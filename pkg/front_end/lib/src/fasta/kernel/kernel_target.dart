@@ -28,13 +28,10 @@ import 'package:kernel/ast.dart' show
     Name,
     NamedExpression,
     NullLiteral,
-    Procedure,
     ProcedureKind,
     Program,
     RedirectingInitializer,
-    ReturnStatement,
     Source,
-    StaticGet,
     StringLiteral,
     SuperInitializer,
     Throw,
@@ -51,6 +48,9 @@ import 'package:kernel/text/ast_to_text.dart' show
 import 'package:kernel/transformations/mixin_full_resolution.dart' show
     MixinFullResolution;
 
+import 'package:kernel/transformations/setup_builtin_library.dart' as
+    setup_builtin_library;
+
 import '../source/source_loader.dart' show
     SourceLoader;
 
@@ -66,9 +66,6 @@ import '../translate_uri.dart' show
 import '../dill/dill_target.dart' show
     DillTarget;
 
-import '../dill/dill_member_builder.dart' show
-    DillMemberBuilder;
-
 import '../ast_kind.dart' show
     AstKind;
 
@@ -77,6 +74,12 @@ import '../errors.dart' show
     internalError,
     reportCrash,
     resetCrashReporting;
+
+import '../util/relativize.dart' show
+    relativizeUri;
+
+import '../compiler_context.dart' show
+    CompilerContext;
 
 import 'kernel_builder.dart' show
     Builder,
@@ -95,16 +98,27 @@ import 'kernel_builder.dart' show
 
 class KernelTarget extends TargetImplementation {
   final DillTarget dillTarget;
+
+  /// Shared with [CompilerContext].
+  final Map<String, Source> uriToSource;
+
   SourceLoader<Library> loader;
   Program program;
 
   final List errors = [];
 
-  KernelTarget(DillTarget dillTarget, TranslateUri uriTranslator)
+  KernelTarget(DillTarget dillTarget, TranslateUri uriTranslator,
+      [Map<String, Source> uriToSource])
       : dillTarget = dillTarget,
+        uriToSource = uriToSource ?? CompilerContext.current.uriToSource,
         super(dillTarget.ticker, uriTranslator) {
     resetCrashReporting();
     loader = new SourceLoader<Library>(this);
+  }
+
+  void addLineStarts(Uri uri, List<int> lineStarts) {
+    String fileUri = relativizeUri(uri);
+    uriToSource[fileUri] = new Source(lineStarts, fileUri);
   }
 
   void read(Uri uri) {
@@ -180,16 +194,6 @@ class KernelTarget extends TargetImplementation {
     return result;
   }
 
-  List<Class> collectAllMixinApplications() {
-    List<Class> result = <Class>[];
-    loader.builders.forEach((Uri uri, LibraryBuilder library) {
-      if (library is KernelLibraryBuilder) {
-        result.addAll(library.mixinApplicationClasses);
-      }
-    });
-    return result;
-  }
-
   void breakCycle(ClassBuilder builder) {
     Class cls = builder.target;
     cls.implementedTypes.clear();
@@ -230,7 +234,10 @@ class KernelTarget extends TargetImplementation {
       await loader.buildBodies(astKind);
       loader.finishStaticInvocations();
       finishAllConstructors();
+      loader.finishNativeMethods();
       transformMixinApplications();
+      // TODO(ahe): Don't call this from two different places.
+      setup_builtin_library.transformProgram(program);
       errors.addAll(loader.collectCompileTimeErrors().map((e) => e.format()));
       if (errors.isNotEmpty) {
         return handleInputError(uri, null, isFullProgram: true);
@@ -251,13 +258,13 @@ class KernelTarget extends TargetImplementation {
       loader.resolveParts();
       loader.computeLibraryScopes();
       loader.resolveTypes();
-      loader.convertConstructors();
       loader.buildProgram();
       loader.checkSemantics();
       List<SourceClassBuilder> sourceClasses = collectAllSourceClasses();
       installDefaultSupertypes(sourceClasses);
       installDefaultConstructors(sourceClasses);
       loader.resolveConstructors();
+      loader.finishTypeVariables(objectClassBuilder);
       program = link(new List<Library>.from(loader.libraries));
       if (uri == null) return program;
       return await writeLinkedProgram(uri, program, isFullProgram: false);
@@ -282,7 +289,7 @@ class KernelTarget extends TargetImplementation {
       KernelProcedureBuilder mainBuilder = new KernelProcedureBuilder(null, 0,
           null, "main", null, null, AsyncMarker.Sync, ProcedureKind.Method,
           library, -1);
-      library.addBuilder(mainBuilder.name, mainBuilder);
+      library.addBuilder(mainBuilder.name, mainBuilder, -1);
       mainBuilder.body = new ExpressionStatement(
           new Throw(new StringLiteral("${errors.join('\n')}")));
     }
@@ -317,19 +324,8 @@ class KernelTarget extends TargetImplementation {
         program.mainMethod = builder.procedure;
       }
     }
-    // TODO(ahe): This is kinda hackish. Use the transformer instead.
-    LibraryBuilder builtin =
-        dillTarget.loader.builders[Uri.parse("dart:_builtin")];
-    if (builtin != null) {
-      DillMemberBuilder builder = builtin.members["_getMainClosure"];
-      if (builder != null) {
-        Expression getMain = program.mainMethod == null
-            ? new Throw(new StringLiteral("No main method."))
-            : new StaticGet(program.mainMethod);
-        Procedure procedure = builder.member;
-        procedure.function = new FunctionNode(new ReturnStatement(getMain));
-        procedure.function.parent = procedure;
-      }
+    if (errors.isEmpty || dillTarget.isLoaded) {
+      setup_builtin_library.transformProgram(program);
     }
     ticker.logMs("Linked program");
     return program;
@@ -341,6 +337,7 @@ class KernelTarget extends TargetImplementation {
     IOSink sink = output.openWrite();
     try {
       new BinaryPrinter(sink).writeProgramFile(program);
+      program.unbindCanonicalNames();
     } finally {
       await sink.close();
     }
@@ -358,6 +355,9 @@ class KernelTarget extends TargetImplementation {
       Class cls = builder.target;
       if (cls != objectClass) {
         cls.supertype ??= objectClass.asRawSupertype;
+      }
+      if (builder.isMixinApplication) {
+        cls.mixedInType = builder.mixedInType.buildSupertype();
       }
     }
     ticker.logMs("Installed Object as implicit superclass");
@@ -381,7 +381,7 @@ class KernelTarget extends TargetImplementation {
 
   /// If [builder] doesn't have a constructors, install the defaults.
   void installDefaultConstructor(SourceClassBuilder builder) {
-    if (!builder.constructors.isEmpty) return;
+    if (builder.isMixinApplication || builder.constructors.isNotEmpty) return;
     /// Quotes below are from [Dart Programming Language Specification, 4th
     /// Edition](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-408.pdf):
     if (builder is NamedMixinApplicationBuilder) {

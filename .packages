@@ -34,6 +34,7 @@ dart_style:third_party/pkg_tested/dart_style/lib
 dartdoc:third_party/pkg/dartdoc/lib
 dev_compiler:pkg/dev_compiler/lib
 expect:pkg/expect/lib
+fasta:pkg/fasta/lib
 fixnum:third_party/pkg/fixnum/lib
 front_end:pkg/front_end/lib
 func:third_party/pkg/func/lib
@@ -62,6 +63,7 @@ microlytics:pkg/microlytics/lib
 mime:third_party/pkg/mime/lib
 mustache4dart:third_party/pkg/mustache4dart/lib
 oauth2:third_party/pkg/oauth2/lib
+observable:third_party/pkg/observable/lib
 observatory:runtime/observatory/lib
 observe:third_party/pkg/observe/lib
 package_config:third_party/pkg_tested/package_config/lib

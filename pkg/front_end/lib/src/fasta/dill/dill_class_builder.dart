@@ -11,9 +11,16 @@ import 'package:kernel/ast.dart' show
     Procedure,
     ProcedureKind;
 
+import '../errors.dart' show
+    internalError;
+
 import '../kernel/kernel_builder.dart' show
     Builder,
-    KernelClassBuilder;
+    KernelClassBuilder,
+    KernelTypeBuilder;
+
+import '../modifier.dart' show
+    abstractMask;
 
 import 'dill_member_builder.dart' show
     DillMemberBuilder;
@@ -28,8 +35,8 @@ class DillClassBuilder extends KernelClassBuilder {
 
   DillClassBuilder(Class cls, DillLibraryBuilder parent)
       : cls = cls,
-        super(null, null, cls.name, null, null, null, <String, Builder>{},
-            null, parent, cls.fileOffset);
+        super(null, computeModifiers(cls), cls.name, null, null, null,
+            <String, Builder>{}, parent, cls.fileOffset);
 
   void addMember(Member member) {
     DillMemberBuilder builder = new DillMemberBuilder(member, this);
@@ -47,5 +54,15 @@ class DillClassBuilder extends KernelClassBuilder {
     }
   }
 
+  /// Returns true if this class is the result of applying a mixin to its
+  /// superclass.
+  bool get isMixinApplication => cls.isMixinApplication;
+
+  KernelTypeBuilder get mixedInType => internalError("Not implemented.");
+
   Builder findConstructorOrFactory(String name) => constructors[name];
+}
+
+int computeModifiers(Class cls) {
+  return cls.isAbstract ? abstractMask : 0;
 }

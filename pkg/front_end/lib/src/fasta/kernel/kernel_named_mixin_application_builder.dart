@@ -24,10 +24,13 @@ class KernelNamedMixinApplicationBuilder extends SourceClassBuilder
   KernelNamedMixinApplicationBuilder(List<MetadataBuilder> metadata,
       String name, List<TypeVariableBuilder> typeVariables,
       int modifiers, KernelTypeBuilder mixinApplication,
-      List<KernelTypeBuilder> interfaces, List<KernelTypeBuilder> types,
-      LibraryBuilder parent, int charOffset)
+      List<KernelTypeBuilder> interfaces, LibraryBuilder parent, int charOffset)
       : super(metadata, modifiers, name, typeVariables, mixinApplication,
-          interfaces, <String, Builder>{}, types, parent, null, charOffset);
+          interfaces, <String, Builder>{}, parent, null, charOffset);
 
   KernelTypeBuilder get mixinApplication => supertype;
+
+  // TODO(ahe): This is a bit odd, as it means this answers false to
+  // [isMixinApplication], but its superclass is the mixin application.
+  KernelTypeBuilder get mixedInType => null;
 }

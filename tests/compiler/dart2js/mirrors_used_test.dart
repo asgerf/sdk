@@ -63,7 +63,7 @@ void main() {
     // 2. Some code was refactored, and there are more methods.
     // Either situation could be problematic, but in situation 2, it is often
     // acceptable to increase [expectedMethodCount] a little.
-    int expectedMethodCount = 466;
+    int expectedMethodCount = 476;
     Expect.isTrue(
         generatedCode.length <= expectedMethodCount,
         'Too many compiled methods: '
@@ -109,15 +109,18 @@ void main() {
       library.forEachLocalMember((member) {
         if (library == compiler.mainApp && member.name == 'Foo') {
           Expect.isTrue(
-              compiler.backend.isAccessibleByReflection(member), '$member');
+              compiler.backend.mirrorsData.isAccessibleByReflection(member),
+              '$member');
           member.forEachLocalMember((classMember) {
             Expect.isTrue(
-                compiler.backend.isAccessibleByReflection(classMember),
+                compiler.backend.mirrorsData
+                    .isAccessibleByReflection(classMember),
                 '$classMember');
           });
         } else {
           Expect.isFalse(
-              compiler.backend.isAccessibleByReflection(member), '$member');
+              compiler.backend.mirrorsData.isAccessibleByReflection(member),
+              '$member');
         }
       });
     }

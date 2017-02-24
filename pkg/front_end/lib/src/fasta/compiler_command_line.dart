@@ -11,11 +11,16 @@ import 'command_line.dart' show
     CommandLine,
     argumentError;
 
+import 'compiler_context.dart' show
+    CompilerContext;
+
 const Map<String, dynamic> optionSpecification = const <String, dynamic>{
-  "-o": Uri,
+  "--compile-sdk": Uri,
+  "--fatal": ",",
   "--output": Uri,
-  "--platform": Uri,
   "--packages": Uri,
+  "--platform": Uri,
+  "-o": Uri,
 };
 
 class CompilerCommandLine extends CommandLine {
@@ -46,10 +51,9 @@ class CompilerCommandLine extends CommandLine {
     if (options.containsKey("-o") && options.containsKey("--output")) {
       return argumentError(usage, "Can't specify both '-o' and '--output'.");
     }
-    if (options.containsKey("--packages")) {
-      return argumentError(usage, "Option '--packages' isn't supported yet.");
-    }
-    if (arguments.isEmpty) {
+    if (programName == "compile_platform" && arguments.length != 2) {
+      return argumentError(usage, "Expected two arguments.");
+    } else if (arguments.isEmpty) {
       return argumentError(usage, "No Dart file specified.");
     }
   }
@@ -64,6 +68,30 @@ class CompilerCommandLine extends CommandLine {
     return options.containsKey("--compile-sdk")
         ? null
         : options["--platform"] ?? Uri.base.resolve("platform.dill");
+  }
+
+  Uri get packages => options["--packages"] ?? Uri.base.resolve(".packages");
+
+  Uri get sdk => options["--compile-sdk"];
+
+  Set<String> get fatal {
+    return new Set<String>.from(options["--fatal"] ?? <String>[]);
+  }
+
+  bool get errorsAreFatal => fatal.contains("errors");
+
+  bool get warningsAreFatal => fatal.contains("warnings");
+
+  bool get nitsAreFatal => fatal.contains("nits");
+
+  static dynamic withGlobalOptions(String programName, List<String> arguments,
+      dynamic f(CompilerContext context)) {
+    return CompilerContext.withGlobalOptions(
+        new CompilerCommandLine(programName, arguments), f);
+  }
+
+  static CompilerCommandLine forRootContext() {
+    return new CompilerCommandLine("", [""]);
   }
 }
 
@@ -89,6 +117,11 @@ String computeUsage(String programName, bool verbose) {
     case "run":
       summary = "Runs a Dart program.";
       break;
+
+    case "compile_platform":
+      summary =
+          "Compiles Dart SDK platform to the Dill/Kernel IR format.";
+      basicUsage = "Usage: $programName [options] patched_sdk output\n";
   }
   StringBuffer sb = new StringBuffer(basicUsage);
   if (summary != null) {
@@ -138,6 +171,14 @@ Supported options:
   --dump-ir
     Print compiled libraries in Kernel source notation.
 
-  --compile-sdk
+  --compile-sdk=<patched_sdk>
     Compile the SDK from scratch instead of reading it from 'platform.dill'.
+
+  --fatal=errors
+  --fatal=warnings
+  --fatal=nits
+    Makes messages of the given kinds fatal, that is, immediately stop the
+    compiler with a non-zero exit-code. In --verbose mode, also display an
+    internal stack trace from the compiler. Multiple kinds can be separated by
+    commas, for example, --fatal=errors,warnings.
 """;

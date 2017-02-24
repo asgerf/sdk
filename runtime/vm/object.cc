@@ -1177,7 +1177,7 @@ RawError* Object::Init(Isolate* isolate, kernel::Program* kernel_program) {
                                            "Object::Init");)
 
 #if defined(DART_NO_SNAPSHOT)
-  bool bootstrapping = true;
+  bool bootstrapping = Dart::vm_snapshot_kind() == Snapshot::kNone;
 #elif defined(DART_PRECOMPILED_RUNTIME)
   bool bootstrapping = false;
 #else
@@ -1669,6 +1669,13 @@ RawError* Object::Init(Isolate* isolate, kernel::Program* kernel_program) {
 
     // Set up recognized state of all functions (core, math and typed data).
     MethodRecognizer::InitializeState();
+
+    // Adds static const fields (class ids) to the class 'ClassID');
+    lib = Library::LookupLibrary(thread, Symbols::DartInternal());
+    ASSERT(!lib.IsNull());
+    cls = lib.LookupClassAllowPrivate(Symbols::ClassID());
+    ASSERT(!cls.IsNull());
+    cls.InjectCIDFields();
 
     isolate->object_store()->InitKnownObjects();
 #endif  // !defined(DART_PRECOMPILED_RUNTIME)
@@ -3154,6 +3161,32 @@ void Class::AddFields(const GrowableArray<const Field*>& new_fields) const {
     new_arr.SetAt(i + num_old_fields, *new_fields.At(i));
   }
   SetFields(new_arr);
+}
+
+
+void Class::InjectCIDFields() const {
+  Thread* thread = Thread::Current();
+  Zone* zone = thread->zone();
+  Field& field = Field::Handle(zone);
+  Smi& value = Smi::Handle(zone);
+  String& field_name = String::Handle(zone);
+
+#define CLASS_LIST_WITH_NULL(V)                                                \
+  V(Null)                                                                      \
+  CLASS_LIST_NO_OBJECT(V)
+
+#define ADD_SET_FIELD(clazz)                                                   \
+  field_name = Symbols::New(thread, "cid" #clazz);                             \
+  field =                                                                      \
+      Field::New(field_name, true, false, true, false, *this,                  \
+                 Type::Handle(Type::IntType()), TokenPosition::kMinSource);    \
+  value = Smi::New(k##clazz##Cid);                                             \
+  field.SetStaticValue(value, true);                                           \
+  AddField(field);
+
+  CLASS_LIST_WITH_NULL(ADD_SET_FIELD)
+#undef ADD_SET_FIELD
+#undef CLASS_LIST_WITH_NULL
 }
 
 
@@ -5905,24 +5938,28 @@ RawTypeParameter* Function::LookupTypeParameter(
   Function& function = thread->FunctionHandle();
 
   function ^= this->raw();
-  intptr_t parent_level = -1;
+  intptr_t parent_level = 0;
   while (!function.IsNull()) {
     type_params ^= function.type_parameters();
     if (!type_params.IsNull()) {
-      parent_level++;
       const intptr_t num_type_params = type_params.Length();
       for (intptr_t i = 0; i < num_type_params; i++) {
         type_param ^= type_params.TypeAt(i);
         type_param_name = type_param.name();
         if (type_param_name.Equals(type_name)) {
           if (parent_level > 0) {
-            // TODO(regis): Clone type parameter and set parent_level.
+            // Clone type parameter and set parent_level.
+            return TypeParameter::New(
+                Class::Handle(), function, type_param.index(), parent_level,
+                type_param_name, AbstractType::Handle(type_param.bound()),
+                TokenPosition::kNoSource);
           }
           return type_param.raw();
         }
       }
     }
     function ^= function.parent_function();
+    parent_level++;
     if (function_level != NULL) {
       (*function_level)--;
     }
@@ -7060,12 +7097,31 @@ RawString* Function::UserVisibleName() const {
 
 RawString* Function::QualifiedName(NameVisibility name_visibility) const {
   ASSERT(name_visibility != kInternalName);  // We never request it.
+  // If |this| is the generated asynchronous body closure, use the
+  // name of the parent function.
+  Function& fun = Function::Handle(raw());
+  if (fun.IsClosureFunction()) {
+    // Sniff the parent function.
+    fun = fun.parent_function();
+    ASSERT(!fun.IsNull());
+    if (!fun.IsAsyncGenerator() && !fun.IsAsyncFunction() &&
+        !fun.IsSyncGenerator()) {
+      // Parent function is not the generator of an asynchronous body closure,
+      // start at |this|.
+      fun = raw();
+    }
+  }
   // A function's scrubbed name and its user visible name are identical.
-  String& result = String::Handle(UserVisibleName());
+  String& result = String::Handle(fun.UserVisibleName());
   if (IsClosureFunction()) {
-    Function& fun = Function::Handle(raw());
     while (fun.IsLocalFunction() && !fun.IsImplicitClosureFunction()) {
       fun = fun.parent_function();
+      if (fun.IsAsyncClosure() || fun.IsSyncGenClosure() ||
+          fun.IsAsyncGenClosure()) {
+        // Skip the closure and use the real function name found in
+        // the parent.
+        fun = fun.parent_function();
+      }
       result = String::Concat(Symbols::Dot(), result, Heap::kOld);
       result = String::Concat(String::Handle(fun.UserVisibleName()), result,
                               Heap::kOld);
@@ -9077,6 +9133,54 @@ void Script::SetLocationOffset(intptr_t line_offset,
 }
 
 
+// Specialized for AOT compilation, which does this lookup for every token
+// position that could be part of a stack trace.
+intptr_t Script::GetTokenLineUsingLineStarts(
+    TokenPosition target_token_pos) const {
+  Zone* zone = Thread::Current()->zone();
+  Array& line_starts_array = Array::Handle(zone, line_starts());
+  Smi& token_pos = Smi::Handle(zone);
+  if (line_starts_array.IsNull()) {
+    ASSERT(kind() != RawScript::kKernelTag);
+    GrowableObjectArray& line_starts_list =
+        GrowableObjectArray::Handle(zone, GrowableObjectArray::New());
+    const TokenStream& tkns = TokenStream::Handle(zone, tokens());
+    TokenStream::Iterator tkit(zone, tkns, TokenPosition::kMinSource,
+                               TokenStream::Iterator::kAllTokens);
+    intptr_t cur_line = line_offset() + 1;
+    token_pos = Smi::New(0);
+    line_starts_list.Add(token_pos);
+    while (tkit.CurrentTokenKind() != Token::kEOS) {
+      if (tkit.CurrentTokenKind() == Token::kNEWLINE) {
+        cur_line++;
+        token_pos = Smi::New(tkit.CurrentPosition().value() + 1);
+        line_starts_list.Add(token_pos);
+      }
+      tkit.Advance();
+    }
+    line_starts_array = Array::MakeArray(line_starts_list);
+    set_line_starts(line_starts_array);
+  }
+
+  ASSERT(line_starts_array.Length() > 0);
+  intptr_t offset = target_token_pos.value();
+  intptr_t min = 0;
+  intptr_t max = line_starts_array.Length() - 1;
+
+  // Binary search to find the line containing this offset.
+  while (min < max) {
+    int midpoint = (max - min + 1) / 2 + min;
+    token_pos ^= line_starts_array.At(midpoint);
+    if (token_pos.Value() > offset) {
+      max = midpoint - 1;
+    } else {
+      min = midpoint;
+    }
+  }
+  return min + 1;  // Line numbers start at 1.
+}
+
+
 void Script::GetTokenLocation(TokenPosition token_pos,
                               intptr_t* line,
                               intptr_t* column,
@@ -9085,7 +9189,7 @@ void Script::GetTokenLocation(TokenPosition token_pos,
   Zone* zone = Thread::Current()->zone();
 
   if (kind() == RawScript::kKernelTag) {
-    const Array& line_starts_array = Array::Handle(line_starts());
+    const Array& line_starts_array = Array::Handle(zone, line_starts());
     if (line_starts_array.IsNull()) {
       // Scripts in the AOT snapshot do not have a line starts array.
       *line = -1;
@@ -9099,13 +9203,13 @@ void Script::GetTokenLocation(TokenPosition token_pos,
     }
     ASSERT(line_starts_array.Length() > 0);
     intptr_t offset = token_pos.value();
-    int min = 0;
-    int max = line_starts_array.Length() - 1;
+    intptr_t min = 0;
+    intptr_t max = line_starts_array.Length() - 1;
 
     // Binary search to find the line containing this offset.
-    Smi& smi = Smi::Handle();
+    Smi& smi = Smi::Handle(zone);
     while (min < max) {
-      int midpoint = (max - min + 1) / 2 + min;
+      intptr_t midpoint = (max - min + 1) / 2 + min;
 
       smi ^= line_starts_array.At(midpoint);
       if (smi.Value() > offset) {
@@ -9114,7 +9218,7 @@ void Script::GetTokenLocation(TokenPosition token_pos,
         min = midpoint;
       }
     }
-    *line = min + 1;
+    *line = min + 1;  // Line numbers start at 1.
     smi ^= line_starts_array.At(min);
     if (column != NULL) {
       *column = offset - smi.Value() + 1;
@@ -10734,7 +10838,17 @@ RawLibrary* Library::NewLibraryHelper(const String& url, bool import_core_lib) {
   result.set_native_entry_symbol_resolver(NULL);
   result.set_is_in_fullsnapshot(false);
   result.StoreNonPointer(&result.raw_ptr()->corelib_imported_, true);
-  result.set_debuggable(!dart_private_scheme);
+  if (dart_private_scheme) {
+    // Never debug dart:_ libraries.
+    result.set_debuggable(false);
+  } else if (dart_scheme) {
+    // Only debug dart: libraries if we have been requested to show invisible
+    // frames.
+    result.set_debuggable(FLAG_show_invisible_frames);
+  } else {
+    // Default to debuggable for all other libraries.
+    result.set_debuggable(true);
+  }
   result.set_is_dart_scheme(dart_scheme);
   result.StoreNonPointer(&result.raw_ptr()->load_state_,
                          RawLibrary::kAllocated);
@@ -14087,21 +14201,13 @@ intptr_t Code::GetPrologueOffset() const {
 
 
 RawArray* Code::inlined_id_to_function() const {
-#if defined(DART_PRECOMPILED_RUNTIME)
-  return Array::null();
-#else
   return raw_ptr()->inlined_id_to_function_;
-#endif
 }
 
 
 void Code::set_inlined_id_to_function(const Array& value) const {
-#if defined(DART_PRECOMPILED_RUNTIME)
-  UNREACHABLE();
-#else
   ASSERT(value.IsOld());
   StorePointer(&raw_ptr()->inlined_id_to_function_, value.raw());
-#endif
 }
 
 
@@ -14466,8 +14572,8 @@ void Code::GetInlinedFunctionsAtInstruction(
     GrowableArray<TokenPosition>* token_positions) const {
   const CodeSourceMap& map = CodeSourceMap::Handle(code_source_map());
   if (map.IsNull()) {
-    // Stub code.
-    return;
+    ASSERT(!IsFunctionCode());
+    return;  // VM stub or allocation stub.
   }
   const Array& id_map = Array::Handle(inlined_id_to_function());
   const Function& root = Function::Handle(function());
@@ -15561,6 +15667,9 @@ bool Instance::IsInstanceOf(const AbstractType& other,
         Function::Handle(zone, Closure::Cast(*this).function());
     const TypeArguments& type_arguments =
         TypeArguments::Handle(zone, GetTypeArguments());
+    // TODO(regis): If signature function is generic, pass its type parameters
+    // as function instantiator, otherwise pass null.
+    // Pass the closure context as well to the the IsSubtypeOf call.
     return signature.IsSubtypeOf(type_arguments, other_signature,
                                  other_type_arguments, bound_error, Heap::kOld);
   }
@@ -17735,7 +17844,7 @@ RawAbstractType* TypeParameter::CloneUnfinalized() const {
   // No need to clone bound, as it is not part of the finalization state.
   return TypeParameter::New(Class::Handle(parameterized_class()),
                             Function::Handle(parameterized_function()), index(),
-                            String::Handle(name()),
+                            parent_level(), String::Handle(name()),
                             AbstractType::Handle(bound()), token_pos());
 }
 
@@ -17749,11 +17858,16 @@ RawAbstractType* TypeParameter::CloneUninstantiated(const Class& new_owner,
     return clone.raw();
   }
   const Class& old_owner = Class::Handle(parameterized_class());
+  if (old_owner.IsNull()) {
+    ASSERT(IsFunctionTypeParameter());
+    // Function type parameters do not need cloning.
+    return raw();
+  }
   const intptr_t new_index =
       index() + new_owner.NumTypeArguments() - old_owner.NumTypeArguments();
   AbstractType& upper_bound = AbstractType::Handle(bound());
   ASSERT(parameterized_function() == Function::null());
-  clone = TypeParameter::New(new_owner, Function::Handle(), new_index,
+  clone = TypeParameter::New(new_owner, Function::Handle(), new_index, 0,
                              String::Handle(name()),
                              upper_bound,  // Not cloned yet.
                              token_pos());
@@ -17804,6 +17918,7 @@ RawTypeParameter* TypeParameter::New() {
 RawTypeParameter* TypeParameter::New(const Class& parameterized_class,
                                      const Function& parameterized_function,
                                      intptr_t index,
+                                     intptr_t parent_level,
                                      const String& name,
                                      const AbstractType& bound,
                                      TokenPosition token_pos) {
@@ -17812,6 +17927,7 @@ RawTypeParameter* TypeParameter::New(const Class& parameterized_class,
   result.set_parameterized_class(parameterized_class);
   result.set_parameterized_function(parameterized_function);
   result.set_index(index);
+  result.set_parent_level(parent_level);
   result.set_name(name);
   result.set_bound(bound);
   result.SetHash(0);
@@ -17828,7 +17944,9 @@ void TypeParameter::set_token_pos(TokenPosition token_pos) const {
 }
 
 
-void TypeParameter::set_parent_level(uint8_t value) const {
+void TypeParameter::set_parent_level(intptr_t value) const {
+  // TODO(regis): Report error in caller if not uint8.
+  ASSERT(Utils::IsUint(8, value));
   StoreNonPointer(&raw_ptr()->parent_level_, value);
 }
 
@@ -19050,6 +19168,8 @@ RawBigint* Bigint::New(bool neg,
 
 
 RawBigint* Bigint::NewFromInt64(int64_t value, Heap::Space space) {
+  // Currently only used to convert Smi or Mint to hex String, therefore do
+  // not throw RangeError if --limit-ints-to-64-bits.
   const TypedData& digits = TypedData::Handle(NewDigits(2, space));
   bool neg;
   uint64_t abs_value;
@@ -19067,6 +19187,10 @@ RawBigint* Bigint::NewFromInt64(int64_t value, Heap::Space space) {
 
 
 RawBigint* Bigint::NewFromUint64(uint64_t value, Heap::Space space) {
+  if (FLAG_limit_ints_to_64_bits) {
+    Exceptions::ThrowRangeErrorMsg(
+        "Integer operand requires conversion to Bigint");
+  }
   const TypedData& digits = TypedData::Handle(NewDigits(2, space));
   SetDigitAt(digits, 0, static_cast<uint32_t>(value));
   SetDigitAt(digits, 1, static_cast<uint32_t>(value >> 32));
@@ -19077,6 +19201,12 @@ RawBigint* Bigint::NewFromUint64(uint64_t value, Heap::Space space) {
 RawBigint* Bigint::NewFromShiftedInt64(int64_t value,
                                        intptr_t shift,
                                        Heap::Space space) {
+  if (FLAG_limit_ints_to_64_bits) {
+    // The allocated Bigint value is not necessarily out of range, but it may
+    // be used as an operand in an operation resulting in a Bigint.
+    Exceptions::ThrowRangeErrorMsg(
+        "Integer operand requires conversion to Bigint");
+  }
   ASSERT(kBitsPerDigit == 32);
   ASSERT(shift >= 0);
   const intptr_t digit_shift = shift / kBitsPerDigit;
@@ -19107,6 +19237,7 @@ RawBigint* Bigint::NewFromShiftedInt64(int64_t value,
 
 
 RawBigint* Bigint::NewFromCString(const char* str, Heap::Space space) {
+  // Allow parser to scan Bigint literal, even with --limit-ints-to-64-bits.
   ASSERT(str != NULL);
   bool neg = false;
   TypedData& digits = TypedData::Handle();
@@ -19128,6 +19259,7 @@ RawBigint* Bigint::NewFromCString(const char* str, Heap::Space space) {
 
 
 RawBigint* Bigint::NewCanonical(const String& str) {
+  // Allow parser to scan Bigint literal, even with --limit-ints-to-64-bits.
   Thread* thread = Thread::Current();
   Zone* zone = thread->zone();
   Isolate* isolate = thread->isolate();
@@ -22367,11 +22499,15 @@ static void PrintStackTraceFrame(Zone* zone,
       zone, script.IsNull() ? String::New("Kernel") : script.url());
   intptr_t line = -1;
   intptr_t column = -1;
-  if (!script.IsNull() && token_pos.IsReal()) {
-    if (script.HasSource() || script.kind() == RawScript::kKernelTag) {
-      script.GetTokenLocation(token_pos, &line, &column);
-    } else {
-      script.GetTokenLocation(token_pos, &line, NULL);
+  if (FLAG_precompiled_mode) {
+    line = token_pos.value();
+  } else {
+    if (!script.IsNull() && token_pos.IsReal()) {
+      if (script.HasSource() || script.kind() == RawScript::kKernelTag) {
+        script.GetTokenLocation(token_pos, &line, &column);
+      } else {
+        script.GetTokenLocation(token_pos, &line, NULL);
+      }
     }
   }
   if (column >= 0) {
@@ -22417,11 +22553,14 @@ const char* StackTrace::ToCStringInternal(const StackTrace& stack_trace_in,
       } else if (code.raw() ==
                  StubCode::AsynchronousGapMarker_entry()->code()) {
         buffer.AddString("<asynchronous suspension>\n");
+        // The frame immediately after the asynchronous gap marker is the
+        // identical to the frame above the marker. Skip the frame to enhance
+        // the readability of the trace.
+        i++;
       } else {
         ASSERT(code.IsFunctionCode());
         intptr_t pc_offset = Smi::Value(stack_trace.PcOffsetAtFrame(i));
-        if (code.is_optimized() && stack_trace.expand_inlined() &&
-            !FLAG_precompiled_mode) {
+        if (code.is_optimized() && stack_trace.expand_inlined()) {
           code.GetInlinedFunctionsAtReturnAddress(pc_offset, &inlined_functions,
                                                   &inlined_token_positions);
           ASSERT(inlined_functions.length() >= 1);

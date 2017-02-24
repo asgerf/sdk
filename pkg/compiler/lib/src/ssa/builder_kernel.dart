@@ -593,6 +593,31 @@ class KernelSsaBuilder extends ir.Visitor with GraphBuilder {
   }
 
   @override
+  void visitCheckLibraryIsLoaded(ir.CheckLibraryIsLoaded checkLoad) {
+    HInstruction prefixConstant = graph.addConstantString(
+        new DartString.literal(checkLoad.import.name), closedWorld);
+    var prefixElement = astAdapter.getElement(checkLoad.import);
+    HInstruction uriConstant = graph.addConstantString(
+        new DartString.literal(prefixElement.deferredImport.uri.toString()),
+        closedWorld);
+    _pushStaticInvocation(astAdapter.checkDeferredIsLoaded,
+        [prefixConstant, uriConstant], astAdapter.checkDeferredIsLoadedType);
+  }
+
+  @override
+  void visitLoadLibrary(ir.LoadLibrary loadLibrary) {
+    // TODO(efortuna): Source information!
+    push(new HInvokeStatic(
+        backend.helpers.loadLibraryWrapper,
+        [
+          graph.addConstantString(
+              new DartString.literal(loadLibrary.import.name), closedWorld)
+        ],
+        commonMasks.nonNullType,
+        targetCanThrow: false));
+  }
+
+  @override
   void visitBlock(ir.Block block) {
     assert(!isAborted());
     for (ir.Statement statement in block.statements) {
@@ -1830,8 +1855,9 @@ class KernelSsaBuilder extends ir.Visitor with GraphBuilder {
       // Invoke the getter
       _pushStaticInvocation(staticTarget, const <HInstruction>[],
           astAdapter.returnTypeOf(staticTarget));
-    } else if (staticTarget is ir.Field && staticTarget.isConst) {
-      assert(staticTarget.initializer != null);
+    } else if (staticTarget is ir.Field &&
+        (staticTarget.isConst ||
+            staticTarget.isFinal && !_isLazyStatic(staticTarget))) {
       stack.add(graph.addConstant(
           astAdapter.getConstantFor(staticTarget.initializer), closedWorld));
     } else {
@@ -2194,7 +2220,7 @@ class KernelSsaBuilder extends ir.Visitor with GraphBuilder {
       return;
     }
 
-    if (!backend.hasIsolateSupport) {
+    if (!backend.backendUsage.isIsolateInUse) {
       // If the isolate library is not used, we just generate code
       // to fetch the static state.
       String name = backend.namer.staticStateHolder;
@@ -2223,7 +2249,7 @@ class KernelSsaBuilder extends ir.Visitor with GraphBuilder {
 
     List<HInstruction> inputs = _visitPositionalArguments(invocation.arguments);
 
-    if (!backend.hasIsolateSupport) {
+    if (!backend.backendUsage.isIsolateInUse) {
       // If the isolate library is not used, we ignore the isolate argument and
       // just invoke the closure.
       push(new HInvokeClosure(new Selector.callClosure(0),
@@ -2419,7 +2445,7 @@ class KernelSsaBuilder extends ir.Visitor with GraphBuilder {
     bool value = false;
     switch (name) {
       case 'MUST_RETAIN_METADATA':
-        value = backend.mustRetainMetadata;
+        value = backend.mirrorsData.mustRetainMetadata;
         break;
       case 'USE_CONTENT_SECURITY_POLICY':
         value = compiler.options.useContentSecurityPolicy;
@@ -2691,7 +2717,7 @@ class KernelSsaBuilder extends ir.Visitor with GraphBuilder {
     ir.Class cls = _containingClass(invocation).superclass;
     assert(cls != null);
     ir.Procedure noSuchMethod = _findNoSuchMethodInClass(cls);
-    if (backend.hasInvokeOnSupport &&
+    if (backend.backendUsage.isInvokeOnUsed &&
         _containingClass(noSuchMethod) != astAdapter.objectClass) {
       // Register the call as dynamic if [noSuchMethod] on the super
       // class is _not_ the default implementation from [Object] (it might be

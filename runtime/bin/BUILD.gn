@@ -482,9 +482,11 @@ action("generate_snapshot_bin") {
   args = [
     "--executable",
     rebase_path("$gen_snapshot_dir/gen_snapshot"),
+    "--snapshot_kind",
+    "core",
     "--vm_output_bin",
     rebase_path(vm_isolate_snapshot, root_build_dir),
-    "--output_bin",
+    "--isolate_output_bin",
     rebase_path(isolate_snapshot, root_build_dir),
     "--target_os",
     current_os,
@@ -581,7 +583,11 @@ template("dart_executable") {
     }
 
     sources = [
+                "error_exit.cc",
+                "error_exit.h",
                 "main.cc",
+                "snapshot_utils.cc",
+                "snapshot_utils.h",
                 "vmservice_impl.cc",
                 "vmservice_impl.h",
                 "$target_gen_dir/resources_gen.cc",
@@ -693,35 +699,6 @@ if (defined(is_fuchsia) && is_fuchsia) {
       "$root_out_dir/hello_fuchsia.dart",
     ]
   }
-
-  executable("run_vm_tests_fuchsia") {
-    testonly = true
-    configs += [ "..:dart_config" ]
-    sources = [
-      "run_vm_tests_fuchsia.cc",
-    ]
-    libs = [
-      "launchpad",
-      "magenta",
-    ]
-  }
-}
-
-# This is only needed for the Fuchsia target build until the Observatory is
-# supported.
-dart_executable("dart_no_observatory") {
-  extra_deps = [
-    "..:libdart",
-    ":dart_snapshot_cc",
-  ]
-  if (defined(is_fuchsia) && is_fuchsia) {
-    extra_deps += [ ":hello_fuchsia" ]
-  }
-  extra_defines = [ "NO_OBSERVATORY" ]
-  extra_sources = [
-    "builtin_nolib.cc",
-    "observatory_assets_empty.cc",
-  ]
 }
 
 executable("process_test") {

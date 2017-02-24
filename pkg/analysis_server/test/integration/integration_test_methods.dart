@@ -608,9 +608,6 @@ abstract class IntegrationTestMixin {
    * included in the notification is always a complete list that supersedes any
    * previously reported errors.
    *
-   * It is only possible to unsubscribe from this notification by using the
-   * command-line flag --no-error-notification.
-   *
    * Parameters
    *
    * file (FilePath)
@@ -1627,6 +1624,23 @@ abstract class IntegrationTestMixin {
     var result = await server.send("diagnostic.getDiagnostics", null);
     ResponseDecoder decoder = new ResponseDecoder(null);
     return new DiagnosticGetDiagnosticsResult.fromJson(decoder, 'result', result);
+  }
+
+  /**
+   * Return the port of the diagnostic web server. If the server is not running
+   * this call will start the server. If unable to start the diagnostic web
+   * server, this call will return an error of DEBUG_PORT_COULD_NOT_BE_OPENED.
+   *
+   * Returns
+   *
+   * port (int)
+   *
+   *   The diagnostic server port.
+   */
+  Future<DiagnosticGetServerPortResult> sendDiagnosticGetServerPort() async {
+    var result = await server.send("diagnostic.getServerPort", null);
+    ResponseDecoder decoder = new ResponseDecoder(null);
+    return new DiagnosticGetServerPortResult.fromJson(decoder, 'result', result);
   }
 
   /**

@@ -20,7 +20,6 @@ import 'dart:typed_data' show
     Uint8List;
 
 import 'package:kernel/kernel.dart' show
-    Repository,
     loadProgramFromBinary;
 
 import 'package:kernel/text/ast_to_text.dart' show
@@ -35,17 +34,14 @@ import 'package:kernel/ast.dart' show
     Library,
     Program;
 
-import 'package:kernel/verifier.dart' show
-    VerifyingVisitor;
+import '../kernel/verifier.dart' show
+    verifyProgram;
 
 import 'package:kernel/binary/ast_to_binary.dart' show
     BinaryPrinter;
 
 import 'package:kernel/binary/ast_from_binary.dart' show
     BinaryBuilder;
-
-import 'package:kernel/binary/loader.dart' show
-    BinaryLoader;
 
 import 'package:analyzer/src/generated/sdk.dart' show
     DartSdk;
@@ -59,9 +55,6 @@ import 'package:kernel/target/targets.dart' show
     Target,
     TargetFlags,
     getTarget;
-
-import 'package:kernel/repository.dart' show
-    Repository;
 
 import 'package:testing/testing.dart' show
     Chain,
@@ -143,8 +136,8 @@ abstract class TestContext extends ChainContext {
             packagePath: packages.toFilePath());
 
   Future<DartLoader> createLoader() async {
-    Repository repository = new Repository();
-    return new DartLoader(repository, options, await loadPackagesFile(packages),
+    Program program = new Program();
+    return new DartLoader(program, options, await loadPackagesFile(packages),
         ignoreRedirectingFactories: false, dartSdk: dartSdk);
   }
 
@@ -155,7 +148,7 @@ abstract class TestContext extends ChainContext {
     Uri vm = computeDartVm(sdk);
     Uri packages = Uri.base.resolve(".packages");
     bool strongMode = false;
-    bool updateExpectations = environment["updateExpectations"] != "false";
+    bool updateExpectations = environment["updateExpectations"] == "true";
     return constructor(suite, environment, sdk, vm, packages, strongMode,
         createDartSdk(sdk.toFilePath(), strongMode: strongMode),
         updateExpectations);
@@ -173,8 +166,8 @@ class Kernel extends Step<TestDescription, Program, TestContext> {
       DartLoader loader = await testContext.createLoader();
       Target target = getTarget(
           "vm", new TargetFlags(strongMode: testContext.options.strongMode));
-      Program program =
-          loader.loadProgram(description.uri, target: target);
+      loader.loadProgram(description.uri, target: target);
+      Program program = loader.program;
       for (var error in loader.errors) {
         return fail(program, "$error");
       }
@@ -216,7 +209,7 @@ class Verify extends Step<Program, Program, TestContext> {
 
   Future<Result<Program>> run(Program program, TestContext testContext) async {
     try {
-      program.accept(new VerifyingVisitor()..isOutline = !fullCompile);
+      verifyProgram(program, isOutline: !fullCompile);
       return pass(program);
     } catch (e, s) {
       return new Result<Program>(
@@ -232,7 +225,7 @@ class MatchExpectation extends Step<Program, Program, TestContext> {
   // name.
   final bool updateExpectations;
 
-  const MatchExpectation(this.suffix, {this.updateExpectations: true});
+  const MatchExpectation(this.suffix, {this.updateExpectations: false});
 
   String get name => "match expectations";
 
@@ -243,12 +236,6 @@ class MatchExpectation extends Step<Program, Program, TestContext> {
     StringBuffer buffer = new StringBuffer();
     new Printer(buffer).writeLibraryFile(library);
 
-    bool updateExpectations = this.updateExpectations;
-    if (uri.path.contains("/test/fasta/rasta/")) {
-      // TODO(ahe): Remove this. Short term, we don't want to automatically
-      // update rasta expectations, as we have too many failures.
-      updateExpectations = false;
-    }
     File expectedFile = new File("${uri.toFilePath()}$suffix");
     if (await expectedFile.exists()) {
       String expected = await expectedFile.readAsString();
@@ -286,6 +273,7 @@ class WriteDill extends Step<Program, Uri, TestContext> {
     IOSink sink = generated.openWrite();
     try {
       new BinaryPrinter(sink).writeProgramFile(program);
+      program.unbindCanonicalNames();
     } catch (e, s) {
       return fail(uri, e, s);
     } finally {
@@ -319,9 +307,10 @@ class Copy extends Step<Program, Program, TestContext> {
   Future<Result<Program>> run(Program program, _) async {
     BytesCollector sink = new BytesCollector();
     new BinaryPrinter(sink).writeProgramFile(program);
+    program.unbindCanonicalNames();
     Uint8List bytes = sink.collect();
-    BinaryLoader loader = new BinaryLoader(new Repository());
-    return pass(new BinaryBuilder(loader, bytes).readProgramFile());
+    new BinaryBuilder(bytes).readProgram(program);
+    return pass(program);
   }
 }
 

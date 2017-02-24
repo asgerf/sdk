@@ -10,6 +10,9 @@ import 'builder.dart' show
     ModifierBuilder,
     TypeBuilder;
 
+import '../util/relativize.dart' show
+    relativizeUri;
+
 abstract class TypeDeclarationBuilder<T extends TypeBuilder, R>
     extends ModifierBuilder {
   final List<MetadataBuilder> metadata;
@@ -18,13 +21,18 @@ abstract class TypeDeclarationBuilder<T extends TypeBuilder, R>
 
   final String name;
 
-  final List<T> types;
-
   Builder parent;
 
-  TypeDeclarationBuilder(this.metadata, this.modifiers, this.name, this.types,
+  final Uri fileUri;
+  final String relativeFileUri;
+
+  TypeDeclarationBuilder(this.metadata, this.modifiers, this.name,
       Builder parent, int charOffset, [Uri fileUri])
-      : parent = parent, super(parent, charOffset, fileUri ?? parent?.fileUri);
+    : fileUri = fileUri ?? parent?.fileUri,
+      relativeFileUri = fileUri != null
+                        ? relativizeUri(fileUri)
+                        : parent?.relativeFileUri,
+      super(parent, charOffset, fileUri ?? parent?.fileUri);
 
   bool get isTypeDeclaration => true;
 

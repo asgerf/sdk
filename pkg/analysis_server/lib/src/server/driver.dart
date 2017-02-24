@@ -11,6 +11,7 @@ import 'dart:math';
 import 'package:analysis_server/src/analysis_server.dart';
 import 'package:analysis_server/src/plugin/server_plugin.dart';
 import 'package:analysis_server/src/provisional/completion/dart/completion_plugin.dart';
+import 'package:analysis_server/src/server/diagnostic_server.dart';
 import 'package:analysis_server/src/server/http_server.dart';
 import 'package:analysis_server/src/server/stdio_server.dart';
 import 'package:analysis_server/src/socket_server.dart';
@@ -248,11 +249,6 @@ class Driver implements ServerStarter {
       'disable-new-analysis-driver';
 
   /**
-   * The name of the option used to enable using pub summary manager.
-   */
-  static const String ENABLE_PUB_SUMMARY_MANAGER = 'enable-pub-summary-manager';
-
-  /**
    * The name of the option used to enable fined grained invalidation.
    */
   static const String FINER_GRAINED_INVALIDATION = 'finer-grained-invalidation';
@@ -279,11 +275,6 @@ class Driver implements ServerStarter {
    * The name of the option used to describe the new analysis driver logger.
    */
   static const String NEW_ANALYSIS_DRIVER_LOG = 'new-analysis-driver-log';
-
-  /**
-   * The name of the flag used to disable error notifications.
-   */
-  static const String NO_ERROR_NOTIFICATION = "no-error-notification";
 
   /**
    * The name of the flag used to disable the index.
@@ -376,9 +367,9 @@ class Driver implements ServerStarter {
     int port;
     bool serve_http = false;
     if (results[PORT_OPTION] != null) {
-      serve_http = true;
       try {
         port = int.parse(results[PORT_OPTION]);
+        serve_http = true;
       } on FormatException {
         print('Invalid port number: ${results[PORT_OPTION]}');
         print('');
@@ -395,11 +386,8 @@ class Driver implements ServerStarter {
         results[INCREMENTAL_RESOLUTION_VALIDATION];
     analysisServerOptions.enableNewAnalysisDriver =
         !results[DISABLE_NEW_ANALYSIS_DRIVER];
-    analysisServerOptions.enablePubSummaryManager =
-        results[ENABLE_PUB_SUMMARY_MANAGER];
     analysisServerOptions.finerGrainedInvalidation =
         results[FINER_GRAINED_INVALIDATION];
-    analysisServerOptions.noErrorNotification = results[NO_ERROR_NOTIFICATION];
     analysisServerOptions.noIndex = results[NO_INDEX];
     analysisServerOptions.useAnalysisHighlight2 =
         results[USE_ANALISYS_HIGHLIGHT2];
@@ -451,11 +439,18 @@ class Driver implements ServerStarter {
               [instrumentationServer, fileBasedServer])
           : fileBasedServer;
     }
-    InstrumentationService service =
+    InstrumentationService instrumentationService =
         new InstrumentationService(instrumentationServer);
-    service.logVersion(_readUuid(service), results[CLIENT_ID],
-        results[CLIENT_VERSION], AnalysisServer.VERSION, defaultSdk.sdkVersion);
-    AnalysisEngine.instance.instrumentationService = service;
+    instrumentationService.logVersion(
+        _readUuid(instrumentationService),
+        results[CLIENT_ID],
+        results[CLIENT_VERSION],
+        AnalysisServer.VERSION,
+        defaultSdk.sdkVersion);
+    AnalysisEngine.instance.instrumentationService = instrumentationService;
+
+    _DiagnosticServerImpl diagnosticServer = new _DiagnosticServerImpl();
+
     //
     // Create the sockets and start listening for requests.
     //
@@ -463,7 +458,8 @@ class Driver implements ServerStarter {
         analysisServerOptions,
         new DartSdkManager(defaultSdkPath, useSummaries),
         defaultSdk,
-        service,
+        instrumentationService,
+        diagnosticServer,
         serverPlugin,
         fileResolverProvider,
         packageResolverProvider,
@@ -472,16 +468,17 @@ class Driver implements ServerStarter {
     stdioServer = new StdioAnalysisServer(socketServer);
     socketServer.userDefinedPlugins = _userDefinedPlugins;
 
+    diagnosticServer.httpServer = httpServer;
     if (serve_http) {
-      httpServer.serveHttp(port);
+      diagnosticServer.startOnPort(port);
     }
 
-    _captureExceptions(service, () {
+    _captureExceptions(instrumentationService, () {
       stdioServer.serveStdio().then((_) async {
         if (serve_http) {
           httpServer.close();
         }
-        await service.shutdown();
+        await instrumentationService.shutdown();
         exit(0);
       });
     },
@@ -548,10 +545,6 @@ class Driver implements ServerStarter {
         help: "disable using new analysis driver",
         defaultsTo: false,
         negatable: false);
-    parser.addFlag(ENABLE_PUB_SUMMARY_MANAGER,
-        help: "enable using summaries for pub cache packages",
-        defaultsTo: false,
-        negatable: false);
     parser.addFlag(FINER_GRAINED_INVALIDATION,
         help: "enable finer grained invalidation",
         defaultsTo: false,
@@ -570,10 +563,6 @@ class Driver implements ServerStarter {
             " status and performance information");
     parser.addOption(INTERNAL_DELAY_FREQUENCY);
     parser.addOption(SDK_OPTION, help: "[path] the path to the sdk");
-    parser.addFlag(NO_ERROR_NOTIFICATION,
-        help: "disable sending all analysis error notifications to the server",
-        defaultsTo: false,
-        negatable: false);
     parser.addFlag(NO_INDEX,
         help: "disable indexing sources", defaultsTo: false, negatable: false);
     parser.addFlag(USE_ANALISYS_HIGHLIGHT2,
@@ -661,4 +650,20 @@ class Driver implements ServerStarter {
       } catch (e) {}
     }
   }
+}
+
+/**
+ * Implements the [DiagnosticServer] class by wrapping an [HttpAnalysisServer].
+ */
+class _DiagnosticServerImpl extends DiagnosticServer {
+  HttpAnalysisServer httpServer;
+
+  _DiagnosticServerImpl();
+
+  Future startOnPort(int port) {
+    return httpServer.serveHttp(port);
+  }
+
+  @override
+  Future<int> getServerPort() => httpServer.serveHttp();
 }

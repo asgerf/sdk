@@ -3,27 +3,43 @@ server calls.
 
 This file is validated by `coverage_test.dart`.
 
-## server domain
-- [x] server.getVersion
-- [x] server.shutdown
-- [x] server.setSubscriptions
+TODO(devoncarew): We should track analysis server notifications here as well.
 
 ## analysis domain
 - [x] analysis.getErrors
 - [x] analysis.getHover
 - [ ] analysis.getReachableSources
 - [ ] analysis.getLibraryDependencies
-- [ ] analysis.getNavigation
+- [x] analysis.getNavigation (failing - see #28799)
 - [x] analysis.reanalyze
-- [ ] analysis.setAnalysisRoots
+- [x] analysis.setAnalysisRoots
 - [ ] analysis.setGeneralSubscriptions
 - [ ] analysis.setPriorityFiles
-- [ ] analysis.setSubscriptions
+- [x] analysis.setSubscriptions
 - [x] analysis.updateContent
-- [ ] analysis.updateOptions
+- [x] analysis.updateOptions (failing - see #28800)
 
 ## completion domain
 - [x] completion.getSuggestions
+
+## diagnostic domain
+- [x] diagnostic.getDiagnostics
+- [x] diagnostic.getServerPort
+
+## edit domain
+- [x] edit.format
+- [ ] edit.getAssists
+- [ ] edit.getAvailableRefactorings
+- [ ] edit.getFixes
+- [ ] edit.getRefactoring
+- [x] edit.sortMembers
+- [x] edit.organizeDirectives
+
+## execution domain
+- [x] execution.createContext
+- [x] execution.deleteContext
+- [x] execution.mapUri
+- [x] execution.setSubscriptions (failing - see #28806)
 
 ## search domain
 - [ ] search.findElementReferences
@@ -32,20 +48,7 @@ This file is validated by `coverage_test.dart`.
 - [ ] search.findTopLevelDeclarations
 - [x] search.getTypeHierarchy
 
-## edit domain
-- [ ] edit.format
-- [ ] edit.getAssists
-- [ ] edit.getAvailableRefactorings
-- [ ] edit.getFixes
-- [ ] edit.getRefactoring
-- [ ] edit.sortMembers
-- [ ] edit.organizeDirectives
-
-## execution domain
-- [x] execution.createContext
-- [x] execution.deleteContext
-- [x] execution.mapUri
-- [ ] execution.setSubscriptions
-
-## diagnostic domain
-- [ ] diagnostic.getDiagnostics
+## server domain
+- [x] server.getVersion
+- [x] server.shutdown
+- [x] server.setSubscriptions

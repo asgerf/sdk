@@ -15,13 +15,18 @@ default_values: Crash
 expressions: Crash
 fibonacci: Crash
 for_in_scope: Crash
+function_type_recovery: Crash
 functions: Crash
 implicit_this: Crash
 invocations: Fail
 map: Crash
 mixin: Crash
-statements: Crash
 operators: Crash
+redirecting_constructor: Crash
+statements: Crash
+super_rasta_copy: Crash
+top_level_accessors: Crash
+typedef: Crash
 
 rasta/abstract_constructor: Crash
 rasta/bad_constructor_redirection: Crash
@@ -35,13 +40,12 @@ rasta/bad_setter_initializer: Crash
 rasta/bad_unicode: Fail
 rasta/breaking_bad: Crash
 rasta/cascades: Crash
-rasta/class_hierarchy: Fail
+rasta/class_hierarchy: Crash
 rasta/class_member: Crash
 rasta/constant_get_and_invoke: Crash
 rasta/deferred_lib: Fail
 rasta/deferred_load: Crash
 rasta/duplicated_mixin: Crash
-rasta/enum: Fail
 rasta/export: Fail
 rasta/external_factory_redirection: Crash
 rasta/foo: Fail
@@ -89,6 +93,7 @@ rasta/native_is_illegal: Fail
 rasta/parser_error: Crash
 rasta/previsit_deferred: Crash
 rasta/static: Crash
+rasta/super: Crash
 rasta/super: Fail
 rasta/super_initializer: Crash
 rasta/super_mixin: Crash

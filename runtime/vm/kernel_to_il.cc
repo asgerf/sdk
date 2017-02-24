@@ -2452,9 +2452,10 @@ const dart::Field& MayCloneField(Zone* zone, const dart::Field& field) {
 
 
 Fragment FlowGraphBuilder::LoadField(const dart::Field& field) {
-  LoadFieldInstr* load = new (Z) LoadFieldInstr(
-      Pop(), &MayCloneField(Z, field),
-      AbstractType::ZoneHandle(Z, field.type()), TokenPosition::kNoSource);
+  LoadFieldInstr* load =
+      new (Z) LoadFieldInstr(Pop(), &MayCloneField(Z, field),
+                             AbstractType::ZoneHandle(Z, field.type()),
+                             TokenPosition::kNoSource, parsed_function_);
   Push(load);
   return Fragment(load);
 }
@@ -4496,7 +4497,7 @@ void FlowGraphBuilder::VisitStaticGet(StaticGet* node) {
     Field* kernel_field = Field::Cast(target);
     const dart::Field& field =
         dart::Field::ZoneHandle(Z, H.LookupFieldByKernelField(kernel_field));
-    if (kernel_field->IsConst()) {
+    if (field.is_const()) {
       fragment_ = Constant(constant_evaluator_.EvaluateExpression(node));
     } else {
       const dart::Class& owner = dart::Class::Handle(Z, field.Owner());
@@ -4778,7 +4779,7 @@ void FlowGraphBuilder::VisitMethodInvocation(MethodInvocation* node) {
 
 void FlowGraphBuilder::VisitDirectMethodInvocation(
     DirectMethodInvocation* node) {
-  const dart::String& method_name = H.DartMethodName(node->target()->name());
+  const dart::String& method_name = H.DartProcedureName(node->target());
   const Function& target = Function::ZoneHandle(
       Z, LookupMethodByMember(node->target(), method_name));
 
@@ -6055,12 +6056,11 @@ void FlowGraphBuilder::VisitYieldStatement(YieldStatement* node) {
 
   Fragment continuation(instructions.entry, anchor);
 
-  // TODO(27590): we need a better way to detect if we need to check for an
-  // exception after yield or not.
-  if (parsed_function_->function().NumOptionalPositionalParameters() == 3) {
-    // If function takes three parameters then the second and the third
-    // are exception and stack_trace. Check if exception is non-null
-    // and rethrow it.
+  if (parsed_function_->function().IsAsyncClosure() ||
+      parsed_function_->function().IsAsyncGenClosure()) {
+    // If function is async closure or async gen closure it takes three
+    // parameters where the second and the third are exception and stack_trace.
+    // Check if exception is non-null and rethrow it.
     //
     //   :async_op([:result, :exception, :stack_trace]) {
     //     ...
@@ -6131,7 +6131,26 @@ Fragment FlowGraphBuilder::TranslateFunctionNode(FunctionNode* node,
       // NOTE: This is not TokenPosition in the general sense!
       function = Function::NewClosureFunction(
           *name, parsed_function_->function(), position);
-      function.set_is_debuggable(node->debuggable());
+
+      function.set_is_debuggable(node->dart_async_marker() ==
+                                 FunctionNode::kSync);
+      switch (node->dart_async_marker()) {
+        case FunctionNode::kSyncStar:
+          function.set_modifier(RawFunction::kSyncGen);
+          break;
+        case FunctionNode::kAsync:
+          function.set_modifier(RawFunction::kAsync);
+          break;
+        case FunctionNode::kAsyncStar:
+          function.set_modifier(RawFunction::kAsyncGen);
+          break;
+        default:
+          // no special modifier
+          break;
+      }
+      function.set_is_generated_body(node->async_marker() ==
+                                     FunctionNode::kSyncYielding);
+
       function.set_end_token_pos(node->end_position());
       LocalScope* scope = scopes_->function_scopes[i].scope;
       const ContextScope& context_scope =

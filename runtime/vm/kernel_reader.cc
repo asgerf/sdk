@@ -227,7 +227,7 @@ void KernelReader::ReadPreliminaryClass(dart::Class* klass,
     type_parameters = TypeArguments::New(num_type_parameters);
     for (intptr_t i = 0; i < num_type_parameters; i++) {
       parameter = dart::TypeParameter::New(
-          *klass, Function::Handle(Z), i,
+          *klass, Function::Handle(Z), i, 0,
           H.DartSymbol(kernel_klass->type_parameters()[i]->name()), null_bound,
           TokenPosition::kNoSource);
       type_parameters.SetTypeAt(i, parameter);
@@ -288,28 +288,37 @@ dart::Class& KernelReader::ReadClass(const dart::Library& library,
 
   ActiveClassScope active_class_scope(&active_class_, kernel_klass, &klass);
 
-  for (intptr_t i = 0; i < kernel_klass->fields().length(); i++) {
-    Field* kernel_field = kernel_klass->fields()[i];
-    ActiveMemberScope active_member_scope(&active_class_, kernel_field);
+  if (library.raw() == dart::Library::InternalLibrary() &&
+      klass.Name() == Symbols::ClassID().raw()) {
+    // If this is a dart:internal.ClassID class ignore field declarations
+    // contained in the Kernel file and instead inject our own const
+    // fields.
+    klass.InjectCIDFields();
+  } else {
+    for (intptr_t i = 0; i < kernel_klass->fields().length(); i++) {
+      Field* kernel_field = kernel_klass->fields()[i];
+      ActiveMemberScope active_member_scope(&active_class_, kernel_field);
 
-    const dart::String& name = H.DartFieldName(kernel_field->name());
-    const AbstractType& type =
-        T.TranslateTypeWithoutFinalization(kernel_field->type());
-    const Object& script_class =
-        ClassForScriptAt(klass, kernel_field->source_uri_index());
-    dart::Field& field = dart::Field::Handle(
-        Z, dart::Field::New(name, kernel_field->IsStatic(),
-                            // In the VM all const fields are implicitly final
-                            // whereas in Kernel they are not final because they
-                            // are not explicitly declared that way.
-                            kernel_field->IsFinal() || kernel_field->IsConst(),
-                            kernel_field->IsConst(),
-                            false,  // is_reflectable
-                            script_class, type, kernel_field->position()));
-    field.set_kernel_field(kernel_field);
-    field.set_has_initializer(kernel_field->initializer() != NULL);
-    GenerateFieldAccessors(klass, field, kernel_field);
-    klass.AddField(field);
+      const dart::String& name = H.DartFieldName(kernel_field->name());
+      const AbstractType& type =
+          T.TranslateTypeWithoutFinalization(kernel_field->type());
+      const Object& script_class =
+          ClassForScriptAt(klass, kernel_field->source_uri_index());
+      dart::Field& field = dart::Field::Handle(
+          Z,
+          dart::Field::New(name, kernel_field->IsStatic(),
+                           // In the VM all const fields are implicitly final
+                           // whereas in Kernel they are not final because they
+                           // are not explicitly declared that way.
+                           kernel_field->IsFinal() || kernel_field->IsConst(),
+                           kernel_field->IsConst(),
+                           false,  // is_reflectable
+                           script_class, type, kernel_field->position()));
+      field.set_kernel_field(kernel_field);
+      field.set_has_initializer(kernel_field->initializer() != NULL);
+      GenerateFieldAccessors(klass, field, kernel_field);
+      klass.AddField(field);
+    }
   }
 
   for (intptr_t i = 0; i < kernel_klass->constructors().length(); i++) {
@@ -418,7 +427,25 @@ void KernelReader::ReadProcedure(const dart::Library& library,
   function.set_end_token_pos(kernel_procedure->end_position());
   owner.AddFunction(function);
   function.set_kernel_function(kernel_procedure);
-  function.set_is_debuggable(kernel_procedure->function()->debuggable());
+
+  function.set_is_debuggable(
+      kernel_procedure->function()->dart_async_marker() == FunctionNode::kSync);
+  switch (kernel_procedure->function()->dart_async_marker()) {
+    case FunctionNode::kSyncStar:
+      function.set_modifier(RawFunction::kSyncGen);
+      break;
+    case FunctionNode::kAsync:
+      function.set_modifier(RawFunction::kAsync);
+      break;
+    case FunctionNode::kAsyncStar:
+      function.set_modifier(RawFunction::kAsyncGen);
+      break;
+    default:
+      // no special modifier
+      break;
+  }
+  ASSERT(kernel_procedure->function()->async_marker() == FunctionNode::kSync);
+
   if (native_name != NULL) {
     function.set_native_name(*native_name);
   }

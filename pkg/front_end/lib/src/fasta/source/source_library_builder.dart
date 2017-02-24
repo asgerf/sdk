@@ -12,8 +12,10 @@ import '../combinator.dart' show
     Combinator;
 
 import '../errors.dart' show
-    inputError,
     internalError;
+
+import '../messages.dart' show
+    warning;
 
 import '../import.dart' show
     Import;
@@ -26,12 +28,14 @@ import '../builder/scope.dart' show
 
 import '../builder/builder.dart' show
     Builder,
+    ClassBuilder,
     ConstructorReferenceBuilder,
     FormalParameterBuilder,
     LibraryBuilder,
     MemberBuilder,
     MetadataBuilder,
     PrefixBuilder,
+    ProcedureBuilder,
     TypeBuilder,
     TypeDeclarationBuilder,
     TypeVariableBuilder,
@@ -56,6 +60,8 @@ abstract class SourceLibraryBuilder<T extends TypeBuilder, R>
   final Scope scope = new Scope(<String, Builder>{}, null, isModifiable: false);
 
   final Uri fileUri;
+
+  final List<List> implementationBuilders = <List<List>>[];
 
   String name;
 
@@ -89,11 +95,6 @@ abstract class SourceLibraryBuilder<T extends TypeBuilder, R>
     return currentDeclaration.members;
   }
 
-  List<T> get declarationTypes {
-    assert(currentDeclaration.parent == libraryDeclaration);
-    return currentDeclaration.types;
-  }
-
   T addNamedType(String name, List<T> arguments, int charOffset);
 
   T addMixinApplication(T supertype, List<T> mixins, int charOffset);
@@ -113,9 +114,9 @@ abstract class SourceLibraryBuilder<T extends TypeBuilder, R>
     return ref;
   }
 
-  void beginNestedDeclaration({bool hasMembers}) {
+  void beginNestedDeclaration(String name, {bool hasMembers}) {
     currentDeclaration =
-        new DeclarationBuilder(<String, MemberBuilder>{}, currentDeclaration);
+        new DeclarationBuilder(<String, MemberBuilder>{}, name, currentDeclaration);
   }
 
   DeclarationBuilder<T> endNestedDeclaration() {
@@ -180,7 +181,8 @@ abstract class SourceLibraryBuilder<T extends TypeBuilder, R>
       int modifiers, T returnType, String name,
       List<TypeVariableBuilder> typeVariables,
       List<FormalParameterBuilder> formals, AsyncMarker asyncModifier,
-      ProcedureKind kind, int charOffset);
+      ProcedureKind kind, int charOffset, String nativeMethodName,
+      {bool isTopLevel});
 
   void addEnum(List<MetadataBuilder> metadata, String name,
       List<String> constants, int charOffset);
@@ -193,7 +195,7 @@ abstract class SourceLibraryBuilder<T extends TypeBuilder, R>
   void addFactoryMethod(List<MetadataBuilder> metadata,
       ConstructorReferenceBuilder name, List<FormalParameterBuilder> formals,
       AsyncMarker asyncModifier, ConstructorReferenceBuilder redirectionTarget,
-      int charOffset);
+      int charOffset, String nativeMethodName);
 
   FormalParameterBuilder addFormalParameter(
       List<MetadataBuilder> metadata, int modifiers,
@@ -201,7 +203,11 @@ abstract class SourceLibraryBuilder<T extends TypeBuilder, R>
 
   TypeVariableBuilder addTypeVariable(String name, T bound, int charOffset);
 
-  Builder addBuilder(String name, Builder builder) {
+  Builder addBuilder(String name, Builder builder, int charOffset) {
+    if (name.indexOf(".") != -1 && name.indexOf("&") == -1) {
+      addCompileTimeError(charOffset, "Only constructors and factories can have"
+          " names containing a period ('.'): $name");
+    }
     // TODO(ahe): Set the parent correctly here. Could then change the
     // implementation of MemberBuilder.isTopLevel to test explicitly for a
     // LibraryBuilder.
@@ -231,24 +237,53 @@ abstract class SourceLibraryBuilder<T extends TypeBuilder, R>
         }
       });
       return existing;
-    } else if (existing != null && (existing.next != null ||
-            ((!existing.isGetter || !builder.isSetter) &&
-                (!existing.isSetter || !builder.isGetter)))) {
-      return inputError(uri, -1, "Duplicated definition of $name");
+    } else if (isDuplicatedDefinition(existing, builder)) {
+      addCompileTimeError(charOffset, "Duplicated definition of '$name'.");
     }
     return members[name] = builder;
+  }
+
+  bool isDuplicatedDefinition(Builder existing, Builder other) {
+    if (existing == null) return false;
+    Builder next = existing.next;
+    if (next == null) {
+      if (existing.isGetter && other.isSetter) return false;
+      if (existing.isSetter && other.isGetter) return false;
+    } else {
+      if (next is ClassBuilder && !next.isMixinApplication) return true;
+    }
+    if (existing is ClassBuilder && other is ClassBuilder) {
+      // We allow multiple mixin applications with the same name. An
+      // alternative is to share these mixin applications. This situation can
+      // happen if you have `class A extends Object with Mixin {}` and `class B
+      // extends Object with Mixin {}` in the same library.
+      return !existing.isMixinApplication || !other.isMixinApplication;
+    }
+    return true;
   }
 
   void buildBuilder(Builder builder);
 
   R build() {
+    assert(implementationBuilders.isEmpty);
     members.forEach((String name, Builder builder) {
       do {
         buildBuilder(builder);
         builder = builder.next;
       } while (builder != null);
     });
+    for (List list in implementationBuilders) {
+      String name = list[0];
+      Builder builder = list[1];
+      int charOffset = list[2];
+      addBuilder(name, builder, charOffset);
+      buildBuilder(builder);
+    }
     return null;
+  }
+
+  void addImplementationBuilder(String name, Builder builder, int charOffset) {
+    implementationBuilders.add([name, builder, charOffset]);
   }
 
   void validatePart() {
@@ -270,19 +305,25 @@ abstract class SourceLibraryBuilder<T extends TypeBuilder, R>
   void includePart(SourceLibraryBuilder<T, R> part) {
     if (name != null) {
       if (part.partOf == null) {
-        print("${part.uri} has no 'part of' declaration but is used as a part "
-            "by ${name} ($uri)");
+        warning(part.fileUri, -1, "Has no 'part of' declaration but is used as "
+            "a part by ${name} ($uri).");
         parts.remove(part);
         return;
       }
       if (part.partOf != name) {
-        print("${part.uri} is part of '${part.partOf}' but is used as a part "
-            "by '${name}' ($uri)");
+        warning(part.fileUri, -1, "Is part of '${part.partOf}' but is used as "
+            "a part by '${name}' ($uri).");
         parts.remove(part);
         return;
       }
     }
-    part.members.forEach(addBuilder);
+    part.members.forEach((String name, Builder builder) {
+      if (builder.next != null) {
+        assert(builder.next.next == null);
+        addBuilder(name, builder.next, builder.next.charOffset);
+      }
+      addBuilder(name, builder, builder.charOffset);
+    });
     types.addAll(part.types);
     constructorReferences.addAll(part.constructorReferences);
     part.partOfLibrary = this;
@@ -343,14 +384,6 @@ abstract class SourceLibraryBuilder<T extends TypeBuilder, R>
     return typeCount;
   }
 
-  int convertConstructors(_) {
-    int count = 0;
-    members.forEach((String name, Builder member) {
-      count += member.convertConstructors(this);
-    });
-    return count;
-  }
-
   int resolveConstructors(_) {
     int count = 0;
     members.forEach((String name, Builder member) {
@@ -358,6 +391,9 @@ abstract class SourceLibraryBuilder<T extends TypeBuilder, R>
     });
     return count;
   }
+
+  List<TypeVariableBuilder> copyTypeVariables(
+      List<TypeVariableBuilder> original);
 }
 
 /// Unlike [Scope], this scope is used during construction of builders to
@@ -369,7 +405,12 @@ class DeclarationBuilder<T extends TypeBuilder> {
 
   final List<T> types = <T>[];
 
-  DeclarationBuilder(this.members, [this.parent]);
+  final String name;
+
+  final Map<ProcedureBuilder, DeclarationBuilder<T>> factoryDeclarations =
+      <ProcedureBuilder, DeclarationBuilder<T>>{};
+
+  DeclarationBuilder(this.members, this.name, [this.parent]);
 
   void addMember(String name, MemberBuilder builder) {
     if (members == null) {
@@ -388,15 +429,26 @@ class DeclarationBuilder<T extends TypeBuilder> {
   }
 
   /// Resolves type variables in [types] and propagate other types to [parent].
-  void resolveTypes(List<TypeVariableBuilder> typeVariables) {
+  void resolveTypes(List<TypeVariableBuilder> typeVariables,
+      SourceLibraryBuilder library) {
     // TODO(ahe): The input to this method, [typeVariables], shouldn't be just
     // type variables. It should be everything that's in scope, for example,
     // members (of a class) or formal parameters (of a method).
     if (typeVariables == null) {
       // If there are no type variables in the scope, propagate our types to be
       // resolved in the parent declaration.
+      factoryDeclarations.forEach((_, DeclarationBuilder<T> declaration) {
+        parent.types.addAll(declaration.types);
+      });
       parent.types.addAll(types);
     } else {
+      factoryDeclarations.forEach(
+          (ProcedureBuilder procedure, DeclarationBuilder<T> declaration) {
+        assert(procedure.typeVariables.isEmpty);
+        procedure.typeVariables.addAll(
+            library.copyTypeVariables(typeVariables));
+        declaration.resolveTypes(procedure.typeVariables, library);
+      });
       Map<String, TypeVariableBuilder> map = <String, TypeVariableBuilder>{};
       for (TypeVariableBuilder builder in typeVariables) {
         map[builder.name] = builder;
@@ -417,5 +469,13 @@ class DeclarationBuilder<T extends TypeBuilder> {
       }
     }
     types.clear();
+  }
+
+  /// Called to register [procedure] as a factory whose types are collected in
+  /// [factoryDeclaration]. Later, once the class has been built, we can
+  /// synthesize type variables on the factory matching the class'.
+  void addFactoryDeclaration(
+      ProcedureBuilder procedure, DeclarationBuilder<T> factoryDeclaration) {
+    factoryDeclarations[procedure] = factoryDeclaration;
   }
 }

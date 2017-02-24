@@ -11,6 +11,8 @@ import 'package:front_end/src/fasta/parser/parser.dart' show
 import 'package:front_end/src/fasta/parser/error_kind.dart' show
     ErrorKind;
 
+import 'package:front_end/src/fasta/parser/identifier_context.dart' show IdentifierContext;
+
 import 'package:kernel/ast.dart';
 
 import 'package:kernel/clone.dart' show
@@ -36,10 +38,8 @@ import 'package:front_end/src/fasta/scanner/token.dart' show
 
 import '../errors.dart' show
     InputError,
-    internalError;
-
-import '../errors.dart' as errors show
-    inputError;
+    internalError,
+    printUnexpected;
 
 import '../source/scope_listener.dart' show
     JumpTargetKind,
@@ -82,8 +82,6 @@ import 'redirecting_factory_body.dart' show
 
 import 'kernel_builder.dart';
 
-const bool showNits = false;
-
 final Name callName = new Name("call");
 
 final Name plusName = new Name("+");
@@ -108,6 +106,10 @@ final Name barName = new Name("|");
 
 final Name mustacheName = new Name("~/");
 
+final Name indexGetName = new Name("[]");
+
+final Name indexSetName = new Name("[]=");
+
 class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
   final KernelLibraryBuilder library;
 
@@ -129,6 +131,9 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
 
   final bool isDartLibrary;
 
+  @override
+  final Uri uri;
+
   Scope formalParameterScope;
 
   bool isFirstIdentifier = false;
@@ -149,13 +154,9 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
 
   CloneVisitor cloner;
 
-  /// Set to true each time we parse a native function body. It is reset in
-  /// [handleInvalidFunctionBody] which is called immediately after.
-  bool lastErrorWasNativeFunctionBody = false;
-
   BodyBuilder(KernelLibraryBuilder library, this.member, Scope scope,
       this.formalParameterScope, this.hierarchy, this.coreTypes,
-      this.classBuilder, this.isInstanceMember)
+      this.classBuilder, this.isInstanceMember, this.uri)
       : enclosingScope = scope,
         library = library,
         isDartLibrary = library.uri.scheme == "dart",
@@ -280,9 +281,6 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
   }
 
   @override
-  Uri get uri => library.fileUri ?? library.uri;
-
-  @override
   JumpTarget createJumpTarget(JumpTargetKind kind, int charOffset) {
     return new JumpTarget(kind, member, charOffset);
   }
@@ -347,7 +345,7 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
   @override
   void endMember() {
     debugEvent("Member");
-    checkEmpty();
+    checkEmpty(-1);
   }
 
   @override
@@ -422,7 +420,8 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
     if (member is KernelConstructorBuilder) {
       member.addInitializer(initializer);
     } else {
-      inputError("Can't have initializers: ${member.name}", token.charOffset);
+      addCompileTimeError(token.charOffset,
+          "Can't have initializers: ${member.name}");
     }
   }
 
@@ -444,8 +443,8 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
     if (builder is KernelConstructorBuilder) {
       if (asyncModifier != AsyncMarker.Sync) {
         // TODO(ahe): Change this to a null check.
-        inputError("Can't be marked as ${asyncModifier}: ${builder.name}",
-            body?.fileOffset);
+        addCompileTimeError(body?.fileOffset,
+            "Can't be marked as ${asyncModifier}: ${builder.name}");
       }
     } else if (builder is KernelProcedureBuilder) {
       builder.asyncModifier = asyncModifier;
@@ -719,7 +718,7 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
   }
 
   @override
-  void handleIdentifier(Token token) {
+  void handleIdentifier(Token token, IdentifierContext context) {
     debugEvent("handleIdentifier");
     String name = token.value;
     if (isFirstIdentifier) {
@@ -884,6 +883,11 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
     Expression initializer = popForValue();
     Identifier identifier = pop();
     push(new VariableDeclaration(identifier.name, initializer: initializer));
+  }
+
+  @override
+  void handleNoVariableInitializer(Token token) {
+    debugEvent("NoVariableInitializer");
   }
 
   @override
@@ -1159,23 +1163,23 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
       return builder.buildTypesWithBuiltArguments(arguments);
     }
     if (builder == null)  {
-      print("$uri: Type not found: $name");
+      warning("Type not found: '$name'.", charOffset);
     } else {
-      print("$uri: Not a type: $name");
+      warning("Not a type: '$name'.", charOffset);
     }
     // TODO(ahe): Create an error somehow.
     return const DynamicType();
   }
 
   @override
-  void endType(Token beginToken, Token endToken) {
+  void handleType(Token beginToken, Token endToken) {
     // TODO(ahe): The scope is wrong for return types of generic functions.
     debugEvent("Type");
     List<DartType> arguments = pop();
     dynamic name = pop();
     if (name is List) {
       if (name.length != 2) {
-        return internalError("Unexpected: $name.length");
+        internalError("Unexpected: $name.length");
       }
       var prefix = name[0];
       if (prefix is Identifier) {
@@ -1194,9 +1198,10 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
       if (builder is PrefixBuilder) {
         name = builder.exports[suffix];
       } else {
-        return inputError(
-            "Can't be used as a type: '${debugName(prefix, suffix)}'.",
-            beginToken.charOffset);
+        push(const DynamicType());
+        addCompileTimeError(beginToken.charOffset,
+            "Can't be used as a type: '${debugName(prefix, suffix)}'.");
+        return;
       }
     }
     if (name is Identifier) {
@@ -1272,14 +1277,15 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
   }
 
   @override
-  void endFormalParameter(Token thisKeyword) {
+  void endFormalParameter(Token thisKeyword, FormalParameterType kind) {
     debugEvent("FormalParameter");
     // TODO(ahe): Need beginToken here.
     int charOffset = thisKeyword?.charOffset;
     if (thisKeyword != null) {
       if (!inConstructor) {
-        return inputError("'this' parameters can only be used on constructors.",
-            thisKeyword.charOffset);
+        addCompileTimeError(thisKeyword.charOffset,
+            "'this' parameters can only be used on constructors.");
+        thisKeyword = null;
       }
     }
     Identifier name = pop();
@@ -1290,29 +1296,32 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
     if (!inCatchClause && functionNestingLevel == 0) {
       dynamic builder = formalParameterScope.lookup(name.name, charOffset, uri);
       if (builder == null) {
-        return inputError("'${name.name}' isn't a field in this class.",
-            name.fileOffset);
-      }
-      if (thisKeyword == null) {
+        if (thisKeyword == null) {
+          internalError("Internal error: formal missing for '${name.name}'");
+        } else {
+          addCompileTimeError(thisKeyword.charOffset,
+              "'${name.name}' isn't a field in this class.");
+          thisKeyword = null;
+        }
+      } else if (thisKeyword == null) {
         variable = builder.build();
         variable.initializer = name.initializer;
       } else if (builder.isField && builder.parent == classBuilder) {
         FieldBuilder field = builder;
         if (type != null) {
           nit("Ignoring type on 'this' parameter '${name.name}'.",
-              name.fileOffset);
+              thisKeyword.charOffset);
         }
         type = field.target.type ?? const DynamicType();
         variable = new VariableDeclaration(name.name, type: type,
             initializer: name.initializer);
       } else {
-        return inputError("'${name.name}' isn't a field in this class.",
-            name.fileOffset);
+        addCompileTimeError(name.fileOffset,
+            "'${name.name}' isn't a field in this class.");
       }
-    } else {
-      variable = new VariableDeclaration(name.name,
-          type: type ?? const DynamicType(), initializer: name.initializer);
     }
+    variable ??= new VariableDeclaration(name.name,
+        type: type ?? const DynamicType(), initializer: name.initializer);
     push(variable);
   }
 
@@ -1352,6 +1361,11 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
     Expression initializer = popForValue();
     Identifier name = pop();
     push(new InitializedIdentifier(name.name, initializer));
+  }
+
+  @override
+  void handleFormalParameterWithoutValue(Token token) {
+    debugEvent("FormalParameterWithoutValue");
   }
 
   @override
@@ -1442,24 +1456,37 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
       Token openCurlyBracket, Token closeCurlyBracket) {
     debugEvent("IndexedExpression");
     Expression index = popForValue();
-    Expression receiver = popForValue();
-    push(IndexAccessor.make(this, openCurlyBracket.charOffset, receiver, index,
-            null, null));
+    var receiver = pop();
+    if (receiver is ThisAccessor && receiver.isSuper) {
+      push(new SuperIndexAccessor(
+              this, receiver.charOffset, index,
+              lookupSuperMember(indexGetName),
+              lookupSuperMember(indexSetName)));
+    } else {
+      push(IndexAccessor.make(this, openCurlyBracket.charOffset,
+              toValue(receiver), index, null, null));
+    }
   }
 
   @override
   void handleUnaryPrefixExpression(Token token) {
     debugEvent("UnaryPrefixExpression");
-    Expression expression = popForValue();
+    var receiver = pop();
     if (optional("!", token)) {
-      push(new Not(expression));
+      push(new Not(toValue(receiver)));
     } else {
       String operator = token.stringValue;
       if (optional("-", token)) {
         operator = "unary-";
       }
-      push(buildMethodInvocation(expression, new Name(operator),
-              new Arguments.empty(), token.charOffset));
+      if (receiver is ThisAccessor && receiver.isSuper) {
+        push(toSuperMethodInvocation(buildMethodInvocation(
+            new ThisExpression()..fileOffset = receiver.charOffset,
+            new Name(operator), new Arguments.empty(), token.charOffset)));
+      } else {
+        push(buildMethodInvocation(toValue(receiver), new Name(operator),
+                new Arguments.empty(), token.charOffset));
+      }
     }
   }
 
@@ -1650,8 +1677,7 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
       if (b == null) {
         // Not found. Reported below.
       } else if (b.isConstructor) {
-        // TODO(sigmund): change to type.isAbtract.
-        if (type.cls.isAbstract) {
+        if (type.isAbstract) {
           // TODO(ahe): Generate abstract instantiation error.
         } else {
           target = b.target;
@@ -1862,8 +1888,9 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
                   new VariableGet(variable), voidContext: true)),
           body);
     } else {
-      throw inputError("Expected lvalue, but got ${lvalue}",
-          forToken.next.next.charOffset);
+      variable = new VariableDeclaration.forValue(
+          buildCompileTimeError("Expected lvalue, but got ${lvalue}",
+              forToken.next.next.charOffset));
     }
     Statement result = new ForInStatement(variable, expression, body,
         isAsync: awaitToken != null);
@@ -2168,7 +2195,8 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
   void handleRecoverableError(Token token, ErrorKind kind, Map arguments) {
     super.handleRecoverableError(token, kind, arguments);
     if (!hasParserError) {
-      print("$uri:${recoverableErrors.last}");
+      print(new InputError(uri, recoverableErrors.last.beginOffset,
+              recoverableErrors.last.kind).format());
     }
     hasParserError = true;
   }
@@ -2177,10 +2205,7 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
   Token handleUnrecoverableError(Token token, ErrorKind kind, Map arguments) {
     if (isDartLibrary && kind == ErrorKind.ExpectedFunctionBody) {
       Token recover = skipNativeClause(token);
-      if (recover != null) {
-        buildNative(unescapeString(token.next.value));
-        return recover;
-      }
+      if (recover != null) return recover;
     } else if (kind == ErrorKind.UnexpectedToken) {
       String expected = arguments["expected"];
       const List<String> trailing = const <String>[")", "}", ";", ","];
@@ -2193,28 +2218,14 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
     return super.handleUnrecoverableError(token, kind, arguments);
   }
 
-  void warning(error, [int charOffset = -1]) {
-    String message = new InputError(uri, charOffset, error).format();
-    print(message);
-  }
-
-  void nit(error, [int charOffset = -1]) {
-    if (!showNits) return;
-    String message = new InputError(uri, charOffset, error).format();
-    print(message);
-  }
-
   @override
   Expression buildCompileTimeError(error, [int charOffset = -1]) {
-    String message = new InputError(uri, charOffset, error).format();
-    print(message);
-    // TODO(ahe): Use a method on TargetImplementation for looking up the
-    // constructor.
-    final Constructor constructor = coreTypes.getCoreClass(
-        "dart:core", "_CompileTimeError").constructors.first;
-    return new Throw(new ConstructorInvocation(
-        constructor,
-        new Arguments(<Expression>[new StringLiteral(message)])));
+    String message = printUnexpected(uri, charOffset, error);
+    Builder constructor = library.loader.getCompileTimeError();
+    return new Throw(
+        buildStaticInvocation(constructor.target,
+            new Arguments(<Expression>[new StringLiteral(message)]),
+            isConst: false)); // TODO(ahe): Make this const.
   }
 
   Statement buildCompileTimeErrorStatement(error, [int charOffset = -1]) {
@@ -2246,32 +2257,17 @@ class BodyBuilder extends ScopeListener<JumpTarget> implements BuilderHelper {
     push(new Operator(token.stringValue)..fileOffset = token.charOffset);
   }
 
-  dynamic inputError(String message, [int charOffset = -1]) {
-    return errors.inputError(uri, charOffset, message);
+  dynamic addCompileTimeError(int charOffset, String message) {
+    return library.addCompileTimeError(charOffset, message, uri);
   }
 
   @override
   void handleInvalidFunctionBody(Token token) {
-    if (!lastErrorWasNativeFunctionBody) {
+    if (member.isNative) {
+      push(NullValue.FunctionBody);
+    } else {
       push(new Block(<Statement>[new InvalidStatement()]));
     }
-    lastErrorWasNativeFunctionBody = false;
-  }
-
-  void buildNative(String native) {
-    lastErrorWasNativeFunctionBody = true;
-
-    // From dartk:
-    //
-    //   currentMember.isExternal = true;
-    //   currentMember.addAnnotation(new ast.ConstructorInvocation(
-    //       scope.loader.getCoreClassConstructorReference('ExternalName',
-    //           library: 'dart:_internal'),
-    //       new ast.Arguments(<ast.Expression>[
-    //         new ast.StringLiteral(body.stringLiteral.stringValue)
-    //       ]),
-    //       isConst: true));
-    push(new Block(<Statement>[new InvalidStatement()]));
   }
 
   @override

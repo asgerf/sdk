@@ -1128,6 +1128,8 @@ class Class : public Object {
   void AddField(const Field& field) const;
   void AddFields(const GrowableArray<const Field*>& fields) const;
 
+  void InjectCIDFields() const;
+
   // Returns an array of all instance fields of this class and its superclasses
   // indexed by offset in words.
   // |original_classes| only has an effect when reloading. If true and we
@@ -2252,6 +2254,9 @@ class Function : public Object {
   }
   void set_type_parameters(const TypeArguments& value) const;
   intptr_t NumTypeParameters(Thread* thread) const;
+  intptr_t NumTypeParameters() const {
+    return NumTypeParameters(Thread::Current());
+  }
 
   // Return a TypeParameter if the type_name is a type parameter of this
   // function or of one of its parent functions.
@@ -3576,6 +3581,7 @@ class Script : public Object {
 
   void SetLocationOffset(intptr_t line_offset, intptr_t col_offset) const;
 
+  intptr_t GetTokenLineUsingLineStarts(TokenPosition token_pos) const;
   void GetTokenLocation(TokenPosition token_pos,
                         intptr_t* line,
                         intptr_t* column,
@@ -4408,6 +4414,14 @@ class CodeSourceMap : public Object {
     return UnsafeMutableNonPointer(&raw_ptr()->data()[0]);
   }
 
+  bool Equals(const CodeSourceMap& other) const {
+    if (Length() != other.Length()) {
+      return false;
+    }
+    NoSafepointScope no_safepoint;
+    return memcmp(raw_ptr(), other.raw_ptr(), InstanceSize(Length())) == 0;
+  }
+
   void PrintToJSONObject(JSONObject* jsobj, bool ref) const;
 
  private:
@@ -4659,20 +4673,12 @@ class Code : public Object {
   }
 
   RawCodeSourceMap* code_source_map() const {
-#if defined(DART_PRECOMPILED_RUNTIME)
-    return CodeSourceMap::null();
-#else
     return raw_ptr()->code_source_map_;
-#endif
   }
 
   void set_code_source_map(const CodeSourceMap& code_source_map) const {
-#if defined(DART_PRECOMPILED_RUNTIME)
-    UNREACHABLE();
-#else
     ASSERT(code_source_map.IsOld());
     StorePointer(&raw_ptr()->code_source_map_, code_source_map.raw());
-#endif
   }
 
   // Used during reloading (see object_reload.cc). Calls Reset on all ICDatas
@@ -6120,6 +6126,7 @@ class TypeParameter : public AbstractType {
   static RawTypeParameter* New(const Class& parameterized_class,
                                const Function& parameterized_function,
                                intptr_t index,
+                               intptr_t parent_level,
                                const String& name,
                                const AbstractType& bound,
                                TokenPosition token_pos);
@@ -6132,7 +6139,7 @@ class TypeParameter : public AbstractType {
   void set_parameterized_function(const Function& value) const;
   void set_name(const String& value) const;
   void set_token_pos(TokenPosition token_pos) const;
-  void set_parent_level(uint8_t value) const;
+  void set_parent_level(intptr_t value) const;
   void set_type_state(int8_t state) const;
 
   static RawTypeParameter* New();

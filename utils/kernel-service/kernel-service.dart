@@ -175,7 +175,7 @@ Future<CompilationResult> parseScriptImpl(DartLoaderBatch batch_loader,
             .toList(growable: false));
       }
     } on InputError catch (e) {
-      return new CompilationError(<String>[e.error]);
+      return new CompilationError(<String>[e.format()]);
     }
   } else {
     DartOptions dartOptions = new DartOptions(
@@ -185,9 +185,10 @@ Future<CompilationResult> parseScriptImpl(DartLoaderBatch batch_loader,
         packagePath: packageConfig,
         customUriMappings: const {},
         declaredVariables: const {});
+    program = new Program();
     DartLoader loader =
-        await batch_loader.getLoader(new Repository(), dartOptions);
-    program = loader.loadProgram(fileName, target: target);
+        await batch_loader.getLoader(program, dartOptions);
+    loader.loadProgram(fileName, target: target);
 
     if (loader.errors.isNotEmpty) {
       return new CompilationError(loader.errors.toList(growable: false));
@@ -327,7 +328,7 @@ Future<CompilationResult> requestParse(
 
 void startBatchServer() {
   final loader = new DartLoaderBatch();
-  HttpServer.bind(InternetAddress.LOOPBACK_IP_V6, workerPort).then((server) {
+  HttpServer.bind('localhost', workerPort).then((server) {
     print('READY ${server.port}');
     server.listen((HttpRequest request) async {
       final rq = JSON.decode(await UTF8.decodeStream(request));

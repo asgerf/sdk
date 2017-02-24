@@ -1317,14 +1317,6 @@ var V;
     await driver.getResult(testFile);
   }
 
-  test_getResult_noErrors_ifNotAdded() async {
-    var a = _p('/test/lib/a.dart');
-    provider.newFile(a, 'A a = null;');
-
-    AnalysisResult result = await driver.getResult(a);
-    expect(result.errors, isEmpty);
-  }
-
   test_getResult_notDartFile() async {
     var path = _p('/test/lib/test.txt');
     provider.newFile(path, 'class A {}');
@@ -1554,6 +1546,26 @@ main() {
     UnitElementResult unitResult = await driver.getUnitElement(path);
     expect(unitResult, isNotNull);
     expect(unitResult.element.types.map((e) => e.name), ['A']);
+  }
+
+  test_getUnitElementSignature() async {
+    var a = _p('/test/lib/a.dart');
+
+    provider.newFile(a, 'foo() {}');
+
+    String signature = await driver.getUnitElementSignature(a);
+    expect(signature, isNotNull);
+
+    UnitElementResult unitResult = await driver.getUnitElement(a);
+    expect(unitResult.path, a);
+    expect(unitResult.signature, signature);
+
+    provider.updateFile(a, 'bar() {}');
+    driver.changeFile(a);
+
+    String signature2 = await driver.getUnitElementSignature(a);
+    expect(signature2, isNotNull);
+    expect(signature2, isNot(signature));
   }
 
   test_hasFilesToAnalyze() async {
@@ -2191,6 +2203,28 @@ var A = B;
     expect(result.contentHash, _md5(content));
     expect(result.unit, isNull);
     expect(result.errors, hasLength(0));
+  }
+
+  test_results_skipNotAffected() async {
+    var a = _p('/test/lib/a.dart');
+    var b = _p('/test/lib/b.dart');
+    provider.newFile(a, 'class A {}');
+    provider.newFile(b, 'class B {}');
+
+    driver.addFile(a);
+    driver.addFile(b);
+    await scheduler.waitForIdle();
+
+    expect(allResults, hasLength(2));
+    allResults.clear();
+
+    // Update a.dart and notify.
+    provider.updateFile(a, 'class A2 {}');
+    driver.changeFile(a);
+
+    // Only result for a.dart should be produced, b.dart is not affected.
+    await scheduler.waitForIdle();
+    expect(allResults, hasLength(1));
   }
 
   test_results_status() async {

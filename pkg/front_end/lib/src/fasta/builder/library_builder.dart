@@ -8,7 +8,8 @@ import '../combinator.dart' show
     Combinator;
 
 import '../errors.dart' show
-    InputError;
+    InputError,
+    internalError;
 
 import '../export.dart' show
     Export;
@@ -16,8 +17,12 @@ import '../export.dart' show
 import '../loader.dart' show
     Loader;
 
+import '../util/relativize.dart' show
+    relativizeUri;
+
 import 'builder.dart' show
     Builder,
+    ClassBuilder,
     TypeBuilder;
 
 import 'scope.dart' show
@@ -34,7 +39,8 @@ abstract class LibraryBuilder<T extends TypeBuilder, R> extends Builder {
 
   Uri get uri;
 
-  Uri get fileUri;
+  final Uri fileUri;
+  final String relativeFileUri;
 
   Map<String, Builder> get members;
 
@@ -44,17 +50,20 @@ abstract class LibraryBuilder<T extends TypeBuilder, R> extends Builder {
   Map<String, Builder> get exports;
 
   LibraryBuilder(Uri fileUri)
-      : super(null, -1, fileUri);
+      : fileUri = fileUri,
+        relativeFileUri = relativizeUri(fileUri),
+        super(null, -1, fileUri);
 
-  Builder addBuilder(String name, Builder builder);
+  Builder addBuilder(String name, Builder builder, int charOffset);
 
   void addExporter(LibraryBuilder exporter, List<Combinator> combinators,
       int charOffset) {
     exporters.add(new Export(exporter, this, combinators, charOffset));
   }
 
-  void addCompileTimeError(int charOffset, Object message) {
-    InputError error = new InputError(uri, charOffset, message);
+  void addCompileTimeError(int charOffset, Object message, [Uri fileUri]) {
+    fileUri ??= this.fileUri;
+    InputError error = new InputError(fileUri, charOffset, message);
     compileTimeErrors.add(error);
     print(error.format());
   }
@@ -67,4 +76,36 @@ abstract class LibraryBuilder<T extends TypeBuilder, R> extends Builder {
       String name, Builder builder, Builder other, int charOffset);
 
   int finishStaticInvocations() => 0;
+
+  int finishNativeMethods() => 0;
+
+  /// Looks up [constructorName] in the class named [className]. It's an error
+  /// if no such class is exported by this library, or if the class doesn't
+  /// have a matching constructor (or factory).
+  ///
+  /// If [constructorName] is null or the empty string, it's assumed to be an
+  /// unnamed constructor.
+  Builder getConstructor(String className,
+      {String constructorName, bool isPrivate: false}) {
+    constructorName ??= "";
+    Builder cls = (isPrivate ? members : exports)[className];
+    if (cls is ClassBuilder) {
+      // TODO(ahe): This code is similar to code in `handleNewExpression` in
+      // `body_builder.dart`, try to share it.
+      Builder constructor = cls.findConstructorOrFactory(constructorName);
+      if (constructor == null) {
+        // Fall-through to internal error below.
+      } else if (constructor.isConstructor) {
+        if (!cls.isAbstract) {
+          return constructor;
+        }
+      } else if (constructor.isFactory) {
+        return constructor;
+      }
+    }
+    throw internalError("Internal error: No constructor named"
+        " '$className::$constructorName' in '$uri'.");
+  }
+
+  int finishTypeVariables(ClassBuilder object) => 0;
 }

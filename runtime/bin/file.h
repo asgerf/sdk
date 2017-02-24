@@ -21,6 +21,23 @@ namespace bin {
 // Forward declaration.
 class FileHandle;
 
+class MappedMemory {
+ public:
+  MappedMemory(void* address, intptr_t size) : address_(address), size_(size) {}
+  ~MappedMemory() { Unmap(); }
+
+  void* address() const { return address_; }
+  intptr_t size() const { return size_; }
+
+ private:
+  void Unmap();
+
+  void* address_;
+  intptr_t size_;
+
+  DISALLOW_COPY_AND_ASSIGN(MappedMemory);
+};
+
 class File : public ReferenceCounted<File> {
  public:
   enum FileOpenMode {
@@ -41,6 +58,13 @@ class File : public ReferenceCounted<File> {
     kDartAppend = 2,
     kDartWriteOnly = 3,
     kDartWriteOnlyAppend = 4
+  };
+
+  // These values have to be kept in sync with the values of
+  // _FileTranslation.text and _FileTranslation.binary in file_impl.dart
+  enum DartFileTranslation {
+    kText = 0,
+    kBinary = 1,
   };
 
   enum Type { kIsFile = 0, kIsDirectory = 1, kIsLink = 2, kDoesNotExist = 3 };
@@ -83,7 +107,7 @@ class File : public ReferenceCounted<File> {
     kReadOnly = 0,
     kReadExecute = 1,
   };
-  void* Map(MapType type, int64_t position, int64_t length);
+  MappedMemory* Map(MapType type, int64_t position, int64_t length);
 
   // Read/Write attempt to transfer num_bytes to/from buffer. It returns
   // the number of bytes read/written.
@@ -98,6 +122,15 @@ class File : public ReferenceCounted<File> {
   bool WriteFully(const void* buffer, int64_t num_bytes);
   bool WriteByte(uint8_t byte) { return WriteFully(&byte, 1); }
 
+  bool Print(const char* format, ...) PRINTF_ATTRIBUTE(2, 3) {
+    va_list args;
+    va_start(args, format);
+    bool result = VPrint(format, args);
+    va_end(args);
+    return result;
+  }
+  bool VPrint(const char* format, va_list args);
+
   // Get the length of the file. Returns a negative value if the length cannot
   // be determined (e.g. not seekable device).
   int64_t Length();
@@ -108,6 +141,10 @@ class File : public ReferenceCounted<File> {
 
   // Set the byte position in the file.
   bool SetPosition(int64_t position);
+
+  // Set the translation mode of the file. This is currently a no-op unless the
+  // file is for a terminal on Windows.
+  void SetTranslation(DartFileTranslation translation);
 
   // Truncate (or extend) the file to the given length in bytes.
   bool Truncate(int64_t length);

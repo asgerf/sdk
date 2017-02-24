@@ -14,6 +14,7 @@ import 'ast_kind.dart' show
     AstKind;
 
 import 'builder/builder.dart' show
+    Builder,
     LibraryBuilder;
 
 import 'errors.dart' show
@@ -71,6 +72,7 @@ abstract class Loader<L> {
       LibraryBuilder library = target.createLibraryBuilder(uri, fileUri);
       if (uri.scheme == "dart" && uri.path == "core") {
         coreLibrary = library;
+        target.loadExtraRequiredLibraries(this);
       }
       first ??= library;
       if (library.loader == this) {
@@ -147,6 +149,10 @@ ${format(ms / libraryCount, 3, 12)} ms/compilation unit.""");
     }
     return errors;
   }
+
+  Builder getCompileTimeError() => target.getCompileTimeError(this);
+
+  Builder getNativeAnnotation() => target.getNativeAnnotation(this);
 }
 
 String format(double d, int fractionDigits, int width) {

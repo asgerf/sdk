@@ -15,8 +15,6 @@ import 'package:kernel/analyzer/loader.dart'
 
 import 'package:kernel/target/targets.dart' show Target, TargetFlags, getTarget;
 
-import 'package:kernel/repository.dart' show Repository;
-
 import 'kernel_chain.dart'
     show MatchExpectation, Print, ReadDill, SanityCheck, WriteDill;
 
@@ -70,7 +68,7 @@ class TestContext extends ChainContext {
         ];
 
   Future<DartLoader> createLoader() async {
-    Repository repository = new Repository();
+    Program repository = new Program();
     return new DartLoader(repository, options, await loadPackagesFile(packages),
         dartSdk: dartSdk);
   }
@@ -126,7 +124,7 @@ Future<TestContext> createContext(
 
   Uri packages = Uri.base.resolve(".packages");
   bool strongMode = false;
-  bool updateExpectations = environment["updateExpectations"] != "false";
+  bool updateExpectations = environment["updateExpectations"] == "true";
   return new TestContext(sdk, vm, packages, strongMode,
       createDartSdk(sdk, strongMode: strongMode), updateExpectations);
 }
@@ -144,7 +142,8 @@ class Kernel extends Step<TestDescription, Program, TestContext> {
           "vm", new TargetFlags(strongMode: testContext.options.strongMode));
       String path = description.file.path;
       Uri uri = Uri.base.resolve(path);
-      Program program = loader.loadProgram(uri, target: target);
+      loader.loadProgram(uri, target: target);
+      var program = loader.program;
       for (var error in loader.errors) {
         return fail(program, "$error");
       }

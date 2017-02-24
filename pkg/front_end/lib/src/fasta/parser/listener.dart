@@ -4,15 +4,14 @@
 
 library fasta.parser.listener;
 
-import '../scanner/token.dart' show
-    BeginGroupToken,
-    Token;
+import '../scanner/token.dart' show BeginGroupToken, Token;
 
-import '../util/link.dart' show
-    Link;
+import '../util/link.dart' show Link;
 
-import 'error_kind.dart' show
-    ErrorKind;
+import 'error_kind.dart' show ErrorKind;
+import 'parser.dart' show FormalParameterType;
+
+import 'identifier_context.dart' show IdentifierContext;
 
 /// A parser event listener that does nothing except throw exceptions
 /// on parser errors.
@@ -63,14 +62,29 @@ class Listener {
 
   void beginClassBody(Token token) {}
 
+  /// Handle the end of the body of a class declaration.  The only substructures
+  /// are the class members.
   void endClassBody(int memberCount, Token beginToken, Token endToken) {
     logEvent("ClassBody");
   }
 
-  void beginClassDeclaration(Token token) {}
+  void beginClassDeclaration(Token beginToken, Token name) {}
 
-  void endClassDeclaration(int interfacesCount, Token beginToken,
-      Token extendsKeyword, Token implementsKeyword, Token endToken) {
+  /// Handle the end of a class declaration.  Substructures:
+  /// - metadata
+  /// - modifiers
+  /// - class name
+  /// - type variables
+  /// - supertype (may be a mixin application)
+  /// - implemented types
+  /// - class body
+  void endClassDeclaration(
+      int interfacesCount,
+      Token beginToken,
+      Token classKeyword,
+      Token extendsKeyword,
+      Token implementsKeyword,
+      Token endToken) {
     logEvent("ClassDeclaration");
   }
 
@@ -100,15 +114,13 @@ class Listener {
     logEvent("DoWhileStatement");
   }
 
-  void beginDoWhileStatementBody(Token token) {
-  }
+  void beginDoWhileStatementBody(Token token) {}
 
   void endDoWhileStatementBody(Token token) {
     logEvent("DoWhileStatementBody");
   }
 
-  void beginWhileStatementBody(Token token) {
-  }
+  void beginWhileStatementBody(Token token) {}
 
   void endWhileStatementBody(Token token) {
     logEvent("WhileStatementBody");
@@ -116,12 +128,22 @@ class Listener {
 
   void beginEnum(Token enumKeyword) {}
 
+  /// Handle the end of an enum declaration.  Substructures:
+  /// - Metadata
+  /// - Enum name (identifier)
+  /// - [count] times:
+  ///   - Enum value (identifier)
   void endEnum(Token enumKeyword, Token endBrace, int count) {
     logEvent("Enum");
   }
 
   void beginExport(Token token) {}
 
+  /// Handle the end of an export directive.  Substructures:
+  /// - metadata
+  /// - uri
+  /// - conditional uris
+  /// - combinators
   void endExport(Token exportKeyword, Token semicolon) {
     logEvent("Export");
   }
@@ -142,7 +164,7 @@ class Listener {
 
   void beginFormalParameter(Token token) {}
 
-  void endFormalParameter(Token thisKeyword) {
+  void endFormalParameter(Token thisKeyword, FormalParameterType kind) {
     logEvent("FormalParameter");
   }
 
@@ -168,8 +190,7 @@ class Listener {
     logEvent("ForStatement");
   }
 
-  void beginForStatementBody(Token token) {
-  }
+  void beginForStatementBody(Token token) {}
 
   void endForStatementBody(Token token) {
     logEvent("ForStatementBody");
@@ -180,15 +201,13 @@ class Listener {
     logEvent("ForIn");
   }
 
-  void beginForInExpression(Token token) {
-  }
+  void beginForInExpression(Token token) {}
 
   void endForInExpression(Token token) {
     logEvent("ForInExpression");
   }
 
-  void beginForInBody(Token token) {
-  }
+  void beginForInBody(Token token) {}
 
   void endForInBody(Token token) {
     logEvent("ForInBody");
@@ -226,25 +245,58 @@ class Listener {
 
   void beginFunctionTypeAlias(Token token) {}
 
-  void endFunctionTypeAlias(Token typedefKeyword, Token endToken) {
+  /// Handle the end of a typedef declaration.
+  ///
+  /// If [equals] is null, then we have the following substructures:
+  /// - Metadata
+  /// - Return type
+  /// - Name (identifier)
+  /// - Template variables (type variables to the template)
+  /// - Formal parameters
+  ///
+  /// If [equals] is not null, then the have the following substructures:
+  /// - Metadata
+  /// - Name (identifier)
+  /// - Template variables (type variables to the template)
+  /// - Type (FunctionTypeAnnotation)
+  void endFunctionTypeAlias(
+      Token typedefKeyword, Token equals, Token endToken) {
     logEvent("FunctionTypeAlias");
   }
 
   void beginMixinApplication(Token token) {}
 
+  /// Handle the end of a mixin application construct (e.g. "A with B, C").
+  /// Substructures:
+  /// - supertype
+  /// - mixin types (TypeList)
   void endMixinApplication() {
     logEvent("MixinApplication");
   }
 
-  void beginNamedMixinApplication(Token token) {}
+  void beginNamedMixinApplication(Token beginToken, Token name) {}
 
-  void endNamedMixinApplication(
-      Token classKeyword, Token implementsKeyword, Token endToken) {
+  /// Handle the end of a named mixin declaration.  Substructures:
+  /// - metadata
+  /// - modifiers
+  /// - class name
+  /// - type variables
+  /// - mixin application
+  /// - implemented types (TypeList)
+  ///
+  /// TODO(paulberry,ahe): it seems inconsistent that for a named mixin
+  /// application, the implemented types are a TypeList, whereas for a class
+  /// declaration, each implemented type is listed separately on the stack, and
+  /// the number of implemented types is passed as a parameter.
+  void endNamedMixinApplication(Token begin, Token classKeyword, Token equals,
+      Token implementsKeyword, Token endToken) {
     logEvent("NamedMixinApplication");
   }
 
   void beginHide(Token hideKeyword) {}
 
+  /// Handle the end of a "hide" combinator.  Substructures:
+  /// - hidden names (IdentifierList)
   void endHide(Token hideKeyword) {
     logEvent("Hide");
   }
@@ -267,15 +319,13 @@ class Listener {
     logEvent("IfStatement");
   }
 
-  void beginThenStatement(Token token) {
-  }
+  void beginThenStatement(Token token) {}
 
   void endThenStatement(Token token) {
     logEvent("ThenStatement");
   }
 
-  void beginElseStatement(Token token) {
-  }
+  void beginElseStatement(Token token) {}
 
   void endElseStatement(Token token) {
     logEvent("ElseStatement");
@@ -283,6 +333,12 @@ class Listener {
 
   void beginImport(Token importKeyword) {}
 
+  /// Handle the end of an import directive.  Substructures:
+  /// - metadata
+  /// - uri
+  /// - conditional uris
+  /// - prefix identifier (only if asKeyword != null)
+  /// - combinators
   void endImport(Token importKeyword, Token DeferredKeyword, Token asKeyword,
       Token semicolon) {
     logEvent("Import");
@@ -296,6 +352,10 @@ class Listener {
 
   void beginConditionalUri(Token ifKeyword) {}
 
+  /// Handle the end of a conditional URI construct.  Substructures:
+  /// - Dotted name
+  /// - Condition (literal string; only present if [equalitySign] is not `null`)
+  /// - URI (literal string)
   void endConditionalUri(Token ifKeyword, Token equalitySign) {
     logEvent("ConditionalUri");
   }
@@ -312,21 +372,30 @@ class Listener {
     logEvent("InitializedIdentifier");
   }
 
-  void beginFieldInitializer(Token token) {
-  }
+  void beginFieldInitializer(Token token) {}
 
+  /// Handle the end of a field initializer.  Substructures:
+  /// - Initializer expression
   void endFieldInitializer(Token assignment) {
     logEvent("FieldInitializer");
   }
 
+  /// Handle the lack of a field initializer.
   void handleNoFieldInitializer(Token token) {
     logEvent("NoFieldInitializer");
   }
 
   void beginVariableInitializer(Token token) {}
 
+  /// Handle the end of a variable initializer. Substructures:
+  /// - Initializer expression.
   void endVariableInitializer(Token assignmentOperator) {
     logEvent("VariableInitializer");
+  }
+
+  /// Used when a variable has no initializer.
+  void handleNoVariableInitializer(Token token) {
+    logEvent("NoVariableInitializer");
   }
 
   void beginInitializer(Token token) {}
@@ -378,6 +447,8 @@ class Listener {
 
   void beginLibraryName(Token token) {}
 
+  /// Handle the end of a library directive.  Substructures:
+  /// - Library name (a qualified identifier)
   void endLibraryName(Token libraryKeyword, Token semicolon) {
     logEvent("LibraryName");
   }
@@ -413,6 +484,16 @@ class Listener {
 
   void beginMethod(Token token, Token name) {}
 
+  /// Handle the end of a method declaration.  Substructures:
+  /// - metadata
+  /// - modifiers
+  /// - return type
+  /// - method name (identifier, possibly qualified)
+  /// - type variables
+  /// - formal parameters
+  /// - initializers
+  /// - async marker
+  /// - body
   void endMethod(Token getOrSet, Token beginToken, Token endToken) {
     logEvent("Method");
   }
@@ -438,12 +519,18 @@ class Listener {
 
   void beginPart(Token token) {}
 
+  /// Handle the end of a part directive.  Substructures:
+  /// - metadata
+  /// - uri
   void endPart(Token partKeyword, Token semicolon) {
     logEvent("Part");
   }
 
   void beginPartOf(Token token) {}
 
+  /// Handle the end of a "part of" directive.  Substructures:
+  /// - Metadata
+  /// - Library name (a qualified identifier)
   void endPartOf(Token partKeyword, Token semicolon) {
     logEvent("PartOf");
   }
@@ -469,6 +556,8 @@ class Listener {
 
   void beginShow(Token showKeyword) {}
 
+  /// Handle the end of a "show" combinator.  Substructures:
+  /// - shown names (IdentifierList)
   void endShow(Token showKeyword) {
     logEvent("Show");
   }
@@ -513,6 +602,13 @@ class Listener {
 
   void beginTopLevelMember(Token token) {}
 
+  /// Handle the end of a top level variable declaration.  Substructures:
+  /// - Metadata
+  /// - Modifiers
+  /// - Type
+  /// - Repeated [count] times:
+  ///   - Variable name (identifier)
+  ///   - Field initializer
   /// Doesn't have a corresponding begin event, use [beginTopLevelMember]
   /// instead.
   void endTopLevelFields(int count, Token beginToken, Token endToken) {
@@ -521,6 +617,15 @@ class Listener {
 
   void beginTopLevelMethod(Token token, Token name) {}
 
+  /// Handle the end of a top level method.  Substructures:
+  /// - metadata
+  /// - modifiers
+  /// - return type
+  /// - identifier
+  /// - type variables
+  /// - formal parameters
+  /// - async marker
+  /// - body
   void endTopLevelMethod(Token beginToken, Token getOrSet, Token endToken) {
     logEvent("TopLevelMethod");
   }
@@ -531,8 +636,7 @@ class Listener {
     logEvent("CaseMatch");
   }
 
-  void beginCatchClause(Token token) {
-  }
+  void beginCatchClause(Token token) {}
 
   void endCatchClause(Token token) {
     logEvent("CatchClause");
@@ -546,13 +650,20 @@ class Listener {
     logEvent("FinallyBlock");
   }
 
-  void endTryStatement(
-      int catchCount, Token tryKeyword, Token finallyKeyword) {
+  void endTryStatement(int catchCount, Token tryKeyword, Token finallyKeyword) {
     logEvent("TryStatement");
   }
 
-  void endType(Token beginToken, Token endToken) {
+  void handleType(Token beginToken, Token endToken) {
     logEvent("Type");
+  }
+
+  void handleNoName(Token token) {
+    logEvent("NoName");
+  }
+
+  void handleFunctionType(Token functionToken, Token endToken) {
+    logEvent("FunctionType");
   }
 
   void beginTypeArguments(Token token) {}
@@ -567,6 +678,10 @@ class Listener {
 
   void beginTypeVariable(Token token) {}
 
+  /// Handle the end of a type formal parameter (e.g. "X extends Y").
+  /// Substructures:
+  /// - Name (identifier)
+  /// - Type bound
   void endTypeVariable(Token token, Token extendsOrSuper) {
     logEvent("TypeVariable");
   }
@@ -579,6 +694,12 @@ class Listener {
 
   void beginUnnamedFunction(Token token) {}
 
+  /// Handle the end of a function expression (e.g. "() { ... }").
+  /// Substructures:
+  /// - Type variables
+  /// - Formal parameters
+  /// - Async marker
+  /// - Body
   void endUnnamedFunction(Token token) {
     logEvent("UnnamedFunction");
   }
@@ -615,14 +736,16 @@ class Listener {
     logEvent("ConstExpression");
   }
 
-  void beginFunctionTypedFormalParameter(Token token) {
-  }
+  void beginFunctionTypedFormalParameter(Token token) {}
 
   void endFunctionTypedFormalParameter(Token token) {
     logEvent("FunctionTypedFormalParameter");
   }
 
-  void handleIdentifier(Token token) {
+  /// Handle an identifier token.
+  ///
+  /// [context] indicates what kind of construct the identifier appears in.
+  void handleIdentifier(Token token, IdentifierContext context) {
     logEvent("Identifier");
   }
 
@@ -730,6 +853,11 @@ class Listener {
     logEvent("ParenthesizedExpression");
   }
 
+  /// Handle a construct of the form "identifier.identifier" occurring in a part
+  /// of the grammar where expressions in general are not allowed.
+  /// Substructures:
+  /// - Qualified identifier (before the period)
+  /// - Identifier (after the period)
   void handleQualified(Token period) {
     logEvent("Qualified");
   }
@@ -742,8 +870,7 @@ class Listener {
     logEvent("SuperExpression");
   }
 
-  void beginSwitchCase(int labelCount, int expressionCount, Token firstToken) {
-  }
+  void beginSwitchCase(int labelCount, int expressionCount, Token firstToken) {}
 
   void handleSwitchCase(
       int labelCount,
@@ -775,6 +902,10 @@ class Listener {
     logEvent("ValuedFormalParameter");
   }
 
+  void handleFormalParameterWithoutValue(Token token) {
+    logEvent("FormalParameterWithoutValue");
+  }
+
   void handleVoidKeyword(Token token) {
     logEvent("VoidKeyword");
   }
@@ -802,8 +933,8 @@ class Listener {
 
   /// The parser noticed a syntax error, but was able to recover from it.
   void handleRecoverableError(Token token, ErrorKind kind, Map arguments) {
-    recoverableErrors.add(
-        new ParserError.fromTokens(token, token, kind, arguments));
+    recoverableErrors
+        .add(new ParserError.fromTokens(token, token, kind, arguments));
   }
 }
 
@@ -821,8 +952,7 @@ class ParserError {
   ParserError(this.beginOffset, this.endOffset, this.kind, this.arguments);
 
   ParserError.fromTokens(Token begin, Token end, ErrorKind kind, Map arguments)
-      : this(begin.charOffset, end.charOffset + end.charCount, kind,
-          arguments);
+      : this(begin.charOffset, end.charOffset + end.charCount, kind, arguments);
 
   String toString() => "@${beginOffset}: $kind $arguments";
 }

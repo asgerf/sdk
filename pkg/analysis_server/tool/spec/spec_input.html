@@ -6,7 +6,7 @@
   </head>
   <body>
     <h1>Analysis Server API Specification</h1>
-    <h1 style="color:#999999">Version <version>1.17.0</version></h1>
+    <h1 style="color:#999999">Version <version>1.18.0</version></h1>
     <p>
       This document contains a specification of the API provided by the
       analysis server.  The API in this document is currently under
@@ -171,9 +171,10 @@
     <dl>
       <dt>--no-error-notification</dt>
       <dd>
-      Disable notifications about errors (see analysis.error). If this
-      flag is not specified then notifications will be sent for all
-      errors produced for all files in the actual analysis roots.
+        <p><b>Deprecated</b></p>
+        Disable notifications about errors (see analysis.error). If this
+        flag is not specified then notifications will be sent for all
+        errors produced for all files in the actual analysis roots.
       </dd>
     </dl>
     <dl>
@@ -850,10 +851,6 @@
           Reports the errors associated with a given file. The set of
           errors included in the notification is always a complete
           list that supersedes any previously reported errors.
-        </p>
-        <p>
-          It is only possible to unsubscribe from this notification by
-          using the command-line flag --no-error-notification.
         </p>
         <params>
           <field name="file">
@@ -2046,6 +2043,19 @@
           <field name="contexts">
             <list><ref>ContextData</ref></list>
             <p>The list of analysis contexts.</p>
+          </field>
+        </result>
+      </request>
+      <request method="getServerPort">
+        <p>
+          Return the port of the diagnostic web server. If the server is not running
+          this call will start the server. If unable to start the diagnostic web server,
+          this call will return an error of <tt>DEBUG_PORT_COULD_NOT_BE_OPENED</tt>.
+        </p>
+        <result>
+          <field name="port">
+            <ref>int</ref>
+            <p>The diagnostic server port.</p>
           </field>
         </result>
       </request>
@@ -3728,6 +3738,12 @@
               An "analysis.getErrors" or "analysis.getNavigation" request could
               not be satisfied because the content of the file changed before
               the requested results could be computed.
+            </p>
+          </value>
+          <value>
+            <code>DEBUG_PORT_COULD_NOT_BE_OPENED</code>
+            <p>
+              The server was unable to open a port for the diagnostic server.
             </p>
           </value>
           <value>

@@ -24,9 +24,9 @@ import 'package:analyzer/src/summary/summarize_ast.dart';
 import 'package:analyzer/src/summary/summarize_elements.dart';
 import 'package:analyzer/src/summary/summary_sdk.dart' show SummaryBasedDartSdk;
 import 'package:analyzer/task/dart.dart';
-import 'package:analyzer_cli/src/analyzer_impl.dart';
 import 'package:analyzer_cli/src/driver.dart';
 import 'package:analyzer_cli/src/error_formatter.dart';
+import 'package:analyzer_cli/src/error_severity.dart';
 import 'package:analyzer_cli/src/options.dart';
 import 'package:bazel_worker/bazel_worker.dart';
 
@@ -149,7 +149,7 @@ class BuildMode {
   ErrorSeverity analyze() {
     // Write initial progress message.
     if (!options.machineFormat) {
-      outSink.writeln("Analyzing sources ${options.sourceFiles}...");
+      outSink.writeln("Analyzing ${options.sourceFiles.join(', ')}...");
     }
 
     // Create the URI to file map.
@@ -188,17 +188,12 @@ class BuildMode {
     }
 
     // Write summary.
-    assembler = new PackageBundleAssembler(
-        excludeHashes: options.buildSummaryExcludeInformative &&
-            options.buildSummaryOutputSemantic == null);
+    assembler = new PackageBundleAssembler();
     if (_shouldOutputSummary) {
       _serializeAstBasedSummary(explicitSources);
       // Write the whole package bundle.
       assembler.recordDependencies(summaryDataStore);
       PackageBundleBuilder bundle = assembler.assemble();
-      if (options.buildSummaryExcludeInformative) {
-        bundle.flushInformative();
-      }
       if (options.buildSummaryOutput != null) {
         io.File file = new io.File(options.buildSummaryOutput);
         file.writeAsBytesSync(bundle.toBuffer(), mode: io.FileMode.WRITE_ONLY);
@@ -225,8 +220,8 @@ class BuildMode {
       for (Source source in explicitSources) {
         AnalysisErrorInfo errorInfo = context.getErrors(source);
         for (AnalysisError error in errorInfo.errors) {
-          ProcessedSeverity processedSeverity = AnalyzerImpl.processError(
-              error, options, context.analysisOptions);
+          ProcessedSeverity processedSeverity =
+              processError(error, options, context.analysisOptions);
           if (processedSeverity != null) {
             maxSeverity = maxSeverity.max(processedSeverity.severity);
           }
@@ -252,7 +247,8 @@ class BuildMode {
       FolderBasedDartSdk dartSdk = new FolderBasedDartSdk(resourceProvider,
           resourceProvider.getFolder(options.dartSdkPath), options.strongMode);
       dartSdk.analysisOptions =
-          Driver.createAnalysisOptionsForCommandLineOptions(options);
+          Driver.createAnalysisOptionsForCommandLineOptions(
+              resourceProvider, options);
       dartSdk.useSummary = !options.buildSummaryOnly;
       sdk = dartSdk;
       sdkBundle = dartSdk.getSummarySdkBundle(options.strongMode);
@@ -270,8 +266,7 @@ class BuildMode {
     ]);
 
     // Set context options.
-    Driver.setAnalysisContextOptions(
-        resourceProvider, context.sourceFactory, context, options,
+    Driver.setAnalysisContextOptions(resourceProvider, context, options,
         (AnalysisOptionsImpl contextOptions) {
       if (options.buildSummaryOnlyDiet) {
         contextOptions.analyzeFunctionBodies = false;
@@ -319,7 +314,7 @@ class BuildMode {
         options,
         stats,
         (AnalysisError error) =>
-            AnalyzerImpl.processError(error, options, context.analysisOptions));
+            processError(error, options, context.analysisOptions));
     for (Source source in explicitSources) {
       AnalysisErrorInfo errorInfo = context.getErrors(source);
       formatter.formatErrors([errorInfo]);
