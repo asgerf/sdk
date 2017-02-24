@@ -480,7 +480,6 @@ class ConstraintExtractorVisitor
           extractor.externalModel.isSafeExternal(node), true, false));
     }
     if (extractor.externalModel.isEntryPoint(node)) {
-      print('Treating $node as entry point');
       bank.type
           .accept(new ExternalVisitor(extractor, false, false, true));
     }
