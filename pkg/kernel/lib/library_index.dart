@@ -13,7 +13,7 @@ class LibraryIndex {
   static const String getterPrefix = 'get:';
   static const String setterPrefix = 'set:';
 
-  /// A special class name that can be use d to access the top-level members
+  /// A special class name that can be used to access the top-level members
   /// of a library.
   static const String topLevel = '::';
 
