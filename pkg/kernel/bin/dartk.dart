@@ -251,7 +251,9 @@ List<String> defaultEntryPointManifests() {
     'dart_io_entries.txt',
     'dart_product_entries.txt'
   ];
-  return filenames.map((name) => manifestDir.resolve(name).toFilePath()).toList();
+  return filenames
+      .map((name) => manifestDir.resolve(name).toFilePath())
+      .toList();
 }
 
 Future<CompilerOutcome> batchMain(

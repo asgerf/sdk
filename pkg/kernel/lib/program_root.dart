@@ -49,11 +49,11 @@ class ProgramRoot {
     assert(member != null);
     return table.tryGetMember(
         library, klass ?? LibraryIndex.topLevel, disambiguatedName) ??
-        table.getMember(library, klass ?? LibraryIndex.topLevel, member);
+        table.tryGetMember(library, klass ?? LibraryIndex.topLevel, member);
   }
 
   Class getClass(LibraryIndex table) {
     assert(klass != null);
-    return table.getClass(library, klass);
+    return table.tryGetClass(library, klass);
   }
 }

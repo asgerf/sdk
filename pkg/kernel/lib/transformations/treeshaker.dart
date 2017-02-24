@@ -390,6 +390,7 @@ class TreeShaker {
   void _addUsedRoot(ProgramRoot root, LibraryIndex table) {
     if (root.kind == ProgramRootKind.ExternallyInstantiatedClass) {
       Class class_ = root.getClass(table);
+      if (class_ == null) return;
 
       // This is a class which will be instantiated by non-Dart code (whether it
       // has a valid generative construtor or not).
@@ -411,6 +412,7 @@ class TreeShaker {
       }
     } else {
       var member = root.getMember(table);
+      if (member == null) return;
       _addUsedMember(member.enclosingClass, member);
       if (member is Constructor) {
         _addInstantiatedClass(member.enclosingClass);

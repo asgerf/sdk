@@ -90,8 +90,10 @@ class VmExternalModel extends ExternalModel {
     var index = new LibraryIndex(program, programRoots.map((r) => r.library));
     for (var root in programRoots) {
       if (root.member != null) {
-        print('Found entry point $root');
-        root.getMember(index);
+        var member = root.getMember(index);
+        if (member != null) {
+          entryPointMembers.add(member);
+        }
       }
     }
   }
