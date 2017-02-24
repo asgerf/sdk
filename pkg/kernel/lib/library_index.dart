@@ -66,6 +66,9 @@ class LibraryIndex {
 
   Library getLibrary(String uri) => _getLibraryIndex(uri).library;
 
+  /// True if the library with the given URI exists and was indexed.
+  bool containsLibrary(String uri) => _libraries.containsKey(uri);
+
   /// Returns the class with the given name in the given library.
   ///
   /// An error is thrown if the class is not found.
