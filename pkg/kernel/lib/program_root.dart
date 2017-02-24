@@ -47,8 +47,9 @@ class ProgramRoot {
 
   Member getMember(LibraryIndex table) {
     assert(member != null);
-    return table.getMember(
-        library, klass ?? LibraryIndex.topLevel, disambiguatedName);
+    return table.tryGetMember(
+        library, klass ?? LibraryIndex.topLevel, disambiguatedName) ??
+        table.getMember(library, klass ?? LibraryIndex.topLevel, member);
   }
 
   Class getClass(LibraryIndex table) {
