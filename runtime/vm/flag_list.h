@@ -25,10 +25,10 @@
 #define USING_MULTICORE false
 #endif
 
-#if defined(DEBUG)
-#define USING_DEBUG true
+#if defined(DART_PRECOMPILER)
+#define USING_PRECOMPILER true
 #else
-#define USING_DEBUG false
+#define USING_PRECOMPILER false
 #endif
 
 // List of all flags in the VM.
@@ -74,7 +74,7 @@
     "Dump megamorphic cache statistics")                                       \
   R(dump_symbol_stats, false, bool, false, "Dump symbol table statistics")     \
   R(enable_asserts, false, bool, false, "Enable assert statements.")           \
-  R(enable_malloc_hooks, false, bool, USING_DEBUG,                             \
+  R(enable_malloc_hooks, false, bool, false,                                   \
     "Enable native memory statistic collection. Enabled by default in Debug "  \
     "mode")                                                                    \
   C(enable_mirrors, false, false, bool, true,                                  \
@@ -168,7 +168,7 @@
     "Use class hierarchy analysis even if it can cause deoptimization.")       \
   P(use_field_guards, bool, !USING_DBC,                                        \
     "Use field guards and track field types")                                  \
-  C(use_osr, false, true, bool, true, "Use OSR")                               \
+  C(use_osr, false, !USING_PRECOMPILER, bool, !USING_PRECOMPILER, "Use OSR")   \
   P(verbose_gc, bool, false, "Enables verbose GC.")                            \
   P(verbose_gc_hdr, int, 40, "Print verbose GC header interval.")              \
   R(verify_after_gc, false, bool, false,                                       \

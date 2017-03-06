@@ -423,6 +423,9 @@ class KernelAstAdapter extends KernelElementAdapterMixin {
   ir.Procedure get checkSubtypeOfRuntimeType =>
       kernel.functions[_backend.helpers.checkSubtypeOfRuntimeType];
 
+  ir.Procedure get functionTypeTest =>
+      kernel.functions[_backend.helpers.functionTypeTest];
+
   ir.Procedure get throwTypeError =>
       kernel.functions[_backend.helpers.throwTypeError];
 
@@ -504,8 +507,8 @@ class KernelAstAdapter extends KernelElementAdapterMixin {
       ConstantValue constant, ClassEntity classElement) {
     if (constant is ConstructedConstantValue) {
       if (constant.type.element == classElement) {
-        assert(constant.fields.length == 1);
-        ConstantValue indexConstant = constant.fields.values.single;
+        assert(constant.fields.length == 1 || constant.fields.length == 2);
+        ConstantValue indexConstant = constant.fields.values.first;
         if (indexConstant is IntConstantValue) {
           return indexConstant.primitiveValue;
         }

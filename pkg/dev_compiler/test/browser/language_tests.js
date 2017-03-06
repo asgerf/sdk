@@ -11,6 +11,10 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
   let mochaOnError = window.onerror;
   dart_sdk.dart.trapRuntimeErrors(false);
   dart_sdk._isolate_helper.startRootIsolate(function() {}, []);
+  // Make it easier to debug test failures and required for formatter test that
+  // assumes custom formatters are enabled.
+  dart_sdk._debugger.registerDevtoolsFormatter();
+
   let html_config = unittest.html_config;
   // Test attributes are a list of strings, or a string for a single
   // attribute. Valid attributes are:
@@ -79,7 +83,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'bit_operations_test_none_multi': fail,  // DDC/dart2js canonicalize bitop results to unsigned
       'branch_canonicalization_test': fail,  // JS bit operations truncate to 32 bits.
       'call_closurization_test': fail, // Functions do not expose a "call" method.
-      'call_function_apply_test': fail, // Function.apply not really implemented.
       'call_through_null_getter_test': fail, // null errors are not converted to NoSuchMethodErrors.
       'call_with_no_such_method_test': fail, // Function.apply not really implemented.
       'canonical_const2_test': fail,
@@ -94,7 +97,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'cast_test_13_multi': fail,
       'cast_test_14_multi': fail,
       'cast_test_15_multi': fail,
-      'classes_static_method_clash_test': fail,
       'code_after_try_is_executed_test_01_multi': fail,
       'compile_time_constant10_test_none_multi': fail,
       'compile_time_constant_a_test': fail,
@@ -186,7 +188,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'generic_is_check_test': fail,
       'getter_closure_execution_order_test': fail,
       'gc_test': 'slow',
-      'hash_code_mangling_test': fail,
       'identical_closure2_test': fail,
       'infinite_switch_label_test': fail,
       'infinity_test': fail,
@@ -282,7 +283,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
     'corelib': {
       'apply2_test': fail,
       'apply3_test': fail,
-      'apply_test': fail,
       'big_integer_parsed_arith_vm_test': fail,
       'big_integer_parsed_div_rem_vm_test': fail,
       'big_integer_parsed_mul_div_vm_test': fail,
@@ -292,6 +292,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'const_list_literal_test': fail,
       'const_list_remove_range_test': fail,
       'const_list_set_range_test': fail,
+      'data_uri_test': fail,
       'double_parse_test_01_multi': fail,
       'double_parse_test_02_multi': firefox_fail,
       'error_stack_trace1_test': fail,
@@ -342,7 +343,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
 
       'list_insert_test': fail,
       'list_removeat_test': fail,
-      'set_test': fail, // runtime strong mode reject
     },
 
     'corelib/regexp': {
@@ -518,7 +518,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'equality_test': fail,
       'fake_function_with_call_test': fail,
       'field_type_test': fail,
-      'function_apply_mirrors_test': fail,
       'function_type_mirror_test': fail,
       'generic_f_bounded_test_01_multi': fail,
       'generic_f_bounded_test_none_multi': fail,
@@ -575,6 +574,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'library_uri_package_test': fail,
       'list_constructor_test_01_multi': fail,
       'list_constructor_test_none_multi': fail,
+      'load_library_test': fail,
       'local_function_is_static_test': fail,
       'local_isolate_test': fail,
       'metadata_allowed_values_test_none_multi': fail,

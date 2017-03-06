@@ -125,6 +125,7 @@ char* Dart::InitOnce(const uint8_t* vm_isolate_snapshot,
                      const uint8_t* instructions_snapshot,
                      Dart_IsolateCreateCallback create,
                      Dart_IsolateShutdownCallback shutdown,
+                     Dart_IsolateCleanupCallback cleanup,
                      Dart_ThreadExitCallback thread_exit,
                      Dart_FileOpenCallback file_open,
                      Dart_FileReadCallback file_read,
@@ -152,7 +153,6 @@ char* Dart::InitOnce(const uint8_t* vm_isolate_snapshot,
   start_time_micros_ = OS::GetCurrentMonotonicMicros();
   VirtualMemory::InitOnce();
   OSThread::InitOnce();
-  MallocHooks::InitOnce();
   if (FLAG_support_timeline) {
     Timeline::InitOnce();
   }
@@ -233,6 +233,13 @@ char* Dart::InitOnce(const uint8_t* vm_isolate_snapshot,
         return strdup("Precompiled runtime requires a precompiled snapshot");
 #else
         StubCode::InitOnce();
+        // MallocHooks can't be initialized until StubCode has been since stack
+        // trace generation relies on stub methods that are generated in
+        // StubCode::InitOnce().
+        // TODO(bkonyi) Split initialization for stack trace collection from the
+        // initialization for the actual malloc hooks to increase accuracy of
+        // memory consumption statistics.
+        MallocHooks::InitOnce();
 #endif
       } else {
         return strdup("Invalid vm isolate snapshot seen");
@@ -271,6 +278,13 @@ char* Dart::InitOnce(const uint8_t* vm_isolate_snapshot,
 #else
       vm_snapshot_kind_ = Snapshot::kNone;
       StubCode::InitOnce();
+      // MallocHooks can't be initialized until StubCode has been since stack
+      // trace generation relies on stub methods that are generated in
+      // StubCode::InitOnce().
+      // TODO(bkonyi) Split initialization for stack trace collection from the
+      // initialization for the actual malloc hooks to increase accuracy of
+      // memory consumption statistics.
+      MallocHooks::InitOnce();
       Symbols::InitOnce(vm_isolate_);
 #endif
     }
@@ -300,6 +314,7 @@ char* Dart::InitOnce(const uint8_t* vm_isolate_snapshot,
   Thread::ExitIsolate();  // Unregister the VM isolate from this thread.
   Isolate::SetCreateCallback(create);
   Isolate::SetShutdownCallback(shutdown);
+  Isolate::SetCleanupCallback(cleanup);
 
   if (FLAG_support_service) {
     Service::SetGetServiceAssetsCallback(get_service_assets);
@@ -640,7 +655,7 @@ RawError* Dart::InitializeIsolate(const uint8_t* snapshot_data,
 }
 
 
-const char* Dart::FeaturesString(Snapshot::Kind kind) {
+const char* Dart::FeaturesString(Isolate* isolate, Snapshot::Kind kind) {
   TextBuffer buffer(64);
 
 // Different fields are included for DEBUG/RELEASE/PRODUCT.
@@ -654,9 +669,13 @@ const char* Dart::FeaturesString(Snapshot::Kind kind) {
 
   if (Snapshot::IncludesCode(kind)) {
     // Checked mode affects deopt ids.
-    buffer.AddString(FLAG_enable_asserts ? " asserts" : " no-asserts");
-    buffer.AddString(FLAG_enable_type_checks ? " type-checks"
-                                             : " no-type-checks");
+#define ADD_FLAG(name, isolate_flag, flag)                                     \
+  do {                                                                         \
+    const bool name = (isolate != NULL) ? isolate->name() : flag;              \
+    buffer.AddString(name ? (" " #name) : (" no-" #name));                     \
+  } while (0);
+    ISOLATE_FLAG_LIST(ADD_FLAG);
+#undef ADD_FLAG
 
 // Generated code must match the host architecture and ABI.
 #if defined(TARGET_ARCH_ARM)

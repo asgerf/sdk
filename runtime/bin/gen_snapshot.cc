@@ -67,7 +67,6 @@ const uint8_t* isolate_snapshot_data = NULL;
 // Global state that indicates whether a snapshot is to be created and
 // if so which file to write the snapshot into.
 enum SnapshotKind {
-  kNone,
   kCore,
   kScript,
   kAppAOTBlobs,
@@ -80,6 +79,8 @@ static const char* isolate_snapshot_data_filename = NULL;
 static const char* isolate_snapshot_instructions_filename = NULL;
 static const char* assembly_filename = NULL;
 static const char* script_snapshot_filename = NULL;
+static bool dependencies_only = false;
+static bool print_dependencies = false;
 static const char* dependencies_filename = NULL;
 
 
@@ -208,12 +209,12 @@ static const char* ProcessOption(const char* option, const char* name) {
 static bool ProcessSnapshotKindOption(const char* option) {
   const char* kind = ProcessOption(option, "--snapshot_kind=");
   if (kind == NULL) {
+    kind = ProcessOption(option, "--snapshot-kind=");
+  }
+  if (kind == NULL) {
     return false;
   }
-  if (strcmp(kind, "none") == 0) {
-    snapshot_kind = kNone;
-    return true;
-  } else if (strcmp(kind, "core") == 0) {
+  if (strcmp(kind, "core") == 0) {
     snapshot_kind = kCore;
     return true;
   } else if (strcmp(kind, "script") == 0) {
@@ -236,6 +237,9 @@ static bool ProcessSnapshotKindOption(const char* option) {
 
 static bool ProcessVmSnapshotDataOption(const char* option) {
   const char* name = ProcessOption(option, "--vm_snapshot_data=");
+  if (name == NULL) {
+    name = ProcessOption(option, "--vm-snapshot-data=");
+  }
   if (name != NULL) {
     vm_snapshot_data_filename = name;
     return true;
@@ -246,6 +250,9 @@ static bool ProcessVmSnapshotDataOption(const char* option) {
 
 static bool ProcessVmSnapshotInstructionsOption(const char* option) {
   const char* name = ProcessOption(option, "--vm_snapshot_instructions=");
+  if (name == NULL) {
+    name = ProcessOption(option, "--vm-snapshot-instructions=");
+  }
   if (name != NULL) {
     vm_snapshot_instructions_filename = name;
     return true;
@@ -256,6 +263,9 @@ static bool ProcessVmSnapshotInstructionsOption(const char* option) {
 
 static bool ProcessIsolateSnapshotDataOption(const char* option) {
   const char* name = ProcessOption(option, "--isolate_snapshot_data=");
+  if (name == NULL) {
+    name = ProcessOption(option, "--isolate-snapshot-data=");
+  }
   if (name != NULL) {
     isolate_snapshot_data_filename = name;
     return true;
@@ -266,6 +276,9 @@ static bool ProcessIsolateSnapshotDataOption(const char* option) {
 
 static bool ProcessIsolateSnapshotInstructionsOption(const char* option) {
   const char* name = ProcessOption(option, "--isolate_snapshot_instructions=");
+  if (name == NULL) {
+    name = ProcessOption(option, "--isolate-snapshot-instructions=");
+  }
   if (name != NULL) {
     isolate_snapshot_instructions_filename = name;
     return true;
@@ -286,6 +299,9 @@ static bool ProcessAssemblyOption(const char* option) {
 
 static bool ProcessScriptSnapshotOption(const char* option) {
   const char* name = ProcessOption(option, "--script_snapshot=");
+  if (name == NULL) {
+    name = ProcessOption(option, "--script-snapshot=");
+  }
   if (name != NULL) {
     script_snapshot_filename = name;
     return true;
@@ -303,6 +319,30 @@ static bool ProcessDependenciesOption(const char* option) {
   return false;
 }
 
+
+static bool ProcessDependenciesOnlyOption(const char* option) {
+  const char* name = ProcessOption(option, "--dependencies_only");
+  if (name == NULL) {
+    name = ProcessOption(option, "--dependencies-only");
+  }
+  if (name != NULL) {
+    dependencies_only = true;
+    return true;
+  }
+  return false;
+}
+
+static bool ProcessPrintDependenciesOption(const char* option) {
+  const char* name = ProcessOption(option, "--print_dependencies");
+  if (name == NULL) {
+    name = ProcessOption(option, "--print-dependencies");
+  }
+  if (name != NULL) {
+    print_dependencies = true;
+    return true;
+  }
+  return false;
+}
 
 static bool ProcessEmbedderEntryPointsManifestOption(const char* option) {
   const char* name = ProcessOption(option, "--embedder_entry_points_manifest=");
@@ -377,6 +417,8 @@ static int ParseArguments(int argc,
         ProcessAssemblyOption(argv[i]) ||
         ProcessScriptSnapshotOption(argv[i]) ||
         ProcessDependenciesOption(argv[i]) ||
+        ProcessDependenciesOnlyOption(argv[i]) ||
+        ProcessPrintDependenciesOption(argv[i]) ||
         ProcessEmbedderEntryPointsManifestOption(argv[i]) ||
         ProcessURLmappingOption(argv[i]) || ProcessPackageRootOption(argv[i]) ||
         ProcessPackagesOption(argv[i]) || ProcessEnvironmentOption(argv[i])) {
@@ -405,15 +447,6 @@ static int ParseArguments(int argc,
   }
 
   switch (snapshot_kind) {
-    case kNone: {
-      if (*script_name == NULL) {
-        Log::PrintErr(
-            "Building without snapshot generation requires a Dart "
-            "script.\n\n");
-        return -1;
-      }
-      break;
-    }
     case kCore: {
       if ((vm_snapshot_data_filename == NULL) ||
           (isolate_snapshot_data_filename == NULL)) {
@@ -431,7 +464,7 @@ static int ParseArguments(int argc,
         Log::PrintErr(
             "Building a script snapshot requires specifying input files for "
             "--vm_snapshot_data and --isolate_snapshot_data, an output file "
-            "for --script-snapshot, and a Dart script.\n\n");
+            "for --script_snapshot, and a Dart script.\n\n");
         return -1;
       }
       break;
@@ -653,56 +686,72 @@ static void CreateAndWriteDependenciesFile() {
     return;
   }
 
-  ASSERT(dependencies_filename != NULL);
-  File* file = File::Open(dependencies_filename, File::kWriteTruncate);
-  if (file == NULL) {
-    Log::PrintErr("Error: Unable to open dependencies file: %s\n\n",
-                  dependencies_filename);
-    exit(kErrorExitCode);
-  }
+  ASSERT((dependencies_filename != NULL) || print_dependencies);
   bool success = true;
+  File* file = NULL;
+  if (dependencies_filename != NULL) {
+    file = File::Open(dependencies_filename, File::kWriteTruncate);
+    if (file == NULL) {
+      Log::PrintErr("Error: Unable to open dependencies file: %s\n\n",
+                    dependencies_filename);
+      exit(kErrorExitCode);
+    }
 
-  // Targets:
-  if (vm_snapshot_data_filename != NULL) {
-    success &=
-        file->Print("%s ", File::GetCanonicalPath(vm_snapshot_data_filename));
-  }
-  if (vm_snapshot_instructions_filename != NULL) {
-    success &= file->Print(
-        "%s ", File::GetCanonicalPath(vm_snapshot_instructions_filename));
-  }
-  if (isolate_snapshot_data_filename != NULL) {
-    success &= file->Print(
-        "%s ", File::GetCanonicalPath(isolate_snapshot_data_filename));
-  }
-  if (isolate_snapshot_instructions_filename != NULL) {
-    success &= file->Print(
-        "%s ", File::GetCanonicalPath(isolate_snapshot_instructions_filename));
-  }
-  if (assembly_filename != NULL) {
-    success &= file->Print("%s ", File::GetCanonicalPath(assembly_filename));
-  }
-  if (script_snapshot_filename != NULL) {
-    success &=
-        file->Print("%s ", File::GetCanonicalPath(script_snapshot_filename));
-  }
+    // Targets:
+    switch (snapshot_kind) {
+      case kCore:
+        success &= file->Print("%s ", vm_snapshot_data_filename);
+        success &= file->Print("%s ", isolate_snapshot_data_filename);
+        break;
+      case kScript:
+        success &= file->Print("%s ", script_snapshot_filename);
+        break;
+      case kAppAOTAssembly:
+        success &= file->Print("%s ", assembly_filename);
+        break;
+      case kAppAOTBlobs:
+        success &= file->Print("%s ", vm_snapshot_data_filename);
+        success &= file->Print("%s ", vm_snapshot_instructions_filename);
+        success &= file->Print("%s ", isolate_snapshot_data_filename);
+        success &= file->Print("%s ", isolate_snapshot_instructions_filename);
+        break;
+    }
 
-  success &= file->Print(": ");
+    success &= file->Print(": ");
+  }
 
   // Sources:
+  if (snapshot_kind == kScript) {
+    if (dependencies_filename != NULL) {
+      success &= file->Print("%s ", vm_snapshot_data_filename);
+      success &= file->Print("%s ", isolate_snapshot_data_filename);
+    }
+    if (print_dependencies) {
+      Log::Print("%s\n", vm_snapshot_data_filename);
+      Log::Print("%s\n", isolate_snapshot_data_filename);
+    }
+  }
   for (intptr_t i = 0; i < dependencies->length(); i++) {
     char* dep = dependencies->At(i);
-    success &= file->Print("%s ", dep);
+    if (dependencies_filename != NULL) {
+      success &= file->Print("%s ", dep);
+    }
+    if (print_dependencies) {
+      Log::Print("%s\n", dep);
+    }
     free(dep);
   }
-  success &= file->Print("\n");
 
-  if (!success) {
-    Log::PrintErr("Error: Unable to write dependencies file: %s\n\n",
-                  dependencies_filename);
-    exit(kErrorExitCode);
+  if (dependencies_filename != NULL) {
+    success &= file->Print("\n");
+
+    if (!success) {
+      Log::PrintErr("Error: Unable to write dependencies file: %s\n\n",
+                    dependencies_filename);
+      exit(kErrorExitCode);
+    }
+    file->Release();
   }
-  file->Release();
   delete dependencies;
   isolate_data->set_dependencies(NULL);
 }
@@ -820,11 +869,8 @@ static void PrintUsage() {
 "   --dependencies=<output-file>  Generates a Makefile with snapshot output  \n"
 "                                 files as targets and all transitive imports\n"
 "                                 as sources.                                \n"
-"                                                                            \n"
-" To discover dependencies without generating a snapshot:                    \n"
-"   --snapshot_kind=none                                                     \n"
-"   --dependencies=<output-file>                                             \n"
-"   <dart-script-file>                                                       \n"
+"   --print_dependencies          Prints all transitive imports to stdout.   \n"
+"   --dependencies_only           Don't create and output the snapshot.      \n"
 "                                                                            \n"
 " To create a core snapshot:                                                 \n"
 "   --snapshot_kind=core                                                     \n"
@@ -1550,7 +1596,7 @@ int main(int argc, char** argv) {
     const bool is_kernel_file =
         TryReadKernel(app_script_name, &kernel, &kernel_length);
 
-    if (dependencies_filename != NULL) {
+    if ((dependencies_filename != NULL) || print_dependencies) {
       isolate_data->set_dependencies(new MallocGrowableArray<char*>());
     }
 
@@ -1613,21 +1659,21 @@ int main(int argc, char** argv) {
     result = Dart_FinalizeLoading(false);
     CHECK_RESULT(result);
 
-    switch (snapshot_kind) {
-      case kNone:
-        break;
-      case kCore:
-        CreateAndWriteCoreSnapshot();
-        break;
-      case kScript:
-        CreateAndWriteScriptSnapshot();
-        break;
-      case kAppAOTBlobs:
-      case kAppAOTAssembly:
-        CreateAndWritePrecompiledSnapshot(entry_points);
-        break;
-      default:
-        UNREACHABLE();
+    if (!dependencies_only) {
+      switch (snapshot_kind) {
+        case kCore:
+          CreateAndWriteCoreSnapshot();
+          break;
+        case kScript:
+          CreateAndWriteScriptSnapshot();
+          break;
+        case kAppAOTBlobs:
+        case kAppAOTAssembly:
+          CreateAndWritePrecompiledSnapshot(entry_points);
+          break;
+        default:
+          UNREACHABLE();
+      }
     }
 
     CreateAndWriteDependenciesFile();

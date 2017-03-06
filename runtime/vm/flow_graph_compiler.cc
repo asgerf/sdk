@@ -161,13 +161,13 @@ bool FlowGraphCompiler::ShouldInlineSmiStringHashCode(const ICData& ic_data) {
     return false;
   }
   // Precompiled code has no ICData, optimistically inline it.
-  if (ic_data.IsNull() || (ic_data.NumberOfChecks() == 0)) {
+  if (ic_data.IsNull() || ic_data.NumberOfChecksIs(0)) {
     return true;
   }
   // Check if OneByteString is hot enough.
   const ICData& ic_data_sorted =
       ICData::Handle(ic_data.AsUnaryClassChecksSortedByCount());
-  ASSERT(ic_data_sorted.NumberOfChecks() > 0);
+  ASSERT(!ic_data_sorted.NumberOfChecksIs(0));
   if (ic_data_sorted.GetReceiverClassIdAt(0) == kOneByteStringCid) {
     const intptr_t total_count = ic_data_sorted.AggregateCount();
     const intptr_t ratio = (ic_data_sorted.GetCountAt(0) * 100) / total_count;
@@ -333,7 +333,7 @@ bool FlowGraphCompiler::CanOptimizeFunction() const {
 
 
 bool FlowGraphCompiler::CanOSRFunction() const {
-  return FLAG_use_osr & CanOptimizeFunction() && !is_optimizing();
+  return isolate()->use_osr() && CanOptimizeFunction() && !is_optimizing();
 }
 
 
@@ -671,10 +671,13 @@ void FlowGraphCompiler::GenerateDeferredCode() {
 void FlowGraphCompiler::AddExceptionHandler(intptr_t try_index,
                                             intptr_t outer_try_index,
                                             intptr_t pc_offset,
+                                            TokenPosition token_pos,
+                                            bool is_generated,
                                             const Array& handler_types,
                                             bool needs_stacktrace) {
   exception_handlers_list_->AddHandler(try_index, outer_try_index, pc_offset,
-                                       handler_types, needs_stacktrace);
+                                       token_pos, is_generated, handler_types,
+                                       needs_stacktrace);
 }
 
 
@@ -1081,7 +1084,7 @@ bool FlowGraphCompiler::TryIntrinsify() {
       if (field.is_instance() &&
           (FLAG_precompiled_mode || !IsPotentialUnboxedField(field))) {
         GenerateInlinedGetter(field.Offset());
-        return !FLAG_use_field_guards;
+        return !isolate()->use_field_guards();
       }
       return false;
     }
@@ -1094,7 +1097,7 @@ bool FlowGraphCompiler::TryIntrinsify() {
       if (field.is_instance() &&
           (FLAG_precompiled_mode || field.guarded_cid() == kDynamicCid)) {
         GenerateInlinedSetter(field.Offset());
-        return !FLAG_use_field_guards;
+        return !isolate()->use_field_guards();
       }
       return false;
     }
@@ -1746,6 +1749,36 @@ void FlowGraphCompiler::BeginCodeSourceRange() {
 void FlowGraphCompiler::EndCodeSourceRange(TokenPosition token_pos) {
   code_source_map_builder_->EndCodeSourceRange(assembler()->CodeSize(),
                                                token_pos);
+}
+
+
+const ICData& FlowGraphCompiler::TrySpecializeICDataByReceiverCid(
+    const ICData& ic_data,
+    intptr_t cid) {
+  Zone* zone = Thread::Current()->zone();
+  if (ic_data.NumArgsTested() != 1) return ic_data;
+
+  if ((ic_data.NumberOfUsedChecks() == 1) && ic_data.HasReceiverClassId(cid)) {
+    return ic_data;  // Nothing to do
+  }
+
+  intptr_t count = 1;
+  const Function& function =
+      Function::Handle(zone, ic_data.GetTargetForReceiverClassId(cid, &count));
+  // TODO(fschneider): Try looking up the function on the class if it is
+  // not found in the ICData.
+  if (!function.IsNull()) {
+    const ICData& new_ic_data = ICData::ZoneHandle(
+        zone, ICData::New(Function::Handle(zone, ic_data.Owner()),
+                          String::Handle(zone, ic_data.target_name()),
+                          Object::empty_array(),  // Dummy argument descriptor.
+                          ic_data.deopt_id(), ic_data.NumArgsTested(), false));
+    new_ic_data.SetDeoptReasons(ic_data.DeoptReasons());
+    new_ic_data.AddReceiverCheck(cid, function, count);
+    return new_ic_data;
+  }
+
+  return ic_data;
 }
 
 

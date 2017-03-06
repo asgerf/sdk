@@ -1469,7 +1469,9 @@ class IndirectEntryInstr : public JoinEntryInstr {
 
 class CatchBlockEntryInstr : public BlockEntryInstr {
  public:
-  CatchBlockEntryInstr(intptr_t block_id,
+  CatchBlockEntryInstr(TokenPosition handler_token_pos,
+                       bool is_generated,
+                       intptr_t block_id,
                        intptr_t try_index,
                        GraphEntryInstr* graph_entry,
                        const Array& handler_types,
@@ -1487,7 +1489,9 @@ class CatchBlockEntryInstr : public BlockEntryInstr {
         exception_var_(exception_var),
         stacktrace_var_(stacktrace_var),
         needs_stacktrace_(needs_stacktrace),
-        should_restore_closure_context_(should_restore_closure_context) {
+        should_restore_closure_context_(should_restore_closure_context),
+        handler_token_pos_(handler_token_pos),
+        is_generated_(is_generated) {
     deopt_id_ = deopt_id;
   }
 
@@ -1507,6 +1511,9 @@ class CatchBlockEntryInstr : public BlockEntryInstr {
   const LocalVariable& stacktrace_var() const { return stacktrace_var_; }
 
   bool needs_stacktrace() const { return needs_stacktrace_; }
+
+  bool is_generated() const { return is_generated_; }
+  TokenPosition handler_token_pos() const { return handler_token_pos_; }
 
   // Returns try index for the try block to which this catch handler
   // corresponds.
@@ -1541,6 +1548,8 @@ class CatchBlockEntryInstr : public BlockEntryInstr {
   const LocalVariable& stacktrace_var_;
   const bool needs_stacktrace_;
   const bool should_restore_closure_context_;
+  TokenPosition handler_token_pos_;
+  bool is_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(CatchBlockEntryInstr);
 };
@@ -2742,6 +2751,8 @@ class InstanceCallInstr : public TemplateDefinition<0, Throws> {
 
   virtual bool CanDeoptimize() const { return true; }
 
+  virtual Definition* Canonicalize(FlowGraph* flow_graph);
+
   virtual bool CanBecomeDeoptimizationTarget() const {
     // Instance calls that are specialized by the optimizer need a
     // deoptimization descriptor before the call.
@@ -2782,7 +2793,7 @@ class PolymorphicInstanceCallInstr : public TemplateDefinition<0, Throws> {
         with_checks_(with_checks),
         complete_(complete) {
     ASSERT(instance_call_ != NULL);
-    ASSERT(ic_data.NumberOfChecks() > 0);
+    ASSERT(!ic_data.NumberOfChecksIs(0));
   }
 
   InstanceCallInstr* instance_call() const { return instance_call_; }

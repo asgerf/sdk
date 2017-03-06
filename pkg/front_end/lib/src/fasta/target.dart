@@ -4,14 +4,9 @@
 
 library fasta.target;
 
-import 'dart:async' show
-    Future;
+import 'dart:async' show Future;
 
-import 'ticker.dart' show
-    Ticker;
-
-import 'ast_kind.dart' show
-    AstKind;
+import 'ticker.dart' show Ticker;
 
 /// A compilation target.
 ///
@@ -26,7 +21,7 @@ abstract class Target {
   void read(Uri uri);
 
   /// Write the resulting program in the file [uri].
-  Future writeProgram(Uri uri, AstKind astKind);
+  Future writeProgram(Uri uri);
 
   /// Write the resulting outline in the file [uri].
   Future writeOutline(Uri uri);

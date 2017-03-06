@@ -4,91 +4,98 @@
 
 library fasta.kernel_class_builder;
 
-import 'package:kernel/ast.dart' show
-    Class,
-    DartType,
-    Expression,
-    ExpressionStatement,
-    Field,
-    InterfaceType,
-    ListLiteral,
-    Member,
-    Name,
-    StaticGet,
-    StringLiteral,
-    Supertype,
-    Throw;
+import 'package:kernel/ast.dart'
+    show
+        Class,
+        DartType,
+        Expression,
+        ExpressionStatement,
+        Field,
+        InterfaceType,
+        ListLiteral,
+        Member,
+        Name,
+        StaticGet,
+        StringLiteral,
+        Supertype,
+        Throw;
 
-import '../errors.dart' show
-    internalError;
+import '../errors.dart' show internalError;
 
-import '../messages.dart' show
-    warning;
+import '../messages.dart' show warning;
 
-import 'kernel_builder.dart' show
-    Builder,
-    ClassBuilder,
-    ConstructorReferenceBuilder,
-    KernelLibraryBuilder,
-    KernelProcedureBuilder,
-    KernelTypeBuilder,
-    LibraryBuilder,
-    MetadataBuilder,
-    ProcedureBuilder,
-    TypeVariableBuilder,
-    computeDefaultTypeArguments;
+import 'kernel_builder.dart'
+    show
+        Builder,
+        ClassBuilder,
+        ConstructorReferenceBuilder,
+        KernelLibraryBuilder,
+        KernelProcedureBuilder,
+        KernelTypeBuilder,
+        LibraryBuilder,
+        MetadataBuilder,
+        ProcedureBuilder,
+        TypeVariableBuilder,
+        computeDefaultTypeArguments;
 
-import '../dill/dill_member_builder.dart' show
-    DillMemberBuilder;
+import '../dill/dill_member_builder.dart' show DillMemberBuilder;
 
-import 'redirecting_factory_body.dart' show
-    RedirectingFactoryBody;
+import 'redirecting_factory_body.dart' show RedirectingFactoryBody;
 
 abstract class KernelClassBuilder
     extends ClassBuilder<KernelTypeBuilder, InterfaceType> {
   KernelClassBuilder(
-      List<MetadataBuilder> metadata, int modifiers,
-      String name, List<TypeVariableBuilder> typeVariables,
-      KernelTypeBuilder supertype, List<KernelTypeBuilder> interfaces,
-      Map<String, Builder> members, LibraryBuilder parent, int charOffset)
+      List<MetadataBuilder> metadata,
+      int modifiers,
+      String name,
+      List<TypeVariableBuilder> typeVariables,
+      KernelTypeBuilder supertype,
+      List<KernelTypeBuilder> interfaces,
+      Map<String, Builder> members,
+      LibraryBuilder parent,
+      int charOffset)
       : super(metadata, modifiers, name, typeVariables, supertype, interfaces,
-          members, parent, charOffset);
+            members, parent, charOffset);
 
   Class get cls;
 
   Class get target => cls;
 
   /// [arguments] have already been built.
-  InterfaceType buildTypesWithBuiltArguments(List<DartType> arguments) {
+  InterfaceType buildTypesWithBuiltArguments(
+      LibraryBuilder library, List<DartType> arguments) {
     return arguments == null
         ? cls.rawType
-        : new InterfaceType(cls,
+        : new InterfaceType(
+            cls,
             // TODO(ahe): Not sure what to do if `arguments.length !=
             // cls.typeParameters.length`.
             computeDefaultTypeArguments(cls.typeParameters, arguments));
   }
 
-  InterfaceType buildType(List<KernelTypeBuilder> arguments) {
+  InterfaceType buildType(
+      LibraryBuilder library, List<KernelTypeBuilder> arguments) {
     List<DartType> typeArguments;
     if (arguments != null) {
       typeArguments = <DartType>[];
       for (KernelTypeBuilder builder in arguments) {
-        DartType type = builder.build();
+        DartType type = builder.build(library);
         if (type == null) {
           internalError("Bad type: ${builder.runtimeType}");
         }
         typeArguments.add(type);
       }
     }
-    return buildTypesWithBuiltArguments(typeArguments);
+    return buildTypesWithBuiltArguments(library, typeArguments);
   }
 
-  Supertype buildSupertype(List<KernelTypeBuilder> arguments) {
+  Supertype buildSupertype(
+      LibraryBuilder library, List<KernelTypeBuilder> arguments) {
     List<DartType> typeArguments;
     if (arguments != null) {
       typeArguments = <DartType>[];
       for (KernelTypeBuilder builder in arguments) {
-        DartType type = builder.build();
+        DartType type = builder.build(library);
         if (type == null) {
           internalError("Bad type: ${builder.runtimeType}");
         }
@@ -136,8 +143,8 @@ abstract class KernelClassBuilder
     return count;
   }
 
-  void addRedirectingConstructor(KernelProcedureBuilder constructor,
-      KernelLibraryBuilder library) {
+  void addRedirectingConstructor(
+      KernelProcedureBuilder constructor, KernelLibraryBuilder library) {
     // Add a new synthetic field to this class for representing factory
     // constructors. This is used to support resolving such constructors in
     // source code.
@@ -154,15 +161,16 @@ abstract class KernelClassBuilder
         members.putIfAbsent("_redirecting#", () {
       ListLiteral literal = new ListLiteral(<Expression>[]);
       Name name = new Name("_redirecting#", library.library);
-      Field field = new Field(name, isStatic: true,
-          initializer: literal, fileUri: cls.fileUri)
-          ..fileOffset = cls.fileOffset;
+      Field field = new Field(name,
+          isStatic: true,
+          initializer: literal,
+          fileUri: cls.fileUri)..fileOffset = cls.fileOffset;
       cls.addMember(field);
       return new DillMemberBuilder(field, this);
     });
     Field field = constructorsField.target;
     ListLiteral literal = field.initializer;
-    literal.expressions.add(
-        new StaticGet(constructor.target)..parent = literal);
+    literal.expressions
+        .add(new StaticGet(constructor.target)..parent = literal);
   }
 }

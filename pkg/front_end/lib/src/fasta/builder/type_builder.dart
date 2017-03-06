@@ -4,18 +4,14 @@
 
 library fasta.type_builder;
 
-import 'builder.dart' show
-    Builder,
-    TypeDeclarationBuilder,
-    TypeVariableBuilder;
+import 'builder.dart'
+    show Builder, LibraryBuilder, TypeDeclarationBuilder, TypeVariableBuilder;
 
-import 'scope.dart' show
-    Scope;
+import 'scope.dart' show Scope;
 
 // TODO(ahe): Make const class.
 abstract class TypeBuilder extends Builder {
-  TypeBuilder(int charOffset, Uri fileUri)
-      : super(null, charOffset, fileUri);
+  TypeBuilder(int charOffset, Uri fileUri) : super(null, charOffset, fileUri);
 
   void resolveIn(Scope scope);
 
@@ -32,5 +28,5 @@ abstract class TypeBuilder extends Builder {
 
   TypeBuilder subst(Map<TypeVariableBuilder, TypeBuilder> substitution) => this;
 
-  build();
+  build(LibraryBuilder library);
 }

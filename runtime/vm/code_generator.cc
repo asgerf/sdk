@@ -398,17 +398,16 @@ static void UpdateTypeTestCache(
   }
   const Class& instance_class = Class::Handle(instance.clazz());
   Object& instance_class_id_or_function = Object::Handle();
+  TypeArguments& instance_type_arguments = TypeArguments::Handle();
   if (instance_class.IsClosureClass()) {
     instance_class_id_or_function = Closure::Cast(instance).function();
+    instance_type_arguments = Closure::Cast(instance).instantiator();
   } else {
     instance_class_id_or_function = Smi::New(instance_class.id());
+    if (instance_class.NumTypeArguments() > 0) {
+      instance_type_arguments = instance.GetTypeArguments();
+    }
   }
-  TypeArguments& instance_type_arguments = TypeArguments::Handle();
-  if (instance_class.IsClosureClass() ||
-      (instance_class.NumTypeArguments() > 0)) {
-    instance_type_arguments = instance.GetTypeArguments();
-  }
-
   const intptr_t len = new_cache.NumberOfChecks();
   if (len >= FLAG_max_subtype_cache_entries) {
     return;
@@ -939,7 +938,7 @@ DEFINE_RUNTIME_ENTRY(StaticCallMissHandlerOneArg, 2) {
   const Instance& arg = Instance::CheckedHandle(arguments.ArgAt(0));
   const ICData& ic_data = ICData::CheckedHandle(arguments.ArgAt(1));
   // IC data for static call is prepopulated with the statically known target.
-  ASSERT(ic_data.NumberOfChecks() == 1);
+  ASSERT(ic_data.NumberOfChecksIs(1));
   const Function& target = Function::Handle(ic_data.GetTargetAt(0));
   if (!target.HasCode()) {
     const Error& error =
@@ -971,7 +970,7 @@ DEFINE_RUNTIME_ENTRY(StaticCallMissHandlerTwoArgs, 3) {
   const Instance& arg1 = Instance::CheckedHandle(arguments.ArgAt(1));
   const ICData& ic_data = ICData::CheckedHandle(arguments.ArgAt(2));
   // IC data for static call is prepopulated with the statically known target.
-  ASSERT(ic_data.NumberOfChecks() > 0);
+  ASSERT(!ic_data.NumberOfChecksIs(0));
   const Function& target = Function::Handle(ic_data.GetTargetAt(0));
   if (!target.HasCode()) {
     const Error& error =
@@ -1311,9 +1310,9 @@ DEFINE_RUNTIME_ENTRY(MegamorphicCacheMissHandler, 3) {
 
   if (ic_data_or_cache.IsICData()) {
     const ICData& ic_data = ICData::Cast(ic_data_or_cache);
+    const intptr_t number_of_checks = ic_data.NumberOfChecks();
 
-    if ((ic_data.NumberOfChecks() == 0) &&
-        !target_function.HasOptionalParameters() &&
+    if (number_of_checks == 0 && !target_function.HasOptionalParameters() &&
         !Isolate::Current()->compilation_allowed()) {
       // This call site is unlinked: transition to a monomorphic direct call.
       // Note we cannot do this if the target has optional parameters because
@@ -1346,7 +1345,7 @@ DEFINE_RUNTIME_ENTRY(MegamorphicCacheMissHandler, 3) {
                                          expected_cid, target_code);
     } else {
       ic_data.AddReceiverCheck(receiver.GetClassId(), target_function);
-      if (ic_data.NumberOfChecks() > FLAG_max_polymorphic_checks) {
+      if (number_of_checks > FLAG_max_polymorphic_checks) {
         // Switch to megamorphic call.
         const MegamorphicCache& cache = MegamorphicCache::Handle(
             zone, MegamorphicCacheTable::Lookup(isolate, name, descriptor));
@@ -1669,7 +1668,7 @@ DEFINE_RUNTIME_ENTRY(StackOverflow, 0) {
   }
 
   if ((stack_overflow_flags & Thread::kOsrRequest) != 0) {
-    ASSERT(FLAG_use_osr);
+    ASSERT(isolate->use_osr());
     DartFrameIterator iterator;
     StackFrame* frame = iterator.NextFrame();
     ASSERT(frame != NULL);

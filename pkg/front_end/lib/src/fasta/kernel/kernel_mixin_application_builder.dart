@@ -4,30 +4,26 @@
 
 library fasta.kernel_mixin_application_builder;
 
-import 'package:kernel/ast.dart' show
-    InterfaceType,
-    Supertype,
-    setParents;
+import 'package:kernel/ast.dart' show InterfaceType, Supertype, setParents;
 
-import '../modifier.dart' show
-    abstractMask;
+import '../modifier.dart' show abstractMask;
 
-import 'kernel_builder.dart' show
-    Builder,
-    ConstructorReferenceBuilder,
-    KernelLibraryBuilder,
-    KernelNamedTypeBuilder,
-    KernelTypeBuilder,
-    KernelTypeVariableBuilder,
-    MixinApplicationBuilder,
-    TypeBuilder,
-    TypeVariableBuilder;
+import 'kernel_builder.dart'
+    show
+        Builder,
+        ConstructorReferenceBuilder,
+        KernelLibraryBuilder,
+        KernelNamedTypeBuilder,
+        KernelTypeBuilder,
+        KernelTypeVariableBuilder,
+        LibraryBuilder,
+        MixinApplicationBuilder,
+        TypeBuilder,
+        TypeVariableBuilder;
 
-import '../util/relativize.dart' show
-    relativizeUri;
+import '../util/relativize.dart' show relativizeUri;
 
-import '../source/source_class_builder.dart' show
-    SourceClassBuilder;
+import '../source/source_class_builder.dart' show SourceClassBuilder;
 
 class KernelMixinApplicationBuilder
     extends MixinApplicationBuilder<KernelTypeBuilder>
@@ -50,15 +46,17 @@ class KernelMixinApplicationBuilder
         relativeFileUri = relativizeUri(fileUri),
         super(supertype, mixins, charOffset, fileUri);
 
-  InterfaceType build() => buildSupertype().asInterfaceType;
+  InterfaceType build(LibraryBuilder library) {
+    return buildSupertype(library)?.asInterfaceType;
+  }
 
-  Supertype buildSupertype() {
+  Supertype buildSupertype(LibraryBuilder library) {
     if (builtType != null) return builtType;
     KernelTypeBuilder s = this.supertype;
     for (KernelTypeBuilder builder in mixins) {
       s = applyMixin(s, builder);
     }
-    builtType = s.buildSupertype();
+    builtType = s.buildSupertype(library);
     return builtType;
   }
 

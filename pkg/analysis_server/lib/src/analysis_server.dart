@@ -1253,18 +1253,14 @@ class AnalysisServer {
     }
     if (options.enableNewAnalysisDriver) {
       this.analysisServices = subscriptions;
-      Iterable<nd.AnalysisDriver> drivers = driverMap.values;
-      if (drivers.isNotEmpty) {
-        Set<String> allNewFiles =
-            subscriptions.values.expand((files) => files).toSet();
-        for (String file in allNewFiles) {
-          nd.AnalysisDriver driver = drivers.firstWhere(
-              (driver) => driver.addedFiles.contains(file),
-              orElse: () => drivers.first);
-          // The result will be produced by the "results" stream with
-          // the fully resolved unit, and processed with sending analysis
-          // notifications as it happens after content changes.
-          driver.getResult(file).catchError((exception, stackTrace) {});
+      Set<String> allNewFiles =
+          subscriptions.values.expand((files) => files).toSet();
+      for (String file in allNewFiles) {
+        // The result will be produced by the "results" stream with
+        // the fully resolved unit, and processed with sending analysis
+        // notifications as it happens after content changes.
+        if (AnalysisEngine.isDartFileName(file)) {
+          getAnalysisResult(file);
         }
       }
       return;
@@ -1868,14 +1864,18 @@ class ServerContextManagerCallbacks extends ContextManagerCallbacks {
       NotificationManager notificationManager =
           analysisServer.notificationManager;
       String path = result.path;
-      if (notificationManager != null) {
-        notificationManager.recordAnalysisErrors(
-            NotificationManager.serverId,
-            path,
-            server.doAnalysisError_listFromEngine(
-                result.driver.analysisOptions, result.lineInfo, result.errors));
-      } else {
-        new_sendErrorNotification(analysisServer, result);
+      if (analysisServer.shouldSendErrorsNotificationFor(path)) {
+        if (notificationManager != null) {
+          notificationManager.recordAnalysisErrors(
+              NotificationManager.serverId,
+              path,
+              server.doAnalysisError_listFromEngine(
+                  result.driver.analysisOptions,
+                  result.lineInfo,
+                  result.errors));
+        } else {
+          new_sendErrorNotification(analysisServer, result);
+        }
       }
       CompilationUnit unit = result.unit;
       if (unit != null) {

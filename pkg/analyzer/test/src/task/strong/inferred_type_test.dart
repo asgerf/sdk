@@ -696,6 +696,26 @@ main() {
         'C<dynamic>');
   }
 
+  test_constructors_inferFromArguments_argumentNotAssignable() async {
+    var unit = await checkFileElement('''
+class A {}
+
+typedef T F<T>();
+
+class C<T extends A> {
+  C(F<T> f);
+}
+
+class NotA {}
+NotA myF() => null;
+
+var V = /*info:INFERRED_TYPE_ALLOCATION*/new
+          /*error:COULD_NOT_INFER*/C(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/myF);
+''');
+    var vars = unit.topLevelVariables;
+    expect(vars[0].type.toString(), 'C<A>');
+  }
+
   test_constructors_inferFromArguments_const() async {
     var unit = await checkFileElement('''
 class C<T> {
@@ -3568,6 +3588,19 @@ var f = /*warning:UNSAFE_BLOCK_CLOSURE_INFERENCE,
 ''');
     var f = mainUnit.topLevelVariables[0];
     expect(f.type.toString(), '() → Null');
+  }
+
+  test_inferredType_cascade() async {
+    var mainUnit = await checkFileElement('''
+class A {
+  int a;
+  List<int> b;
+  void m() {}
+}
+var v = new A()..a = 1..b.add(2)..m();
+''');
+    var v = mainUnit.topLevelVariables[0];
+    expect(v.type.toString(), 'A');
   }
 
   test_inferredType_customBinaryOp() async {

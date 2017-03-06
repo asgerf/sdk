@@ -739,12 +739,25 @@ class Driver implements CommandLineStarter {
       }
     }
 
+    String contextRoot;
+    if (options.sourceFiles.isEmpty) {
+      contextRoot = path.current;
+    } else {
+      contextRoot = options.sourceFiles[0];
+      if (!path.isAbsolute(contextRoot)) {
+        contextRoot = path.absolute(contextRoot);
+      }
+    }
+
+    void verbosePrint(String text) {
+      outSink.writeln(text);
+    }
+
     AnalysisOptionsImpl contextOptions = new ContextBuilder(
             resourceProvider, null, null,
             options: options.contextBuilderOptions)
-        .getAnalysisOptions(options.sourceFiles.isNotEmpty
-            ? options.sourceFiles[0]
-            : path.current);
+        .getAnalysisOptions(contextRoot,
+            verbosePrint: options.verbose ? verbosePrint : null);
 
     contextOptions.trackCacheDependencies = false;
     contextOptions.disableCacheFlushing = options.disableCacheFlushing;

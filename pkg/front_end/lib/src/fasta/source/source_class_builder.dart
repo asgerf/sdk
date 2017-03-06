@@ -4,38 +4,32 @@
 
 library fasta.source_class_builder;
 
-import 'package:kernel/ast.dart' show
-    Class,
-    Constructor,
-    Supertype,
-    TreeNode,
-    setParents;
+import 'package:kernel/ast.dart'
+    show Class, Constructor, Supertype, TreeNode, setParents;
 
-import '../errors.dart' show
-    internalError;
+import '../errors.dart' show internalError;
 
-import '../kernel/kernel_builder.dart' show
-    Builder,
-    ConstructorReferenceBuilder,
-    KernelClassBuilder,
-    KernelFieldBuilder,
-    KernelFunctionBuilder,
-    KernelLibraryBuilder,
-    KernelTypeBuilder,
-    KernelTypeVariableBuilder,
-    LibraryBuilder,
-    MetadataBuilder,
-    ProcedureBuilder,
-    TypeVariableBuilder;
+import '../kernel/kernel_builder.dart'
+    show
+        Builder,
+        ConstructorReferenceBuilder,
+        KernelClassBuilder,
+        KernelFieldBuilder,
+        KernelFunctionBuilder,
+        KernelLibraryBuilder,
+        KernelTypeBuilder,
+        KernelTypeVariableBuilder,
+        LibraryBuilder,
+        MetadataBuilder,
+        ProcedureBuilder,
+        TypeVariableBuilder;
 
-import '../dill/dill_member_builder.dart' show
-    DillMemberBuilder;
+import '../dill/dill_member_builder.dart' show DillMemberBuilder;
 
-import '../util/relativize.dart' show
-    relativizeUri;
+import '../util/relativize.dart' show relativizeUri;
 
-Class initializeClass(Class cls, String name, LibraryBuilder parent,
-    int charOffset) {
+Class initializeClass(
+    Class cls, String name, LibraryBuilder parent, int charOffset) {
   cls ??= new Class(name: name);
   cls.fileUri ??= relativizeUri(parent.fileUri);
   if (cls.fileOffset != TreeNode.noOffset) {
@@ -55,11 +49,19 @@ class SourceClassBuilder extends KernelClassBuilder {
 
   final KernelTypeBuilder mixedInType;
 
-  SourceClassBuilder(List<MetadataBuilder> metadata, int modifiers,
-      String name, List<TypeVariableBuilder> typeVariables,
-      KernelTypeBuilder supertype, List<KernelTypeBuilder> interfaces,
-      Map<String, Builder> members, LibraryBuilder parent,
-      this.constructorReferences, int charOffset, [Class cls, this.mixedInType])
+  SourceClassBuilder(
+      List<MetadataBuilder> metadata,
+      int modifiers,
+      String name,
+      List<TypeVariableBuilder> typeVariables,
+      KernelTypeBuilder supertype,
+      List<KernelTypeBuilder> interfaces,
+      Map<String, Builder> members,
+      LibraryBuilder parent,
+      this.constructorReferences,
+      int charOffset,
+      [Class cls,
+      this.mixedInType])
       : cls = initializeClass(cls, name, parent, charOffset),
         membersInScope = computeMembersInScope(members),
         constructors = computeConstructors(members),
@@ -83,27 +85,28 @@ class SourceClassBuilder extends KernelClassBuilder {
       if (builder is KernelFieldBuilder) {
         // TODO(ahe): It would be nice to have a common interface for the build
         // method to avoid duplicating these two cases.
-        cls.addMember(builder.build(library.library));
+        cls.addMember(builder.build(library));
       } else if (builder is KernelFunctionBuilder) {
-        cls.addMember(builder.build(library.library));
+        cls.addMember(builder.build(library));
       } else {
         internalError("Unhandled builder: ${builder.runtimeType}");
       }
     }
+
     members.forEach((String name, Builder builder) {
       do {
         buildBuilder(builder);
         builder = builder.next;
       } while (builder != null);
     });
-    cls.supertype = supertype?.buildSupertype();
-    cls.mixedInType = mixedInType?.buildSupertype();
+    cls.supertype = supertype?.buildSupertype(library);
+    cls.mixedInType = mixedInType?.buildSupertype(library);
     // TODO(ahe): If `cls.supertype` is null, and this isn't Object, report a
     // compile-time error.
     cls.isAbstract = isAbstract;
     if (interfaces != null) {
       for (KernelTypeBuilder interface in interfaces) {
-        Supertype supertype = interface.buildSupertype();
+        Supertype supertype = interface.buildSupertype(library);
         if (supertype != null) {
           // TODO(ahe): Report an error if supertype is null.
           cls.implementedTypes.add(supertype);

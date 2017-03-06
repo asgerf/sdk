@@ -301,12 +301,6 @@ class TestOptionsParser {
           'no-tree-shake', 'Disable kernel IR tree shaking', ['--no-tree-shake'], [], false,
           type: 'bool'),
       new _TestOptionSpecification(
-          'noDFE', 'Do not use Kernel Isolate', ['--no-dfe'], [], false,
-          type: 'bool'),
-      new _TestOptionSpecification(
-          'useFasta', 'Use Fasta in Kernel Isolate', ['--use-fasta'], [], false,
-          type: 'bool'),
-      new _TestOptionSpecification(
           'list', 'List tests only, do not run them', ['--list'], [], false,
           type: 'bool'),
       new _TestOptionSpecification(
@@ -378,7 +372,7 @@ Note: currently only implemented for dart2js.''',
       new _TestOptionSpecification(
           'write_test_outcome_log',
           'Write the outcome of all tests executed to a '
-          '"${TestUtils.flakyFileName()}" file.',
+          '"${TestUtils.testOutcomeFileName()}" file.',
           ['--write-test-outcome-log'],
           [],
           false,

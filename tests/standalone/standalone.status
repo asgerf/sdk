@@ -30,7 +30,6 @@ env_test: Skip # This is testing a vm command line parsing scenario.
 
 [ $runtime == vm || $runtime == dart_precompiled ]
 package/package_isolate_test: Fail # Issue 12474
-io/observatory_test: Fail
 package/scenarios/invalid/same_package_twice_test: Pass # Issue 24119
 # This test checks that the test runner correctly detects and reports non-utf8
 # output from a test.
@@ -139,9 +138,6 @@ deferred_transitive_import_error_test: Skip # Contains intentional errors.
 dart_developer_env_test: SkipByDesign # Unsupported by dart2js
 dart_developer_disabled_env_test: SkipByDesign # Unsupported by dart2js
 
-[ $compiler == dart2js && $cps_ir && $checked ]
-*: Skip # `assert` not implemented
-
 [ $runtime == vm && ($arch == arm || $arch == arm64) ]
 io/file_stream_test: Skip # Issue 26109
 io/file_typed_data_test: Skip # Issue 26109
@@ -159,7 +155,6 @@ medium_integer_test: Pass # The test only fails at runtime, not at compilation.
 oom_error_stacktrace_test: Pass # The test only fails at runtime.
 
 [ $compiler == dart2js && $fast_startup ]
-io/observatory_test: Fail # mirrors not supported.
 io/skipping_dart2js_compilations_test: CompileTimeError # Imports dart:mirrors
 io/test_harness_analyzer_test: CompileTimeError # Imports dart:mirrors
 io/test_runner_test: CompileTimeError # Imports dart:mirrors

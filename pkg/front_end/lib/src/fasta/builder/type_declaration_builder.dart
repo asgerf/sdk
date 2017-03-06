@@ -4,14 +4,10 @@
 
 library fasta.type_declaration_builder;
 
-import 'builder.dart' show
-    Builder,
-    MetadataBuilder,
-    ModifierBuilder,
-    TypeBuilder;
+import 'builder.dart'
+    show Builder, LibraryBuilder, MetadataBuilder, ModifierBuilder, TypeBuilder;
 
-import '../util/relativize.dart' show
-    relativizeUri;
+import '../util/relativize.dart' show relativizeUri;
 
 abstract class TypeDeclarationBuilder<T extends TypeBuilder, R>
     extends ModifierBuilder {
@@ -26,18 +22,20 @@ abstract class TypeDeclarationBuilder<T extends TypeBuilder, R>
   final Uri fileUri;
   final String relativeFileUri;
 
-  TypeDeclarationBuilder(this.metadata, this.modifiers, this.name,
-      Builder parent, int charOffset, [Uri fileUri])
-    : fileUri = fileUri ?? parent?.fileUri,
-      relativeFileUri = fileUri != null
-                        ? relativizeUri(fileUri)
-                        : parent?.relativeFileUri,
-      super(parent, charOffset, fileUri ?? parent?.fileUri);
+  TypeDeclarationBuilder(
+      this.metadata, this.modifiers, this.name, this.parent, int charOffset,
+      [Uri fileUri])
+      : fileUri = fileUri ?? parent?.fileUri,
+        relativeFileUri =
+            fileUri != null ? relativizeUri(fileUri) : parent?.relativeFileUri,
+        super(parent, charOffset, fileUri ?? parent?.fileUri);
 
   bool get isTypeDeclaration => true;
 
-  R buildType(List<T> arguments);
+  bool get isTypeVariable => false;
+
+  R buildType(LibraryBuilder library, List<T> arguments);
 
   /// [arguments] have already been built.
-  R buildTypesWithBuiltArguments(List<R> arguments);
+  R buildTypesWithBuiltArguments(LibraryBuilder library, List<R> arguments);
 }

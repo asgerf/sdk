@@ -722,28 +722,27 @@ MessageHandler::MessageStatus IsolateMessageHandler::ProcessUnhandledException(
 
 void Isolate::FlagsInitialize(Dart_IsolateFlags* api_flags) {
   api_flags->version = DART_FLAGS_CURRENT_VERSION;
-  api_flags->enable_type_checks = FLAG_enable_type_checks;
-  api_flags->enable_asserts = FLAG_enable_asserts;
-  api_flags->enable_error_on_bad_type = FLAG_error_on_bad_type;
-  api_flags->enable_error_on_bad_override = FLAG_error_on_bad_override;
+#define INIT_FROM_FLAG(name, isolate_flag, flag) api_flags->isolate_flag = flag;
+  ISOLATE_FLAG_LIST(INIT_FROM_FLAG)
+#undef INIT_FROM_FLAG
 }
 
 
 void Isolate::FlagsCopyTo(Dart_IsolateFlags* api_flags) const {
   api_flags->version = DART_FLAGS_CURRENT_VERSION;
-  api_flags->enable_type_checks = type_checks();
-  api_flags->enable_asserts = asserts();
-  api_flags->enable_error_on_bad_type = error_on_bad_type();
-  api_flags->enable_error_on_bad_override = error_on_bad_override();
+#define INIT_FROM_FIELD(name, isolate_flag, flag)                              \
+  api_flags->isolate_flag = name();
+  ISOLATE_FLAG_LIST(INIT_FROM_FIELD)
+#undef INIT_FROM_FIELD
 }
 
 
 #if !defined(PRODUCT)
 void Isolate::FlagsCopyFrom(const Dart_IsolateFlags& api_flags) {
-  type_checks_ = api_flags.enable_type_checks;
-  asserts_ = api_flags.enable_asserts;
-  error_on_bad_type_ = api_flags.enable_error_on_bad_type;
-  error_on_bad_override_ = api_flags.enable_error_on_bad_override;
+#define SET_FROM_FLAG(name, isolate_flag, flag)                                \
+  name##_ = api_flags.isolate_flag;
+  ISOLATE_FLAG_LIST(SET_FROM_FLAG)
+#undef SET_FROM_FLAG
   // Leave others at defaults.
 }
 #endif  // !defined(PRODUCT)
@@ -1780,11 +1779,17 @@ void Isolate::Shutdown() {
   // TODO(5411455): For now just make sure there are no current isolates
   // as we are shutting down the isolate.
   Thread::ExitIsolate();
+
+  Dart_IsolateCleanupCallback cleanup = Isolate::CleanupCallback();
+  if (cleanup != NULL) {
+    cleanup(init_callback_data());
+  }
 }
 
 
 Dart_IsolateCreateCallback Isolate::create_callback_ = NULL;
 Dart_IsolateShutdownCallback Isolate::shutdown_callback_ = NULL;
+Dart_IsolateCleanupCallback Isolate::cleanup_callback_ = NULL;
 
 Monitor* Isolate::isolates_list_monitor_ = NULL;
 Isolate* Isolate::isolates_list_head_ = NULL;

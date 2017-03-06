@@ -16,6 +16,7 @@ import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/services/lint.dart';
 import 'package:analyzer_cli/src/driver.dart';
 import 'package:analyzer_cli/src/options.dart';
+import 'package:cli_util/cli_util.dart' show getSdkDir;
 import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
 import 'package:yaml/src/yaml_node.dart';
@@ -116,6 +117,39 @@ main() {
           path.join(testDirectory, 'data/library_and_parts/part2.dart')
         ]);
         expect(exitCode, 3);
+      });
+
+      test('bazel workspace relative path', () async {
+        // Copy to temp dir so that existing analysis options
+        // in the test directory hierarchy do not interfere
+        await withTempDirAsync((String tempDirPath) async {
+          String dartSdkPath = path.absolute(getSdkDir(<String>[]).path);
+          await recursiveCopy(
+              new Directory(path.join(testDirectory, 'data', 'bazel')),
+              tempDirPath);
+          Directory origWorkingDir = Directory.current;
+          try {
+            Directory.current = path.join(tempDirPath, 'proj');
+            Driver driver = new Driver();
+            try {
+              await driver.start([
+                path.join('lib', 'file.dart'),
+                '--dart-sdk',
+                dartSdkPath,
+              ]);
+            } catch (e) {
+              print('=== debug info ===');
+              print('dartSdkPath: $dartSdkPath');
+              print('stderr:\n${errorSink.toString()}');
+              rethrow;
+            }
+            expect(errorSink.toString(), isEmpty);
+            expect(outSink.toString(), contains('No issues found'));
+            expect(exitCode, 0);
+          } finally {
+            Directory.current = origWorkingDir;
+          }
+        });
       });
     });
 
@@ -348,7 +382,7 @@ linter:
         }
 
         test('no stats', () async {
-          await doDrive('data/test_file.dart');
+          await doDrive(path.join('data', 'test_file.dart'));
           // Should not print stat summary.
           expect(outSink.toString(), isEmpty);
           expect(errorSink.toString(), isEmpty);
@@ -358,20 +392,20 @@ linter:
         test(
             'Fails if file not found, even when --build-suppress-exit-code is given',
             () async {
-          await doDrive('data/non_existent_file.dart',
+          await doDrive(path.join('data', 'non_existent_file.dart'),
               additionalArgs: ['--build-suppress-exit-code']);
           expect(exitCode, isNot(0));
         });
 
         test('Fails if there are errors', () async {
-          await doDrive('data/file_with_error.dart');
+          await doDrive(path.join('data', 'file_with_error.dart'));
           expect(exitCode, isNot(0));
         });
 
         test(
             'Succeeds if there are errors, when --build-suppress-exit-code is given',
             () async {
-          await doDrive('data/file_with_error.dart',
+          await doDrive(path.join('data', 'file_with_error.dart'),
               additionalArgs: ['--build-suppress-exit-code']);
           expect(exitCode, 0);
         });

@@ -4,61 +4,58 @@
 
 library fasta.kernel_procedure_builder;
 
-import 'package:kernel/ast.dart' show
-    Arguments,
-    AsyncMarker,
-    Constructor,
-    ConstructorInvocation,
-    DartType,
-    DynamicType,
-    EmptyStatement,
-    Expression,
-    FunctionNode,
-    Initializer,
-    Library,
-    LocalInitializer,
-    Member,
-    Name,
-    NamedExpression,
-    Procedure,
-    ProcedureKind,
-    RedirectingInitializer,
-    Statement,
-    StaticInvocation,
-    StringLiteral,
-    SuperInitializer,
-    TypeParameter,
-    VariableDeclaration,
-    VariableGet,
-    VoidType,
-    setParents;
+import 'package:kernel/ast.dart'
+    show
+        Arguments,
+        AsyncMarker,
+        Constructor,
+        ConstructorInvocation,
+        DartType,
+        DynamicType,
+        EmptyStatement,
+        Expression,
+        FunctionNode,
+        Initializer,
+        LocalInitializer,
+        Member,
+        Name,
+        NamedExpression,
+        Procedure,
+        ProcedureKind,
+        RedirectingInitializer,
+        Statement,
+        StaticInvocation,
+        StringLiteral,
+        SuperInitializer,
+        TypeParameter,
+        VariableDeclaration,
+        VariableGet,
+        VoidType,
+        setParents;
 
-import 'package:kernel/type_algebra.dart' show
-    containsTypeVariable,
-    substitute;
+import 'package:kernel/type_algebra.dart' show containsTypeVariable, substitute;
 
-import '../errors.dart' show
-    internalError;
+import '../errors.dart' show internalError;
 
-import '../messages.dart' show
-    warning;
+import '../messages.dart' show warning;
 
-import '../loader.dart' show
-    Loader;
+import '../loader.dart' show Loader;
 
-import 'kernel_builder.dart' show
-    Builder,
-    ClassBuilder,
-    ConstructorReferenceBuilder,
-    FormalParameterBuilder,
-    KernelFormalParameterBuilder,
-    KernelLibraryBuilder,
-    KernelTypeBuilder,
-    KernelTypeVariableBuilder,
-    MetadataBuilder,
-    ProcedureBuilder,
-    TypeVariableBuilder,
-    memberError;
+import 'kernel_builder.dart'
+    show
+        Builder,
+        ClassBuilder,
+        ConstructorReferenceBuilder,
+        FormalParameterBuilder,
+        KernelFormalParameterBuilder,
+        KernelLibraryBuilder,
+        KernelTypeBuilder,
+        KernelTypeVariableBuilder,
+        LibraryBuilder,
+        MetadataBuilder,
+        ProcedureBuilder,
+        TypeVariableBuilder,
+        memberError;
 
 abstract class KernelFunctionBuilder
     extends ProcedureBuilder<KernelTypeBuilder> {
@@ -68,14 +65,18 @@ abstract class KernelFunctionBuilder
 
   Statement actualBody;
 
-  KernelFunctionBuilder(List<MetadataBuilder> metadata, int modifiers,
-      KernelTypeBuilder returnType, String name,
+  KernelFunctionBuilder(
+      List<MetadataBuilder> metadata,
+      int modifiers,
+      KernelTypeBuilder returnType,
+      String name,
       List<TypeVariableBuilder> typeVariables,
       List<FormalParameterBuilder> formals,
-      KernelLibraryBuilder compilationUnit, int charOffset,
+      KernelLibraryBuilder compilationUnit,
+      int charOffset,
       this.nativeMethodName)
       : super(metadata, modifiers, returnType, name, typeVariables, formals,
-          compilationUnit, charOffset);
+            compilationUnit, charOffset);
 
   void set body(Statement newBody) {
     if (isAbstract && newBody != null) {
@@ -92,7 +93,7 @@ abstract class KernelFunctionBuilder
 
   bool get isNative => nativeMethodName != null;
 
-  FunctionNode buildFunction() {
+  FunctionNode buildFunction(LibraryBuilder library) {
     assert(function == null);
     FunctionNode result = new FunctionNode(body, asyncMarker: asyncModifier);
     if (typeVariables != null) {
@@ -103,7 +104,7 @@ abstract class KernelFunctionBuilder
     }
     if (formals != null) {
       for (KernelFormalParameterBuilder formal in formals) {
-        VariableDeclaration parameter = formal.build();
+        VariableDeclaration parameter = formal.build(library);
         if (formal.isNamed) {
           result.namedParameters.add(parameter);
         } else {
@@ -116,7 +117,7 @@ abstract class KernelFunctionBuilder
       }
     }
     if (returnType != null) {
-      result.returnType = returnType.build();
+      result.returnType = returnType.build(library);
     }
     if (!isConstructor && !isInstanceMember && parent is ClassBuilder) {
       List<TypeParameter> typeParameters = parent.target.typeParameters;
@@ -133,6 +134,7 @@ abstract class KernelFunctionBuilder
               "Can only use type variables in instance methods.");
           return substitute(type, substitution);
         }
+
         Set<TypeParameter> set = typeParameters.toSet();
         for (VariableDeclaration parameter in result.positionalParameters) {
           if (containsTypeVariable(parameter.type, set)) {
@@ -152,7 +154,7 @@ abstract class KernelFunctionBuilder
     return function = result;
   }
 
-  Member build(Library library);
+  Member build(LibraryBuilder library);
 
   void becomeNative(Loader loader) {
     target.isExternal = true;
@@ -162,10 +164,10 @@ abstract class KernelFunctionBuilder
     Expression annotation;
     if (constructor.isConstructor) {
       annotation = new ConstructorInvocation(constructor.target, arguments)
-          ..isConst = true;
+        ..isConst = true;
     } else {
       annotation = new StaticInvocation(constructor.target, arguments)
-          ..isConst = true;
+        ..isConst = true;
     }
     target.addAnnotation(annotation);
   }
@@ -180,11 +182,17 @@ class KernelProcedureBuilder extends KernelFunctionBuilder {
 
   KernelProcedureBuilder(
       List<MetadataBuilder> metadata,
-      int modifiers, KernelTypeBuilder returnType, String name,
+      int modifiers,
+      KernelTypeBuilder returnType,
+      String name,
       List<TypeVariableBuilder> typeVariables,
-      List<FormalParameterBuilder> formals, this.actualAsyncModifier,
-      ProcedureKind kind, KernelLibraryBuilder compilationUnit, int charOffset,
-      [String nativeMethodName, this.redirectionTarget])
+      List<FormalParameterBuilder> formals,
+      this.actualAsyncModifier,
+      ProcedureKind kind,
+      KernelLibraryBuilder compilationUnit,
+      int charOffset,
+      [String nativeMethodName,
+      this.redirectionTarget])
       : procedure = new Procedure(null, kind, null,
             fileUri: compilationUnit?.relativeFileUri),
         super(metadata, modifiers, returnType, name, typeVariables, formals,
@@ -195,7 +203,9 @@ class KernelProcedureBuilder extends KernelFunctionBuilder {
   AsyncMarker get asyncModifier => actualAsyncModifier;
 
   Statement get body {
-    if (actualBody == null && redirectionTarget == null && !isAbstract &&
+    if (actualBody == null &&
+        redirectionTarget == null &&
+        !isAbstract &&
         !isExternal) {
       actualBody = new EmptyStatement();
     }
@@ -210,16 +220,16 @@ class KernelProcedureBuilder extends KernelFunctionBuilder {
     }
   }
 
-  Procedure build(Library library) {
+  Procedure build(LibraryBuilder library) {
     // TODO(ahe): I think we may call this twice on parts. Investigate.
     if (procedure.name == null) {
-      procedure.function = buildFunction();
+      procedure.function = buildFunction(library);
       procedure.function.parent = procedure;
       procedure.isAbstract = isAbstract;
       procedure.isStatic = isStatic;
       procedure.isExternal = isExternal;
       procedure.isConst = isConst;
-      procedure.name = new Name(name, library);
+      procedure.name = new Name(name, library.target);
     }
     return procedure;
   }
@@ -239,13 +249,16 @@ class KernelConstructorBuilder extends KernelFunctionBuilder {
 
   KernelConstructorBuilder(
       List<MetadataBuilder> metadata,
-      int modifiers, KernelTypeBuilder returnType, String name,
+      int modifiers,
+      KernelTypeBuilder returnType,
+      String name,
       List<TypeVariableBuilder> typeVariables,
       List<FormalParameterBuilder> formals,
-      KernelLibraryBuilder compilationUnit, int charOffset,
+      KernelLibraryBuilder compilationUnit,
+      int charOffset,
       [String nativeMethodName])
       : super(metadata, modifiers, returnType, name, typeVariables, formals,
-          compilationUnit, charOffset, nativeMethodName);
+            compilationUnit, charOffset, nativeMethodName);
 
   bool get isInstanceMember => false;
 
@@ -255,28 +268,28 @@ class KernelConstructorBuilder extends KernelFunctionBuilder {
 
   ProcedureKind get kind => null;
 
-  Constructor build(Library library) {
+  Constructor build(LibraryBuilder library) {
     if (constructor.name == null) {
-      constructor.function = buildFunction();
+      constructor.function = buildFunction(library);
       constructor.function.parent = constructor;
       constructor.isConst = isConst;
       constructor.isExternal = isExternal;
-      constructor.name = new Name(name, library);
+      constructor.name = new Name(name, library.target);
     }
     return constructor;
   }
 
-  FunctionNode buildFunction() {
+  FunctionNode buildFunction(LibraryBuilder library) {
     // TODO(ahe): Should complain if another type is explicitly set.
-    return super.buildFunction()
-        ..returnType = const VoidType();
+    return super.buildFunction(library)..returnType = const VoidType();
   }
 
   Constructor get target => constructor;
 
   void checkSuperOrThisInitializer(Initializer initializer) {
     if (superInitializer != null || redirectingInitializer != null) {
-      memberError(target,
+      memberError(
+          target,
           "Can't have more than one 'super' or 'this' initializer.",
           initializer.fileOffset);
     }
@@ -315,16 +328,16 @@ class KernelConstructorBuilder extends KernelFunctionBuilder {
         for (int i = 0; i < positional.length; i++) {
           VariableDeclaration variable =
               new VariableDeclaration.forValue(positional[i], isFinal: true);
-          initializers.add(
-              new LocalInitializer(variable)..parent = constructor);
+          initializers
+              .add(new LocalInitializer(variable)..parent = constructor);
           positional[i] = new VariableGet(variable)..parent = arguments;
         }
         for (NamedExpression named in arguments.named) {
           VariableDeclaration variable =
               new VariableDeclaration.forValue(named.value, isFinal: true);
           named.value = new VariableGet(variable)..parent = named;
-          initializers.add(
-              new LocalInitializer(variable)..parent = constructor);
+          initializers
+              .add(new LocalInitializer(variable)..parent = constructor);
         }
       }
       initializers.add(initializer..parent = constructor);

@@ -29,8 +29,10 @@ int identityHashCode(Object object) => objectHashCode(object);
 @patch
 class Object {
   @patch
-  int get hashCode => Primitives.objectHashCode(this);
+  bool operator==(other) => identical(this, other);
 
+  @patch
+  int get hashCode => Primitives.objectHashCode(this);
 
   @patch
   String toString() => Primitives.objectToString(this);
@@ -49,6 +51,12 @@ class Object {
       JS('Type', 'dart.wrapType(dart.getReifiedType(#))', this);
 }
 
+@patch
+class Null {
+  @patch
+  int get hashCode => super.hashCode;
+}
+
 // Patch for Function implementation.
 @patch
 class Function {
@@ -56,8 +64,15 @@ class Function {
   static apply(Function f,
                List positionalArguments,
                [Map<Symbol, dynamic> namedArguments]) {
-    // TODO(vsm): Handle named args:
-    // https://github.com/dart-lang/sdk/issues/27257
+    positionalArguments ??= [];
+    // dcall expects the namedArguments as a JS map in the last slot.
+    if (namedArguments != null && namedArguments.isNotEmpty) {
+      var map = JS('', '{}');
+      namedArguments.forEach((symbol, arg) {
+        JS('', '#[#] = #', map, _symbolToString(symbol), arg);
+      });
+      positionalArguments = new List.from(positionalArguments)..add(map);
+    }
     return JS('', 'dart.dcall.apply(null, [#].concat(#))', f, positionalArguments);
   }
 
@@ -147,6 +162,18 @@ class Error {
 
   @patch
   StackTrace get stackTrace => Primitives.extractStackTrace(this);
+}
+
+@patch
+class FallThroughError {
+  @patch
+  String toString() => super.toString();
+}
+
+@patch
+class AbstractClassInstantiationError {
+  @patch
+  String toString() => "Cannot instantiate abstract class: '$_className'";
 }
 
 /// An interface type for all Strong-mode errors.
@@ -420,6 +447,9 @@ class bool {
     throw new UnsupportedError(
         'bool.fromEnvironment can only be used as a const constructor');
   }
+
+  @patch
+  int get hashCode => super.hashCode;  
 }
 
 @patch
@@ -506,6 +536,18 @@ class StringBuffer {
 @patch
 class NoSuchMethodError {
   @patch
+  NoSuchMethodError(Object receiver,
+                    Symbol memberName,
+                    List positionalArguments,
+                    Map<Symbol, dynamic> namedArguments,
+                    [List existingArgumentNames = null])
+      : _receiver = receiver,
+        _memberName = memberName,
+        _arguments = positionalArguments,
+        _namedArguments = namedArguments,
+        _existingArgumentNames = existingArgumentNames;
+
+  @patch
   String toString() {
     StringBuffer sb = new StringBuffer();
     int i = 0;
@@ -554,15 +596,17 @@ class NoSuchMethodError {
 @patch
 class Uri {
   @patch
-  static bool get _isWindows => false;
-
-  @patch
   static Uri get base {
     String uri = Primitives.currentUri();
     if (uri != null) return Uri.parse(uri);
     throw new UnsupportedError("'Uri.base' is not supported");
   }
+}
 
+@patch
+class _Uri {
+  @patch
+  static bool get _isWindows => false;
 
   // Matches a String that _uriEncodes to itself regardless of the kind of
   // component.  This corresponds to [_unreservedTable], i.e. characters that
@@ -585,7 +629,7 @@ class Uri {
 
     // Encode the string into bytes then generate an ASCII only string
     // by percent encoding selected bytes.
-    StringBuffer result = new StringBuffer();
+    StringBuffer result = new StringBuffer('');
     var bytes = encoding.encode(text);
     for (int i = 0; i < bytes.length; i++) {
       int byte = bytes[i];

@@ -152,6 +152,12 @@ class Listener {
 
   void beginExpressionStatement(Token token) {}
 
+  /// Called by [ClassMemberParser] after skipping an expression as error
+  /// recovery.
+  void handleRecoverExpression(Token token) {
+    logEvent("RecoverExpression");
+  }
+
   void endExpressionStatement(Token token) {
     logEvent("ExpressionStatement");
   }
@@ -164,7 +170,8 @@ class Listener {
 
   void beginFormalParameter(Token token) {}
 
-  void endFormalParameter(Token thisKeyword, FormalParameterType kind) {
+  void endFormalParameter(
+      Token covariantKeyword, Token thisKeyword, FormalParameterType kind) {
     logEvent("FormalParameter");
   }
 
@@ -178,8 +185,15 @@ class Listener {
     logEvent("FormalParameters");
   }
 
+  /// Handle the end of a field declaration.  Substructures:
+  /// - Metadata
+  /// - Modifiers
+  /// - Type
+  /// - Variable declarations (count times)
+  ///
   /// Doesn't have a corresponding begin event, use [beginMember] instead.
-  void endFields(int count, Token beginToken, Token endToken) {
+  void endFields(
+      int count, Token covariantKeyword, Token beginToken, Token endToken) {
     logEvent("Fields");
   }
 
@@ -543,6 +557,10 @@ class Listener {
 
   void beginReturnStatement(Token token) {}
 
+  void endExpressionFunctionBody(Token arrowToken, Token endToken) {
+    logEvent("ExpressionFunctionBody");
+  }
+
   void endReturnStatement(
       bool hasExpression, Token beginToken, Token endToken) {
     logEvent("ReturnStatement");
@@ -738,7 +756,15 @@ class Listener {
 
   void beginFunctionTypedFormalParameter(Token token) {}
 
-  void endFunctionTypedFormalParameter(Token token) {
+  /// Handle the end of a function typed formal parameter.  Substructures:
+  /// - metadata
+  /// - modifiers
+  /// - return type
+  /// - parameter name (simple identifier)
+  /// - type parameters
+  /// - formal parameters
+  void endFunctionTypedFormalParameter(
+      Token covariantKeyword, Token thisKeyword, FormalParameterType kind) {
     logEvent("FunctionTypedFormalParameter");
   }
 
@@ -833,6 +859,10 @@ class Listener {
     logEvent("NoExpression");
   }
 
+  void handleNoConstructorReferenceContinuationAfterTypeArguments(Token token) {
+    logEvent("NoConstructorReferenceContinuationAfterTypeArguments");
+  }
+
   void handleNoType(Token token) {
     logEvent("NoType");
   }
@@ -845,6 +875,7 @@ class Listener {
     logEvent("Operator");
   }
 
+  /// Handle the end of a construct of the form "operator <token>".
   void handleOperatorName(Token operatorKeyword, Token token) {
     logEvent("OperatorName");
   }

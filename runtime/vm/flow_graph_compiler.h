@@ -491,6 +491,8 @@ class FlowGraphCompiler : public ValueObject {
   void AddExceptionHandler(intptr_t try_index,
                            intptr_t outer_try_index,
                            intptr_t pc_offset,
+                           TokenPosition token_pos,
+                           bool is_generated,
                            const Array& handler_types,
                            bool needs_stacktrace);
   void SetNeedsStackTrace(intptr_t try_index);
@@ -571,6 +573,9 @@ class FlowGraphCompiler : public ValueObject {
                                          const Function& target,
                                          const Array& arguments_descriptor,
                                          intptr_t num_args_tested);
+
+  static const ICData& TrySpecializeICDataByReceiverCid(const ICData& ic_data,
+                                                        intptr_t cid);
 
   const ZoneGrowableArray<const ICData*>& deopt_id_to_ic_data() const {
     return *deopt_id_to_ic_data_;

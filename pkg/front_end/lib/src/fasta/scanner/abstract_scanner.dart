@@ -4,26 +4,20 @@
 
 library fasta.scanner.abstract_scanner;
 
-import '../scanner.dart' show
-    ErrorToken,
-    Scanner,
-    buildUnexpectedCharacterToken;
+import 'dart:collection' show ListMixin;
 
-import 'error_token.dart' show
-    UnmatchedToken,
-    UnterminatedToken;
+import 'dart:typed_data' show Uint16List, Uint32List;
 
-import 'keyword.dart' show
-    KeywordState,
-    Keyword;
+import '../scanner.dart'
+    show ErrorToken, Scanner, buildUnexpectedCharacterToken;
+
+import 'error_token.dart' show UnmatchedToken, UnterminatedToken;
+
+import 'keyword.dart' show KeywordState, Keyword;
 
 import 'precedence.dart';
 
-import 'token.dart' show
-    BeginGroupToken,
-    KeywordToken,
-    SymbolToken,
-    Token;
+import 'token.dart' show BeginGroupToken, KeywordToken, SymbolToken, Token;
 
 import 'token_constants.dart';
 
@@ -55,9 +49,10 @@ abstract class AbstractScanner implements Scanner {
    */
   Token tail;
 
-  final List<int> lineStarts = <int>[0];
+  final List<int> lineStarts;
 
-  AbstractScanner(this.includeComments) {
+  AbstractScanner(this.includeComments, {int numberOfBytesHint})
+      : lineStarts = new LineStarts(numberOfBytesHint) {
     this.tail = this.tokens;
   }
 
@@ -231,17 +226,69 @@ abstract class AbstractScanner implements Scanner {
       return next;
     }
 
-    if ($a <= next && next <= $z) {
+    int nextLower = next | 0x20;
+
+    if ($a <= nextLower && nextLower <= $z) {
       if (identical($r, next)) {
         return tokenizeRawStringKeywordOrIdentifier(next);
       }
       return tokenizeKeywordOrIdentifier(next, true);
     }
 
-    if (($A <= next && next <= $Z) ||
-        identical(next, $_) ||
-        identical(next, $$)) {
+    if (identical(next, $CLOSE_PAREN)) {
+      return appendEndGroup(CLOSE_PAREN_INFO, OPEN_PAREN_TOKEN);
+    }
+
+    if (identical(next, $OPEN_PAREN)) {
+      appendBeginGroup(OPEN_PAREN_INFO);
+      return advance();
+    }
+
+    if (identical(next, $SEMICOLON)) {
+      appendPrecedenceToken(SEMICOLON_INFO);
+      // Type parameters and arguments cannot contain semicolon.
+      discardOpenLt();
+      return advance();
+    }
+
+    if (identical(next, $PERIOD)) {
+      return tokenizeDotsOrNumber(next);
+    }
+
+    if (identical(next, $COMMA)) {
+      appendPrecedenceToken(COMMA_INFO);
+      return advance();
+    }
+
+    if (identical(next, $EQ)) {
+      return tokenizeEquals(next);
+    }
+
+    if (identical(next, $CLOSE_CURLY_BRACKET)) {
+      return appendEndGroup(CLOSE_CURLY_BRACKET_INFO, OPEN_CURLY_BRACKET_TOKEN);
+    }
+
+    if (identical(next, $SLASH)) {
+      return tokenizeSlashOrComment(next);
+    }
+
+
+    if (identical(next, $OPEN_CURLY_BRACKET)) {
+      appendBeginGroup(OPEN_CURLY_BRACKET_INFO);
+      return advance();
+    }
+
+    if (identical(next, $DQ) || identical(next, $SQ)) {
+      return tokenizeString(next, scanOffset, false);
+    }
+
+    if(identical(next, $_)){
       return tokenizeKeywordOrIdentifier(next, true);
+    }
+
+    if (identical(next, $COLON)) {
+      appendPrecedenceToken(COLON_INFO);
+      return advance();
     }
 
     if (identical(next, $LT)) {
@@ -252,16 +299,49 @@ abstract class AbstractScanner implements Scanner {
       return tokenizeGreaterThan(next);
     }
 
-    if (identical(next, $EQ)) {
-      return tokenizeEquals(next);
-    }
-
     if (identical(next, $BANG)) {
       return tokenizeExclamation(next);
     }
 
+    if (identical(next, $OPEN_SQUARE_BRACKET)) {
+      return tokenizeOpenSquareBracket(next);
+    }
+
+    if (identical(next, $CLOSE_SQUARE_BRACKET)) {
+      return appendEndGroup(
+          CLOSE_SQUARE_BRACKET_INFO, OPEN_SQUARE_BRACKET_TOKEN);
+    }
+
+    if (identical(next, $AT)) {
+      return tokenizeAt(next);
+    }
+
+    if (next >= $1 && next <= $9) {
+      return tokenizeNumber(next);
+    }
+
+    if (identical(next, $AMPERSAND)) {
+      return tokenizeAmpersand(next);
+    }
+
+    if (identical(next, $0)) {
+      return tokenizeHexOrNumber(next);
+    }
+
+    if (identical(next, $QUESTION)) {
+      return tokenizeQuestion(next);
+    }
+
+    if (identical(next, $BAR)) {
+      return tokenizeBar(next);
+    }
+
     if (identical(next, $PLUS)) {
       return tokenizePlus(next);
+    }
+
+    if(identical(next, $$)){
+      return tokenizeKeywordOrIdentifier(next, true);
     }
 
     if (identical(next, $MINUS)) {
@@ -272,28 +352,21 @@ abstract class AbstractScanner implements Scanner {
       return tokenizeMultiply(next);
     }
 
-    if (identical(next, $PERCENT)) {
-      return tokenizePercent(next);
-    }
-
-    if (identical(next, $AMPERSAND)) {
-      return tokenizeAmpersand(next);
-    }
-
-    if (identical(next, $BAR)) {
-      return tokenizeBar(next);
-    }
-
     if (identical(next, $CARET)) {
       return tokenizeCaret(next);
     }
 
-    if (identical(next, $OPEN_SQUARE_BRACKET)) {
-      return tokenizeOpenSquareBracket(next);
-    }
-
     if (identical(next, $TILDE)) {
       return tokenizeTilde(next);
+    }
+
+    if (identical(next, $PERCENT)) {
+      return tokenizePercent(next);
+    }
+
+    if (identical(next, $BACKPING)) {
+      appendPrecedenceToken(BACKPING_INFO);
+      return advance();
     }
 
     if (identical(next, $BACKSLASH)) {
@@ -305,91 +378,6 @@ abstract class AbstractScanner implements Scanner {
       return tokenizeTag(next);
     }
 
-    if (identical(next, $OPEN_PAREN)) {
-      appendBeginGroup(OPEN_PAREN_INFO);
-      return advance();
-    }
-
-    if (identical(next, $CLOSE_PAREN)) {
-      return appendEndGroup(CLOSE_PAREN_INFO, OPEN_PAREN_TOKEN);
-    }
-
-    if (identical(next, $COMMA)) {
-      appendPrecedenceToken(COMMA_INFO);
-      return advance();
-    }
-
-    if (identical(next, $COLON)) {
-      appendPrecedenceToken(COLON_INFO);
-      return advance();
-    }
-
-    if (identical(next, $SEMICOLON)) {
-      appendPrecedenceToken(SEMICOLON_INFO);
-      // Type parameters and arguments cannot contain semicolon.
-      discardOpenLt();
-      return advance();
-    }
-
-    if (identical(next, $QUESTION)) {
-      return tokenizeQuestion(next);
-    }
-
-    if (identical(next, $CLOSE_SQUARE_BRACKET)) {
-      return appendEndGroup(
-          CLOSE_SQUARE_BRACKET_INFO, OPEN_SQUARE_BRACKET_TOKEN);
-    }
-
-    if (identical(next, $BACKPING)) {
-      appendPrecedenceToken(BACKPING_INFO);
-      return advance();
-    }
-
-    if (identical(next, $OPEN_CURLY_BRACKET)) {
-      appendBeginGroup(OPEN_CURLY_BRACKET_INFO);
-      return advance();
-    }
-
-    if (identical(next, $CLOSE_CURLY_BRACKET)) {
-      return appendEndGroup(CLOSE_CURLY_BRACKET_INFO, OPEN_CURLY_BRACKET_TOKEN);
-    }
-
-    if (identical(next, $SLASH)) {
-      return tokenizeSlashOrComment(next);
-    }
-
-    if (identical(next, $AT)) {
-      return tokenizeAt(next);
-    }
-
-    if (identical(next, $DQ) || identical(next, $SQ)) {
-      return tokenizeString(next, scanOffset, false);
-    }
-
-    if (identical(next, $PERIOD)) {
-      return tokenizeDotsOrNumber(next);
-    }
-
-    if (identical(next, $0)) {
-      return tokenizeHexOrNumber(next);
-    }
-
-    // TODO(ahe): Would a range check be faster?
-    if (identical(next, $1) ||
-        identical(next, $2) ||
-        identical(next, $3) ||
-        identical(next, $4) ||
-        identical(next, $5) ||
-        identical(next, $6) ||
-        identical(next, $7) ||
-        identical(next, $8) ||
-        identical(next, $9)) {
-      return tokenizeNumber(next);
-    }
-
-    if (identical(next, $EOF)) {
-      return $EOF;
-    }
     if (next < 0x1f) {
       return unexpected(next);
     }
@@ -812,7 +800,7 @@ abstract class AbstractScanner implements Scanner {
     if ($A <= next && next <= $Z) {
       state = state.nextCapital(next);
       next = advance();
-    } else if ($a <= next && next <= $z){
+    } else if ($a <= next && next <= $z) {
       // Do the first next call outside the loop to avoid an additional test
       // and to make the loop monomorphic.
       state = state.next(next);
@@ -1173,4 +1161,81 @@ PrecedenceInfo closeBraceInfoFor(BeginGroupToken begin) {
     '<': GT_INFO,
     r'${': CLOSE_CURLY_BRACKET_INFO,
   }[begin.value];
+}
+
+class LineStarts extends Object with ListMixin<int> {
+  List<int> array;
+  int arrayLength = 0;
+
+  LineStarts(int numberOfBytesHint) {
+    // Let's assume the average Dart file is 300 bytes.
+    if (numberOfBytesHint == null) numberOfBytesHint = 300;
+
+    // Let's assume we have on average 22 bytes per line.
+    final int expectedNumberOfLines = 1 + (numberOfBytesHint ~/ 22);
+
+    if (numberOfBytesHint > 65535) {
+      array = new Uint32List(expectedNumberOfLines);
+    } else {
+      array = new Uint16List(expectedNumberOfLines);
+    }
+
+    // The first line starts at character offset 0.
+    add(0);
+  }
+
+  // Implement abstract members used by [ListMixin]
+
+  int get length => arrayLength;
+
+  int operator [](int index) {
+    assert(index < arrayLength);
+    return array[index];
+  }
+
+  void set length(int newLength) {
+    if (newLength > array.length) {
+      grow(newLength);
+    }
+    arrayLength = newLength;
+  }
+
+  void operator []=(int index, int value) {
+    if (value > 65535 && array is! Uint32List) {
+      switchToUint32(array.length);
+    }
+    array[index] = value;
+  }
+
+  // Specialize methods from [ListMixin].
+  void add(int value) {
+    if (arrayLength >= array.length) {
+      grow(0);
+    }
+    if (value > 65535 && array is! Uint32List) {
+      switchToUint32(array.length);
+    }
+    array[arrayLength++] = value;
+  }
+
+  // Helper methods.
+
+  void grow(int newLengthMinimum) {
+    int newLength = array.length * 2;
+    if (newLength < newLengthMinimum) newLength = newLengthMinimum;
+
+    if (array is Uint16List) {
+      final newArray = new Uint16List(newLength);
+      newArray.setRange(0, arrayLength, array);
+      array = newArray;
+    } else {
+      switchToUint32(newLength);
+    }
+  }
+
+  void switchToUint32(int newLength) {
+    final newArray = new Uint32List(newLength);
+    newArray.setRange(0, arrayLength, array);
+    array = newArray;
+  }
 }

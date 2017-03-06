@@ -2874,6 +2874,7 @@ void CatchBlockEntryInstr::EmitNativeCode(FlowGraphCompiler* compiler) {
   __ Bind(compiler->GetJumpLabel(this));
   compiler->AddExceptionHandler(catch_try_index(), try_index(),
                                 compiler->assembler()->CodeSize(),
+                                handler_token_pos(), is_generated(),
                                 catch_handler_types_, needs_stacktrace());
   // On lazy deoptimization we patch the optimized code here to enter the
   // deoptimization stub.
@@ -2948,7 +2949,7 @@ class CheckStackOverflowSlowPath : public SlowPathCode {
       : instruction_(instruction) {}
 
   virtual void EmitNativeCode(FlowGraphCompiler* compiler) {
-    if (FLAG_use_osr && osr_entry_label()->IsLinked()) {
+    if (compiler->isolate()->use_osr() && osr_entry_label()->IsLinked()) {
       const Register value = instruction_->locs()->temp(0).reg();
       __ Comment("CheckStackOverflowSlowPathOsr");
       __ Bind(osr_entry_label());
@@ -2967,7 +2968,8 @@ class CheckStackOverflowSlowPath : public SlowPathCode {
         instruction_->token_pos(), instruction_->deopt_id(),
         kStackOverflowRuntimeEntry, 0, instruction_->locs());
 
-    if (FLAG_use_osr && !compiler->is_optimizing() && instruction_->in_loop()) {
+    if (compiler->isolate()->use_osr() && !compiler->is_optimizing() &&
+        instruction_->in_loop()) {
       // In unoptimized code, record loop stack checks as possible OSR entries.
       compiler->AddCurrentDescriptor(RawPcDescriptors::kOsrEntry,
                                      instruction_->deopt_id(),
@@ -2979,7 +2981,7 @@ class CheckStackOverflowSlowPath : public SlowPathCode {
   }
 
   Label* osr_entry_label() {
-    ASSERT(FLAG_use_osr);
+    ASSERT(Isolate::Current()->use_osr());
     return &osr_entry_label_;
   }
 
@@ -5819,7 +5821,7 @@ void DoubleToIntegerInstr::EmitNativeCode(FlowGraphCompiler* compiler) {
   __ Push(value_obj);
   ASSERT(instance_call()->HasICData());
   const ICData& ic_data = *instance_call()->ic_data();
-  ASSERT((ic_data.NumberOfChecks() == 1));
+  ASSERT(ic_data.NumberOfChecksIs(1));
   const Function& target = Function::ZoneHandle(ic_data.GetTargetAt(0));
 
   const intptr_t kNumberOfArguments = 1;

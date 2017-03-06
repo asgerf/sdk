@@ -46,6 +46,7 @@ FlowGraph::FlowGraph(const ParsedFunction& parsed_function,
       loop_headers_(NULL),
       loop_invariant_loads_(NULL),
       deferred_prefixes_(parsed_function.deferred_prefixes()),
+      await_token_positions_(NULL),
       captured_parameters_(new (zone()) BitVector(zone(), variable_count())),
       inlining_id_(-1) {
   DiscoverBlocks();
@@ -83,11 +84,15 @@ void FlowGraph::ReplaceCurrentInstruction(ForwardInstructionIterator* iterator,
     }
   }
   if (current->ArgumentCount() != 0) {
-    // This is a call instruction. Must remove original push arguments.
+    // Replacing a call instruction with something else.  Must remove
+    // superfluous push arguments.
     for (intptr_t i = 0; i < current->ArgumentCount(); ++i) {
       PushArgumentInstr* push = current->PushArgumentAt(i);
-      push->ReplaceUsesWith(push->value()->definition());
-      push->RemoveFromGraph();
+      if (replacement == NULL || i >= replacement->ArgumentCount() ||
+          replacement->PushArgumentAt(i) != push) {
+        push->ReplaceUsesWith(push->value()->definition());
+        push->RemoveFromGraph();
+      }
     }
   }
   iterator->RemoveCurrentFromGraph();

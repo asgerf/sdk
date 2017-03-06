@@ -4,12 +4,11 @@
 
 library fasta.stack_listener;
 
-import 'package:front_end/src/fasta/parser.dart' show ErrorKind, Listener;
+import '../parser.dart' show ErrorKind, Listener;
 
-import 'package:front_end/src/fasta/parser/identifier_context.dart'
-    show IdentifierContext;
+import '../parser/identifier_context.dart' show IdentifierContext;
 
-import 'package:front_end/src/fasta/scanner.dart' show BeginGroupToken, Token;
+import '../scanner.dart' show BeginGroupToken, Token;
 
 import 'package:kernel/ast.dart' show AsyncMarker;
 
@@ -26,11 +25,14 @@ enum NullValue {
   CascadeReceiver,
   Combinators,
   ConditionalUris,
+  ConstructorReferenceContinuationAfterTypeArguments,
   ContinueTarget,
   Expression,
   FieldInitializer,
   FormalParameters,
   FunctionBody,
+  FunctionBodyAsyncToken,
+  FunctionBodyStarToken,
   IdentifierList,
   Initializers,
   Metadata,
@@ -117,8 +119,11 @@ abstract class StackListener extends Listener {
 
   void checkEmpty(int charOffset) {
     if (stack.isNotEmpty) {
-      internalError("${runtimeType}: Stack not empty:\n"
-          "  ${stack.values.join('\n  ')}", uri, charOffset);
+      internalError(
+          "${runtimeType}: Stack not empty:\n"
+          "  ${stack.values.join('\n  ')}",
+          uri,
+          charOffset);
     }
     if (recoverableErrors.isNotEmpty) {
       // TODO(ahe): Handle recoverable errors better.
@@ -148,6 +153,11 @@ abstract class StackListener extends Listener {
   void handleNoTypeVariables(Token token) {
     debugEvent("NoTypeVariables");
     push(NullValue.TypeVariables);
+  }
+
+  @override
+  void handleNoConstructorReferenceContinuationAfterTypeArguments(Token token) {
+    debugEvent("NoConstructorReferenceContinuationAfterTypeArguments");
   }
 
   @override
@@ -206,6 +216,11 @@ abstract class StackListener extends Listener {
   void handleStringJuxtaposition(int literalCount) {
     debugEvent("StringJuxtaposition");
     push(popList(literalCount).join(""));
+  }
+
+  @override
+  void handleRecoverExpression(Token token) {
+    debugEvent("RecoverExpression");
   }
 
   @override

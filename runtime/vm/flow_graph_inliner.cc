@@ -922,6 +922,8 @@ class CallSiteInliner : public ValueObject {
             // before 'SelectRepresentations' which inserts conversion nodes.
             callee_graph->TryOptimizePatterns();
             DEBUG_ASSERT(callee_graph->VerifyUseLists());
+
+            callee_graph->Canonicalize();
           }
         }
 
@@ -3471,13 +3473,13 @@ bool FlowGraphInliner::TryInlineRecognizedMethod(FlowGraph* flow_graph,
       return InlineDoubleTestOp(flow_graph, call, receiver, kind, entry, last);
     case MethodRecognizer::kGrowableArraySetData:
       ASSERT(receiver_cid == kGrowableObjectArrayCid);
-      ASSERT(ic_data.NumberOfChecks() == 1);
+      ASSERT(ic_data.NumberOfChecksIs(1));
       return InlineGrowableArraySetter(
           flow_graph, GrowableObjectArray::data_offset(), kEmitStoreBarrier,
           call, receiver, entry, last);
     case MethodRecognizer::kGrowableArraySetLength:
       ASSERT(receiver_cid == kGrowableObjectArrayCid);
-      ASSERT(ic_data.NumberOfChecks() == 1);
+      ASSERT(ic_data.NumberOfChecksIs(1));
       return InlineGrowableArraySetter(
           flow_graph, GrowableObjectArray::length_offset(), kNoStoreBarrier,
           call, receiver, entry, last);

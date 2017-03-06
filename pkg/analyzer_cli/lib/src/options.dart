@@ -120,7 +120,7 @@ class CommandLineOptions {
   final bool showSdkWarnings;
 
   /// The source files to analyze
-  final List<String> sourceFiles;
+  List<String> _sourceFiles;
 
   /// Whether to treat warnings as fatal
   final bool warningsAreFatal;
@@ -173,7 +173,7 @@ class CommandLineOptions {
             args['x-package-warnings-prefix'] != null,
         showPackageWarningsPrefix = args['x-package-warnings-prefix'],
         showSdkWarnings = args['sdk-warnings'],
-        sourceFiles = args.rest,
+        _sourceFiles = args.rest,
         warningsAreFatal = args['fatal-warnings'],
         strongMode = args['strong'],
         implicitCasts = !args['no-implicit-casts'],
@@ -250,13 +250,23 @@ class CommandLineOptions {
     if (options.buildModePersistentWorker && !options.buildMode) {
       printAndFail('The option --persisten_worker can be used only '
           'together with --build-mode.');
+      return null; // Only reachable in testing.
     }
     if (options.buildSummaryOnlyDiet && !options.buildSummaryOnly) {
       printAndFail('The option --build-summary-only-diet can be used only '
           'together with --build-summary-only.');
+      return null; // Only reachable in testing.
     }
 
     return options;
+  }
+
+  /// The source files to analyze
+  List<String> get sourceFiles => _sourceFiles;
+
+  /// Replace the sourceFiles parsed from the command line.
+  void rewriteSourceFiles(List<String> newSourceFiles) {
+    _sourceFiles = newSourceFiles;
   }
 
   static String _getVersion() {

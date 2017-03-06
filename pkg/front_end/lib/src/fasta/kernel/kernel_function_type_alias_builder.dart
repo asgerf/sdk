@@ -4,30 +4,30 @@
 
 library fasta.kernel_function_type_alias_builder;
 
-import 'package:kernel/ast.dart' show
-    DartType,
-    DynamicType,
-    FunctionType,
-    InvalidType,
-    NamedType,
-    TypeParameter;
+import 'package:kernel/ast.dart'
+    show
+        DartType,
+        DynamicType,
+        FunctionType,
+        InvalidType,
+        NamedType,
+        TypeParameter;
 
-import 'package:kernel/type_algebra.dart' show
-    substitute;
+import 'package:kernel/type_algebra.dart' show substitute;
 
-import '../messages.dart' show
-    warning;
+import '../messages.dart' show warning;
 
-import 'kernel_builder.dart' show
-    FormalParameterBuilder,
-    FunctionTypeAliasBuilder,
-    KernelFormalParameterBuilder,
-    KernelTypeBuilder,
-    KernelTypeVariableBuilder,
-    LibraryBuilder,
-    MetadataBuilder,
-    TypeVariableBuilder,
-    computeDefaultTypeArguments;
+import 'kernel_builder.dart'
+    show
+        FormalParameterBuilder,
+        FunctionTypeAliasBuilder,
+        KernelFormalParameterBuilder,
+        KernelTypeBuilder,
+        KernelTypeVariableBuilder,
+        LibraryBuilder,
+        MetadataBuilder,
+        TypeVariableBuilder,
+        computeDefaultTypeArguments;
 
 class KernelFunctionTypeAliasBuilder
     extends FunctionTypeAliasBuilder<KernelTypeBuilder, DartType> {
@@ -35,32 +35,36 @@ class KernelFunctionTypeAliasBuilder
 
   DartType type;
 
-  KernelFunctionTypeAliasBuilder(List<MetadataBuilder> metadata,
-      KernelTypeBuilder returnType, String name,
+  KernelFunctionTypeAliasBuilder(
+      List<MetadataBuilder> metadata,
+      KernelTypeBuilder returnType,
+      String name,
       List<TypeVariableBuilder> typeVariables,
-      List<FormalParameterBuilder> formals, LibraryBuilder parent,
+      List<FormalParameterBuilder> formals,
+      LibraryBuilder parent,
       int charOffset)
       : super(metadata, returnType, name, typeVariables, formals, parent,
-          charOffset);
+            charOffset);
 
-  DartType buildThisType() {
+  DartType buildThisType(LibraryBuilder library) {
     if (thisType != null) {
       if (thisType == const InvalidType()) {
         thisType = const DynamicType();
         // TODO(ahe): Build an error somehow.
-        warning(parent.uri, -1,
-            "The typedef '$name' has a reference to itself.");
+        warning(
+            parent.uri, -1, "The typedef '$name' has a reference to itself.");
       }
       return thisType;
     }
     thisType = const InvalidType();
-    DartType returnType = this.returnType?.build() ?? const DynamicType();
+    DartType returnType =
+        this.returnType?.build(library) ?? const DynamicType();
     List<DartType> positionalParameters = <DartType>[];
     List<NamedType> namedParameters;
     int requiredParameterCount = 0;
     if (formals != null) {
       for (KernelFormalParameterBuilder formal in formals) {
-        DartType type = formal.type?.build() ?? const DynamicType();
+        DartType type = formal.type?.build(library) ?? const DynamicType();
         if (formal.isPositional) {
           positionalParameters.add(type);
           if (formal.isRequired) requiredParameterCount++;
@@ -87,8 +91,9 @@ class KernelFunctionTypeAliasBuilder
   }
 
   /// [arguments] have already been built.
-  DartType buildTypesWithBuiltArguments(List<DartType> arguments) {
-    var thisType = buildThisType();
+  DartType buildTypesWithBuiltArguments(
+      LibraryBuilder library, List<DartType> arguments) {
+    var thisType = buildThisType(library);
     if (thisType is DynamicType) return thisType;
     FunctionType result = thisType;
     if (result.typeParameters.isEmpty && arguments == null) return result;
@@ -100,8 +105,9 @@ class KernelFunctionTypeAliasBuilder
     return substitute(result.withoutTypeParameters, substitution);
   }
 
-  DartType buildType(List<KernelTypeBuilder> arguments) {
-    var thisType = buildThisType();
+  DartType buildType(
+      LibraryBuilder library, List<KernelTypeBuilder> arguments) {
+    var thisType = buildThisType(library);
     if (thisType is DynamicType) return thisType;
     FunctionType result = thisType;
     if (result.typeParameters.isEmpty && arguments == null) return result;
@@ -109,9 +115,9 @@ class KernelFunctionTypeAliasBuilder
     List<DartType> builtArguments = <DartType>[];
     if (arguments != null) {
       for (int i = 0; i < arguments.length; i++) {
-        builtArguments.add(arguments[i].build());
+        builtArguments.add(arguments[i].build(library));
       }
     }
-    return buildTypesWithBuiltArguments(builtArguments);
+    return buildTypesWithBuiltArguments(library, builtArguments);
   }
 }

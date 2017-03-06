@@ -1918,10 +1918,15 @@ class ICData : public Object {
   // the final one.
   intptr_t Length() const;
 
+  // Takes O(result) time!
   intptr_t NumberOfChecks() const;
 
   // Discounts any checks with usage of zero.
+  // Takes O(result)) time!
   intptr_t NumberOfUsedChecks() const;
+
+  // Takes O(n) time!
+  bool NumberOfChecksIs(intptr_t n) const;
 
   static intptr_t InstanceSize() {
     return RoundedAllocationSize(sizeof(RawICData));
@@ -2009,7 +2014,8 @@ class ICData : public Object {
   intptr_t GetClassIdAt(intptr_t index, intptr_t arg_nr) const;
 
   RawFunction* GetTargetAt(intptr_t index) const;
-  RawFunction* GetTargetForReceiverClassId(intptr_t class_id) const;
+  RawFunction* GetTargetForReceiverClassId(intptr_t class_id,
+                                           intptr_t* count_return) const;
 
   RawObject* GetTargetOrCodeAt(intptr_t index) const;
   void SetCodeAt(intptr_t index, const Code& value) const;
@@ -4512,12 +4518,15 @@ class ExceptionHandlers : public Object {
   uword HandlerPCOffset(intptr_t try_index) const;
   intptr_t OuterTryIndex(intptr_t try_index) const;
   bool NeedsStackTrace(intptr_t try_index) const;
+  bool IsGenerated(intptr_t try_index) const;
 
   void SetHandlerInfo(intptr_t try_index,
                       intptr_t outer_try_index,
                       uword handler_pc_offset,
                       bool needs_stacktrace,
-                      bool has_catch_all) const;
+                      bool has_catch_all,
+                      TokenPosition token_pos,
+                      bool is_generated) const;
 
   RawArray* GetHandledTypes(intptr_t try_index) const;
   void SetHandledTypes(intptr_t try_index, const Array& handled_types) const;
@@ -4680,6 +4689,9 @@ class Code : public Object {
     ASSERT(code_source_map.IsOld());
     StorePointer(&raw_ptr()->code_source_map_, code_source_map.raw());
   }
+
+  RawArray* await_token_positions() const;
+  void SetAwaitTokenPositions(const Array& await_token_positions) const;
 
   // Used during reloading (see object_reload.cc). Calls Reset on all ICDatas
   // that are embedded inside the Code object.
@@ -8295,23 +8307,16 @@ class LinkedHashMap : public Instance {
 
 class Closure : public Instance {
  public:
-  RawFunction* function() const { return raw_ptr()->function_; }
-  void set_function(const Function& function) const {
-    // TODO(regis): Only used from deferred_objects.cc. Remove once fixed.
-    StorePointer(&raw_ptr()->function_, function.raw());
+  RawTypeArguments* instantiator() const { return raw_ptr()->instantiator_; }
+  static intptr_t instantiator_offset() {
+    return OFFSET_OF(RawClosure, instantiator_);
   }
+
+  RawFunction* function() const { return raw_ptr()->function_; }
   static intptr_t function_offset() { return OFFSET_OF(RawClosure, function_); }
 
   RawContext* context() const { return raw_ptr()->context_; }
-  void set_context(const Context& context) const {
-    // TODO(regis): Only used from deferred_objects.cc. Remove once fixed.
-    StorePointer(&raw_ptr()->context_, context.raw());
-  }
   static intptr_t context_offset() { return OFFSET_OF(RawClosure, context_); }
-
-  static intptr_t type_arguments_offset() {
-    return OFFSET_OF(RawClosure, type_arguments_);
-  }
 
   static intptr_t InstanceSize() {
     return RoundedAllocationSize(sizeof(RawClosure));
@@ -8324,7 +8329,8 @@ class Closure : public Instance {
     return true;
   }
 
-  static RawClosure* New(const Function& function,
+  static RawClosure* New(const TypeArguments& instantiator,
+                         const Function& function,
                          const Context& context,
                          Heap::Space space = Heap::kNew);
 

@@ -4,19 +4,13 @@
 
 library fasta.scanner.recover;
 
-import 'token.dart' show
-    StringToken,
-    Token;
+import 'token.dart' show StringToken, Token;
 
-import 'error_token.dart' show
-    NonAsciiIdentifierToken,
-    ErrorKind,
-    ErrorToken;
+import 'error_token.dart' show NonAsciiIdentifierToken, ErrorKind, ErrorToken;
 
 import 'precedence.dart' as Precedence;
 
-import 'precedence.dart' show
-    PrecedenceInfo;
+import 'precedence.dart' show PrecedenceInfo;
 
 /// Recover from errors in [tokens]. The original sources are provided as
 /// [bytes]. [lineStarts] are the beginning character offsets of lines, and
@@ -24,7 +18,7 @@ import 'precedence.dart' show
 /// code.
 Token defaultRecoveryStrategy(
     List<int> bytes, Token tokens, List<int> lineStarts) {
-  // See [Parser.reportErrorToken](package:front_end/src/fasta/parser/src/parser.dart) for how
+  // See [Parser.reportErrorToken](../parser/src/parser.dart) for how
   // it currently handles lexical errors. In addition, notice how the parser
   // calls [handleInvalidExpression], [handleInvalidFunctionBody], and
   // [handleInvalidTypeReference] to allow the listener to recover its internal
@@ -39,11 +33,13 @@ Token defaultRecoveryStrategy(
 
   /// Tokens with errors.
   ErrorToken error;
+
   /// Used for appending to [error].
   ErrorToken errorTail;
 
   /// Tokens without errors.
   Token good;
+
   /// Used for appending to [good].
   Token goodTail;
 
@@ -114,12 +110,12 @@ Token defaultRecoveryStrategy(
     }
     String value = new String.fromCharCodes(codeUnits);
     return synthesizeToken(charOffset, value, Precedence.IDENTIFIER_INFO)
-        ..next = next;
+      ..next = next;
   }
 
   recoverExponent() {
     return synthesizeToken(errorTail.charOffset, "NaN", Precedence.DOUBLE_INFO)
-        ..next = errorTail.next;
+      ..next = errorTail.next;
   }
 
   recoverString() {
@@ -129,7 +125,7 @@ Token defaultRecoveryStrategy(
 
   recoverHexDigit() {
     return synthesizeToken(errorTail.charOffset, "-1", Precedence.INT_INFO)
-        ..next = errorTail.next;
+      ..next = errorTail.next;
   }
 
   recoverStringInterpolation() {

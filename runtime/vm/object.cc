@@ -1432,12 +1432,10 @@ RawError* Object::Init(Isolate* isolate, kernel::Program* kernel_program) {
 
     // Class that represents the Dart class _Closure and C++ class Closure.
     cls = Class::New<Closure>();
-    cls.set_type_arguments_field_offset(Closure::type_arguments_offset());
-    cls.set_num_type_arguments(0);  // Although a closure has type_arguments_.
-    cls.set_num_own_type_arguments(0);
+    object_store->set_closure_class(cls);
+    cls.ResetFinalization();  // To calculate field offsets from Dart source.
     RegisterPrivateClass(cls, Symbols::_Closure(), core_lib);
     pending_classes.Add(cls);
-    object_store->set_closure_class(cls);
 
     cls = Class::New<WeakProperty>();
     object_store->set_weak_property_class(cls);
@@ -2530,7 +2528,6 @@ RawTypeParameter* Class::LookupTypeParameter(const String& type_name) const {
 
 
 void Class::CalculateFieldOffsets() const {
-  ASSERT(id() != kClosureCid);  // Class _Closure is prefinalized.
   Array& flds = Array::Handle(fields());
   const Class& super = Class::Handle(SuperClass());
   intptr_t offset = 0;
@@ -3634,7 +3631,7 @@ void Class::SetRefinalizeAfterPatch() const {
 
 
 void Class::ResetFinalization() const {
-  ASSERT(IsTopLevel());
+  ASSERT(IsTopLevel() || IsClosureClass());
   set_state_bits(
       ClassFinalizedBits::update(RawClass::kAllocated, raw_ptr()->state_bits_));
   set_state_bits(TypeFinalizedBit::update(false, raw_ptr()->state_bits_));
@@ -6910,8 +6907,9 @@ RawInstance* Function::ImplicitStaticClosure() const {
     ObjectStore* object_store = isolate->object_store();
     const Context& context =
         Context::Handle(zone, object_store->empty_context());
-    Instance& closure =
-        Instance::Handle(zone, Closure::New(*this, context, Heap::kOld));
+    const TypeArguments& instantiator = TypeArguments::Handle(zone);
+    Instance& closure = Instance::Handle(
+        zone, Closure::New(instantiator, *this, context, Heap::kOld));
     set_implicit_static_closure(closure);
   }
   return implicit_static_closure();
@@ -6920,17 +6918,16 @@ RawInstance* Function::ImplicitStaticClosure() const {
 
 RawInstance* Function::ImplicitInstanceClosure(const Instance& receiver) const {
   ASSERT(IsImplicitClosureFunction());
-  const Type& signature_type = Type::Handle(SignatureType());
-  const Class& cls = Class::Handle(signature_type.type_class());
-  const Context& context = Context::Handle(Context::New(1));
+  Zone* zone = Thread::Current()->zone();
+  const Type& signature_type = Type::Handle(zone, SignatureType());
+  const Class& cls = Class::Handle(zone, signature_type.type_class());
+  const Context& context = Context::Handle(zone, Context::New(1));
   context.SetAt(0, receiver);
-  const Instance& result = Instance::Handle(Closure::New(*this, context));
+  TypeArguments& instantiator = TypeArguments::Handle(zone);
   if (cls.IsGeneric()) {
-    const TypeArguments& type_arguments =
-        TypeArguments::Handle(receiver.GetTypeArguments());
-    result.SetTypeArguments(type_arguments);
+    instantiator = receiver.GetTypeArguments();
   }
-  return result.raw();
+  return Closure::New(instantiator, *this, context);
 }
 
 
@@ -7658,7 +7655,7 @@ void Field::InitializeNew(const Field& result,
   // dynamic and possibly null). Attempt to relax this later.
   const bool use_guarded_cid =
       FLAG_precompiled_mode ||
-      (FLAG_use_field_guards && !isolate->HasAttemptedReload());
+      (isolate->use_field_guards() && !isolate->HasAttemptedReload());
   result.set_guarded_cid(use_guarded_cid ? kIllegalCid : kDynamicCid);
   result.set_is_nullable(use_guarded_cid ? false : true);
   result.set_guarded_list_length_in_object_offset(Field::kUnknownLengthOffset);
@@ -8169,7 +8166,7 @@ bool Field::UpdateGuardedCidAndLength(const Object& value) const {
 
 void Field::RecordStore(const Object& value) const {
   ASSERT(IsOriginal());
-  if (!FLAG_use_field_guards) {
+  if (!Isolate::Current()->use_field_guards()) {
     return;
   }
 
@@ -12496,7 +12493,9 @@ void ExceptionHandlers::SetHandlerInfo(intptr_t try_index,
                                        intptr_t outer_try_index,
                                        uword handler_pc_offset,
                                        bool needs_stacktrace,
-                                       bool has_catch_all) const {
+                                       bool has_catch_all,
+                                       TokenPosition token_pos,
+                                       bool is_generated) const {
   ASSERT((try_index >= 0) && (try_index < num_entries()));
   NoSafepointScope no_safepoint;
   ExceptionHandlerInfo* info =
@@ -12509,6 +12508,7 @@ void ExceptionHandlers::SetHandlerInfo(intptr_t try_index,
   info->handler_pc_offset = handler_pc_offset;
   info->needs_stacktrace = needs_stacktrace;
   info->has_catch_all = has_catch_all;
+  info->is_generated = is_generated;
 }
 
 void ExceptionHandlers::GetHandlerInfo(intptr_t try_index,
@@ -12534,6 +12534,12 @@ intptr_t ExceptionHandlers::OuterTryIndex(intptr_t try_index) const {
 bool ExceptionHandlers::NeedsStackTrace(intptr_t try_index) const {
   ASSERT((try_index >= 0) && (try_index < num_entries()));
   return raw_ptr()->data()[try_index].needs_stacktrace;
+}
+
+
+bool ExceptionHandlers::IsGenerated(intptr_t try_index) const {
+  ASSERT((try_index >= 0) && (try_index < num_entries()));
+  return raw_ptr()->data()[try_index].is_generated;
 }
 
 
@@ -12615,7 +12621,7 @@ RawExceptionHandlers* ExceptionHandlers::New(const Array& handled_types_data) {
 
 
 const char* ExceptionHandlers::ToCString() const {
-#define FORMAT1 "%" Pd " => %#x  (%" Pd " types) (outer %d)\n"
+#define FORMAT1 "%" Pd " => %#x  (%" Pd " types) (outer %d) %s\n"
 #define FORMAT2 "  %d. %s\n"
   if (num_entries() == 0) {
     return "empty ExceptionHandlers\n";
@@ -12631,7 +12637,8 @@ const char* ExceptionHandlers::ToCString() const {
     const intptr_t num_types =
         handled_types.IsNull() ? 0 : handled_types.Length();
     len += OS::SNPrint(NULL, 0, FORMAT1, i, info.handler_pc_offset, num_types,
-                       info.outer_try_index);
+                       info.outer_try_index,
+                       info.is_generated ? "(generated)" : "");
     for (int k = 0; k < num_types; k++) {
       type ^= handled_types.At(k);
       ASSERT(!type.IsNull());
@@ -12649,7 +12656,8 @@ const char* ExceptionHandlers::ToCString() const {
         handled_types.IsNull() ? 0 : handled_types.Length();
     num_chars +=
         OS::SNPrint((buffer + num_chars), (len - num_chars), FORMAT1, i,
-                    info.handler_pc_offset, num_types, info.outer_try_index);
+                    info.handler_pc_offset, num_types, info.outer_try_index,
+                    info.is_generated ? "(generated)" : "");
     for (int k = 0; k < num_types; k++) {
       type ^= handled_types.At(k);
       num_chars += OS::SNPrint((buffer + num_chars), (len - num_chars), FORMAT2,
@@ -12986,6 +12994,19 @@ intptr_t ICData::NumberOfChecks() const {
 }
 
 
+bool ICData::NumberOfChecksIs(intptr_t n) const {
+  const intptr_t length = Length();
+  for (intptr_t i = 0; i < length; i++) {
+    if (i == n) {
+      return IsSentinelAt(i);
+    } else {
+      if (IsSentinelAt(i)) return false;
+    }
+  }
+  return n == length;
+}
+
+
 // Discounts any checks with usage of zero.
 intptr_t ICData::NumberOfUsedChecks() const {
   intptr_t n = NumberOfChecks();
@@ -13048,9 +13069,8 @@ void ICData::WriteSentinelAt(intptr_t index) const {
 
 
 void ICData::ClearCountAt(intptr_t index) const {
-  const intptr_t len = NumberOfChecks();
   ASSERT(index >= 0);
-  ASSERT(index < len);
+  ASSERT(index < NumberOfChecks());
   SetCountAt(index, 0);
 }
 
@@ -13149,7 +13169,7 @@ bool ICData::AddSmiSmiCheckForFastSmiStubs() const {
   Zone* zone = Thread::Current()->zone();
   const Function& smi_op_target =
       Function::Handle(Resolver::ResolveDynamicAnyArgs(zone, smi_class, name));
-  if (NumberOfChecks() == 0) {
+  if (NumberOfChecksIs(0)) {
     GrowableArray<intptr_t> class_ids(2);
     class_ids.Add(kSmiCid);
     class_ids.Add(kSmiCid);
@@ -13157,7 +13177,7 @@ bool ICData::AddSmiSmiCheckForFastSmiStubs() const {
     // 'AddCheck' sets the initial count to 1.
     SetCountAt(0, 0);
     is_smi_two_args_op = true;
-  } else if (NumberOfChecks() == 1) {
+  } else if (NumberOfChecksIs(1)) {
     GrowableArray<intptr_t> class_ids(2);
     Function& target = Function::Handle();
     GetCheckAt(0, &class_ids, &target);
@@ -13526,10 +13546,12 @@ void ICData::SetEntryPointAt(intptr_t index, const Smi& value) const {
 }
 
 
-RawFunction* ICData::GetTargetForReceiverClassId(intptr_t class_id) const {
+RawFunction* ICData::GetTargetForReceiverClassId(intptr_t class_id,
+                                                 intptr_t* count_return) const {
   const intptr_t len = NumberOfChecks();
   for (intptr_t i = 0; i < len; i++) {
     if (GetReceiverClassIdAt(i) == class_id) {
+      *count_return = GetCountAt(i);
       return GetTargetAt(i);
     }
   }
@@ -13641,7 +13663,7 @@ RawICData* ICData::AsUnaryClassChecksSortedByCount() const {
   aggregate.Sort(CidCount::HighestCountFirst);
 
   ICData& result = ICData::Handle(ICData::NewFrom(*this, kNumArgsTested));
-  ASSERT(result.NumberOfChecks() == 0);
+  ASSERT(result.NumberOfChecksIs(0));
   // Room for all entries and the sentinel.
   const intptr_t data_len = result.TestEntryLength() * (aggregate.length() + 1);
   // Allocate the array but do not assign it to result until we have populated
@@ -13658,13 +13680,13 @@ RawICData* ICData::AsUnaryClassChecksSortedByCount() const {
   }
   WriteSentinel(data, result.TestEntryLength());
   result.set_ic_data_array(data);
-  ASSERT(result.NumberOfChecks() == aggregate.length());
+  ASSERT(result.NumberOfChecksIs(aggregate.length()));
   return result.raw();
 }
 
 
 bool ICData::AllTargetsHaveSameOwner(intptr_t owner_cid) const {
-  if (NumberOfChecks() == 0) return false;
+  if (NumberOfChecksIs(0)) return false;
   Class& cls = Class::Handle();
   const intptr_t len = NumberOfChecks();
   for (intptr_t i = 0; i < len; i++) {
@@ -13697,7 +13719,7 @@ bool ICData::HasReceiverClassId(intptr_t class_id) const {
 // Returns true if all targets are the same.
 // TODO(srdjan): if targets are native use their C_function to compare.
 bool ICData::HasOneTarget() const {
-  ASSERT(NumberOfChecks() > 0);
+  ASSERT(!NumberOfChecksIs(0));
   const Function& first_target = Function::Handle(GetTargetAt(0));
   const intptr_t len = NumberOfChecks();
   for (intptr_t i = 1; i < len; i++) {
@@ -14621,6 +14643,14 @@ void Code::DumpSourcePositions() const {
   reader.DumpSourcePositions(PayloadStart());
 }
 
+
+RawArray* Code::await_token_positions() const {
+#if defined(DART_PRECOMPILED_RUNTIME)
+  return Array::null();
+#else
+  return raw_ptr()->await_token_positions_;
+#endif
+}
 
 RawContext* Context::New(intptr_t num_variables, Heap::Space space) {
   ASSERT(num_variables >= 0);
@@ -15570,7 +15600,8 @@ RawAbstractType* Instance::GetType(Heap::Space space) const {
     }
     const Class& scope_cls = Class::Handle(type.type_class());
     ASSERT(scope_cls.NumTypeArguments() > 0);
-    TypeArguments& type_arguments = TypeArguments::Handle(GetTypeArguments());
+    TypeArguments& type_arguments =
+        TypeArguments::Handle(Closure::Cast(*this).instantiator());
     type =
         Type::New(scope_cls, type_arguments, TokenPosition::kNoSource, space);
     type.set_signature(signature);
@@ -15666,7 +15697,7 @@ bool Instance::IsInstanceOf(const AbstractType& other,
     const Function& signature =
         Function::Handle(zone, Closure::Cast(*this).function());
     const TypeArguments& type_arguments =
-        TypeArguments::Handle(zone, GetTypeArguments());
+        TypeArguments::Handle(zone, Closure::Cast(*this).instantiator());
     // TODO(regis): If signature function is generic, pass its type parameters
     // as function instantiator, otherwise pass null.
     // Pass the closure context as well to the the IsSubtypeOf call.
@@ -22366,7 +22397,8 @@ const char* Closure::ToCString() const {
 }
 
 
-RawClosure* Closure::New(const Function& function,
+RawClosure* Closure::New(const TypeArguments& instantiator,
+                         const Function& function,
                          const Context& context,
                          Heap::Space space) {
   Closure& result = Closure::Handle();
@@ -22375,6 +22407,7 @@ RawClosure* Closure::New(const Function& function,
         Object::Allocate(Closure::kClassId, Closure::InstanceSize(), space);
     NoSafepointScope no_safepoint;
     result ^= raw;
+    result.StorePointer(&result.raw_ptr()->instantiator_, instantiator.raw());
     result.StorePointer(&result.raw_ptr()->function_, function.raw());
     result.StorePointer(&result.raw_ptr()->context_, context.raw());
   }
@@ -22502,11 +22535,11 @@ static void PrintStackTraceFrame(Zone* zone,
   if (FLAG_precompiled_mode) {
     line = token_pos.value();
   } else {
-    if (!script.IsNull() && token_pos.IsReal()) {
+    if (!script.IsNull() && token_pos.IsSourcePosition()) {
       if (script.HasSource() || script.kind() == RawScript::kKernelTag) {
-        script.GetTokenLocation(token_pos, &line, &column);
+        script.GetTokenLocation(token_pos.SourcePosition(), &line, &column);
       } else {
-        script.GetTokenLocation(token_pos, &line, NULL);
+        script.GetTokenLocation(token_pos.SourcePosition(), &line, NULL);
       }
     }
   }
