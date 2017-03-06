@@ -32,10 +32,14 @@ class Value extends ValueSource implements Printable {
   static final Value bottom = new Value(null, ValueFlags.none);
   static final Value null_ = new Value(null, ValueFlags.null_);
 
-  final Class baseClass;
+  final Reference baseClassReference;
   final int flags;
 
-  Value(this.baseClass, this.flags);
+  Value(Class baseClass, this.flags) : baseClassReference = baseClass.reference;
+
+  Value.fromReference(this.baseClassReference, this.flags);
+
+  Class get baseClass => baseClassReference.asClass;
 
   bool get canBeNull => flags & ValueFlags.null_ != 0;
   bool get canBeInteger => flags & ValueFlags.integer != 0;

@@ -21,26 +21,30 @@ class Report implements SolverListener {
   /// List of all transfer events, in the order they were emitted.
   final List<TransferEvent> transferEvents = <TransferEvent>[];
 
-  TransferEvent get _currentTransferEvent => transferEvents.last;
-
-  int _timestamp = 0;
-
-  int get lastTimestamp => _timestamp;
+  int get timestamp =>
+      transferEvents.isEmpty ? beginningOfTime : transferEvents.length - 1;
 
   void onBeginTransfer(Constraint constraint) {
-    ++_timestamp;
-    transferEvents.add(new TransferEvent(constraint, _timestamp));
+    addTransferEvent(constraint);
   }
 
   /// Called by the solver when the information associated with [location]
   /// changes.
   void onChange(StorageLocation location, Value value, bool leadsToEscape) {
     assert(transferEvents.isNotEmpty); // Must be called during a transfer.
-    var event = new ChangeEvent(location, value, leadsToEscape, _timestamp);
-    _currentTransferEvent.changes.add(event);
+    addChangeEvent(new ChangeEvent(location, value, leadsToEscape, timestamp));
+  }
+
+  void addTransferEvent(Constraint constraint) {
+    transferEvents.add(new TransferEvent(constraint, timestamp));
+  }
+
+  void addChangeEvent(ChangeEvent event) {
+    transferEvents[event.timestamp].changes.add(event);
     changeEvents.add(event);
     locationChanges
-        .putIfAbsent(location, () => _makeInitialEventList(location))
+        .putIfAbsent(
+            event.location, () => _makeInitialEventList(event.location))
         .add(event);
   }
 

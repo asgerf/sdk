@@ -27,7 +27,8 @@ class Binding {
     if (member is Field) {
       var bank = new FieldBank(member, coreTypes);
       memberBanks[member] = bank;
-      bank.type = bank.getFreshAugmentor(_augmentorScope).augmentType(member.type);
+      bank.type =
+          bank.getFreshAugmentor(_augmentorScope).augmentType(member.type);
       return bank;
     } else {
       var bank = new FunctionMemberBank(member, coreTypes);
@@ -36,8 +37,9 @@ class Binding {
       bank.typeParameters = new List<TypeParameterStorageLocation>.generate(
           function.typeParameters.length,
           (i) => new TypeParameterStorageLocation(member, i));
-      bank.type =
-          bank.getFreshAugmentor(_augmentorScope).augmentType(function.functionType);
+      bank.type = bank
+          .getFreshAugmentor(_augmentorScope)
+          .augmentType(function.functionType);
       for (int i = 0; i < function.typeParameters.length; ++i) {
         StorageLocation location = bank.typeParameterBounds[i].source;
         bank.typeParameters[i].indexOfBound = location.index;
@@ -145,12 +147,13 @@ abstract class StorageLocationBank {
 
   StorageLocationBank(this.coreTypes);
 
-  TreeNode get classOrMember;
+  NamedNode get classOrMember;
 
   int get nextIndex => locations.length;
 
   StorageLocation newLocation() {
-    var location = new StorageLocation(classOrMember, locations.length);
+    var location =
+        new StorageLocation(classOrMember.reference, locations.length);
     locations.add(location);
     return location;
   }

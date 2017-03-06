@@ -9,7 +9,7 @@ import 'solver/solver.dart';
 import 'value.dart';
 
 abstract class Constraint {
-  TreeNode owner;
+  Reference owner;
   void transfer(ConstraintSolver solver);
   void register(ConstraintSolver solver);
 }

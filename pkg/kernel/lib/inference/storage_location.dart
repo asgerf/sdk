@@ -18,12 +18,14 @@ import 'value.dart';
 ///
 class StorageLocation extends solver.StorageLocationBaseClass
     implements ValueSource, ValueSink {
-  final TreeNode owner; // Class or Member
+  final Reference reference; // Class or Member
   final int index;
 
   TypeParameterStorageLocation parameterLocation;
 
-  StorageLocation(this.owner, this.index);
+  StorageLocation(this.reference, this.index);
+
+  NamedNode get owner => reference.node;
 
   String toString() => '$owner:$index';
 

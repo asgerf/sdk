@@ -15,7 +15,7 @@ import 'hierarchy.dart';
 class ConstraintBuilder {
   final List<Constraint> constraints = <Constraint>[];
   final AugmentedHierarchy hierarchy;
-  TreeNode currentOwner;
+  NamedNode currentOwner;
 
   ConstraintBuilder(this.hierarchy);
 
@@ -24,7 +24,7 @@ class ConstraintBuilder {
   }
 
   void addConstraint(Constraint constraint) {
-    constraints.add(constraint..owner = currentOwner);
+    constraints.add(constraint..owner = currentOwner.reference);
   }
 
   void addAssignment(ValueSource source, ValueSink sink, int mask) {
