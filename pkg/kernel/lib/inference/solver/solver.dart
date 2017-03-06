@@ -8,6 +8,7 @@ import '../../class_hierarchy.dart';
 import '../constraints.dart';
 import '../storage_location.dart';
 import '../value.dart';
+import 'report.dart';
 
 /// A base class for [StorageLocation] with some fields that are owned by the
 /// constraint solver.
@@ -34,8 +35,9 @@ class ConstraintSolver {
   final ClassHierarchy hierarchy;
   final List<Constraint> constraints;
   final List<WorkItem> worklist = <WorkItem>[];
+  final Report report;
 
-  ConstraintSolver(this.hierarchy, this.constraints);
+  ConstraintSolver(this.hierarchy, this.constraints, [this.report]);
 
   Class get rootClass => hierarchy.classes[0];
 
@@ -77,6 +79,7 @@ class ConstraintSolver {
     if (!identical(oldValue, newValue)) {
       location.value = newValue;
       enqueue(location.forward);
+      report?.onChange(location, newValue, location.leadsToEscape);
     }
   }
 
@@ -84,6 +87,7 @@ class ConstraintSolver {
     if (!location.leadsToEscape) {
       location.leadsToEscape = true;
       enqueue(location.backward);
+      report?.onChange(location, location.value, true);
     }
   }
 
@@ -97,8 +101,10 @@ class ConstraintSolver {
       int oldFlags = oldValue.flags;
       int newFlags = oldFlags | ValueFlags.escaping;
       if (oldFlags != newFlags) {
-        location.value = new Value(oldValue.baseClass, newFlags);
+        var newValue = new Value(oldValue.baseClass, newFlags);
+        location.value = newValue;
         enqueue(location.forward);
+        report?.onChange(location, newValue, location.leadsToEscape);
       }
     }
   }
@@ -161,18 +167,23 @@ class ConstraintSolver {
 
   void registerEscapeConstraint(EscapeConstraint constraint) {}
 
+  void doTransfer(Constraint constraint) {
+    report?.onBeginTranfer(constraint);
+    constraint.transfer(this);
+  }
+
   void solve() {
     for (var constraint in constraints) {
       constraint.register(this);
     }
     for (var constraint in constraints) {
-      constraint.transfer(this);
+      doTransfer(constraint);
     }
     while (worklist.isNotEmpty) {
       WorkItem item = worklist.removeLast();
       item.isInWorklist = false;
       for (var constraint in item.dependencies) {
-        constraint.transfer(this);
+        doTransfer(constraint);
       }
     }
   }
