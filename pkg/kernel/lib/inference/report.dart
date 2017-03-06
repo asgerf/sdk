@@ -11,32 +11,35 @@ import 'solver/solver.dart' show SolverListener;
 class Report implements SolverListener {
   static const int beginningOfTime = -1;
 
-  /// Events indexed by the storage location that changed, sorted by timestamp.
-  ///
-  /// All lists start with an initial event mapping all values to bottom with
-  /// a special timestamp of -1.
-  final Map<StorageLocation, List<ChangeEvent>> _locationChanges = {};
+  /// Change events that affect a given storage location, in the order they
+  /// were emitted.
+  final Map<StorageLocation, List<ChangeEvent>> locationChanges = {};
 
-  final List<ChangeEvent> _changeEvents = <ChangeEvent>[];
-  final List<TransferEvent> _transferEvents = <TransferEvent>[];
+  /// List of all change events, in the order they were emitted.
+  final List<ChangeEvent> changeEvents = <ChangeEvent>[];
 
-  TransferEvent get _currentTransferEvent => _transferEvents.last;
+  /// List of all transfer events, in the order they were emitted.
+  final List<TransferEvent> transferEvents = <TransferEvent>[];
+
+  TransferEvent get _currentTransferEvent => transferEvents.last;
 
   int _timestamp = 0;
 
+  int get lastTimestamp => _timestamp;
+
   void onBeginTransfer(Constraint constraint) {
     ++_timestamp;
-    _transferEvents.add(new TransferEvent(constraint, _timestamp));
+    transferEvents.add(new TransferEvent(constraint, _timestamp));
   }
 
   /// Called by the solver when the information associated with [location]
   /// changes.
   void onChange(StorageLocation location, Value value, bool leadsToEscape) {
-    assert(_transferEvents.isNotEmpty); // Must be called during a transfer.
+    assert(transferEvents.isNotEmpty); // Must be called during a transfer.
     var event = new ChangeEvent(location, value, leadsToEscape, _timestamp);
     _currentTransferEvent.changes.add(event);
-    _changeEvents.add(event);
-    _locationChanges
+    changeEvents.add(event);
+    locationChanges
         .putIfAbsent(location, () => _makeInitialEventList(location))
         .add(event);
   }
@@ -46,7 +49,7 @@ class Report implements SolverListener {
   }
 
   ChangeEvent getMostRecentChange(StorageLocation location, int timestamp) {
-    List<ChangeEvent> list = _locationChanges[location];
+    List<ChangeEvent> list = locationChanges[location];
     if (list == null) return ChangeEvent.beginning(location);
     int first = 0, last = list.length - 1;
     while (first <= last) {
