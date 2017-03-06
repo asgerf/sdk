@@ -8,7 +8,6 @@ import '../../class_hierarchy.dart';
 import '../constraints.dart';
 import '../storage_location.dart';
 import '../value.dart';
-import 'report.dart';
 
 /// A base class for [StorageLocation] with some fields that are owned by the
 /// constraint solver.
@@ -31,11 +30,16 @@ class WorkItem {
   WorkItem(this.key);
 }
 
+abstract class SolverListener {
+  void onBeginTransfer(Constraint constraint);
+  void onChange(StorageLocation location, Value value, bool leadsToEscape);
+}
+
 class ConstraintSolver {
   final ClassHierarchy hierarchy;
   final List<Constraint> constraints;
   final List<WorkItem> worklist = <WorkItem>[];
-  final Report report;
+  final SolverListener report;
 
   ConstraintSolver(this.hierarchy, this.constraints, [this.report]);
 
@@ -168,7 +172,7 @@ class ConstraintSolver {
   void registerEscapeConstraint(EscapeConstraint constraint) {}
 
   void doTransfer(Constraint constraint) {
-    report?.onBeginTranfer(constraint);
+    report?.onBeginTransfer(constraint);
     constraint.transfer(this);
   }
 

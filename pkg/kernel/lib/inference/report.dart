@@ -3,11 +3,12 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.solver.report;
 
-import '../constraints.dart';
-import '../storage_location.dart';
-import '../value.dart';
+import 'constraints.dart';
+import 'storage_location.dart';
+import 'value.dart';
+import 'solver/solver.dart' show SolverListener;
 
-class Report {
+class Report implements SolverListener {
   static const int beginningOfTime = -1;
 
   /// Events indexed by the storage location that changed, sorted by timestamp.
@@ -23,7 +24,7 @@ class Report {
 
   int _timestamp = 0;
 
-  void onBeginTranfer(Constraint constraint) {
+  void onBeginTransfer(Constraint constraint) {
     ++_timestamp;
     _transferEvents.add(new TransferEvent(constraint, _timestamp));
   }
