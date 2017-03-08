@@ -1,17 +1,17 @@
 // Copyright (c) 2017, the Dart project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:kernel/core_types.dart';
 import 'package:kernel/inference/extractor/constraint_extractor.dart';
 import 'package:kernel/inference/extractor/external_model.dart';
+import 'package:kernel/inference/report/binary_writer.dart';
 import 'package:kernel/inference/report/report.dart';
-import 'package:kernel/inference/report/writer.dart';
 import 'package:kernel/inference/solver/solver.dart';
 import 'package:kernel/kernel.dart';
 import 'package:kernel/program_root_parser.dart';
+import 'package:kernel/util/writer.dart';
 
 Uri sdkCheckout = Platform.script.resolve('../../../../');
 Uri runtimeBinDir = sdkCheckout.resolve('runtime/bin/');
@@ -45,7 +45,15 @@ main(List<String> args) {
   }
   writeProgramToText(program, path: 'dump.txt', binding: extractor.binding);
 
-  var writer = new ReportWriter();
-  var json = writer.buildJsonReport(program, solver, report);
-  new File('report.json').writeAsString(JSON.encode(json));
+  print('Number of events = ${report.allEvents.length}');
+  print('Number of changes = ${report.changeEvents.length}');
+  print('Number of transfers = ${report.transferEvents.length}');
+
+  program.computeCanonicalNames();
+  var file = new File('report.bin').openWrite();
+  var buffer = new Writer(file);
+  var writer = new BinaryReportWriter(buffer);
+  writer.writeEventList(report.allEvents);
+  writer.finish();
+  file.close();
 }

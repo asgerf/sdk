@@ -40,7 +40,15 @@ class Writer {
   }
 
   void writeReference(CanonicalName name) {
-    writeUInt(_getCanonicalNameIndex(name));
+    writeUInt(1 + _getCanonicalNameIndex(name));
+  }
+
+  void writeOptionalReference(CanonicalName name) {
+    if (name == null) {
+      writeByte(0);
+    } else {
+      writeUInt(1 + _getCanonicalNameIndex(name));
+    }
   }
 
   void writeFixedUInt32(int value) {
@@ -61,8 +69,11 @@ class Writer {
   }
 
   int _getCanonicalNameIndex(CanonicalName name) {
+    assert(name != null);
     if (name.index != -1) return name.index;
-    _getCanonicalNameIndex(name.parent);
+    if (name.parent != null) {
+      _getCanonicalNameIndex(name.parent);
+    }
     int index = name.index = _canonicalNames.length;
     _canonicalNames.add(name);
     return index;
@@ -75,6 +86,7 @@ class Writer {
     _writeStringTable();
     writeFixedUInt32(canonicalNameTableOffset);
     writeFixedUInt32(stringTableOffset);
+    _sink.flushAndDestroy();
   }
 
   void _writeStringTable() {
@@ -89,7 +101,12 @@ class Writer {
   void _writeCanonicalNameTable() {
     writeUInt(_canonicalNames.length);
     for (var canonicalName in _canonicalNames) {
-      writeUInt(canonicalName.parent.index + 1);
+      var parent = canonicalName.parent;
+      if (parent == null) {
+        writeByte(0);
+      } else {
+        writeUInt(parent.index + 1);
+      }
       writeString(canonicalName.name);
     }
   }

@@ -39,6 +39,22 @@ class Reader {
     return _stringTable[readUInt()];
   }
 
+  CanonicalName readReference() {
+    int biasedIndex = readUInt();
+    if (biasedIndex == 0) {
+      throw 'Expected a canonical name, but found null.';
+    }
+    return _canonicalNames[biasedIndex - 1];
+  }
+
+  CanonicalName readOptionalReference() {
+    int biasedIndex = readUInt();
+    if (biasedIndex == 0) {
+      return null;
+    }
+    return _canonicalNames[biasedIndex - 1];
+  }
+
   int _readFixedUInt32At(int position) {
     return (bytes[position] << 24) +
         (bytes[position + 1] << 16) +
