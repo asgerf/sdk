@@ -13,18 +13,29 @@ import 'augmented_type.dart';
 import 'hierarchy.dart';
 
 class ConstraintBuilder {
+  final Map<NamedNode, List<Constraint>> constraintsByOwner = {};
   final List<Constraint> constraints = <Constraint>[];
   final AugmentedHierarchy hierarchy;
+
   NamedNode currentOwner;
 
   ConstraintBuilder(this.hierarchy);
+
+  void setOwner(NamedNode owner) {
+    constraintsByOwner[owner] ??= <Constraint>[];
+    currentOwner = owner;
+  }
 
   InterfaceAType getTypeAsInstanceOf(InterfaceAType subtype, Class superclass) {
     return hierarchy.getTypeAsInstanceOf(subtype, superclass);
   }
 
   void addConstraint(Constraint constraint) {
-    constraints.add(constraint..owner = currentOwner.reference);
+    var list = constraintsByOwner[currentOwner];
+    constraint.owner = currentOwner.reference;
+    constraint.index = list.length;
+    list.add(constraint);
+    constraints.add(constraint);
   }
 
   void addAssignment(ValueSource source, ValueSink sink, int mask) {

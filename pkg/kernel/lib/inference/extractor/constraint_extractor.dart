@@ -92,21 +92,13 @@ class ConstraintExtractor {
         Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
     escapingType = new BottomAType(Value.bottom, ValueSink.escape);
     boolType = new InterfaceAType(
-        boolValue,
-        ValueSink.nowhere,
-        coreTypes.boolClass, const <AType>[]);
+        boolValue, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
     intType = new InterfaceAType(
-        intValue,
-        ValueSink.nowhere,
-        coreTypes.intClass, const <AType>[]);
+        intValue, ValueSink.nowhere, coreTypes.intClass, const <AType>[]);
     doubleType = new InterfaceAType(
-        doubleValue,
-        ValueSink.nowhere,
-        coreTypes.doubleClass, const <AType>[]);
+        doubleValue, ValueSink.nowhere, coreTypes.doubleClass, const <AType>[]);
     stringType = new InterfaceAType(
-        stringValue,
-        ValueSink.nowhere,
-        coreTypes.stringClass, const <AType>[]);
+        stringValue, ValueSink.nowhere, coreTypes.stringClass, const <AType>[]);
     topType = new InterfaceAType(
         new Value(coreTypes.objectClass, ValueFlags.all),
         ValueSink.nowhere,
@@ -164,13 +156,14 @@ class ConstraintExtractor {
           coreTypes.listClass, ValueFlags.inexactBaseClass | ValueFlags.other);
       var stringListType = new InterfaceAType(
           value, ValueSink.nowhere, coreTypes.listClass, [stringType]);
+      builder.setOwner(program.mainMethod);
       checkAssignable(program.mainMethod, stringListType,
           bank.positionalParameters.first, new GlobalScope(binding));
     }
   }
 
   void analyzeMember(Member member, bool isUncheckedLibrary) {
-    builder.currentOwner = member;
+    builder.setOwner(member);
     var class_ = member.enclosingClass;
     var classBank = class_ == null ? null : binding.getClassBank(class_);
     var visitor = new ConstraintExtractorVisitor(this, member,
@@ -196,6 +189,7 @@ class ConstraintExtractor {
 
   void checkOverride(
       Class host, Member ownMember, Member superMember, bool isSetter) {
+    builder.setOwner(ownMember);
     if (isSetter) {
       checkAssignable(ownMember, setterType(host, superMember),
           setterType(host, ownMember), new GlobalScope(binding));
@@ -465,8 +459,7 @@ class ConstraintExtractorVisitor
           extractor.externalModel.isSafeExternal(node), true, false));
     }
     if (extractor.externalModel.isEntryPoint(node)) {
-      bank.type
-          .accept(new ExternalVisitor(extractor, false, false, true));
+      bank.type.accept(new ExternalVisitor(extractor, false, false, true));
     }
   }
 
@@ -482,8 +475,7 @@ class ConstraintExtractorVisitor
           extractor.externalModel.isSafeExternal(node), true, false));
     }
     if (extractor.externalModel.isEntryPoint(node)) {
-      bank.type
-          .accept(new ExternalVisitor(extractor, false, false, true));
+      bank.type.accept(new ExternalVisitor(extractor, false, false, true));
     }
   }
 

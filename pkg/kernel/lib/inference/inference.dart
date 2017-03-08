@@ -10,11 +10,13 @@ import '../program_root.dart';
 import 'extractor/binding.dart';
 import 'extractor/constraint_extractor.dart';
 import 'package:kernel/inference/extractor/external_model.dart';
+import 'package:kernel/inference/report/report.dart';
 import 'solver/solver.dart';
 import 'storage_location.dart';
 import 'value.dart';
 
 export 'value.dart' show Value;
+export 'report/report.dart' show Report;
 
 part 'inference_impl.dart';
 
@@ -25,9 +27,14 @@ class InferenceEngine {
   /// some of the information is stored directly on AST nodes.
   static InferenceResults analyzeWholeProgram(
       Program program, List<ProgramRoot> programRoots,
-      {CoreTypes coreTypes, ClassHierarchy hierarchy}) {
+      {CoreTypes coreTypes,
+      ClassHierarchy hierarchy,
+      bool buildReport: false}) {
     return new _InferenceResults(program,
-        coreTypes: coreTypes, hierarchy: hierarchy, programRoots: programRoots);
+        coreTypes: coreTypes,
+        hierarchy: hierarchy,
+        programRoots: programRoots,
+        buildReport: buildReport);
   }
 }
 
@@ -39,6 +46,8 @@ class InferenceEngine {
 abstract class InferenceResults {
   /// Returns the values inferred for the given member.
   MemberInferenceResults getInferredValuesForMember(Member member);
+
+  Report get report;
 }
 
 /// Inferred type information for the body of a member.

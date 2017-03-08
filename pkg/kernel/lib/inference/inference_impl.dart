@@ -14,8 +14,13 @@ class _InferenceResults extends InferenceResults {
 
   Value _top;
 
+  Report _report;
+
   _InferenceResults(this.program,
-      {this.coreTypes, this.hierarchy, List<ProgramRoot> programRoots}) {
+      {this.coreTypes,
+      this.hierarchy,
+      List<ProgramRoot> programRoots,
+      bool buildReport: false}) {
     coreTypes ??= new CoreTypes(program);
     hierarchy ??= new ClassHierarchy(program);
 
@@ -25,7 +30,11 @@ class _InferenceResults extends InferenceResults {
     _extractor = new ConstraintExtractor(externalModel)
       ..extractFromProgram(program);
     _binding = _extractor.binding;
-    _solver = new ConstraintSolver(hierarchy, _extractor.builder.constraints);
+    if (buildReport) {
+      _report = new Report();
+    }
+    _solver = new ConstraintSolver(
+        hierarchy, _extractor.builder.constraints, _report);
     _solver.solve();
   }
 
@@ -33,6 +42,8 @@ class _InferenceResults extends InferenceResults {
     return new _MemberInferenceResults(
         _binding.getMemberBank(member), _binding, _solver, _top);
   }
+
+  Report get report => _report;
 }
 
 class _MemberInferenceResults implements MemberInferenceResults {

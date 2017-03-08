@@ -10,6 +10,7 @@ import 'value.dart';
 
 abstract class Constraint {
   Reference owner;
+  int index;
   void transfer(ConstraintSolver solver);
   void register(ConstraintSolver solver);
   T accept<T>(ConstraintVisitor<T> visitor);
