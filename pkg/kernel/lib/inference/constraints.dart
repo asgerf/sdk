@@ -12,6 +12,14 @@ abstract class Constraint {
   Reference owner;
   void transfer(ConstraintSolver solver);
   void register(ConstraintSolver solver);
+  T accept<T>(ConstraintVisitor<T> visitor);
+}
+
+abstract class ConstraintVisitor<T> {
+  T visitSubtypeConstraint(SubtypeConstraint constraint);
+  T visitValueConstraint(ValueConstraint constraint);
+  T visitEscapeConstraint(EscapeConstraint constraint);
+  T visitTypeArgumentConstraint(TypeArgumentConstraint constraint);
 }
 
 /// Any value in [source] matching [mask] can flow into [destination].
@@ -49,6 +57,10 @@ class SubtypeConstraint extends Constraint {
         (mask == ValueFlags.all) ? '' : ' (${ValueFlags.flagsToString(mask)})';
     return '$source <: $destination$suffix';
   }
+
+  T accept<T>(ConstraintVisitor<T> visitor) {
+    return visitor.visitSubtypeConstraint(this);
+  }
 }
 
 /// The given [value] can flow into [destination], possibly escaping if
@@ -79,6 +91,10 @@ class ValueConstraint extends Constraint {
   String toString() {
     return '$value -> $destination';
   }
+
+  T accept<T>(ConstraintVisitor<T> visitor) {
+    return visitor.visitValueConstraint(this);
+  }
 }
 
 class EscapeConstraint extends Constraint {
@@ -96,6 +112,10 @@ class EscapeConstraint extends Constraint {
 
   String toString() {
     return 'escape $escaping';
+  }
+
+  T accept<T>(ConstraintVisitor<T> visitor) {
+    return visitor.visitEscapeConstraint(this);
   }
 }
 
@@ -133,5 +153,9 @@ class TypeArgumentConstraint extends Constraint {
 
   String toString() {
     return '$createdObject<$typeArgument>';
+  }
+
+  T accept<T>(ConstraintVisitor<T> visitor) {
+    return visitor.visitTypeArgumentConstraint(this);
   }
 }
