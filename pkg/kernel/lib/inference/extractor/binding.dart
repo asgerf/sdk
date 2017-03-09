@@ -7,11 +7,13 @@ import '../../ast.dart';
 import '../../core_types.dart';
 import '../storage_location.dart';
 import 'augmented_type.dart';
+import 'package:kernel/inference/raw_binding.dart';
 import 'type_augmentor.dart';
 
 /// Constructs augmented types and generates storage location banks.
 class Binding {
   final CoreTypes coreTypes;
+  final RawBinding rawBinding = new RawBinding();
   final Map<Class, ClassBank> classBanks = <Class, ClassBank>{};
   final Map<Member, MemberBank> memberBanks = <Member, MemberBank>{};
 
@@ -25,13 +27,15 @@ class Binding {
 
   MemberBank _initializeMemberBank(Member member) {
     if (member is Field) {
-      var bank = new FieldBank(member, coreTypes);
+      var bank =
+          new FieldBank(rawBinding.getBinding(member.reference), coreTypes);
       memberBanks[member] = bank;
       bank.type =
           bank.getFreshAugmentor(_augmentorScope).augmentType(member.type);
       return bank;
     } else {
-      var bank = new FunctionMemberBank(member, coreTypes);
+      var bank = new FunctionMemberBank(
+          rawBinding.getBinding(member.reference), coreTypes);
       memberBanks[member] = bank;
       var function = member.function;
       bank.typeParameters = new List<TypeParameterStorageLocation>.generate(
@@ -49,7 +53,8 @@ class Binding {
   }
 
   StorageLocationBank _initializeClassBank(Class class_) {
-    var bank = new ClassBank(class_, coreTypes);
+    var bank =
+        new ClassBank(rawBinding.getBinding(class_.reference), coreTypes);
     classBanks[class_] = bank;
     bank.typeParameters = new List<TypeParameterStorageLocation>.generate(
         class_.typeParameters.length,
@@ -143,11 +148,12 @@ class GlobalAugmentorScope extends AugmentorScope {
 
 abstract class StorageLocationBank {
   final CoreTypes coreTypes;
-  final List<StorageLocation> locations = <StorageLocation>[];
+  final RawMemberBinding binding;
+  List<StorageLocation> get locations => binding.locations;
 
-  StorageLocationBank(this.coreTypes);
+  StorageLocationBank(this.binding, this.coreTypes);
 
-  NamedNode get classOrMember;
+  NamedNode get classOrMember => binding.reference.node;
 
   int get nextIndex => locations.length;
 
@@ -175,35 +181,36 @@ abstract class StorageLocationBank {
 ///
 /// Provides access to the augmented public interface of the member.
 abstract class MemberBank extends StorageLocationBank {
-  MemberBank(CoreTypes coreTypes) : super(coreTypes);
+  MemberBank(RawMemberBinding binding, CoreTypes coreTypes)
+      : super(binding, coreTypes);
 
   AType get type;
 }
 
 /// The storage location bank for a field.
 class FieldBank extends MemberBank {
-  final Field field;
   AType type;
 
-  FieldBank(this.field, CoreTypes coreTypes) : super(coreTypes);
+  FieldBank(RawMemberBinding binding, CoreTypes coreTypes)
+      : super(binding, coreTypes);
 
-  Member get classOrMember => field;
+  Field get field => binding.reference.asField;
 }
 
 /// The storage location bank for a procedure or constructor.
 class FunctionMemberBank extends MemberBank {
-  final Member member;
   List<TypeParameterStorageLocation> typeParameters;
   FunctionAType type;
 
-  FunctionMemberBank(this.member, CoreTypes coreTypes) : super(coreTypes);
+  FunctionMemberBank(RawMemberBinding binding, CoreTypes coreTypes)
+      : super(binding, coreTypes);
 
   AType get returnType => type.returnType;
   List<AType> get typeParameterBounds => type.typeParameterBounds;
   List<AType> get positionalParameters => type.positionalParameters;
   List<AType> get namedParameters => type.namedParameters;
 
-  Member get classOrMember => member;
+  Member get member => binding.reference.asMember;
 }
 
 /// The storage location bank for a class.
@@ -211,12 +218,12 @@ class FunctionMemberBank extends MemberBank {
 /// Provides access to the augmented type parameter bounds and augmented
 /// [supertypes].
 class ClassBank extends StorageLocationBank {
-  final Class classNode;
   List<TypeParameterStorageLocation> typeParameters;
   List<AType> typeParameterBounds;
   List<ASupertype> supertypes;
 
-  ClassBank(this.classNode, CoreTypes coreTypes) : super(coreTypes);
+  ClassBank(RawMemberBinding binding, CoreTypes coreTypes)
+      : super(binding, coreTypes);
 
-  Class get classOrMember => classNode;
+  Class get classNode => binding.reference.asClass;
 }
