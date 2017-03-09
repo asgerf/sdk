@@ -37,7 +37,7 @@ abstract class SolverListener {
 
 class ConstraintSolver {
   final ClassHierarchy hierarchy;
-  final List<Constraint> constraints;
+  final ConstraintSystem constraints;
   final List<WorkItem> worklist = <WorkItem>[];
   final SolverListener report;
 
@@ -177,12 +177,12 @@ class ConstraintSolver {
   }
 
   void solve() {
-    for (var constraint in constraints) {
+    constraints.forEachConstraint((constraint) {
       constraint.register(this);
-    }
-    for (var constraint in constraints) {
+    });
+    constraints.forEachConstraint((constraint) {
       doTransfer(constraint);
-    }
+    });
     while (worklist.isNotEmpty) {
       WorkItem item = worklist.removeLast();
       item.isInWorklist = false;

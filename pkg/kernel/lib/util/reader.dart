@@ -18,6 +18,13 @@ class Reader {
     return bytes[index++];
   }
 
+  int readFixedUInt32() {
+    return (readByte() << 24) |
+        (readByte() << 16) |
+        (readByte() << 8) |
+        readByte();
+  }
+
   int readUInt() {
     var byte = readByte();
     if (byte & 0x80 == 0) {
@@ -39,7 +46,7 @@ class Reader {
     return _stringTable[readUInt()];
   }
 
-  CanonicalName readReference() {
+  CanonicalName readCanonicalName() {
     int biasedIndex = readUInt();
     if (biasedIndex == 0) {
       throw 'Expected a canonical name, but found null.';
@@ -47,7 +54,7 @@ class Reader {
     return _canonicalNames[biasedIndex - 1];
   }
 
-  CanonicalName readOptionalReference() {
+  CanonicalName readOptionalCanonicalName() {
     int biasedIndex = readUInt();
     if (biasedIndex == 0) {
       return null;

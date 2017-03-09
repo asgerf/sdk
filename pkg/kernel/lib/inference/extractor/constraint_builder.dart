@@ -13,8 +13,7 @@ import 'augmented_type.dart';
 import 'hierarchy.dart';
 
 class ConstraintBuilder {
-  final Map<NamedNode, List<Constraint>> constraintsByOwner = {};
-  final List<Constraint> constraints = <Constraint>[];
+  final ConstraintSystem constraints = new ConstraintSystem();
   final AugmentedHierarchy hierarchy;
 
   NamedNode currentOwner;
@@ -22,7 +21,6 @@ class ConstraintBuilder {
   ConstraintBuilder(this.hierarchy);
 
   void setOwner(NamedNode owner) {
-    constraintsByOwner[owner] ??= <Constraint>[];
     currentOwner = owner;
   }
 
@@ -31,11 +29,7 @@ class ConstraintBuilder {
   }
 
   void addConstraint(Constraint constraint) {
-    var list = constraintsByOwner[currentOwner];
-    constraint.owner = currentOwner.reference;
-    constraint.index = list.length;
-    list.add(constraint);
-    constraints.add(constraint);
+    constraints.addConstraint(currentOwner.reference, constraint);
   }
 
   void addAssignment(ValueSource source, ValueSink sink, int mask) {

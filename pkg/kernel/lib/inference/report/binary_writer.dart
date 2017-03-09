@@ -3,14 +3,16 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.report.binary_writer;
 
+import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
+import 'package:kernel/inference/raw_binding.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/solver/solver.dart';
 import 'package:kernel/inference/storage_location.dart';
 import 'package:kernel/inference/value.dart';
 import 'package:kernel/util/writer.dart';
 
-class BinaryReportWriter implements SolverListener {
+class BinaryReportWriter {
   final Writer writer;
   BinaryWriterConstraintVisitor _constraintVisitor;
 
@@ -26,46 +28,61 @@ class BinaryReportWriter implements SolverListener {
     writer.writeByte(byte);
   }
 
-  void writeEventList(List<Event> events) {
-    writer.writeUInt(events.length);
-    events.forEach(writeEvent);
+  void writeBinding(RawBinding binding) {
+    writer.writeUInt(binding.storageLocations.length);
+    binding.storageLocations.forEach((Reference owner, RawMemberBinding b) {
+      writer.writeCanonicalName(owner.canonicalName);
+      writer.writeUInt(b.locations.length);
+    });
   }
 
-  void writeEvent(Event event) {
-    event.replayTo(this);
+  void writeConstraints(ConstraintSystem constraints) {
+    writer.writeUInt(constraints.constraints.length);
+    constraints.constraints
+        .forEach((Reference owner, List<Constraint> constraints) {
+      writer.writeCanonicalName(owner.canonicalName);
+      writeConstraintList(constraints);
+    });
   }
 
-  void writeConstraintReference(Constraint constraint) {
-    writer.writeReference(constraint.owner.canonicalName);
-    writer.writeUInt(constraint.index);
-  }
-
-  void writeLocationReference(StorageLocation location) {
-    writer.writeReference(location.owner.canonicalName);
-    writer.writeUInt(location.index);
-  }
-
-  void writeValue(Value value) {
-    writer.writeOptionalReference(value.baseClassReference?.canonicalName);
-    writer.writeFixedUInt32(value.flags);
-  }
-
-  @override
-  void onBeginTransfer(Constraint constraint) {
-    writer.writeByte(EventTag.OnBeginTransfer);
-    writeConstraintReference(constraint);
-  }
-
-  @override
-  void onChange(StorageLocation location, Value value, bool leadsToEscape) {
-    writer.writeByte(EventTag.OnChange);
-    writeLocationReference(location);
-    writeValue(value);
-    writer.writeByte(leadsToEscape ? 1 : 0);
+  void writeConstraintList(List<Constraint> constraints) {
+    writer.writeUInt(constraints.length);
+    constraints.forEach(writeConstraintDefinition);
   }
 
   void writeConstraintDefinition(Constraint constraint) {
     constraint.accept(_constraintVisitor);
+  }
+
+  void writeEventList(List<TransferEvent> events) {
+    writer.writeUInt(events.length);
+    events.forEach(writeTransferEvent);
+  }
+
+  void writeTransferEvent(TransferEvent event) {
+    writeConstraintReference(event.constraint);
+    event.changes.forEach(writeChangeEvent);
+  }
+
+  void writeChangeEvent(ChangeEvent event) {
+    writeLocationReference(event.location);
+    writeValue(event.value);
+    writeByte(event.leadsToEscape ? 1 : 0);
+  }
+
+  void writeConstraintReference(Constraint constraint) {
+    writer.writeCanonicalName(constraint.owner.canonicalName);
+    writer.writeUInt(constraint.index);
+  }
+
+  void writeLocationReference(StorageLocation location) {
+    writer.writeCanonicalName(location.owner.canonicalName);
+    writer.writeUInt(location.index);
+  }
+
+  void writeValue(Value value) {
+    writer.writeOptionalCanonicalName(value.baseClassReference?.canonicalName);
+    writer.writeFixedUInt32(value.flags);
   }
 }
 

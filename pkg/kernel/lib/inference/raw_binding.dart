@@ -1,3 +1,6 @@
+// Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
+// for details. All rights reserved. Use of this source code is governed by a
+// BSD-style license that can be found in the LICENSE file.
 library kernel.inference.raw_binding;
 
 import 'package:kernel/ast.dart';
@@ -10,6 +13,14 @@ class RawBinding {
   RawMemberBinding getBinding(Reference owner) {
     return storageLocations[owner] ??=
         new RawMemberBinding(owner, <StorageLocation>[]);
+  }
+
+  StorageLocation getStorageLocation(Reference owner, int index) {
+    return getBinding(owner).locations[index];
+  }
+
+  void setBinding(Reference owner, List<StorageLocation> locations) {
+    storageLocations[owner] = new RawMemberBinding(owner, locations);
   }
 }
 

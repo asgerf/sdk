@@ -39,11 +39,12 @@ class Writer {
     writeUInt(_getStringIndex(string));
   }
 
-  void writeReference(CanonicalName name) {
+  void writeCanonicalName(CanonicalName name) {
+    assert(name != null);
     writeUInt(1 + _getCanonicalNameIndex(name));
   }
 
-  void writeOptionalReference(CanonicalName name) {
+  void writeOptionalCanonicalName(CanonicalName name) {
     if (name == null) {
       writeByte(0);
     } else {

@@ -8,6 +8,34 @@ import 'storage_location.dart';
 import 'solver/solver.dart';
 import 'value.dart';
 
+class ConstraintSystem {
+  final Map<Reference, List<Constraint>> constraints =
+      <Reference, List<Constraint>>{};
+
+  void addConstraint(Reference owner, Constraint constraint) {
+    assert(constraint.owner == null);
+    assert(constraint.index == null);
+    var list = constraints[owner] ??= <Constraint>[];
+    constraint.owner = owner;
+    constraint.index = list.length;
+    list.add(constraint);
+  }
+
+  void forEachConstraint(void action(Constraint constraint)) {
+    for (var list in constraints.values) {
+      list.forEach(action);
+    }
+  }
+
+  int get numberOfConstraints {
+    int sum = 0;
+    for (var list in constraints.values) {
+      sum += list.length;
+    }
+    return sum;
+  }
+}
+
 abstract class Constraint {
   Reference owner;
   int index;

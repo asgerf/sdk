@@ -120,9 +120,10 @@ class TransferEvent extends Event {
   final int timestamp;
 
   /// Changes that occurred during this transfer.
-  final List<ChangeEvent> changes = <ChangeEvent>[];
+  final List<ChangeEvent> changes;
 
-  TransferEvent(this.constraint, this.timestamp);
+  TransferEvent(this.constraint, this.timestamp, [List<ChangeEvent> changes])
+      : this.changes = changes ?? <ChangeEvent>[];
 
   void replayTo(SolverListener listener) {
     listener.onBeginTransfer(constraint);
