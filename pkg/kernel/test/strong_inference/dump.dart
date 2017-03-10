@@ -47,9 +47,8 @@ main(List<String> args) async {
   }
   writeProgramToText(program, path: 'dump.txt', binding: extractor.binding);
 
-  print('Number of events = ${report.allEvents.length}');
-  print('Number of changes = ${report.changeEvents.length}');
-  print('Number of transfers = ${report.transferEvents.length}');
+  print('Number of changes = ${report.numberOfChangeEvents}');
+  print('Number of transfers = ${report.numberOfTransferEvents}');
 
   program.computeCanonicalNames();
   var file = new File('report.bin').openWrite();

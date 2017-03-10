@@ -17,14 +17,21 @@ class Report implements SolverListener {
 
   final List<Event> allEvents = <Event>[];
 
-  /// List of all change events, in the order they were emitted.
-  final List<ChangeEvent> changeEvents = <ChangeEvent>[];
-
   /// List of all transfer events, in the order they were emitted.
   final List<TransferEvent> transferEvents = <TransferEvent>[];
 
   int get timestamp =>
       transferEvents.isEmpty ? beginningOfTime : transferEvents.length - 1;
+
+  int get numberOfTransferEvents => transferEvents.length;
+
+  int get numberOfChangeEvents {
+    int sum = 0;
+    for (var event in transferEvents) {
+      sum += event.changes.length;
+    }
+    return sum;
+  }
 
   void onBeginTransfer(Constraint constraint) {
     addTransferEvent(new TransferEvent(constraint, timestamp));
@@ -45,7 +52,6 @@ class Report implements SolverListener {
   void addChangeEvent(ChangeEvent event) {
     allEvents.add(event);
     transferEvents[event.timestamp].changes.add(event);
-    changeEvents.add(event);
     locationChanges
         .putIfAbsent(
             event.location, () => _makeInitialEventList(event.location))
