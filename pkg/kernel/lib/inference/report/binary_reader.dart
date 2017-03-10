@@ -13,7 +13,7 @@ import 'package:kernel/util/reader.dart';
 
 class BinaryReportReader {
   final Reader reader;
-  final ConstraintSystem constraintSystem = new ConstraintSystem();
+  ConstraintSystem constraintSystem;
   int eventTimestamp = 0;
 
   BinaryReportReader(this.reader);
@@ -24,7 +24,8 @@ class BinaryReportReader {
     }
   }
 
-  void readConstraintSystem() {
+  ConstraintSystem readConstraintSystem() {
+    constraintSystem = new ConstraintSystem();
     int numberOfBindings = reader.readUInt();
     for (int i = 0; i < numberOfBindings; ++i) {
       var owner = reader.readCanonicalName().getReference();
@@ -45,6 +46,7 @@ class BinaryReportReader {
         cluster.constraints[i] = readConstraint();
       }
     }
+    return constraintSystem;
   }
 
   List<Constraint> readConstraintList(Reference owner) {

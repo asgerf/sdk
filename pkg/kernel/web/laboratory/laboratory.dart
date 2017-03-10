@@ -14,6 +14,8 @@ FileUploadInputElement reportFileInput =
 FileUploadInputElement kernelFileInput =
     document.getElementById('kernel-file-input');
 
+ButtonElement reloadButton = document.getElementById('reload-button');
+
 DivElement debugBox = document.getElementById('debug-box');
 
 Program program;
@@ -25,8 +27,13 @@ info(message) {
 }
 
 main() {
-  kernelFileInput.onChange.listen(onKernelFileChange);
-  reportFileInput.onChange.listen(onReportFileChange);
+  kernelFileInput.onChange.listen((_) => loadKernelFile());
+  reportFileInput.onChange.listen((_) => loadReportFile());
+  reloadButton.onClick.listen((_) {
+    if (kernelFileInput.files.isEmpty || reportFileInput.files.isEmpty) return;
+    loadKernelFile();
+    loadReportFile();
+  });
 }
 
 Future<Uint8List> readBytesFromFileInput(FileUploadInputElement input) async {
@@ -39,7 +46,7 @@ Future<Uint8List> readBytesFromFileInput(FileUploadInputElement input) async {
   return reader.result as Uint8List;
 }
 
-onKernelFileChange(Event event) async {
+loadKernelFile() async {
   var bytes = await readBytesFromFileInput(kernelFileInput);
   if (bytes == null) return;
   program = new Program();
@@ -47,7 +54,7 @@ onKernelFileChange(Event event) async {
   info('Read kernel file with ${program.libraries.length} libraries');
 }
 
-onReportFileChange(Event event) async {
+loadReportFile() async {
   if (program == null) {
     info('Load the program first');
     return;

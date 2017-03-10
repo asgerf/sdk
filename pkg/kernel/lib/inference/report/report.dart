@@ -12,11 +12,21 @@ class Report implements SolverListener {
   static const int beginningOfTime = -1;
 
   /// List of all transfer events, in the order they were emitted.
-  final List<TransferEvent> transferEvents = <TransferEvent>[];
+  final List<TransferEvent> transferEvents;
 
   /// Change events indexed by storage location and sorted by timestamp.
   final Map<StorageLocation, List<ChangeEvent>> locationChanges =
       <StorageLocation, List<ChangeEvent>>{};
+
+  Report() : transferEvents = <TransferEvent>[];
+
+  Report.fromTransfers(this.transferEvents) {
+    for (var event in transferEvents) {
+      for (var change in event.changes) {
+        _addChangeEventToIndex(change);
+      }
+    }
+  }
 
   int get timestamp =>
       transferEvents.isEmpty ? beginningOfTime : transferEvents.length - 1;
@@ -33,7 +43,7 @@ class Report implements SolverListener {
 
   @override
   void onBeginTransfer(Constraint constraint) {
-    addTransferEvent(new TransferEvent(constraint, timestamp));
+    transferEvents.add(new TransferEvent(constraint, timestamp));
   }
 
   /// Called by the solver when the information associated with [location]
@@ -41,15 +51,12 @@ class Report implements SolverListener {
   @override
   void onChange(StorageLocation location, Value value, bool leadsToEscape) {
     assert(transferEvents.isNotEmpty); // Must be called during a transfer.
-    addChangeEvent(new ChangeEvent(location, value, leadsToEscape, timestamp));
-  }
-
-  void addTransferEvent(TransferEvent event) {
-    transferEvents.add(event);
-  }
-
-  void addChangeEvent(ChangeEvent event) {
+    var event = new ChangeEvent(location, value, leadsToEscape, timestamp);
     transferEvents[event.timestamp].changes.add(event);
+    _addChangeEventToIndex(event);
+  }
+
+  void _addChangeEventToIndex(ChangeEvent event) {
     locationChanges
         .putIfAbsent(
             event.location, () => _makeInitialEventList(event.location))
