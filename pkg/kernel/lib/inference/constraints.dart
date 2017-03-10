@@ -17,13 +17,13 @@ class ConstraintSystem {
   }
 
   void addConstraint(Reference owner, Constraint constraint) {
-    var group = clusters[owner] ??= new ConstraintCluster(owner);
-    group.addConstraint(constraint);
+    var cluster = clusters[owner] ??= new ConstraintCluster(owner);
+    cluster.addConstraint(constraint);
   }
 
   void forEachConstraint(void action(Constraint constraint)) {
-    for (var group in clusters.values) {
-      group.constraints.forEach(action);
+    for (var cluster in clusters.values) {
+      cluster.constraints.forEach(action);
     }
   }
 
