@@ -14,7 +14,7 @@ import 'value.dart';
 ///
 /// The inference algorithm must associate two things with a storage location:
 /// - a [Value] summarizing what can flow in here
-/// - how the values that flow in here can escape
+/// - whether the values that flow in here can escape
 ///
 class StorageLocation extends solver.StorageLocationBaseClass
     implements ValueSource, ValueSink {

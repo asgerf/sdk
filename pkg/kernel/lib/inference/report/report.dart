@@ -11,12 +11,12 @@ import '../solver/solver.dart' show SolverListener;
 class Report implements SolverListener {
   static const int beginningOfTime = -1;
 
-  /// Change events that affect a given storage location, in the order they
-  /// were emitted.
-  final Map<StorageLocation, List<ChangeEvent>> locationChanges = {};
-
   /// List of all transfer events, in the order they were emitted.
   final List<TransferEvent> transferEvents = <TransferEvent>[];
+
+  /// Change events indexed by storage location and sorted by timestamp.
+  final Map<StorageLocation, List<ChangeEvent>> locationChanges =
+      <StorageLocation, List<ChangeEvent>>{};
 
   int get timestamp =>
       transferEvents.isEmpty ? beginningOfTime : transferEvents.length - 1;
