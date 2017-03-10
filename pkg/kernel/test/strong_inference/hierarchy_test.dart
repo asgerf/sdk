@@ -6,6 +6,7 @@ import 'package:kernel/core_types.dart';
 import 'package:kernel/inference/extractor/augmented_type.dart';
 import 'package:kernel/inference/extractor/binding.dart';
 import 'package:kernel/inference/extractor/hierarchy.dart';
+import 'package:kernel/inference/raw_binding.dart';
 import 'package:kernel/kernel.dart';
 import 'package:test/test.dart';
 
@@ -13,7 +14,7 @@ main(List<String> args) {
   var program = loadProgramFromBinary(args[0]);
   var hierarchy = new ClassHierarchy(program);
   var coreTypes = new CoreTypes(program);
-  var bindings = new Binding(coreTypes);
+  var bindings = new Binding(new RawBinding(), coreTypes);
   var augmentedHierarchy = new AugmentedHierarchy(hierarchy, bindings);
   test('All-pairs augmented class hierarchy tests', () {
     for (Class class_ in hierarchy.classes) {

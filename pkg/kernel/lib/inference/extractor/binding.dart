@@ -13,13 +13,13 @@ import 'type_augmentor.dart';
 /// Constructs augmented types and generates storage location banks.
 class Binding {
   final CoreTypes coreTypes;
-  final RawBinding rawBinding = new RawBinding();
+  final RawBinding rawBinding;
   final Map<Class, ClassBank> classBanks = <Class, ClassBank>{};
   final Map<Member, MemberBank> memberBanks = <Member, MemberBank>{};
 
   GlobalAugmentorScope _augmentorScope;
 
-  Binding(this.coreTypes) {
+  Binding(this.rawBinding, this.coreTypes) {
     _augmentorScope = new GlobalAugmentorScope(this);
   }
 
