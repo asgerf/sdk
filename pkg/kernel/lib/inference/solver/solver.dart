@@ -14,20 +14,13 @@ import '../value.dart';
 class StorageLocationBaseClass {
   Value value = Value.bottom;
   bool leadsToEscape = false;
-  WorkItem forward, backward;
-
-  StorageLocationBaseClass() {
-    forward = new WorkItem(this);
-    backward = new WorkItem(this);
-  }
+  final WorkItem forward = new WorkItem();
+  final WorkItem backward = new WorkItem();
 }
 
 class WorkItem {
-  final StorageLocation key;
   final List<Constraint> dependencies = <Constraint>[];
   bool isInWorklist = false;
-
-  WorkItem(this.key);
 }
 
 abstract class SolverListener {
