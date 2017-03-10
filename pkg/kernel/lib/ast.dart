@@ -723,6 +723,8 @@ abstract class Member extends NamedNode {
   bool get containsSuperCalls {
     return transformerFlags & TransformerFlag.superCalls != 0;
   }
+
+  String get fileUri;
 }
 
 /// A field declaration.
@@ -925,6 +927,8 @@ class Constructor extends Member {
 
   DartType get getterType => const BottomType();
   DartType get setterType => const BottomType();
+
+  String get fileUri => enclosingClass.fileUri;
 }
 
 /// A method, getter, setter, index-getter, index-setter, operator overloader,
@@ -3906,19 +3910,9 @@ class Program extends TreeNode {
 
   /// Translates an offset to line and column numbers in the given file.
   Location getLocation(String file, int offset) {
-    List<int> lines = uriToSource[file].lineStarts;
-    int low = 0, high = lines.length - 1;
-    while (low < high) {
-      int mid = high - ((high - low) >> 1); // Get middle, rounding up.
-      int pivot = lines[mid];
-      if (pivot <= offset) {
-        low = mid;
-      } else {
-        high = mid - 1;
-      }
-    }
-    int lineIndex = low;
-    int lineStart = lines[lineIndex];
+    var source = uriToSource[file];
+    int lineIndex = source.getLineFromOffset(offset);
+    int lineStart = source.lineStarts[lineIndex];
     int lineNumber = 1 + lineIndex;
     int columnNumber = 1 + offset - lineStart;
     return new Location(file, lineNumber, columnNumber);
@@ -4030,6 +4024,20 @@ class Source {
   final String source;
 
   Source(this.lineStarts, this.source);
+
+  int getLineFromOffset(int offset) {
+    int low = 0, high = lineStarts.length - 1;
+    while (low < high) {
+      int mid = high - ((high - low) >> 1); // Get middle, rounding up.
+      int pivot = lineStarts[mid];
+      if (pivot <= offset) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return low;
+  }
 }
 
 /// Returns the [Reference] object for the given member.

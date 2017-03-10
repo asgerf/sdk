@@ -14,23 +14,45 @@ class CodeView {
     assert(viewElement != null);
   }
 
+  Source getMissingSource(String library) {
+    if (libraryIndex.containsLibrary(library)) {
+      return new Source([0], "Missing library source for '$library'");
+    } else {
+      return new Source([0], "There is no library for '$library'");
+    }
+  }
+
   void showLibrary(String library) {
     Source source = program.uriToSource[library];
     if (source == null) {
-      if (libraryIndex.containsLibrary(library)) {
-        source = new Source([0], "Missing library source for '$library'");
-      } else {
-        source = new Source([0], "There is no library for '$library'");
-      }
+      source = getMissingSource(library);
     }
     showSource(source);
   }
 
-  void showSource(Source source) {
+  void showMember(Member member) {
+    Source source = program.uriToSource[member.fileUri];
+    if (source == null) {
+      showSource(getMissingSource(member.fileUri));
+      return;
+    }
+    showSource(source, member.fileOffset, member.fileEndOffset);
+  }
+
+  void showSource(Source source, [int startOffset, int endOffset]) {
     var htmlList = new OListElement();
     var code = source.source;
     int numberOfLines = source.lineStarts.length;
-    for (int lineIndex = 0; lineIndex < numberOfLines; ++lineIndex) {
+    int firstLine = 0;
+    int lastLine = numberOfLines;
+    if (startOffset != null) {
+      firstLine = source.getLineFromOffset(startOffset);
+      htmlList.setAttribute('start', '${1 + firstLine}');
+    }
+    if (endOffset != null) {
+      lastLine = 1 + source.getLineFromOffset(endOffset);
+    }
+    for (int lineIndex = firstLine; lineIndex < lastLine; ++lineIndex) {
       int start = source.lineStarts[lineIndex];
       int end = lineIndex == numberOfLines - 1
           ? code.length

@@ -76,5 +76,6 @@ loadReportFile() async {
   info('Read report with '
       '${reader.constraintSystem.numberOfConstraints} constraints and '
       '${events.length} transfer events');
-  codeView.showLibrary('dart:core');
+
+  codeView.showMember(program.mainMethod);
 }
