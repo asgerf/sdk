@@ -164,7 +164,7 @@ class EscapeConstraint extends Constraint {
   }
 }
 
-/// If [createdObject] is escaping, then [typeArgument] must be top.
+/// If [createdObject] is escaping, then [value] can flow into [typeArgument].
 ///
 /// This is generated for each type argument term inside an allocation site.
 /// For instance, for the allocation
