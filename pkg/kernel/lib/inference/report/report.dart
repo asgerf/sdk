@@ -15,8 +15,6 @@ class Report implements SolverListener {
   /// were emitted.
   final Map<StorageLocation, List<ChangeEvent>> locationChanges = {};
 
-  final List<Event> allEvents = <Event>[];
-
   /// List of all transfer events, in the order they were emitted.
   final List<TransferEvent> transferEvents = <TransferEvent>[];
 
@@ -45,12 +43,10 @@ class Report implements SolverListener {
   }
 
   void addTransferEvent(TransferEvent event) {
-    allEvents.add(event);
     transferEvents.add(event);
   }
 
   void addChangeEvent(ChangeEvent event) {
-    allEvents.add(event);
     transferEvents[event.timestamp].changes.add(event);
     locationChanges
         .putIfAbsent(
@@ -90,8 +86,11 @@ class Report implements SolverListener {
   }
 
   void replayTo(SolverListener listener) {
-    for (var event in allEvents) {
+    for (var event in transferEvents) {
       event.replayTo(listener);
+      for (var change in event.changes) {
+        change.replayTo(listener);
+      }
     }
   }
 }
