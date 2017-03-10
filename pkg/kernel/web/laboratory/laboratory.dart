@@ -15,7 +15,8 @@ import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/library_index.dart';
 import 'package:kernel/util/reader.dart';
 
-part 'laboratory_ui.dart';
+import 'laboratory_ui.dart';
+export 'laboratory_ui.dart';
 
 Program program;
 ConstraintSystem constraintSystem;

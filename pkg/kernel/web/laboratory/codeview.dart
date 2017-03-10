@@ -4,13 +4,16 @@
 import 'dart:html';
 
 import 'package:kernel/ast.dart';
+import 'package:path/path.dart';
 
 import 'laboratory.dart';
 
 class CodeView {
   final DivElement viewElement;
+  final Element titleElement;
+  final Element filenameElement;
 
-  CodeView(this.viewElement) {
+  CodeView(this.viewElement, this.titleElement, this.filenameElement) {
     assert(viewElement != null);
   }
 
@@ -23,14 +26,17 @@ class CodeView {
   }
 
   void showLibrary(String library) {
+    setTitle(basename(library), library);
     Source source = program.uriToSource[library];
     if (source == null) {
-      source = getMissingSource(library);
+      showSource(getMissingSource(library));
+      return;
     }
     showSource(source);
   }
 
   void showMember(Member member) {
+    setTitle('$member'.replaceAll('::', '.'), member.fileUri);
     Source source = program.uriToSource[member.fileUri];
     if (source == null) {
       showSource(getMissingSource(member.fileUri));
@@ -64,5 +70,26 @@ class CodeView {
     viewElement.children
       ..clear()
       ..add(htmlList);
+  }
+
+  String extractRelevantFilePath(String uri) {
+    if (!uri.startsWith('file:')) return uri;
+    var commonRootFolderNames = ['lib', 'bin', 'test', 'pkg', 'web'];
+    int lowestIndex = uri.length;
+    for (var rootName in commonRootFolderNames) {
+      int index = uri.indexOf('$rootName/');
+      if (index != -1 && index < lowestIndex) {
+        lowestIndex = index;
+      }
+    }
+    if (lowestIndex != uri.length) {
+      return uri.substring(lowestIndex);
+    }
+    return uri;
+  }
+
+  void setTitle(String bigTitle, String uri) {
+    titleElement?.text = bigTitle;
+    filenameElement?.text = extractRelevantFilePath(uri);
   }
 }

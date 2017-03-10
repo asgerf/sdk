@@ -3,6 +3,9 @@
   <head>
     <title>Laboratory</title>
     <style>
+      body {
+        font-family: Verdana, Geneva, sans-serif;
+      }
       .codeview {
         font-family: monospace;
         size: 10pt;
@@ -11,17 +14,24 @@
       #code-view {
         width: 800px;
       }
+      #code-view-title {
+        font-size: 20pt;
+      }
+      #code-view-filename {
+        font-size: 10pt;
+        color: gray;
+      }
     </style>
   </head>
   <body>
     Dill file: <input type="file" id="kernel-file-input" />
-    <span style="width: 25px"/>
     Report file: <input type="file" id="report-file-input" />
-    <span style="width: 25px"/>
     <input type="button" id="reload-button" value="Reload"/>
     <br/>
     <hr/>
 
+    <div id="code-view-filename"></div>
+    <div id="code-view-title"></div>
     <div id="code-view" class="codeview"></div>
 
 
