@@ -1,6 +1,8 @@
 // Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
+library kernel.laboratory;
+
 import 'codeview.dart';
 import 'dart:async';
 import 'dart:html';
@@ -13,15 +15,7 @@ import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/library_index.dart';
 import 'package:kernel/util/reader.dart';
 
-FileUploadInputElement reportFileInput =
-    document.getElementById('report-file-input');
-FileUploadInputElement kernelFileInput =
-    document.getElementById('kernel-file-input');
-ButtonElement reloadButton = document.getElementById('reload-button');
-
-DivElement debugBox = document.getElementById('debug-box');
-
-CodeView codeView = new CodeView(document.getElementById('code-div'));
+part 'laboratory_ui.dart';
 
 Program program;
 ConstraintSystem constraintSystem;
