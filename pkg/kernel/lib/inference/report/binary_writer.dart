@@ -7,6 +7,7 @@ import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/inference/raw_binding.dart';
 import 'package:kernel/inference/report/report.dart';
+import 'package:kernel/inference/report/tags.dart';
 import 'package:kernel/inference/solver/solver.dart';
 import 'package:kernel/inference/storage_location.dart';
 import 'package:kernel/inference/value.dart';
@@ -18,6 +19,10 @@ class BinaryReportWriter {
 
   BinaryReportWriter(this.writer) {
     _constraintVisitor = new BinaryWriterConstraintVisitor(this);
+  }
+
+  void writeDebugTag(DebugTag tag) {
+    writer.writeByte(tag.byte);
   }
 
   void finish() {
@@ -61,6 +66,7 @@ class BinaryReportWriter {
 
   void writeTransferEvent(TransferEvent event) {
     writeConstraintReference(event.constraint);
+    writer.writeUInt(event.changes.length);
     event.changes.forEach(writeChangeEvent);
   }
 
@@ -84,18 +90,6 @@ class BinaryReportWriter {
     writer.writeOptionalCanonicalName(value.baseClassReference?.canonicalName);
     writer.writeFixedUInt32(value.flags);
   }
-}
-
-class EventTag {
-  static const int OnBeginTransfer = 0;
-  static const int OnChange = 1;
-}
-
-class ConstraintTag {
-  static const int EscapeConstraint = 0;
-  static const int SubtypeConstraint = 1;
-  static const int TypeArgumentConstraint = 2;
-  static const int ValueConstraint = 3;
 }
 
 class BinaryWriterConstraintVisitor extends ConstraintVisitor {

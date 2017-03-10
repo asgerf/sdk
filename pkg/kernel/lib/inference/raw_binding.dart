@@ -16,7 +16,11 @@ class RawBinding {
   }
 
   StorageLocation getStorageLocation(Reference owner, int index) {
-    return getBinding(owner).locations[index];
+    var locations = storageLocations[owner];
+    if (locations == null) {
+      throw 'There are no bindings for $owner';
+    }
+    return locations.locations[index];
   }
 
   void setBinding(Reference owner, List<StorageLocation> locations) {

@@ -12,6 +12,7 @@ class Reader {
   Reader(this.bytes, [CanonicalName root]) {
     root ??= new CanonicalName.root();
     _readFooter(root);
+    index = 0;
   }
 
   int readByte() {

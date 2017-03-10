@@ -22,6 +22,7 @@ class BufferedSink {
       _sink.add(_buffer);
       _buffer = new Uint8List(SIZE);
       length = 0;
+      _bytesFlushed += SIZE;
     }
   }
 
@@ -61,10 +62,13 @@ class BufferedSink {
   void flush() {
     _sink.add(_buffer.sublist(0, length));
     _buffer = new Uint8List(SIZE);
+    _bytesFlushed += length;
     length = 0;
   }
 
   void flushAndDestroy() {
     _sink.add(_buffer.sublist(0, length));
+    _bytesFlushed += length;
+    length = 0;
   }
 }

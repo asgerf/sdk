@@ -9,6 +9,7 @@ import 'package:kernel/inference/extractor/binding.dart';
 import 'package:kernel/inference/raw_binding.dart';
 import 'package:kernel/inference/report/binary_writer.dart';
 import 'package:kernel/inference/report/report.dart';
+import 'package:kernel/inference/report/tags.dart';
 import 'package:kernel/inference/storage_location.dart';
 import 'package:kernel/inference/value.dart';
 import 'package:kernel/util/reader.dart';
@@ -20,6 +21,12 @@ class BinaryReportReader {
   int eventTimestamp = 0;
 
   BinaryReportReader(this.reader);
+
+  void readDebugTag(DebugTag tag) {
+    if (reader.readByte() != tag.byte) {
+      throw 'Expected ${tag.name}';
+    }
+  }
 
   void readBindings() {
     int numberOfBindings = reader.readUInt();
