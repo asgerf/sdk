@@ -84,22 +84,9 @@ class Report implements SolverListener {
   bool leadsToEscape(StorageLocation location, int timestamp) {
     return getMostRecentChange(location, timestamp).leadsToEscape;
   }
-
-  void replayTo(SolverListener listener) {
-    for (var event in transferEvents) {
-      event.replayTo(listener);
-      for (var change in event.changes) {
-        change.replayTo(listener);
-      }
-    }
-  }
 }
 
-abstract class Event {
-  void replayTo(SolverListener listener);
-}
-
-class ChangeEvent extends Event {
+class ChangeEvent {
   final StorageLocation location;
   final Value value;
   final bool leadsToEscape;
@@ -113,13 +100,9 @@ class ChangeEvent extends Event {
   }
 
   bool get isAtBeginningOfTime => timestamp == Report.beginningOfTime;
-
-  void replayTo(SolverListener listener) {
-    listener.onChange(location, value, leadsToEscape);
-  }
 }
 
-class TransferEvent extends Event {
+class TransferEvent {
   final Constraint constraint;
   final int timestamp;
 
@@ -128,8 +111,4 @@ class TransferEvent extends Event {
 
   TransferEvent(this.constraint, this.timestamp, [List<ChangeEvent> changes])
       : this.changes = changes ?? <ChangeEvent>[];
-
-  void replayTo(SolverListener listener) {
-    listener.onBeginTransfer(constraint);
-  }
 }
