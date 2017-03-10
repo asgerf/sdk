@@ -16,6 +16,13 @@ class StorageLocationBaseClass {
   bool leadsToEscape = false;
   final WorkItem forward = new WorkItem();
   final WorkItem backward = new WorkItem();
+
+  // TODO: We should try to avoid having two WorkItem objects per storage
+  // location, as there are going to be a lot of these objects.
+  // The three booleans leadsToEscape, and {foward,backward}.isInWorklist
+  // can be stored in a single bitmask, the lists can be inlined, but then the
+  // worklist needs to distinguish if the item is forward or backward use, or
+  // it can just trigger both if both were marked as being in the worklist.
 }
 
 class WorkItem {
