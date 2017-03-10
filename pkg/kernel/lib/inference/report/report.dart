@@ -31,12 +31,14 @@ class Report implements SolverListener {
     return sum;
   }
 
+  @override
   void onBeginTransfer(Constraint constraint) {
     addTransferEvent(new TransferEvent(constraint, timestamp));
   }
 
   /// Called by the solver when the information associated with [location]
   /// changes.
+  @override
   void onChange(StorageLocation location, Value value, bool leadsToEscape) {
     assert(transferEvents.isNotEmpty); // Must be called during a transfer.
     addChangeEvent(new ChangeEvent(location, value, leadsToEscape, timestamp));
