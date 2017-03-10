@@ -41,12 +41,12 @@ class BinaryReportWriter {
     });
   }
 
-  void writeConstraints(ConstraintSystem constraints) {
-    writer.writeUInt(constraints.constraints.length);
-    constraints.constraints
-        .forEach((Reference owner, List<Constraint> constraints) {
+  void writeConstraints(ConstraintSystem constraintSystem) {
+    writer.writeUInt(constraintSystem.clusters.length);
+    constraintSystem.clusters
+        .forEach((Reference owner, ConstraintCluster cluster) {
       writer.writeCanonicalName(owner.canonicalName);
-      writeConstraintList(constraints);
+      writeConstraintList(cluster.constraints);
     });
   }
 

@@ -9,30 +9,46 @@ import 'solver/solver.dart';
 import 'value.dart';
 
 class ConstraintSystem {
-  final Map<Reference, List<Constraint>> constraints =
-      <Reference, List<Constraint>>{};
+  final Map<Reference, ConstraintCluster> clusters =
+      <Reference, ConstraintCluster>{};
+
+  Constraint getConstraint(Reference owner, int index) {
+    return clusters[owner].constraints[index];
+  }
 
   void addConstraint(Reference owner, Constraint constraint) {
-    assert(constraint.owner == null);
-    assert(constraint.index == null);
-    var list = constraints[owner] ??= <Constraint>[];
-    constraint.owner = owner;
-    constraint.index = list.length;
-    list.add(constraint);
+    var group = clusters[owner] ??= new ConstraintCluster(owner);
+    group.addConstraint(constraint);
   }
 
   void forEachConstraint(void action(Constraint constraint)) {
-    for (var list in constraints.values) {
-      list.forEach(action);
+    for (var group in clusters.values) {
+      group.constraints.forEach(action);
     }
   }
 
   int get numberOfConstraints {
     int sum = 0;
-    for (var list in constraints.values) {
-      sum += list.length;
+    for (var group in clusters.values) {
+      sum += group.constraints.length;
     }
     return sum;
+  }
+}
+
+class ConstraintCluster {
+  final Reference owner;
+  final List<Constraint> constraints;
+
+  ConstraintCluster(this.owner, [List<Constraint> constraints])
+      : this.constraints = constraints ?? <Constraint>[];
+
+  void addConstraint(Constraint constraint) {
+    assert(constraint.owner == null);
+    assert(constraint.index == null);
+    constraint.owner = owner;
+    constraint.index = constraints.length;
+    constraints.add(constraint);
   }
 }
 
