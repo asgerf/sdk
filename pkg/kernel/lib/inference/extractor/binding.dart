@@ -5,9 +5,9 @@ library kernel.inference.extractor.binding;
 
 import '../../ast.dart';
 import '../../core_types.dart';
+import '../constraints.dart';
 import '../storage_location.dart';
 import 'augmented_type.dart';
-import 'package:kernel/inference/constraints.dart';
 import 'type_augmentor.dart';
 
 /// Constructs augmented types and generates storage location banks.
