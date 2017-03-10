@@ -5,7 +5,6 @@ library kernel.inference.report.binary_reader;
 
 import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/raw_binding.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/report/tags.dart';
 import 'package:kernel/inference/storage_location.dart';
@@ -17,8 +16,6 @@ class BinaryReportReader {
   final ConstraintSystem constraintSystem = new ConstraintSystem();
   int eventTimestamp = 0;
 
-  RawBinding get binding => constraintSystem.binding;
-
   BinaryReportReader(this.reader);
 
   void readDebugTag(DebugTag tag) {
@@ -27,24 +24,26 @@ class BinaryReportReader {
     }
   }
 
-  void readBindings() {
+  void readConstraintSystem() {
     int numberOfBindings = reader.readUInt();
     for (int i = 0; i < numberOfBindings; ++i) {
-      var reference = reader.readCanonicalName().getReference();
-      int numberOfStorageLocations = reader.readUInt();
-      binding.setBinding(
-          reference,
-          new List<StorageLocation>.generate(numberOfStorageLocations,
-              (i) => new StorageLocation(reference, i)));
-    }
-  }
-
-  void readConstraints() {
-    int numberOfClusters = reader.readUInt();
-    for (int i = 0; i < numberOfClusters; ++i) {
       var owner = reader.readCanonicalName().getReference();
-      constraintSystem.clusters[owner] =
-          new ConstraintCluster(owner, readConstraintList(owner));
+      int numberOfStorageLocations = reader.readUInt();
+      var cluster = constraintSystem.getCluster(owner);
+      cluster.locations.length = numberOfStorageLocations;
+      for (int i = 0; i < numberOfStorageLocations; ++i) {
+        cluster.locations[i] = new StorageLocation(owner, i);
+      }
+    }
+    numberOfBindings = reader.readUInt();
+    for (int i = 0; i < numberOfBindings; ++i) {
+      var owner = reader.readCanonicalName().getReference();
+      int numberOfConstraints = reader.readUInt();
+      var cluster = constraintSystem.getCluster(owner);
+      cluster.constraints.length = numberOfConstraints;
+      for (int i = 0; i < numberOfConstraints; ++i) {
+        cluster.constraints[i] = readConstraint();
+      }
     }
   }
 
@@ -94,7 +93,7 @@ class BinaryReportReader {
   StorageLocation readLocationReference() {
     var owner = reader.readCanonicalName().getReference();
     int index = reader.readUInt();
-    return binding.getStorageLocation(owner, index);
+    return constraintSystem.getStorageLocation(owner, index);
   }
 
   List<TransferEvent> readEventList() {

@@ -55,15 +55,13 @@ main(List<String> args) async {
   var file = new File('report.bin').openWrite();
   var buffer = new Writer(file);
   var writer = new BinaryReportWriter(buffer);
-  writer.writeBinding(extractor.binding.rawBinding);
-  writer.writeConstraints(constraints);
+  writer.writeConstraintSystem(extractor.constraintSystem);
   writer.writeEventList(report.transferEvents);
   writer.finish();
   await file.close();
 
   var reader = new BinaryReportReader(
       new Reader(new File('report.bin').readAsBytesSync()));
-  var binding2 = reader.readBindings();
-  var constraints2 = reader.readConstraints();
+  reader.readConstraintSystem();
   var events2 = reader.readEventList();
 }

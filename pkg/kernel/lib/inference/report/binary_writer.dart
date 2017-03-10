@@ -5,10 +5,8 @@ library kernel.inference.report.binary_writer;
 
 import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/raw_binding.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/report/tags.dart';
-import 'package:kernel/inference/solver/solver.dart';
 import 'package:kernel/inference/storage_location.dart';
 import 'package:kernel/inference/value.dart';
 import 'package:kernel/util/writer.dart';
@@ -33,11 +31,16 @@ class BinaryReportWriter {
     writer.writeByte(byte);
   }
 
-  void writeBinding(RawBinding binding) {
-    writer.writeUInt(binding.storageLocations.length);
-    binding.storageLocations.forEach((Reference owner, RawMemberBinding b) {
+  void writeConstraintSystem(ConstraintSystem constraints) {
+    writer.writeUInt(constraints.clusters.length);
+    constraints.clusters.forEach((Reference owner, ConstraintCluster cluster) {
       writer.writeCanonicalName(owner.canonicalName);
-      writer.writeUInt(b.locations.length);
+      writer.writeUInt(cluster.locations.length);
+    });
+    writer.writeUInt(constraints.clusters.length);
+    constraints.clusters.forEach((Reference owner, ConstraintCluster cluster) {
+      writer.writeCanonicalName(owner.canonicalName);
+      writeConstraintList(cluster.constraints);
     });
   }
 

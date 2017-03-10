@@ -4,18 +4,28 @@
 library kernel.inference.constraints;
 
 import '../ast.dart';
-import 'package:kernel/inference/raw_binding.dart';
 import 'storage_location.dart';
 import 'solver/solver.dart';
 import 'value.dart';
 
 class ConstraintSystem {
-  final RawBinding binding = new RawBinding.cc(); // to be merged
   final Map<Reference, ConstraintCluster> clusters =
       <Reference, ConstraintCluster>{};
 
+  ConstraintCluster getCluster(Reference owner) {
+    return clusters[owner] ??= new ConstraintCluster(owner);
+  }
+
   Constraint getConstraint(Reference owner, int index) {
     return clusters[owner].constraints[index];
+  }
+
+  StorageLocation getStorageLocation(Reference owner, int index) {
+    var cluster = clusters[owner];
+    if (cluster == null) {
+      throw 'There are no bindings for $owner';
+    }
+    return cluster.locations[index];
   }
 
   void addConstraint(Reference owner, Constraint constraint) {
@@ -40,10 +50,10 @@ class ConstraintSystem {
 
 class ConstraintCluster {
   final Reference owner;
-  final List<Constraint> constraints;
+  final List<StorageLocation> locations = <StorageLocation>[];
+  final List<Constraint> constraints = <Constraint>[];
 
-  ConstraintCluster(this.owner, [List<Constraint> constraints])
-      : this.constraints = constraints ?? <Constraint>[];
+  ConstraintCluster(this.owner);
 
   void addConstraint(Constraint constraint) {
     assert(constraint.owner == null);

@@ -1,20 +1,20 @@
 ```
 type ReportFile {
-  List<BindingData> items
   ConstraintSystem constraints
   EventList events
 }
 
-type BindingData {
+type ConstraintSystem {
+  List<ConstraintClusterHeader> headers
+  List<ConstraintCluster> clusters
+}
+
+type ConstraintClusterHeader {
   CanonicalName owner
   int numberOfStorageLocations
 }
 
-type ConstraintSystem {
-  List<MemberConstraints> constraints
-}
-
-type MemberConstraints {
+type ConstraintCluster {
   CanonicalName owner
   List<Constraint> constraints
 }

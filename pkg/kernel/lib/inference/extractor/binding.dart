@@ -7,19 +7,19 @@ import '../../ast.dart';
 import '../../core_types.dart';
 import '../storage_location.dart';
 import 'augmented_type.dart';
-import 'package:kernel/inference/raw_binding.dart';
+import 'package:kernel/inference/constraints.dart';
 import 'type_augmentor.dart';
 
 /// Constructs augmented types and generates storage location banks.
 class Binding {
   final CoreTypes coreTypes;
-  final RawBinding rawBinding;
+  final ConstraintSystem constraintSystem;
   final Map<Class, ClassBank> classBanks = <Class, ClassBank>{};
   final Map<Member, MemberBank> memberBanks = <Member, MemberBank>{};
 
   GlobalAugmentorScope _augmentorScope;
 
-  Binding(this.rawBinding, this.coreTypes) {
+  Binding(this.constraintSystem, this.coreTypes) {
     _augmentorScope = new GlobalAugmentorScope(this);
   }
 
@@ -28,14 +28,14 @@ class Binding {
   MemberBank _initializeMemberBank(Member member) {
     if (member is Field) {
       var bank =
-          new FieldBank(rawBinding.getBinding(member.reference), coreTypes);
+          new FieldBank(constraintSystem.getCluster(member.reference), coreTypes);
       memberBanks[member] = bank;
       bank.type =
           bank.getFreshAugmentor(_augmentorScope).augmentType(member.type);
       return bank;
     } else {
       var bank = new FunctionMemberBank(
-          rawBinding.getBinding(member.reference), coreTypes);
+          constraintSystem.getCluster(member.reference), coreTypes);
       memberBanks[member] = bank;
       var function = member.function;
       bank.typeParameters = new List<TypeParameterStorageLocation>.generate(
@@ -54,7 +54,7 @@ class Binding {
 
   StorageLocationBank _initializeClassBank(Class class_) {
     var bank =
-        new ClassBank(rawBinding.getBinding(class_.reference), coreTypes);
+        new ClassBank(constraintSystem.getCluster(class_.reference), coreTypes);
     classBanks[class_] = bank;
     bank.typeParameters = new List<TypeParameterStorageLocation>.generate(
         class_.typeParameters.length,
@@ -148,12 +148,12 @@ class GlobalAugmentorScope extends AugmentorScope {
 
 abstract class StorageLocationBank {
   final CoreTypes coreTypes;
-  final RawMemberBinding binding;
+  final ConstraintCluster binding;
   List<StorageLocation> get locations => binding.locations;
 
   StorageLocationBank(this.binding, this.coreTypes);
 
-  NamedNode get classOrMember => binding.reference.node;
+  NamedNode get classOrMember => binding.owner.node;
 
   int get nextIndex => locations.length;
 
@@ -181,7 +181,7 @@ abstract class StorageLocationBank {
 ///
 /// Provides access to the augmented public interface of the member.
 abstract class MemberBank extends StorageLocationBank {
-  MemberBank(RawMemberBinding binding, CoreTypes coreTypes)
+  MemberBank(ConstraintCluster binding, CoreTypes coreTypes)
       : super(binding, coreTypes);
 
   AType get type;
@@ -191,10 +191,10 @@ abstract class MemberBank extends StorageLocationBank {
 class FieldBank extends MemberBank {
   AType type;
 
-  FieldBank(RawMemberBinding binding, CoreTypes coreTypes)
+  FieldBank(ConstraintCluster binding, CoreTypes coreTypes)
       : super(binding, coreTypes);
 
-  Field get field => binding.reference.asField;
+  Field get field => binding.owner.asField;
 }
 
 /// The storage location bank for a procedure or constructor.
@@ -202,7 +202,7 @@ class FunctionMemberBank extends MemberBank {
   List<TypeParameterStorageLocation> typeParameters;
   FunctionAType type;
 
-  FunctionMemberBank(RawMemberBinding binding, CoreTypes coreTypes)
+  FunctionMemberBank(ConstraintCluster binding, CoreTypes coreTypes)
       : super(binding, coreTypes);
 
   AType get returnType => type.returnType;
@@ -210,7 +210,7 @@ class FunctionMemberBank extends MemberBank {
   List<AType> get positionalParameters => type.positionalParameters;
   List<AType> get namedParameters => type.namedParameters;
 
-  Member get member => binding.reference.asMember;
+  Member get member => binding.owner.asMember;
 }
 
 /// The storage location bank for a class.
@@ -222,8 +222,8 @@ class ClassBank extends StorageLocationBank {
   List<AType> typeParameterBounds;
   List<ASupertype> supertypes;
 
-  ClassBank(RawMemberBinding binding, CoreTypes coreTypes)
+  ClassBank(ConstraintCluster binding, CoreTypes coreTypes)
       : super(binding, coreTypes);
 
-  Class get classNode => binding.reference.asClass;
+  Class get classNode => binding.owner.asClass;
 }

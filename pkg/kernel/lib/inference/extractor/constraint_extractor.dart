@@ -14,7 +14,6 @@ import 'binding.dart';
 import 'constraint_builder.dart';
 import 'external_model.dart';
 import 'hierarchy.dart';
-import 'package:kernel/inference/raw_binding.dart';
 import 'substitution.dart';
 import 'type_augmentor.dart';
 import 'value_sink.dart';
@@ -64,7 +63,7 @@ class ConstraintExtractor {
     baseHierarchy ??= new ClassHierarchy(program);
 
     constraintSystem ??= new ConstraintSystem();
-    binding ??= new Binding(constraintSystem.binding, coreTypes);
+    binding ??= new Binding(constraintSystem, coreTypes);
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
     externalModel ??= new VmExternalModel(program, coreTypes, []);
     builder ??= new ConstraintBuilder(hierarchy, constraintSystem);

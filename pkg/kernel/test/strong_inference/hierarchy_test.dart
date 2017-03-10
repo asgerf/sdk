@@ -15,7 +15,7 @@ main(List<String> args) {
   var hierarchy = new ClassHierarchy(program);
   var coreTypes = new CoreTypes(program);
   var constraintSystem = new ConstraintSystem();
-  var bindings = new Binding(constraintSystem.binding, coreTypes);
+  var bindings = new Binding(constraintSystem, coreTypes);
   var augmentedHierarchy = new AugmentedHierarchy(hierarchy, bindings);
   test('All-pairs augmented class hierarchy tests', () {
     for (Class class_ in hierarchy.classes) {
