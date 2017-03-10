@@ -4,11 +4,13 @@
 library kernel.inference.constraints;
 
 import '../ast.dart';
+import 'package:kernel/inference/raw_binding.dart';
 import 'storage_location.dart';
 import 'solver/solver.dart';
 import 'value.dart';
 
 class ConstraintSystem {
+  final RawBinding binding = new RawBinding.cc(); // to be merged
   final Map<Reference, ConstraintCluster> clusters =
       <Reference, ConstraintCluster>{};
 

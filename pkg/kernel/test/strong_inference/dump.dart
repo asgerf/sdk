@@ -32,7 +32,7 @@ main(List<String> args) async {
   var extractor = new ConstraintExtractor(
       new VmExternalModel(program, new CoreTypes(program), roots))
     ..extractFromProgram(program);
-  var constraints = extractor.builder.constraints;
+  var constraints = extractor.constraintSystem;
   print('Extracted ${constraints.numberOfConstraints} constraints');
   var watch = new Stopwatch()..start();
   var report = new Report();

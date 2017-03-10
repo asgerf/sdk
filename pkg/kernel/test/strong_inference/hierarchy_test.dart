@@ -3,10 +3,10 @@
 // BSD-style license that can be found in the LICENSE file.
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
+import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/inference/extractor/augmented_type.dart';
 import 'package:kernel/inference/extractor/binding.dart';
 import 'package:kernel/inference/extractor/hierarchy.dart';
-import 'package:kernel/inference/raw_binding.dart';
 import 'package:kernel/kernel.dart';
 import 'package:test/test.dart';
 
@@ -14,7 +14,8 @@ main(List<String> args) {
   var program = loadProgramFromBinary(args[0]);
   var hierarchy = new ClassHierarchy(program);
   var coreTypes = new CoreTypes(program);
-  var bindings = new Binding(new RawBinding(), coreTypes);
+  var constraintSystem = new ConstraintSystem();
+  var bindings = new Binding(constraintSystem.binding, coreTypes);
   var augmentedHierarchy = new AugmentedHierarchy(hierarchy, bindings);
   test('All-pairs augmented class hierarchy tests', () {
     for (Class class_ in hierarchy.classes) {

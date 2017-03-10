@@ -34,7 +34,7 @@ class _InferenceResults extends InferenceResults {
       _report = new Report();
     }
     _solver = new ConstraintSolver(
-        hierarchy, _extractor.builder.constraints, _report);
+        hierarchy, _extractor.constraintSystem, _report);
     _solver.solve();
   }
 

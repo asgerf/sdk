@@ -10,6 +10,8 @@ class RawBinding {
   final Map<Reference, RawMemberBinding> storageLocations =
       <Reference, RawMemberBinding>{};
 
+  RawBinding.cc();
+
   RawMemberBinding getBinding(Reference owner) {
     return storageLocations[owner] ??=
         new RawMemberBinding(owner, <StorageLocation>[]);

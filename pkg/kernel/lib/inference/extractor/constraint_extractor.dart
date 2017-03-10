@@ -28,6 +28,7 @@ class ConstraintExtractor {
   Binding binding;
   ClassHierarchy baseHierarchy;
   AugmentedHierarchy hierarchy;
+  ConstraintSystem constraintSystem;
   ConstraintBuilder builder;
   ExternalModel externalModel;
 
@@ -61,10 +62,12 @@ class ConstraintExtractor {
   void extractFromProgram(Program program) {
     coreTypes ??= new CoreTypes(program);
     baseHierarchy ??= new ClassHierarchy(program);
-    binding ??= new Binding(new RawBinding(), coreTypes);
+
+    constraintSystem ??= new ConstraintSystem();
+    binding ??= new Binding(constraintSystem.binding, coreTypes);
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
     externalModel ??= new VmExternalModel(program, coreTypes, []);
-    builder ??= new ConstraintBuilder(hierarchy);
+    builder ??= new ConstraintBuilder(hierarchy, constraintSystem);
 
     intValue = new Value(coreTypes.intClass, ValueFlags.integer);
     doubleValue = new Value(coreTypes.doubleClass, ValueFlags.double_);

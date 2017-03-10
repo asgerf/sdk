@@ -5,9 +5,7 @@ library kernel.inference.report.binary_reader;
 
 import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/extractor/binding.dart';
 import 'package:kernel/inference/raw_binding.dart';
-import 'package:kernel/inference/report/binary_writer.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/report/tags.dart';
 import 'package:kernel/inference/storage_location.dart';
@@ -16,9 +14,10 @@ import 'package:kernel/util/reader.dart';
 
 class BinaryReportReader {
   final Reader reader;
-  final RawBinding binding = new RawBinding();
   final ConstraintSystem constraintSystem = new ConstraintSystem();
   int eventTimestamp = 0;
+
+  RawBinding get binding => constraintSystem.binding;
 
   BinaryReportReader(this.reader);
 
