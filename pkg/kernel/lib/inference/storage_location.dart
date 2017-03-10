@@ -16,16 +16,21 @@ import 'value.dart';
 /// - a [Value] summarizing what can flow in here
 /// - whether the values that flow in here can escape
 ///
+/// A unique storage location object exists for a given [owner] and [index].
+/// The owner and index are used to refer to the storage location in serialized
+/// form.
+///
+/// For performance reasons, a storage location object has mutable fields that
+/// the solver uses to store its internal state (as opposed to using a map).
+/// These fields are hidden away in [StorageLocationBaseClass].
 class StorageLocation extends solver.StorageLocationBaseClass
     implements ValueSource, ValueSink {
-  final Reference reference; // Class or Member
+  final Reference owner; // Class or Member
   final int index;
 
   TypeParameterStorageLocation parameterLocation;
 
-  StorageLocation(this.reference, this.index);
-
-  NamedNode get owner => reference.node;
+  StorageLocation(this.owner, this.index);
 
   String toString() => '$owner:$index';
 
