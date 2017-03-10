@@ -63,5 +63,5 @@ main(List<String> args) async {
   var reader = new BinaryReportReader(
       new Reader(new File('report.bin').readAsBytesSync()));
   reader.readConstraintSystem();
-  var events2 = reader.readEventList();
+  reader.readEventList();
 }

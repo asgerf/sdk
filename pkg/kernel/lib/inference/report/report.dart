@@ -7,7 +7,6 @@ import '../constraints.dart';
 import '../storage_location.dart';
 import '../value.dart';
 import '../solver/solver.dart' show SolverListener;
-import 'package:kernel/util/writer.dart';
 
 class Report implements SolverListener {
   static const int beginningOfTime = -1;
