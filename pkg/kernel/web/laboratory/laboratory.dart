@@ -1,3 +1,7 @@
+// Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
+// for details. All rights reserved. Use of this source code is governed by a
+// BSD-style license that can be found in the LICENSE file.
+import 'codeview.dart';
 import 'dart:async';
 import 'dart:html';
 import 'dart:typed_data';
@@ -6,21 +10,23 @@ import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/inference/report/binary_reader.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/constraints.dart';
+import 'package:kernel/library_index.dart';
 import 'package:kernel/util/reader.dart';
 
 FileUploadInputElement reportFileInput =
     document.getElementById('report-file-input');
-
 FileUploadInputElement kernelFileInput =
     document.getElementById('kernel-file-input');
-
 ButtonElement reloadButton = document.getElementById('reload-button');
 
 DivElement debugBox = document.getElementById('debug-box');
 
+CodeView codeView = new CodeView(document.getElementById('code-div'));
+
 Program program;
 ConstraintSystem constraintSystem;
 Report report;
+LibraryIndex libraryIndex;
 
 info(message) {
   print(message);
@@ -52,6 +58,7 @@ loadKernelFile() async {
   program = new Program();
   new BinaryBuilder(bytes).readProgram(program);
   info('Read kernel file with ${program.libraries.length} libraries');
+  libraryIndex = new LibraryIndex.all(program);
 }
 
 loadReportFile() async {
@@ -62,10 +69,12 @@ loadReportFile() async {
   var bytes = await readBytesFromFileInput(reportFileInput);
   if (bytes == null) return;
   var reader = new BinaryReportReader(new Reader(bytes, program.root));
+  program.computeCanonicalNames();
   constraintSystem = reader.readConstraintSystem();
   var events = reader.readEventList();
   report = new Report.fromTransfers(events);
   info('Read report with '
       '${reader.constraintSystem.numberOfConstraints} constraints and '
       '${events.length} transfer events');
+  codeView.showLibrary('dart:core');
 }

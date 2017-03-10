@@ -2,6 +2,16 @@
 <html>
   <head>
     <title>Laboratory</title>
+    <style>
+      .codeview {
+        font-family: monospace;
+        size: 10pt;
+        white-space: pre-wrap;
+      }
+      #code-div {
+        width: 800px;
+      }
+    </style>
   </head>
   <body>
     Dill file: <input type="file" id="kernel-file-input" />
@@ -11,6 +21,10 @@
     <input type="button" id="reload-button" value="Reload"/>
     <br/>
     <hr/>
+
+    <div id="code-div" class="codeview"></div>
+
+
     <div id="debug-box"/>
     <script type="application/javascript" src="laboratory.js"></script>
   </body>
