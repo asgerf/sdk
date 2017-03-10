@@ -51,8 +51,7 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements TypeAugmentor {
 
   bool get isGeneratingFreshStorageLocations => scope != null;
 
-  AugmentorVisitor.fresh(this.coreTypes, this.bank, this.scope)
-      : index = null;
+  AugmentorVisitor.fresh(this.coreTypes, this.bank, this.scope) : index = null;
 
   AugmentorVisitor.reusing(this.coreTypes, this.bank, this.index)
       : scope = null;

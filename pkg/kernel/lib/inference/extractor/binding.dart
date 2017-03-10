@@ -27,8 +27,8 @@ class Binding {
 
   MemberBank _initializeMemberBank(Member member) {
     if (member is Field) {
-      var bank =
-          new FieldBank(constraintSystem.getCluster(member.reference), coreTypes);
+      var bank = new FieldBank(
+          constraintSystem.getCluster(member.reference), coreTypes);
       memberBanks[member] = bank;
       bank.type =
           bank.getFreshAugmentor(_augmentorScope).augmentType(member.type);
