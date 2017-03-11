@@ -1,6 +1,5 @@
 library kernel.laboratory.searchbox;
 
-import 'dart:async';
 import 'dart:html';
 import 'laboratory.dart';
 
