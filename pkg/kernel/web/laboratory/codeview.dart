@@ -12,9 +12,23 @@ class CodeView {
   final DivElement viewElement;
   final Element filenameElement;
 
+  int firstLineShown = -1;
+
   CodeView(this.viewElement, this.filenameElement) {
     assert(viewElement != null);
     assert(filenameElement != null);
+    viewElement.onClick.listen(onClick);
+  }
+
+  void onClick(MouseEvent ev) {
+    var target = ev.target;
+    if (target is LIElement) {
+      var parent = target.parent;
+      int index = parent.children.indexOf(target);
+      int lineIndex = firstLineShown + index;
+
+      print('Clicking on line index ${lineIndex}');
+    }
   }
 
   String getMissingSourceMessage(String uri) {
@@ -80,6 +94,7 @@ class CodeView {
     if (endOffset != null) {
       lastLine = 1 + source.getLineFromOffset(endOffset);
     }
+    firstLineShown = firstLine;
     for (int lineIndex = firstLine; lineIndex < lastLine; ++lineIndex) {
       int start = source.lineStarts[lineIndex];
       int end = lineIndex == numberOfLines - 1
