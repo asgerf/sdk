@@ -19,7 +19,7 @@ class SearchBox {
   Timer hideSuggestionBoxTimer;
 
   bool suggestionsAreVisible = false;
-  List<NamedNode> suggestedNodes;
+  List<NamedNode> suggestedNodes = <NamedNode>[];
 
   SearchBox(this.inputElement, this.suggestionBoxContainer,
       this.suggestionBoxSelect) {
@@ -110,7 +110,7 @@ class SearchBox {
     if (index >= 0 && index < suggestedNodes.length) {
       var node = suggestedNodes[index];
       if (node is Library) {
-        ui.codeView.showLibrary(node.importUri.toString());
+        ui.codeView.showFileContents(node.importUri.toString());
       } else if (node is Member) {
         ui.codeView.showMember(node);
       }

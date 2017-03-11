@@ -23,8 +23,7 @@ class UI {
 
   DivElement debugBox = $('debug-box');
 
-  CodeView codeView = new CodeView(
-      $('code-view'), $('code-view-title'), $('code-view-filename'));
+  CodeView codeView = new CodeView($('code-view'), $('code-view-filename'));
 
   SearchBox searchBox = new SearchBox($('search-input'),
       $('search-input-suggestions'), $('search-input-select'));

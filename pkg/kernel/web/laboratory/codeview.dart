@@ -10,33 +10,37 @@ import 'laboratory.dart';
 
 class CodeView {
   final DivElement viewElement;
-  final Element titleElement;
   final Element filenameElement;
 
-  CodeView(this.viewElement, this.titleElement, this.filenameElement) {
+  CodeView(this.viewElement, this.filenameElement) {
     assert(viewElement != null);
+    assert(filenameElement != null);
   }
 
-  String getMissingSourceMessage(String library) {
-    if (libraryIndex.containsLibrary(library)) {
-      return "Missing library source for '$library'";
+  String getMissingSourceMessage(String uri) {
+    if (libraryIndex.containsLibrary(uri)) {
+      return "Missing source for library '$uri'";
     } else {
-      return "There is no library for '$library'";
+      return "There is no library or source file for '$uri'";
     }
   }
 
-  void showLibrary(String library) {
-    setTitle(basename(library), library);
-    Source source = program.uriToSource[library];
+  void showFileContents(String uri) {
+    setFilename(uri);
+    Source source = program.uriToSource[uri];
     if (source == null) {
-      showErrorMessage(getMissingSourceMessage(library));
+      showErrorMessage(getMissingSourceMessage(uri));
       return;
     }
     setContent([makeSourceList(source)]);
   }
 
+  void showLibrary(Library library) {
+    showFileContents(library.fileUri);
+  }
+
   void showMember(Member member) {
-    setTitle('$member'.replaceAll('::', '.'), member.fileUri);
+    setFilename(member.fileUri);
     Source source = program.uriToSource[member.fileUri];
     if (source == null) {
       showErrorMessage(getMissingSourceMessage(member.fileUri));
@@ -111,8 +115,10 @@ class CodeView {
     return uri;
   }
 
-  void setTitle(String bigTitle, String uri) {
-    titleElement?.text = bigTitle;
-    filenameElement?.text = extractRelevantFilePath(uri);
+  void setFilename(String uri) {
+    uri = extractRelevantFilePath(uri);
+    filenameElement.children
+      ..clear()
+      ..add(new OListElement()..append(new LIElement()..text = uri));
   }
 }
