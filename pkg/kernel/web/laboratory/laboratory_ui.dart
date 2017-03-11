@@ -24,8 +24,8 @@ class UI {
   CodeView codeView = new CodeView(
       $('code-view'), $('code-view-title'), $('code-view-filename'));
 
-  SearchBox searchBox =
-      new SearchBox($('search-input'), $('search-input-suggestions'));
+  SearchBox searchBox = new SearchBox($('search-input'),
+      $('search-input-suggestions'), $('search-input-select'));
 }
 
 // We use a singleton class so that all fields get initialized deterministically

@@ -1,37 +1,124 @@
+// Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
+// for details. All rights reserved. Use of this source code is governed by a
+// BSD-style license that can be found in the LICENSE file.
 library kernel.laboratory.searchbox;
 
+import 'dart:async';
 import 'dart:html';
+import 'keycodes.dart';
 import 'laboratory.dart';
 
 import 'package:kernel/ast.dart';
 
 class SearchBox {
+  static final RegExp patternSeparator = new RegExp(r' |\.|::');
+
   final TextInputElement inputElement;
-  final DivElement suggestionBoxElement;
+  final DivElement suggestionBoxContainer;
+  final SelectElement suggestionBoxSelect;
+  Timer hideSuggestionBoxTimer;
 
-  SearchBox(this.inputElement, this.suggestionBoxElement) {
+  bool suggestionsAreVisible = false;
+
+  SearchBox(this.inputElement, this.suggestionBoxContainer,
+      this.suggestionBoxSelect) {
     inputElement.onInput.listen(onInputChanged);
+    inputElement.onFocus.listen(onInputFocused);
+    inputElement.onBlur.listen(onBlur);
+    inputElement.onKeyDown.listen(onInputKeyDown);
+    suggestionBoxSelect.onBlur.listen(onBlur);
+    suggestionBoxSelect.onKeyDown.listen(onSelectKeyDown);
+    hideSuggestionBox();
   }
-
-  final RegExp patternSeparator = new RegExp(r' |\.|::');
 
   void onInputChanged(Event ev) {
-    suggestionBoxElement.children.clear();
-    if (program == null) return;
-    var matcher = new FuzzyFinder(inputElement.value.split(patternSeparator));
-    matcher.scanProgram(program);
-    if (matcher.suggestedNodes.isEmpty) return;
-    var list = new UListElement();
-    for (var node in matcher.suggestedNodes.take(10)) {
-      var listItem = new LIElement()..text = '$node';
-      list.children.add(listItem);
+    suggestionBoxSelect.children.clear();
+    if (tryPopulateSuggestionBox()) {
+      showSuggestionBox();
+    } else {
+      hideSuggestionBox();
     }
-    suggestionBoxElement.children.add(list);
   }
 
-  void onProgramLoaded() {
-    suggestionBoxElement.children.clear();
+  void onInputFocused(Event ev) {
+    if (suggestionBoxSelect.children.isNotEmpty) {
+      showSuggestionBox();
+      suggestionBoxSelect.selectedIndex = -1;
+    }
+    inputElement.select();
   }
+
+  /// Event handler that fires when the text box or the suggestion box loses
+  /// focus.
+  void onBlur(Event ev) {
+    // If focus was moved from the text box to the suggestion box, we should not
+    // hide the suggestion box.  Unfortunately the timing of the blur event is
+    // such that we can't yet see which element is becoming focused.
+    // We use a zero-duration timer to delay the check.
+    hideSuggestionBoxTimer ??= new Timer(new Duration(), () {
+      hideSuggestionBoxTimer = null;
+      var focusedElement = document.activeElement;
+      if (focusedElement == inputElement ||
+          suggestionBoxContainer.contains(focusedElement)) {
+        return;
+      }
+      hideSuggestionBox();
+    });
+  }
+
+  void onInputKeyDown(KeyboardEvent ev) {
+    if (ev.which == KeyCodes.downArrow && suggestionsAreVisible) {
+      ev.stopPropagation();
+      suggestionBoxSelect.focus();
+      suggestionBoxSelect.selectedIndex = 0;
+    } else if (ev.which == KeyCodes.escape) {
+      ev.stopPropagation();
+      hideSuggestionBox();
+    }
+  }
+
+  void onSelectKeyDown(KeyboardEvent ev) {
+    if (ev.which == KeyCodes.upArrow &&
+        suggestionBoxSelect.selectedIndex == 0) {
+      ev.stopPropagation();
+      inputElement.focus();
+    } else if (ev.which == KeyCodes.escape) {
+      ev.stopPropagation();
+      hideSuggestionBox();
+    }
+  }
+
+  bool tryPopulateSuggestionBox() {
+    if (program == null) return false;
+    var matcher = new FuzzyFinder(inputElement.value.split(patternSeparator));
+    matcher.scanProgram(program);
+    if (matcher.suggestedNodes.isEmpty) return false;
+    for (var node in matcher.suggestedNodes.take(10)) {
+      var listItem = new OptionElement()..text = '$node';
+      suggestionBoxSelect.children.add(listItem);
+    }
+    return true;
+  }
+
+  void hideSuggestionBox() {
+    suggestionBoxContainer.style.visibility = "hidden";
+    hideSuggestionBoxTimer?.cancel();
+    hideSuggestionBoxTimer = null;
+    suggestionsAreVisible = false;
+  }
+
+  void showSuggestionBox() {
+    hideSuggestionBoxTimer?.cancel();
+    hideSuggestionBoxTimer = null;
+    var rect = inputElement.getBoundingClientRect();
+    suggestionBoxContainer.style
+      ..left = '${rect.left} px'
+      ..top = '${rect.bottom} px'
+      ..visibility = "visible";
+    suggestionsAreVisible = true;
+  }
+
+  void onProgramLoaded() {}
 }
 
 class Suggestion implements Comparable<Suggestion> {
@@ -54,14 +141,18 @@ class FuzzyFinder {
 
   bool get hasMaximumCandidates => suggestedNodes.length >= maximumCandidates;
 
-  static final RegExp sanitizerRegExp = new RegExp(r'[^a-zA-Z0-9_$&\^]');
+  static final RegExp sanitizerRegExp = new RegExp(r'[^a-zA-Z0-9_$&//\^\\]');
+  static final RegExp escapeRegExp = new RegExp(r'[\^\\]');
 
   FuzzyFinder(this.patterns) {
     for (var pattern in patterns) {
       if (pattern.isEmpty) continue;
       pattern = pattern.replaceAllMapped(sanitizerRegExp, (m) => '#');
       regexps.add(new RegExp(
-          pattern.split('').join('.*').replaceAll('^', '\\^'),
+          pattern
+              .split('')
+              .join('.*')
+              .replaceAllMapped(escapeRegExp, (m) => '\\${m.input}'),
           caseSensitive: false));
     }
   }
@@ -70,8 +161,7 @@ class FuzzyFinder {
     // In general we can compare the match against the pattern, but simply
     // favoring short results actually works pretty well.
     // The user can always write a longer pattern to get the results with longer
-    // names, whereas a short name could be unreachable if it was not favored
-    // higher than the long names.
+    // names.
     return name.length;
   }
 

@@ -6,12 +6,10 @@
       body {
         font-family: Verdana, Geneva, sans-serif;
       }
-      .codeview {
+      #code-view {
         font-family: monospace;
         size: 10pt;
         white-space: pre-wrap;
-      }
-      #code-view {
         width: 800px;
       }
       #code-view-title {
@@ -24,6 +22,17 @@
       #search-input {
         font-size: 16pt;
         font-family: monospace;
+        width: 450px;
+      }
+      #search-input-suggestions {
+        position: absolute;
+        background-color: white;
+        width: 450px;
+      }
+      #search-input-suggestions select {
+        width: 450px;
+        font-family: monospace;
+        font-size: 12pt;
       }
     </style>
   </head>
@@ -33,13 +42,16 @@
     <input type="button" id="reload-button" value="Reload"/>
     <br/>
     <hr/>
+    <input type="text" id="search-input" placeholder="Fuzzy search"/>
+    <div id="search-input-suggestions">
+      <select id="search-input-select" size="10"></select>
+    </div>
 
-    Show <input type="text" id="search-input"/>
-    <div id="search-input-suggestions"></div>
-
-    <div id="code-view-filename"></div>
-    <div id="code-view-title"></div>
-    <div id="code-view" class="codeview"></div>
+    <div id="code-view-container">
+      <div id="code-view-filename"></div>
+      <div id="code-view-title"></div>
+      <div id="code-view"></div>
+    </div>
 
     <div id="debug-box"/>
     <script type="application/javascript" src="laboratory.js"></script>
