@@ -68,6 +68,11 @@ class FuzzyFinder {
   }
 
   int computeMatchPenalty(String name, String pattern) {
+    // In general we can compare the match against the pattern, but simply
+    // favoring short results actually works pretty well.
+    // The user can always write a longer pattern to get the results with longer
+    // names, whereas a short name could be unreachable if it was not favored
+    // higher than the long names.
     return name.length;
   }
 
@@ -92,6 +97,8 @@ class FuzzyFinder {
       }
     }
     if (library.importUri.scheme == 'dart') {
+      // Slightly disfavor core library results.  For example, vm_service::main
+      // should occur after the application's own main method.
       penalty += 1;
     }
     for (var class_ in library.classes) {
@@ -136,7 +143,8 @@ class FuzzyFinder {
     var name = member.name.name;
     if (regexp.hasMatch(name)) {
       penalty += computeMatchPenalty(name, pattern);
-      penalty += 1; // favor members slightly less than classes
+      // Ensure members are listed below classes with the same name.
+      penalty += 1;
       suggestions.add(new Suggestion(member, penalty));
     }
   }
