@@ -13,6 +13,7 @@ class CodeView {
   final Element filenameElement;
 
   int firstLineShown = -1;
+  NamedNode shownObject;
 
   CodeView(this.viewElement, this.filenameElement) {
     assert(viewElement != null);
@@ -26,7 +27,6 @@ class CodeView {
       var parent = target.parent;
       int index = parent.children.indexOf(target);
       int lineIndex = firstLineShown + index;
-
       print('Clicking on line index ${lineIndex}');
     }
   }
@@ -57,15 +57,18 @@ class CodeView {
     } else if (node is Member) {
       showMember(node);
     } else {
+      shownObject = null;
       showNothing();
     }
   }
 
   void showLibrary(Library library) {
+    shownObject = library;
     showFileContents(library.fileUri);
   }
 
   void showClass(Class node) {
+    shownObject = node;
     setFilename(node.fileUri);
     Source source = program.uriToSource[node.fileUri];
     if (source == null) {
@@ -76,6 +79,7 @@ class CodeView {
   }
 
   void showMember(Member member) {
+    shownObject = member;
     setFilename(member.fileUri);
     Source source = program.uriToSource[member.fileUri];
     if (source == null) {
