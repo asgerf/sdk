@@ -74,7 +74,14 @@ class CodeView {
 
   String extractRelevantFilePath(String uri) {
     if (!uri.startsWith('file:')) return uri;
-    var commonRootFolderNames = ['lib', 'bin', 'test', 'pkg', 'web'];
+    var commonRootFolderNames = [
+      'lib',
+      'bin',
+      'web',
+      'test',
+      'pkg',
+      'packages',
+    ];
     int lowestIndex = uri.length;
     for (var rootName in commonRootFolderNames) {
       int index = uri.indexOf('$rootName/');

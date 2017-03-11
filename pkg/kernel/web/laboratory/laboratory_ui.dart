@@ -5,19 +5,29 @@ library kernel.laboratory_ui;
 
 import 'dart:html';
 import 'codeview.dart';
+import 'searchbox.dart';
 
 // This library contains bindings to the HTML file, possibly wrapped in a
 // higher-level view object.
 
 Element $(x) => document.getElementById(x);
 
-FileUploadInputElement reportFileInput = $('report-file-input');
+class UI {
+  FileUploadInputElement reportFileInput = $('report-file-input');
 
-FileUploadInputElement kernelFileInput = $('kernel-file-input');
+  FileUploadInputElement kernelFileInput = $('kernel-file-input');
 
-ButtonElement reloadButton = $('reload-button');
+  ButtonElement reloadButton = $('reload-button');
 
-DivElement debugBox = $('debug-box');
+  DivElement debugBox = $('debug-box');
 
-CodeView codeView =
-    new CodeView($('code-view'), $('code-view-title'), $('code-view-filename'));
+  CodeView codeView = new CodeView(
+      $('code-view'), $('code-view-title'), $('code-view-filename'));
+
+  SearchBox searchBox =
+      new SearchBox($('search-input'), $('search-input-suggestions'));
+}
+
+// We use a singleton class so that all fields get initialized deterministically
+// instead of on first use.
+UI ui = new UI();
