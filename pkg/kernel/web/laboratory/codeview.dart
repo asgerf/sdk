@@ -49,8 +49,30 @@ class CodeView {
     setContent([makeSourceList(source)]);
   }
 
+  void showObject(NamedNode node) {
+    if (node is Library) {
+      showLibrary(node);
+    } else if (node is Class) {
+      showClass(node);
+    } else if (node is Member) {
+      showMember(node);
+    } else {
+      showNothing();
+    }
+  }
+
   void showLibrary(Library library) {
     showFileContents(library.fileUri);
+  }
+
+  void showClass(Class node) {
+    setFilename(node.fileUri);
+    Source source = program.uriToSource[node.fileUri];
+    if (source == null) {
+      showErrorMessage(getMissingSourceMessage(node.fileUri));
+      return;
+    }
+    setContent([makeSourceList(source, node.fileOffset)]);
   }
 
   void showMember(Member member) {
@@ -72,6 +94,10 @@ class CodeView {
 
   void showErrorMessage(String message) {
     setContent([new DivElement()..text = message]);
+  }
+
+  void showNothing() {
+    setContent([]);
   }
 
   void setContent(List<Element> content) {

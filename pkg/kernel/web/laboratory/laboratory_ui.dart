@@ -6,6 +6,7 @@ library kernel.laboratory_ui;
 import 'dart:html';
 import 'codeview.dart';
 import 'searchbox.dart';
+import 'typeview.dart';
 
 // This library contains bindings to the HTML file, possibly wrapped in a
 // higher-level view object.
@@ -27,8 +28,10 @@ class UI {
 
   SearchBox searchBox = new SearchBox($('search-input'),
       $('search-input-suggestions'), $('search-input-select'));
+
+  TypeView typeView = new TypeView($('type-view'));
 }
 
-// We use a singleton class so that all fields get initialized deterministically
-// instead of on first use.
+// We use a singleton class (as opposed to static fields) so that all fields
+// are initialized deterministically instead of on first use.
 UI ui = new UI();

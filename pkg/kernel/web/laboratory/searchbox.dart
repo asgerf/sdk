@@ -108,12 +108,7 @@ class SearchBox {
   void presentSelectedElement() {
     var index = suggestionBoxSelect.selectedIndex;
     if (index >= 0 && index < suggestedNodes.length) {
-      var node = suggestedNodes[index];
-      if (node is Library) {
-        ui.codeView.showFileContents(node.importUri.toString());
-      } else if (node is Member) {
-        ui.codeView.showMember(node);
-      }
+      ui.codeView.showObject(suggestedNodes[index]);
     }
     hideSuggestionBox();
   }
