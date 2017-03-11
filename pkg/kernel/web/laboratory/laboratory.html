@@ -14,6 +14,7 @@
       }
       #code-view-title {
         font-size: 20pt;
+        display: none;
       }
       #code-view-filename {
         font-size: 10pt;
@@ -36,13 +37,13 @@
       }
     </style>
   </head>
-  <body>
+  <body id="body">
     Dill file: <input type="file" id="kernel-file-input" />
     Report file: <input type="file" id="report-file-input" />
     <input type="button" id="reload-button" value="Reload"/>
     <br/>
     <hr/>
-    <input type="text" id="search-input" placeholder="Fuzzy search"/>
+    <input type="text" id="search-input" placeholder="Fuzzy search (hotkey: q)"/>
     <div id="search-input-suggestions">
       <select id="search-input-select" size="10"></select>
     </div>

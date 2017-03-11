@@ -10,4 +10,6 @@ class KeyCodes {
   static const int upArrow = 38;
   static const int rightArrow = 39;
   static const int downArrow = 40;
+
+  static const int q = 113;
 }

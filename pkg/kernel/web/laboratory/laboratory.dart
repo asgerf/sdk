@@ -7,6 +7,7 @@ import 'codeview.dart';
 import 'dart:async';
 import 'dart:html';
 import 'dart:typed_data';
+import 'keycodes.dart';
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/inference/report/binary_reader.dart';
@@ -27,6 +28,10 @@ info(message) {
   print(message);
 }
 
+final Map<int, Element> hotkeys = <int, Element>{
+  KeyCodes.q: ui.searchBox.inputElement
+};
+
 main() {
   ui.kernelFileInput.onChange.listen((_) => loadKernelFile());
   ui.reportFileInput.onChange.listen((_) => loadReportFile());
@@ -37,6 +42,17 @@ main() {
     loadKernelFile();
     loadReportFile();
   });
+  ui.body.onKeyPress.listen(onBodyKeyPressed);
+}
+
+void onBodyKeyPressed(KeyboardEvent ev) {
+  if (ev.target != ui.body) return;
+  var target = hotkeys[ev.which];
+  if (target != null) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    target.focus();
+  }
 }
 
 void onProgramLoaded() {

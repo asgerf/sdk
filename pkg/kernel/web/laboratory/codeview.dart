@@ -17,11 +17,11 @@ class CodeView {
     assert(viewElement != null);
   }
 
-  Source getMissingSource(String library) {
+  String getMissingSourceMessage(String library) {
     if (libraryIndex.containsLibrary(library)) {
-      return new Source([0], "Missing library source for '$library'");
+      return "Missing library source for '$library'";
     } else {
-      return new Source([0], "There is no library for '$library'");
+      return "There is no library for '$library'";
     }
   }
 
@@ -29,23 +29,40 @@ class CodeView {
     setTitle(basename(library), library);
     Source source = program.uriToSource[library];
     if (source == null) {
-      showSource(getMissingSource(library));
+      showErrorMessage(getMissingSourceMessage(library));
       return;
     }
-    showSource(source);
+    setContent([makeSourceList(source)]);
   }
 
   void showMember(Member member) {
     setTitle('$member'.replaceAll('::', '.'), member.fileUri);
     Source source = program.uriToSource[member.fileUri];
     if (source == null) {
-      showSource(getMissingSource(member.fileUri));
+      showErrorMessage(getMissingSourceMessage(member.fileUri));
       return;
     }
-    showSource(source, member.fileOffset, member.fileEndOffset);
+    var contents = <Element>[];
+    var class_ = member.enclosingClass;
+    if (class_ != null) {
+      contents.add(makeSourceList(source, class_.fileOffset));
+    }
+    contents
+        .add(makeSourceList(source, member.fileOffset, member.fileEndOffset));
+    setContent(contents);
   }
 
-  void showSource(Source source, [int startOffset, int endOffset]) {
+  void showErrorMessage(String message) {
+    setContent([new DivElement()..text = message]);
+  }
+
+  void setContent(List<Element> content) {
+    viewElement.children
+      ..clear()
+      ..addAll(content);
+  }
+
+  OListElement makeSourceList(Source source, [int startOffset, int endOffset]) {
     var htmlList = new OListElement();
     var code = source.source;
     int numberOfLines = source.lineStarts.length;
@@ -54,6 +71,7 @@ class CodeView {
     if (startOffset != null) {
       firstLine = source.getLineFromOffset(startOffset);
       htmlList.setAttribute('start', '${1 + firstLine}');
+      endOffset ??= startOffset;
     }
     if (endOffset != null) {
       lastLine = 1 + source.getLineFromOffset(endOffset);
@@ -67,9 +85,7 @@ class CodeView {
       var htmlLine = new LIElement()..text = lineText;
       htmlList.append(htmlLine);
     }
-    viewElement.children
-      ..clear()
-      ..add(htmlList);
+    return htmlList;
   }
 
   String extractRelevantFilePath(String uri) {

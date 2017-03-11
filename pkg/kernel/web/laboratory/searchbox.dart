@@ -19,6 +19,7 @@ class SearchBox {
   Timer hideSuggestionBoxTimer;
 
   bool suggestionsAreVisible = false;
+  List<NamedNode> suggestedNodes;
 
   SearchBox(this.inputElement, this.suggestionBoxContainer,
       this.suggestionBoxSelect) {
@@ -28,6 +29,7 @@ class SearchBox {
     inputElement.onKeyDown.listen(onInputKeyDown);
     suggestionBoxSelect.onBlur.listen(onBlur);
     suggestionBoxSelect.onKeyDown.listen(onSelectKeyDown);
+    suggestionBoxSelect.onDoubleClick.listen(onSelectDoubleClick);
     hideSuggestionBox();
   }
 
@@ -74,6 +76,15 @@ class SearchBox {
     } else if (ev.which == KeyCodes.escape) {
       ev.stopPropagation();
       hideSuggestionBox();
+    } else if (ev.which == KeyCodes.enter && suggestionsAreVisible) {
+      ev.stopPropagation();
+      // Pick the first suggestion.  To visually indicate what happened,
+      // select it in the UI for 50 ms before closing the suggestion box.
+      suggestionBoxSelect.focus();
+      suggestionBoxSelect.selectedIndex = 0;
+      new Timer(new Duration(milliseconds: 50), () {
+        presentSelectedElement();
+      });
     }
   }
 
@@ -85,7 +96,26 @@ class SearchBox {
     } else if (ev.which == KeyCodes.escape) {
       ev.stopPropagation();
       hideSuggestionBox();
+    } else if (ev.which == KeyCodes.enter) {
+      presentSelectedElement();
     }
+  }
+
+  void onSelectDoubleClick(Event ev) {
+    presentSelectedElement();
+  }
+
+  void presentSelectedElement() {
+    var index = suggestionBoxSelect.selectedIndex;
+    if (index >= 0 && index < suggestedNodes.length) {
+      var node = suggestedNodes[index];
+      if (node is Library) {
+        ui.codeView.showLibrary(node.importUri.toString());
+      } else if (node is Member) {
+        ui.codeView.showMember(node);
+      }
+    }
+    hideSuggestionBox();
   }
 
   bool tryPopulateSuggestionBox() {
@@ -93,7 +123,8 @@ class SearchBox {
     var matcher = new FuzzyFinder(inputElement.value.split(patternSeparator));
     matcher.scanProgram(program);
     if (matcher.suggestedNodes.isEmpty) return false;
-    for (var node in matcher.suggestedNodes.take(10)) {
+    suggestedNodes = matcher.suggestedNodes.take(10).toList();
+    for (var node in suggestedNodes) {
       var listItem = new OptionElement()..text = '$node';
       suggestionBoxSelect.children.add(listItem);
     }
@@ -141,7 +172,7 @@ class FuzzyFinder {
 
   bool get hasMaximumCandidates => suggestedNodes.length >= maximumCandidates;
 
-  static final RegExp sanitizerRegExp = new RegExp(r'[^a-zA-Z0-9_$&//\^\\]');
+  static final RegExp sanitizerRegExp = new RegExp(r'[^a-zA-Z0-9_$&/\^\\]');
   static final RegExp escapeRegExp = new RegExp(r'[\^\\]');
 
   FuzzyFinder(this.patterns) {

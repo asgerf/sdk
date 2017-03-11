@@ -13,6 +13,8 @@ import 'searchbox.dart';
 Element $(x) => document.getElementById(x);
 
 class UI {
+  BodyElement body = document.body;
+
   FileUploadInputElement reportFileInput = $('report-file-input');
 
   FileUploadInputElement kernelFileInput = $('kernel-file-input');
