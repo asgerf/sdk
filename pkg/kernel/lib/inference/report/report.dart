@@ -73,7 +73,7 @@ class Report implements SolverListener {
     List<ChangeEvent> list = locationChanges[location];
     if (list == null) return ChangeEvent.beginning(location);
     int first = 0, last = list.length - 1;
-    while (first <= last) {
+    while (first < last) {
       int mid = first + ((last - first) >> 1);
       var pivot = list[mid];
       int pivotTimestamp = pivot.timestamp;
