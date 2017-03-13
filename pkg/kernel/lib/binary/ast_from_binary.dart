@@ -591,7 +591,8 @@ class BinaryBuilder {
         asyncMarker: asyncMarker,
         dartAsyncMarker: dartAsyncMarker)
       ..fileOffset = offset
-      ..fileEndOffset = endOffset;
+      ..fileEndOffset = endOffset
+      ..inferredReturnValueOffset = readInferredValueOffset();
   }
 
   void pushVariableDeclaration(VariableDeclaration variable) {
@@ -629,7 +630,17 @@ class BinaryBuilder {
     return readAndCheckOptionTag() ? readExpression() : null;
   }
 
+  int readInferredValueOffset() {
+    return readUInt() - 1;
+  }
+
   Expression readExpression() {
+    var exp = readExpressionInner();
+    exp.inferredValueOffset = readInferredValueOffset();
+    return exp;
+  }
+
+  Expression readExpressionInner() {
     int tagByte = readByte();
     int tag = tagByte & Tag.SpecializedTagHighBit == 0
         ? tagByte
@@ -778,27 +789,29 @@ class BinaryBuilder {
       case Tag.ListLiteral:
         var typeArgument = readDartType();
         return new ListLiteral(readExpressionList(),
-            typeArgument: typeArgument, isConst: false);
+            typeArgument: typeArgument, isConst: false)
+          ..inferredTypeArgumentOffset = readInferredValueOffset();
       case Tag.ConstListLiteral:
         var typeArgument = readDartType();
         return new ListLiteral(readExpressionList(),
-            typeArgument: typeArgument, isConst: true);
+            typeArgument: typeArgument, isConst: true)
+          ..inferredTypeArgumentOffset = readInferredValueOffset();
       case Tag.MapLiteral:
         int offset = readOffset();
         var keyType = readDartType();
         var valueType = readDartType();
         return new MapLiteral(readMapEntryList(),
-            keyType: keyType,
-            valueType: valueType,
-            isConst: false)..fileOffset = offset;
+            keyType: keyType, valueType: valueType, isConst: false)
+          ..fileOffset = offset
+          ..inferredTypeArgumentOffset = readInferredValueOffset();
       case Tag.ConstMapLiteral:
         int offset = readOffset();
         var keyType = readDartType();
         var valueType = readDartType();
         return new MapLiteral(readMapEntryList(),
-            keyType: keyType,
-            valueType: valueType,
-            isConst: true)..fileOffset = offset;
+            keyType: keyType, valueType: valueType, isConst: true)
+          ..fileOffset = offset
+          ..inferredTypeArgumentOffset = readInferredValueOffset();
       case Tag.AwaitExpression:
         return new AwaitExpression(readExpression());
       case Tag.FunctionExpression:
@@ -1052,7 +1065,8 @@ class BinaryBuilder {
     var typeArguments = readDartTypeList();
     var positional = readExpressionList();
     var named = readNamedExpressionList();
-    return new Arguments(positional, types: typeArguments, named: named);
+    return new Arguments(positional, types: typeArguments, named: named)
+      ..inferredTypeArgumentOffset = readInferredValueOffset();
   }
 
   List<NamedExpression> readNamedExpressionList() {
@@ -1087,7 +1101,9 @@ class BinaryBuilder {
         inferredValue: readOptionalInferredValue(),
         initializer: readExpressionOption(),
         isFinal: flags & 0x1 != 0,
-        isConst: flags & 0x2 != 0)..fileOffset = offset;
+        isConst: flags & 0x2 != 0)
+      ..fileOffset = offset
+      ..inferredValueOffset = readInferredValueOffset();
   }
 
   int readOffset() {

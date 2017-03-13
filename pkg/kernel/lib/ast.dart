@@ -1253,7 +1253,7 @@ class FunctionNode extends TreeNode {
   DartType returnType; // Not null.
   Statement body;
 
-  int inferredReturnValueOffset;
+  int inferredReturnValueOffset = -1;
 
   FunctionNode(this.body,
       {List<TypeParameter> typeParameters,
@@ -1896,7 +1896,7 @@ class Arguments extends TreeNode {
   final List<Expression> positional;
   final List<NamedExpression> named;
 
-  int inferredTypeArgumentIndex = -1;
+  int inferredTypeArgumentOffset = -1;
 
   Arguments(this.positional,
       {List<DartType> types, List<NamedExpression> named})
@@ -2534,7 +2534,7 @@ class Throw extends Expression {
 
 class ListLiteral extends Expression {
   bool isConst;
-  int inferredTypeArgumentIndex = -1;
+  int inferredTypeArgumentOffset = -1;
   DartType typeArgument; // Not null, defaults to DynamicType.
   final List<Expression> expressions;
 
@@ -2564,7 +2564,7 @@ class ListLiteral extends Expression {
 
 class MapLiteral extends Expression {
   bool isConst;
-  int inferredTypeArgumentIndex = -1;
+  int inferredTypeArgumentOffset = -1;
   DartType keyType; // Not null, defaults to DynamicType.
   DartType valueType; // Not null, defaults to DynamicType.
   final List<MapEntry> entries;
@@ -3339,7 +3339,7 @@ class VariableDeclaration extends Statement {
   /// Should be null in other cases.
   Expression initializer; // May be null.
 
-  int inferredValueOffset;
+  int inferredValueOffset = -1;
 
   VariableDeclaration(this.name,
       {this.initializer,
@@ -4037,6 +4037,11 @@ class Source {
       }
     }
     return low;
+  }
+
+  int getEndOfLine(int lineIndex) {
+    if (lineIndex + 1 >= lineStarts.length) return source.length;
+    return lineStarts[lineIndex + 1];
   }
 }
 

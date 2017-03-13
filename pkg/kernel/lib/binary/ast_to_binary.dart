@@ -428,6 +428,11 @@ class BinaryPrinter extends Visitor {
     _switchCaseIndexer = oldCases;
     _typeParameterIndexer.exit(node.typeParameters);
     _variableIndexer.popScope();
+    writeInferredValueOffset(node.inferredReturnValueOffset);
+  }
+
+  void writeInferredValueOffset(int offset) {
+    writeUInt30(1 + offset);
   }
 
   visitInvalidExpression(InvalidExpression node) {
@@ -448,6 +453,7 @@ class BinaryPrinter extends Visitor {
       writeUInt30(_variableIndexer[node.variable]);
       writeOptionalNode(node.promotedType);
     }
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitVariableSet(VariableSet node) {
@@ -463,6 +469,7 @@ class BinaryPrinter extends Visitor {
       writeUInt30(_variableIndexer[node.variable]);
       writeNode(node.value);
     }
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitPropertyGet(PropertyGet node) {
@@ -471,6 +478,7 @@ class BinaryPrinter extends Visitor {
     writeNode(node.receiver);
     writeName(node.name);
     writeReference(node.interfaceTargetReference);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitPropertySet(PropertySet node) {
@@ -480,12 +488,14 @@ class BinaryPrinter extends Visitor {
     writeName(node.name);
     writeNode(node.value);
     writeReference(node.interfaceTargetReference);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitSuperPropertyGet(SuperPropertyGet node) {
     writeByte(Tag.SuperPropertyGet);
     writeName(node.name);
     writeReference(node.interfaceTargetReference);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitSuperPropertySet(SuperPropertySet node) {
@@ -493,12 +503,14 @@ class BinaryPrinter extends Visitor {
     writeName(node.name);
     writeNode(node.value);
     writeReference(node.interfaceTargetReference);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitDirectPropertyGet(DirectPropertyGet node) {
     writeByte(Tag.DirectPropertyGet);
     writeNode(node.receiver);
     writeReference(node.targetReference);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitDirectPropertySet(DirectPropertySet node) {
@@ -506,18 +518,21 @@ class BinaryPrinter extends Visitor {
     writeNode(node.receiver);
     writeReference(node.targetReference);
     writeNode(node.value);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitStaticGet(StaticGet node) {
     writeByte(Tag.StaticGet);
     writeOffset(node, node.fileOffset);
     writeReference(node.targetReference);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitStaticSet(StaticSet node) {
     writeByte(Tag.StaticSet);
     writeReference(node.targetReference);
     writeNode(node.value);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitMethodInvocation(MethodInvocation node) {
@@ -527,6 +542,7 @@ class BinaryPrinter extends Visitor {
     writeName(node.name);
     writeNode(node.arguments);
     writeReference(node.interfaceTargetReference);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitSuperMethodInvocation(SuperMethodInvocation node) {
@@ -535,6 +551,7 @@ class BinaryPrinter extends Visitor {
     writeName(node.name);
     writeNode(node.arguments);
     writeReference(node.interfaceTargetReference);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitDirectMethodInvocation(DirectMethodInvocation node) {
@@ -542,6 +559,7 @@ class BinaryPrinter extends Visitor {
     writeNode(node.receiver);
     writeReference(node.targetReference);
     writeNode(node.arguments);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitStaticInvocation(StaticInvocation node) {
@@ -549,6 +567,7 @@ class BinaryPrinter extends Visitor {
     writeOffset(node, node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.arguments);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitConstructorInvocation(ConstructorInvocation node) {
@@ -558,12 +577,14 @@ class BinaryPrinter extends Visitor {
     writeOffset(node, node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.arguments);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitArguments(Arguments node) {
     writeNodeList(node.types);
     writeNodeList(node.positional);
     writeNodeList(node.named);
+    writeInferredValueOffset(node.inferredTypeArgumentOffset);
   }
 
   visitNamedExpression(NamedExpression node) {
@@ -574,6 +595,7 @@ class BinaryPrinter extends Visitor {
   visitNot(Not node) {
     writeByte(Tag.Not);
     writeNode(node.operand);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   int logicalOperatorIndex(String operator) {
@@ -591,6 +613,7 @@ class BinaryPrinter extends Visitor {
     writeNode(node.left);
     writeByte(logicalOperatorIndex(node.operator));
     writeNode(node.right);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitConditionalExpression(ConditionalExpression node) {
@@ -599,12 +622,14 @@ class BinaryPrinter extends Visitor {
     writeNode(node.then);
     writeNode(node.otherwise);
     writeOptionalNode(node.staticType);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitStringConcatenation(StringConcatenation node) {
     writeByte(Tag.StringConcatenation);
     writeOffset(node, node.fileOffset);
     writeNodeList(node.expressions);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitIsExpression(IsExpression node) {
@@ -612,17 +637,20 @@ class BinaryPrinter extends Visitor {
     writeOffset(node, node.fileOffset);
     writeNode(node.operand);
     writeNode(node.type);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitAsExpression(AsExpression node) {
     writeByte(Tag.AsExpression);
     writeNode(node.operand);
     writeNode(node.type);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitStringLiteral(StringLiteral node) {
     writeByte(Tag.StringLiteral);
     writeStringReference(node.value);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitIntLiteral(IntLiteral node) {
@@ -644,50 +672,61 @@ class BinaryPrinter extends Visitor {
       writeByte(Tag.BigIntLiteral);
       writeStringReference('${node.value}');
     }
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitDoubleLiteral(DoubleLiteral node) {
     // TODO: Pick a better format for double literals.
     writeByte(Tag.DoubleLiteral);
     writeStringReference('${node.value}');
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitBoolLiteral(BoolLiteral node) {
     writeByte(node.value ? Tag.TrueLiteral : Tag.FalseLiteral);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitNullLiteral(NullLiteral node) {
     writeByte(Tag.NullLiteral);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitSymbolLiteral(SymbolLiteral node) {
     writeByte(Tag.SymbolLiteral);
     writeStringReference(node.value);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitTypeLiteral(TypeLiteral node) {
     writeByte(Tag.TypeLiteral);
     writeNode(node.type);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitThisExpression(ThisExpression node) {
     writeByte(Tag.ThisExpression);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitRethrow(Rethrow node) {
     writeByte(Tag.Rethrow);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitThrow(Throw node) {
     writeByte(Tag.Throw);
     writeOffset(node, node.fileOffset);
     writeNode(node.expression);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitListLiteral(ListLiteral node) {
     writeByte(node.isConst ? Tag.ConstListLiteral : Tag.ListLiteral);
     writeNode(node.typeArgument);
     writeNodeList(node.expressions);
+    writeInferredValueOffset(node.inferredTypeArgumentOffset);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitMapLiteral(MapLiteral node) {
@@ -696,6 +735,8 @@ class BinaryPrinter extends Visitor {
     writeNode(node.keyType);
     writeNode(node.valueType);
     writeNodeList(node.entries);
+    writeInferredValueOffset(node.inferredTypeArgumentOffset);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitMapEntry(MapEntry node) {
@@ -707,11 +748,13 @@ class BinaryPrinter extends Visitor {
   visitAwaitExpression(AwaitExpression node) {
     writeByte(Tag.AwaitExpression);
     writeNode(node.operand);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitFunctionExpression(FunctionExpression node) {
     writeByte(Tag.FunctionExpression);
     writeNode(node.function);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitLet(Let node) {
@@ -719,16 +762,19 @@ class BinaryPrinter extends Visitor {
     writeVariableDeclaration(node.variable);
     writeNode(node.body);
     --_variableIndexer.stackHeight;
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitLoadLibrary(LoadLibrary node) {
     writeByte(Tag.LoadLibrary);
     writeDeferredImportReference(node.import);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitCheckLibraryIsLoaded(CheckLibraryIsLoaded node) {
     writeByte(Tag.CheckLibraryIsLoaded);
     writeDeferredImportReference(node.import);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   writeStatementOrEmpty(Statement node) {
@@ -885,6 +931,7 @@ class BinaryPrinter extends Visitor {
     // Declare the variable after its initializer. It is not in scope in its
     // own initializer.
     _variableIndexer.declare(node);
+    writeInferredValueOffset(node.inferredValueOffset);
   }
 
   void writeVariableDeclarationList(List<VariableDeclaration> nodes) {
