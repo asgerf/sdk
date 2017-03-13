@@ -74,13 +74,13 @@ class Report implements SolverListener {
     if (list == null) return ChangeEvent.beginning(location);
     int first = 0, last = list.length - 1;
     while (first < last) {
-      int mid = first + ((last - first) >> 1);
+      int mid = last - ((last - first) >> 1); // Get middle, rounding up.
       var pivot = list[mid];
       int pivotTimestamp = pivot.timestamp;
       if (pivotTimestamp < timestamp) {
-        last = mid; // last is still a candidate
+        first = mid; // first is still a candidate
       } else if (timestamp < pivotTimestamp) {
-        first = mid + 1;
+        last = mid - 1;
       } else {
         return pivot;
       }
