@@ -2,8 +2,11 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 import 'dart:html';
+import 'dart:math';
+import 'dart:html' as html;
 
 import 'laboratory_data.dart';
+import 'lexer.dart';
 import 'package:kernel/ast.dart';
 
 import 'laboratory.dart';
@@ -13,9 +16,10 @@ class CodeView {
   final Element filenameElement;
 
   int firstLineShown = -1;
-  Source shownSource;
+  Source source;
   NamedNode shownObject;
   LIElement hoveredListItem;
+  Token tokenizedSource; // May be null, even if source is not null.
 
   CodeView(this.viewElement, this.filenameElement) {
     assert(viewElement != null);
@@ -24,14 +28,36 @@ class CodeView {
     viewElement.onMouseOut.listen(onMouseOut);
   }
 
+  bool setCurrentFile(String uri) {
+    String shownFilename = extractRelevantFilePath(uri);
+    filenameElement.children
+      ..clear()
+      ..add(new OListElement()..append(new LIElement()..text = shownFilename));
+    source = program.uriToSource[uri];
+    if (source == null) {
+      showErrorMessage(getMissingSourceMessage(uri));
+      return false;
+    }
+    try {
+      tokenizedSource = new Lexer(source.source).tokenize();
+    } catch (e) {
+      tokenizedSource = null;
+      print("Could not tokenize source for URI '$uri'");
+      print(e);
+    }
+    return true;
+  }
+
+  bool get hasSource => source != null;
+
   void onMouseMove(MouseEvent ev) {
-    if (shownSource == null || shownObject == null) return;
+    if (source == null || shownObject == null) return;
     var target = ev.target;
     if (target is LIElement && hoveredListItem != target) {
       var parent = target.parent;
       int index = parent.children.indexOf(target);
       int lineIndex = firstLineShown + index;
-      ui.typeView.showTypesOnLine(shownSource, shownObject, lineIndex);
+      ui.typeView.showTypesOnLine(source, shownObject, lineIndex);
       hoveredListItem = target;
     }
     if (hoveredListItem != null) {
@@ -51,17 +77,6 @@ class CodeView {
     }
   }
 
-  void showFileContents(String uri) {
-    setFilename(uri);
-    Source source = program.uriToSource[uri];
-    shownSource = source;
-    if (source == null) {
-      showErrorMessage(getMissingSourceMessage(uri));
-      return;
-    }
-    setContent([makeSourceList(source)]);
-  }
-
   void showObject(NamedNode node) {
     if (node is Library) {
       showLibrary(node);
@@ -77,37 +92,27 @@ class CodeView {
 
   void showLibrary(Library library) {
     shownObject = library;
-    showFileContents(library.fileUri);
+    if (setCurrentFile(library.fileUri)) {
+      setContent([makeSourceList()]);
+    }
   }
 
   void showClass(Class node) {
     shownObject = node;
-    setFilename(node.fileUri);
-    Source source = program.uriToSource[node.fileUri];
-    shownSource = source;
-    if (source == null) {
-      showErrorMessage(getMissingSourceMessage(node.fileUri));
-      return;
+    if (setCurrentFile(node.fileUri)) {
+      setContent([makeSourceList(node.fileOffset)]);
     }
-    setContent([makeSourceList(source, node.fileOffset)]);
   }
 
   void showMember(Member member) {
     shownObject = member;
-    setFilename(member.fileUri);
-    Source source = program.uriToSource[member.fileUri];
-    shownSource = source;
-    if (source == null) {
-      showErrorMessage(getMissingSourceMessage(member.fileUri));
-      return;
-    }
+    if (!setCurrentFile(member.fileUri)) return;
     var contents = <Element>[];
     var class_ = member.enclosingClass;
     if (class_ != null) {
-      contents.add(makeSourceList(source, class_.fileOffset));
+      contents.add(makeSourceList(class_.fileOffset));
     }
-    contents
-        .add(makeSourceList(source, member.fileOffset, member.fileEndOffset));
+    contents.add(makeSourceList(member.fileOffset, member.fileEndOffset));
     setContent(contents);
   }
 
@@ -125,7 +130,28 @@ class CodeView {
       ..addAll(content);
   }
 
-  OListElement makeSourceList(Source source, [int startOffset, int endOffset]) {
+  Token getFirstTokenAfterOffset(Token token, int offset) {
+    while (token != null && token.end <= offset) {
+      token = token.next;
+    }
+    return token;
+  }
+
+  /// Returns the part of the given token that is between the absolute file
+  /// offsets [from] and [to].
+  ///
+  /// This is used to extract the part of a multi-line token that belongs on
+  /// a given line.
+  String clampTokenString(Token token, int from, int to) {
+    if (from <= token.offset && token.end < to) {
+      return token.lexeme;
+    }
+    int start = max(from, token.offset);
+    int end = min(to, token.end);
+    return token.lexeme.substring(start - token.offset, end - token.offset);
+  }
+
+  OListElement makeSourceList([int startOffset, int endOffset]) {
     var htmlList = new OListElement();
     var code = source.source;
     int numberOfLines = source.lineStarts.length;
@@ -135,22 +161,59 @@ class CodeView {
       firstLine = source.getLineFromOffset(startOffset);
       htmlList.setAttribute('start', '${1 + firstLine}');
       endOffset ??= startOffset;
+      // Move startOffset back to the start of its line
+      startOffset = source.lineStarts[firstLine];
     }
     if (endOffset != null) {
       lastLine = 1 + source.getLineFromOffset(endOffset);
     }
+    Token token = getFirstTokenAfterOffset(tokenizedSource, startOffset ?? 0);
+    print('First token is $token');
+    print('Previous token is ${token.previous}');
     firstLineShown = firstLine;
     for (int lineIndex = firstLine; lineIndex < lastLine; ++lineIndex) {
       int start = source.lineStarts[lineIndex];
       int end = lineIndex == numberOfLines - 1
           ? code.length
           : source.lineStarts[lineIndex + 1];
-      String lineText = code.substring(start, end);
-      var htmlLine = new LIElement()..text = lineText;
+
+      var htmlLine = new LIElement();
+
+      int offset = start;
+      while (offset < end) {
+        if (token == null || end <= token.offset) {
+          htmlLine.appendText(code.substring(offset, end));
+          break;
+        }
+        if (offset < token.offset) {
+          htmlLine.appendText(code.substring(offset, token.offset));
+        }
+        htmlLine.append(makeTokenElement(token));
+        offset = token.end;
+        token = token.next;
+      }
+
       htmlList.append(htmlLine);
     }
     return htmlList;
   }
+
+  html.Node makeTokenElement(Token token) {
+    if (token.keyword != null || keywords.contains(token.lexeme)) {
+      return new SpanElement()
+        ..text = token.lexeme
+        ..classes.add('keyword');
+    }
+    if (Lexer.isUpperCaseLetter(token.lexeme.codeUnitAt(0))) {
+      return new SpanElement()
+        ..text = token.lexeme
+        ..classes.add('typename');
+    }
+    return new html.Text(token.lexeme);
+  }
+
+  static final Set<String> keywords =
+      new Set<String>.from(['int', 'double', 'num', 'bool', 'void']);
 
   String extractRelevantFilePath(String uri) {
     if (!uri.startsWith('file:')) return uri;
@@ -173,12 +236,5 @@ class CodeView {
       return uri.substring(lowestIndex);
     }
     return uri;
-  }
-
-  void setFilename(String uri) {
-    uri = extractRelevantFilePath(uri);
-    filenameElement.children
-      ..clear()
-      ..add(new OListElement()..append(new LIElement()..text = uri));
   }
 }
