@@ -63,4 +63,6 @@ main(List<String> args) async {
       new Reader(new File('report.bin').readAsBytesSync()));
   reader.readConstraintSystem();
   reader.readEventList();
+
+  writeProgramToBinary(program, 'report.dill');
 }

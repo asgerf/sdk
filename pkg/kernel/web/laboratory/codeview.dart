@@ -15,24 +15,32 @@ class CodeView {
   int firstLineShown = -1;
   Source shownSource;
   NamedNode shownObject;
+  LIElement hoveredListItem;
 
   CodeView(this.viewElement, this.filenameElement) {
     assert(viewElement != null);
     assert(filenameElement != null);
-    viewElement.onClick.listen(onClick);
+    viewElement.onMouseMove.listen(onMouseMove);
+    viewElement.onMouseOut.listen(onMouseOut);
   }
 
-  void onClick(MouseEvent ev) {
+  void onMouseMove(MouseEvent ev) {
     if (shownSource == null || shownObject == null) return;
     var target = ev.target;
-    if (target is LIElement) {
+    if (target is LIElement && hoveredListItem != target) {
       var parent = target.parent;
       int index = parent.children.indexOf(target);
       int lineIndex = firstLineShown + index;
-      var rect = target.getBoundingClientRect();
       ui.typeView.showTypesOnLine(shownSource, shownObject, lineIndex);
-      ui.typeView.setPosition(rect.right, rect.top);
+      hoveredListItem = target;
     }
+    if (hoveredListItem != null) {
+      ui.typeView.showAt(ev.page.x, ev.page.y + 16);
+    }
+  }
+
+  void onMouseOut(Event ev) {
+    ui.typeView.hide();
   }
 
   String getMissingSourceMessage(String uri) {

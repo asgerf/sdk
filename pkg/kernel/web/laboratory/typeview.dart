@@ -12,13 +12,22 @@ class TypeView {
 
   TypeView(this.viewElement);
 
-  void setPosition(int left, int top) {
+  void hide() {
+    viewElement.style.visibility = "hidden";
+  }
+
+  bool get isEmpty => viewElement.children.isEmpty;
+
+  void showAt(int left, int top) {
+    if (isEmpty) return;
     viewElement.style
-      ..left = '$left px'
-      ..top = '$top px';
+      ..visibility = 'visible'
+      ..left = '${left}px'
+      ..top = '${top}px';
   }
 
   void showTypesOnLine(Source source, NamedNode owner, int lineIndex) {
+    if (constraintSystem == null) return;
     if (owner is! Member) return;
     int from = source.lineStarts[lineIndex];
     int to = source.getEndOfLine(lineIndex);
@@ -36,6 +45,10 @@ class TypeView {
       }
       viewElement.children
           .add(new DivElement()..text = '${expression.runtimeType} :: $value');
+    }
+
+    if (isEmpty) {
+      hide();
     }
   }
 }
