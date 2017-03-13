@@ -43,8 +43,17 @@ class TypeView {
             cluster.getStorageLocation(expression.inferredValueOffset);
         value = report.getValue(location, report.endOfTime);
       }
-      viewElement.children
-          .add(new DivElement()..text = '${expression.runtimeType} :: $value');
+      var expressionKindSpan = new SpanElement()
+        ..classes.add('expression-kind')
+        ..text = '${expression.runtimeType}';
+      var typeSpan = new SpanElement()
+        ..classes.add('type')
+        ..text = '$value';
+      var div = new DivElement()
+        ..append(expressionKindSpan)
+        ..appendText(' :: ')
+        ..append(typeSpan);
+      viewElement.children.add(div);
     }
 
     if (isEmpty) {
