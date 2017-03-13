@@ -31,7 +31,7 @@ class Binding {
           constraintSystem.getCluster(member.reference), coreTypes);
       memberBanks[member] = bank;
       bank.type =
-          bank.getFreshAugmentor(_augmentorScope).augmentType(member.type);
+          bank.getInterfaceAugmentor(_augmentorScope).augmentType(member.type);
       return bank;
     } else {
       var bank = new FunctionMemberBank(
@@ -42,7 +42,7 @@ class Binding {
           function.typeParameters.length,
           (i) => new TypeParameterStorageLocation(member, i));
       bank.type = bank
-          .getFreshAugmentor(_augmentorScope)
+          .getInterfaceAugmentor(_augmentorScope)
           .augmentType(function.functionType);
       for (int i = 0; i < function.typeParameters.length; ++i) {
         StorageLocation location = bank.typeParameterBounds[i].source;
@@ -59,7 +59,7 @@ class Binding {
     bank.typeParameters = new List<TypeParameterStorageLocation>.generate(
         class_.typeParameters.length,
         (i) => new TypeParameterStorageLocation(class_, i));
-    var augmentor = bank.getFreshAugmentor(_augmentorScope);
+    var augmentor = bank.getInterfaceAugmentor(_augmentorScope);
     bank.typeParameterBounds = class_.typeParameters
         .map((p) => augmentor.augmentBound(p.bound))
         .toList(growable: false);
@@ -162,6 +162,11 @@ abstract class StorageLocationBank {
         new StorageLocation(classOrMember.reference, locations.length);
     locations.add(location);
     return location;
+  }
+
+  TypeAugmentor getInterfaceAugmentor(AugmentorScope scope) {
+    if (binding.locations.isEmpty) return getFreshAugmentor(scope);
+    return getReusingAugmentor(0);
   }
 
   /// Returns a type augmentor that generates fresh storage locations from this

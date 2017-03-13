@@ -62,6 +62,8 @@ class ConstraintCluster {
     constraint.index = constraints.length;
     constraints.add(constraint);
   }
+
+  StorageLocation getStorageLocation(int index) => locations[index];
 }
 
 abstract class Constraint {

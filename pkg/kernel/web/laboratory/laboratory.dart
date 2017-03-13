@@ -10,19 +10,22 @@ import 'dart:typed_data';
 import 'keycodes.dart';
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
+import 'package:kernel/class_hierarchy.dart';
+import 'package:kernel/core_types.dart';
+import 'package:kernel/inference/extractor/binding.dart';
+import 'package:kernel/inference/extractor/constraint_extractor.dart';
 import 'package:kernel/inference/report/binary_reader.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/library_index.dart';
+import 'package:kernel/type_environment.dart';
 import 'package:kernel/util/reader.dart';
 
 import 'laboratory_ui.dart' show ui;
 export 'laboratory_ui.dart' show ui;
 
-Program program;
-ConstraintSystem constraintSystem;
-Report report;
-LibraryIndex libraryIndex;
+import 'laboratory_data.dart';
+export 'laboratory_data.dart';
 
 info(message) {
   print(message);
@@ -57,11 +60,16 @@ void onBodyKeyPressed(KeyboardEvent ev) {
 
 void onProgramLoaded() {
   libraryIndex = new LibraryIndex.all(program);
+  coreTypes = new CoreTypes(program);
+  classHierarchy = new ClassHierarchy(program);
+  typeEnvironment = new TypeEnvironment(coreTypes, classHierarchy);
   ui.searchBox.onProgramLoaded();
   ui.codeView.showMember(program.mainMethod);
 }
 
-void onReportFileLoaded() {}
+void onReportFileLoaded() {
+  binding = new Binding(constraintSystem, coreTypes);
+}
 
 Future<Uint8List> readBytesFromFileInput(FileUploadInputElement input) async {
   if (input.files.isEmpty) return null;

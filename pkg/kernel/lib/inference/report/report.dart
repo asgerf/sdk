@@ -18,6 +18,8 @@ class Report implements SolverListener {
   final Map<StorageLocation, List<ChangeEvent>> locationChanges =
       <StorageLocation, List<ChangeEvent>>{};
 
+  int get endOfTime => transferEvents.length + 1;
+
   Report() : transferEvents = <TransferEvent>[];
 
   Report.fromTransfers(this.transferEvents) {

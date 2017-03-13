@@ -19,6 +19,7 @@
       #code-view-filename {
         font-size: 10pt;
         color: gray;
+        display: inline-block;
       }
       #code-view-filename ol {
         list-style-type: none;
@@ -38,6 +39,12 @@
         font-family: monospace;
         font-size: 12pt;
       }
+      #type-view {
+        display: inline-block;
+        width: 450px;
+        left: 150px;
+        top: 150px;
+      }
     </style>
   </head>
   <body id="body">
@@ -50,15 +57,13 @@
     <div id="search-input-suggestions">
       <select id="search-input-select" size="10"></select>
     </div>
+    <div id="type-view"></div>
 
     <div id="code-view-container">
       <div id="code-view-filename"></div>
       <div id="code-view"></div>
     </div>
 
-    <div id="type-view-container">
-      <div id="type-view"></div>
-    </div>
 
     <div id="debug-box"/>
     <script type="application/javascript" src="laboratory.js"></script>

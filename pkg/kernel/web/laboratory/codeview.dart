@@ -3,6 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 import 'dart:html';
 
+import 'laboratory_data.dart';
+import 'package:kernel/ast.dart';
 import 'package:kernel/ast.dart';
 import 'package:path/path.dart';
 
@@ -13,6 +15,7 @@ class CodeView {
   final Element filenameElement;
 
   int firstLineShown = -1;
+  Source shownSource;
   NamedNode shownObject;
 
   CodeView(this.viewElement, this.filenameElement) {
@@ -22,12 +25,15 @@ class CodeView {
   }
 
   void onClick(MouseEvent ev) {
+    if (shownSource == null || shownObject == null) return;
     var target = ev.target;
     if (target is LIElement) {
       var parent = target.parent;
       int index = parent.children.indexOf(target);
       int lineIndex = firstLineShown + index;
-      print('Clicking on line index ${lineIndex}');
+      var rect = target.getBoundingClientRect();
+      ui.typeView.showTypesOnLine(shownSource, shownObject, lineIndex);
+      ui.typeView.setPosition(rect.right, rect.top);
     }
   }
 
@@ -42,6 +48,7 @@ class CodeView {
   void showFileContents(String uri) {
     setFilename(uri);
     Source source = program.uriToSource[uri];
+    shownSource = source;
     if (source == null) {
       showErrorMessage(getMissingSourceMessage(uri));
       return;
@@ -71,6 +78,7 @@ class CodeView {
     shownObject = node;
     setFilename(node.fileUri);
     Source source = program.uriToSource[node.fileUri];
+    shownSource = source;
     if (source == null) {
       showErrorMessage(getMissingSourceMessage(node.fileUri));
       return;
@@ -82,6 +90,7 @@ class CodeView {
     shownObject = member;
     setFilename(member.fileUri);
     Source source = program.uriToSource[member.fileUri];
+    shownSource = source;
     if (source == null) {
       showErrorMessage(getMissingSourceMessage(member.fileUri));
       return;
