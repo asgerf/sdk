@@ -1363,7 +1363,7 @@ class ConstraintExtractorVisitor
     checkConditionExpression(node.condition);
     bool thenCompletes = visitStatement(node.then);
     bool elseCompletes =
-        (node.otherwise != null) ? visitStatement(node.otherwise) : false;
+        (node.otherwise != null) ? visitStatement(node.otherwise) : true;
     return thenCompletes || elseCompletes;
   }
 
