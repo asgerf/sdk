@@ -138,8 +138,8 @@ class SearchBox {
     hideSuggestionBoxTimer = null;
     var rect = inputElement.getBoundingClientRect();
     suggestionBoxContainer.style
-      ..left = '${rect.left} px'
-      ..top = '${rect.bottom} px'
+      ..left = '${rect.left}px'
+      ..top = '${rect.bottom}px'
       ..visibility = "visible";
     suggestionsAreVisible = true;
   }
