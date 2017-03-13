@@ -3,7 +3,6 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.laboratory;
 
-import 'codeview.dart';
 import 'dart:async';
 import 'dart:html';
 import 'dart:typed_data';
@@ -13,10 +12,8 @@ import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
 import 'package:kernel/inference/extractor/binding.dart';
-import 'package:kernel/inference/extractor/constraint_extractor.dart';
 import 'package:kernel/inference/report/binary_reader.dart';
 import 'package:kernel/inference/report/report.dart';
-import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/library_index.dart';
 import 'package:kernel/type_environment.dart';
 import 'package:kernel/util/reader.dart';

@@ -5,8 +5,6 @@ import 'dart:html';
 import 'package:kernel/ast.dart';
 
 import 'laboratory.dart';
-import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/extractor/binding.dart';
 import 'package:kernel/inference/value.dart';
 
 class TypeView {

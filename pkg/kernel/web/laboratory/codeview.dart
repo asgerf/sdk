@@ -5,8 +5,6 @@ import 'dart:html';
 
 import 'laboratory_data.dart';
 import 'package:kernel/ast.dart';
-import 'package:kernel/ast.dart';
-import 'package:path/path.dart';
 
 import 'laboratory.dart';
 
