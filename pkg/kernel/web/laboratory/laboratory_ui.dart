@@ -35,3 +35,7 @@ class UI {
 // We use a singleton class (as opposed to static fields) so that all fields
 // are initialized deterministically instead of on first use.
 UI ui = new UI();
+
+class CssClass {
+  static const String highlightedToken = 'highlighted-token';
+}

@@ -6,6 +6,7 @@ import 'dart:math';
 import 'dart:html' as html;
 
 import 'laboratory_data.dart';
+import 'laboratory_ui.dart';
 import 'lexer.dart';
 import 'package:kernel/ast.dart';
 
@@ -18,8 +19,10 @@ class CodeView {
   int firstLineShown = -1;
   Source source;
   NamedNode shownObject;
-  LIElement hoveredListItem;
+  Element hoveredSpan;
   Token tokenizedSource; // May be null, even if source is not null.
+
+  List<Expression> expressions;
 
   CodeView(this.viewElement, this.filenameElement) {
     assert(viewElement != null);
@@ -28,7 +31,7 @@ class CodeView {
     viewElement.onMouseOut.listen(onMouseOut);
   }
 
-  bool setCurrentFile(String uri) {
+  bool setCurrentFile(String uri, TreeNode node) {
     String shownFilename = extractRelevantFilePath(uri);
     filenameElement.children
       ..clear()
@@ -45,6 +48,9 @@ class CodeView {
       print("Could not tokenize source for URI '$uri'");
       print(e);
     }
+    expressions = <Expression>[];
+    node?.accept(new ExpressionCollector(expressions));
+    expressions.sort((e1, e2) => e1.fileOffset.compareTo(e2.fileOffset));
     return true;
   }
 
@@ -53,20 +59,37 @@ class CodeView {
   void onMouseMove(MouseEvent ev) {
     if (source == null || shownObject == null) return;
     var target = ev.target;
-    if (target is LIElement && hoveredListItem != target) {
-      var parent = target.parent;
-      int index = parent.children.indexOf(target);
-      int lineIndex = firstLineShown + index;
-      ui.typeView.showTypesOnLine(source, shownObject, lineIndex);
-      hoveredListItem = target;
+    if (target is! Element) return;
+    Element targetElement = target;
+    String indexString = targetElement.dataset['id'];
+    int index = indexString == null ? -1 : int.parse(indexString);
+    if (index == -1) {
+      hideTypeView();
+    } else if (index != -1 && hoveredSpan != target) {
+      hoveredSpan?.classes?.remove(CssClass.highlightedToken);
+      var expression = expressions[index];
+      if (expression != null &&
+          ui.typeView.showTypeOfExpression(shownObject, expression)) {
+        print('Highlighting $target with index $indexString');
+        hoveredSpan = target;
+        hoveredSpan.classes.add(CssClass.highlightedToken);
+      } else {
+        hideTypeView();
+      }
     }
-    if (hoveredListItem != null) {
+    if (hoveredSpan != null) {
       ui.typeView.showAt(ev.page.x, ev.page.y + 16);
     }
   }
 
-  void onMouseOut(Event ev) {
+  void hideTypeView() {
+    hoveredSpan?.classes?.remove(CssClass.highlightedToken);
+    hoveredSpan = null;
     ui.typeView.hide();
+  }
+
+  void onMouseOut(Event ev) {
+    hideTypeView();
   }
 
   String getMissingSourceMessage(String uri) {
@@ -92,21 +115,21 @@ class CodeView {
 
   void showLibrary(Library library) {
     shownObject = library;
-    if (setCurrentFile(library.fileUri)) {
+    if (setCurrentFile(library.fileUri, library)) {
       setContent([makeSourceList()]);
     }
   }
 
   void showClass(Class node) {
     shownObject = node;
-    if (setCurrentFile(node.fileUri)) {
+    if (setCurrentFile(node.fileUri, node)) {
       setContent([makeSourceList(node.fileOffset)]);
     }
   }
 
   void showMember(Member member) {
     shownObject = member;
-    if (!setCurrentFile(member.fileUri)) return;
+    if (!setCurrentFile(member.fileUri, member)) return;
     var contents = <Element>[];
     var class_ = member.enclosingClass;
     if (class_ != null) {
@@ -135,6 +158,32 @@ class CodeView {
       token = token.next;
     }
     return token;
+  }
+
+  int getIndexOfLastExpressionBeforeOffset(int offset) {
+    int first = 0, last = expressions.length - 1;
+    while (first < last) {
+      int mid = last - ((last - first) >> 1);
+      int pivot = expressions[mid].fileOffset;
+      if (offset < pivot) {
+        last = mid - 1;
+      } else if (pivot < offset) {
+        first = mid;
+      } else {
+        return mid;
+      }
+    }
+    return first;
+  }
+
+  int getExpressionIndexFromToken(Token token) {
+    var index = getIndexOfLastExpressionBeforeOffset(token.end);
+    var expression = expressions[index];
+    if (token.offset <= expression.fileOffset &&
+        expression.fileOffset < token.end) {
+      return index;
+    }
+    return -1;
   }
 
   /// Returns the part of the given token that is between the absolute file
@@ -168,8 +217,6 @@ class CodeView {
       lastLine = 1 + source.getLineFromOffset(endOffset);
     }
     Token token = getFirstTokenAfterOffset(tokenizedSource, startOffset ?? 0);
-    print('First token is $token');
-    print('Previous token is ${token.previous}');
     firstLineShown = firstLine;
     for (int lineIndex = firstLine; lineIndex < lastLine; ++lineIndex) {
       int start = source.lineStarts[lineIndex];
@@ -199,19 +246,20 @@ class CodeView {
   }
 
   html.Node makeTokenElement(Token token) {
+    var element = new SpanElement()..text = token.lexeme;
     if (token.keyword != null || keywords.contains(token.lexeme)) {
-      return new SpanElement()
-        ..text = token.lexeme
-        ..classes.add('keyword');
+      element.classes.add('keyword');
+    } else if (Lexer.isUpperCaseLetter(token.lexeme.codeUnitAt(0))) {
+      element.classes.add('typename');
     }
-    if (Lexer.isUpperCaseLetter(token.lexeme.codeUnitAt(0))) {
-      return new SpanElement()
-        ..text = token.lexeme
-        ..classes.add('typename');
+    var index = getExpressionIndexFromToken(token);
+    if (index != -1) {
+      element.dataset['id'] = '$index';
     }
-    return new html.Text(token.lexeme);
+    return element;
   }
 
+  /// Words that are recognized as keywords but should be highlighted as such.
   static final Set<String> keywords =
       new Set<String>.from(['int', 'double', 'num', 'bool', 'void']);
 
@@ -236,5 +284,19 @@ class CodeView {
       return uri.substring(lowestIndex);
     }
     return uri;
+  }
+}
+
+class ExpressionCollector extends RecursiveVisitor {
+  final List<Expression> result;
+
+  ExpressionCollector(this.result);
+
+  @override
+  defaultExpression(Expression node) {
+    if (node.fileOffset != TreeNode.noOffset) {
+      result.add(node);
+    }
+    node.visitChildren(this);
   }
 }
