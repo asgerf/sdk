@@ -5,9 +5,9 @@ library kernel.laboratory.ui;
 
 import 'dart:html';
 
-import 'codeview.dart';
-import 'searchbox.dart';
-import 'typeview.dart';
+import 'code_view.dart';
+import 'search_box.dart';
+import 'type_view.dart';
 
 // This library contains bindings to the HTML file, possibly wrapped in a
 // higher-level view object.
