@@ -38,41 +38,53 @@ class HtmlBuffer {
   }
 }
 
-class ConstraintView {
-  final DivElement containerElement;
-  ConstraintFormatter constraintFormatter;
-  NamedNode shownObject;
+class KernelHtmlBuffer extends HtmlBuffer {
+  final NamedNode shownObject;
+  ConstraintRowEmitter constraintRowEmitter;
 
-  HtmlBuffer buffer;
-
-  ConstraintView(this.containerElement) {
-    constraintFormatter = new ConstraintFormatter(this);
+  KernelHtmlBuffer(Element root, this.shownObject) : super(root) {
+    constraintRowEmitter = new ConstraintRowEmitter(this);
   }
 
-  void hide() {
-    containerElement.style.visibility = 'hidden';
+  void appendClass(Class node) {
+    appendText('$node');
   }
 
-  void show(NamedNode shownObject) {
-    this.shownObject = shownObject;
-    containerElement.style.visibility = 'visible';
-    containerElement.children.clear();
-    var cluster = constraintSystem.getCluster(shownObject.reference);
-    if (cluster == null) return;
-    buffer = new HtmlBuffer(containerElement);
-    for (var constraint in cluster.constraints) {
-      buffer.appendPush(new DivElement());
-      _appendConstraint(constraint);
-      buffer.pop();
+  void appendReference(NamedNode node) {
+    append(new AnchorElement()
+      ..classes.add(CssClass.reference)
+      ..text = getShortName(node)
+      ..title = getLongName(node)
+      ..onClick.listen((e) {
+        ui.codeView.showObject(node);
+      }));
+  }
+
+  void beginConstraintTable() {
+    appendPush(new TableElement());
+  }
+
+  void appendConstraintRow(Constraint constraint) {
+    appendPush(new TableRowElement());
+    constraint.accept(constraintRowEmitter);
+    pop();
+  }
+
+  void endConstraintTable() {
+    pop();
+  }
+
+  void appendLocation(StorageLocation location) {
+    if (location.owner == shownObject.reference) {
+      appendText('v${location.index}');
+    } else {
+      appendReference(location.owner.node);
+      appendText('/v${location.index}');
     }
   }
 
-  void _appendText(String text) {
-    buffer.appendText(text);
-  }
-
-  void _appendClass(Class node) {
-    _appendText('$node');
+  void appendValue(Value value) {
+    appendText('$value');
   }
 
   String getShortName(NamedNode node) {
@@ -81,7 +93,7 @@ class ConstraintView {
     } else if (node is Member) {
       var class_ = node.enclosingClass;
       if (class_ != null) {
-        return '${class_.name}.${node.name}';
+        return '${class_.name}.${node.name.name}';
       }
       return node.name.name;
     } else if (node is Library) {
@@ -94,67 +106,85 @@ class ConstraintView {
   String getLongName(NamedNode node) {
     return '$node';
   }
+}
 
-  void _appendReference(NamedNode node) {
-    buffer.append(new AnchorElement()
-      ..classes.add(CssClass.reference)
-      ..text = getShortName(node)
-      ..title = getLongName(node)
-      ..onClick.listen((e) {
-        ui.codeView.showObject(node);
-      }));
+class ConstraintView {
+  final DivElement containerElement;
+  NamedNode shownObject;
+
+  ConstraintView(this.containerElement);
+
+  void hide() {
+    containerElement.style.visibility = 'hidden';
   }
 
-  void _appendConstraint(Constraint constraint) {
-    constraint.accept(constraintFormatter);
-  }
-
-  void _appendLocation(StorageLocation location) {
-    if (location.owner == shownObject.reference) {
-      buffer.appendText('v${location.index}');
-    } else {
-      _appendReference(location.owner.node);
-      _appendText('/v${location.index}');
+  void show(NamedNode shownObject) {
+    this.shownObject = shownObject;
+    containerElement.style.visibility = 'visible';
+    containerElement.children.clear();
+    var cluster = constraintSystem.getCluster(shownObject.reference);
+    if (cluster == null) return;
+    var buffer = new KernelHtmlBuffer(containerElement, shownObject);
+    buffer.beginConstraintTable();
+    for (var constraint in cluster.constraints) {
+      buffer.appendConstraintRow(constraint);
     }
-  }
-
-  void _appendValue(Value value) {
-    _appendText('$value');
+    buffer.endConstraintTable();
   }
 }
 
-class ConstraintFormatter extends ConstraintVisitor<Null> {
-  final ConstraintView main;
+class ConstraintRowEmitter extends ConstraintVisitor<Null> {
+  final KernelHtmlBuffer buffer;
 
-  ConstraintFormatter(this.main);
+  ConstraintRowEmitter(this.buffer);
 
-  HtmlBuffer get buffer => main.buffer;
+  TableCellElement titleCell(String name) {
+    return new TableCellElement()
+      ..text = name
+      ..classes.add(CssClass.constraintLabel);
+  }
 
   @override
   visitEscapeConstraint(EscapeConstraint constraint) {
-    main
-      .._appendText('Escape ')
-      .._appendLocation(constraint.escaping);
+    buffer
+      ..append(titleCell('Escape'))
+      ..appendPush(new TableCellElement())
+      ..appendLocation(constraint.escaping)
+      ..pop(); // cell
   }
 
   @override
   visitSubtypeConstraint(SubtypeConstraint constraint) {
-    main
-      .._appendLocation(constraint.source)
-      .._appendText(' -> ')
-      .._appendLocation(constraint.destination);
+    buffer
+      ..append(titleCell('Subtype'))
+      ..appendPush(new TableCellElement())
+      ..appendLocation(constraint.destination)
+      ..pop()
+      ..appendPush(new TableCellElement())
+      ..appendText(' <- ')
+      ..pop()
+      ..appendPush(new TableCellElement())
+      ..appendLocation(constraint.source)
+      ..pop();
   }
 
   @override
   visitTypeArgumentConstraint(TypeArgumentConstraint constraint) {
-    main._appendText('TypeArgumentConstraint');
+    buffer.append(titleCell('TypeArgument'));
   }
 
   @override
   visitValueConstraint(ValueConstraint constraint) {
-    main
-      .._appendValue(constraint.value)
-      .._appendText(' -> ')
-      .._appendLocation(constraint.destination);
+    buffer
+      ..append(titleCell('Value'))
+      ..appendPush(new TableCellElement())
+      ..appendLocation(constraint.destination)
+      ..pop()
+      ..appendPush(new TableCellElement())
+      ..appendText(' <- ')
+      ..pop()
+      ..appendPush(new TableCellElement())
+      ..appendValue(constraint.value)
+      ..pop();
   }
 }

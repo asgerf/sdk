@@ -49,4 +49,5 @@ class CssClass {
   static const String valueFlagOn = 'value-flag-on';
   static const String valueFlagOff = 'value-flag-off';
   static const String reference = 'reference';
+  static const String constraintLabel = 'constraint-label';
 }
