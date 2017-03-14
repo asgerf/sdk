@@ -83,10 +83,23 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
         color: white;
         padding: 4px 4px 4px 4px;
       }
-      .expression-kind {
+      #type-view-expression-kind {
         color: orange;
       }
-      .type {}
+      .value-base-class-label {}
+      .value-base-class {
+        /*font-weight: bold;*/
+        /*color: orange;*/
+      }
+      .value-flag-label {
+        padding-right: 6px;
+      }
+      .value-flag-on {
+        color: #dc322f;
+      }
+      .value-flag-off {
+        color: #268bd2;
+      }
     </style>
   </head>
   <body id="body">
@@ -99,7 +112,11 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
     <div id="search-input-suggestions">
       <select id="search-input-select" size="10"></select>
     </div>
-    <div id="type-view"></div>
+
+    <div id="type-view">
+      <span id="type-view-expression-kind"></span><br/>
+      <table id="type-view-table"></table>
+    </div>
 
     <div id="code-view-container">
       <div id="code-view-filename"></div>

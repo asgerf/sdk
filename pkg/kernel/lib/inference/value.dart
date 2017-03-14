@@ -153,7 +153,7 @@ class ValueFlags {
   static const int nonNullValueSets = allValueSets & ~null_;
 
   static const List<String> flagNames = const <String>[
-    'Null', // Capitalize to avoid confusion with null.toString().
+    'nullable',
     'integer',
     'string',
     'double',

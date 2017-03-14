@@ -29,7 +29,8 @@ class UI {
   SearchBox searchBox = new SearchBox($('search-input'),
       $('search-input-suggestions'), $('search-input-select'));
 
-  TypeView typeView = new TypeView($('type-view'));
+  TypeView typeView = new TypeView(
+      $('type-view'), $('type-view-expression-kind'), $('type-view-table'));
 }
 
 // We use a singleton class (as opposed to static fields) so that all fields
@@ -38,4 +39,9 @@ UI ui = new UI();
 
 class CssClass {
   static const String highlightedToken = 'highlighted-token';
+  static const String valueBaseClass = 'value-base-class';
+  static const String valueBaseClassLabel = 'value-base-class-label';
+  static const String valueFlagLabel = 'value-flag-label';
+  static const String valueFlagOn = 'value-flag-on';
+  static const String valueFlagOff = 'value-flag-off';
 }
