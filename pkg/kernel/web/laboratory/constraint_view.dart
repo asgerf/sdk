@@ -46,10 +46,6 @@ class KernelHtmlBuffer extends HtmlBuffer {
     constraintRowEmitter = new ConstraintRowEmitter(this);
   }
 
-  void appendClass(Class node) {
-    appendText('$node');
-  }
-
   void appendReference(NamedNode node) {
     append(new AnchorElement()
       ..classes.add(CssClass.reference)
@@ -61,7 +57,7 @@ class KernelHtmlBuffer extends HtmlBuffer {
   }
 
   void appendLocation(StorageLocation location) {
-    if (location.owner == shownObject.reference) {
+    if (location.owner == shownObject?.reference) {
       appendText('v${location.index}');
     } else {
       appendReference(location.owner.node);
@@ -70,7 +66,15 @@ class KernelHtmlBuffer extends HtmlBuffer {
   }
 
   void appendValue(Value value) {
-    appendText('$value');
+    if (value.baseClass == null) {
+      appendText(value.isAlwaysNull ? 'Null' : 'Nothing');
+    } else {
+      appendReference(value.baseClass);
+      appendText(value.hasExactBaseClass ? '!' : '?');
+      if (value.canBeNull) {
+        appendText('?');
+      }
+    }
   }
 
   String getShortName(NamedNode node) {
