@@ -3,10 +3,10 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.laboratory.lexer;
 
+import 'package:charcode/ascii.dart';
 import 'package:front_end/src/scanner/errors.dart';
 import 'package:front_end/src/scanner/reader.dart';
 import 'package:front_end/src/scanner/scanner.dart';
-import 'package:charcode/ascii.dart';
 
 export 'package:front_end/src/scanner/token.dart' show Token, TokenType;
 

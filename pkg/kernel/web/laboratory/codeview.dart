@@ -4,15 +4,15 @@
 library kernel.laboratory.codeview;
 
 import 'dart:html';
-import 'dart:math';
 import 'dart:html' as html;
+import 'dart:math';
 
-import 'laboratory_data.dart';
-import 'laboratory_ui.dart';
-import 'lexer.dart';
 import 'package:kernel/ast.dart';
 
 import 'laboratory.dart';
+import 'laboratory_data.dart';
+import 'laboratory_ui.dart';
+import 'lexer.dart';
 
 class CodeView {
   final DivElement viewElement;

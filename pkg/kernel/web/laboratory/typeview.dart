@@ -5,11 +5,11 @@ library kernel.laboratory.typeview;
 
 import 'dart:html';
 
-import 'laboratory_ui.dart';
 import 'package:kernel/ast.dart';
+import 'package:kernel/inference/value.dart';
 
 import 'laboratory.dart';
-import 'package:kernel/inference/value.dart';
+import 'laboratory_ui.dart';
 
 class TypeView {
   final DivElement containerElement;

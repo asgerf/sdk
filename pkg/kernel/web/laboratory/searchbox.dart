@@ -5,10 +5,11 @@ library kernel.laboratory.searchbox;
 
 import 'dart:async';
 import 'dart:html';
-import 'keycodes.dart';
-import 'laboratory.dart';
 
 import 'package:kernel/ast.dart';
+
+import 'keycodes.dart';
+import 'laboratory.dart';
 
 class SearchBox {
   static final RegExp patternSeparator = new RegExp(r' |\.|::');

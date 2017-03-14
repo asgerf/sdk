@@ -6,7 +6,7 @@ library kernel.laboratory;
 import 'dart:async';
 import 'dart:html';
 import 'dart:typed_data';
-import 'keycodes.dart';
+
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/class_hierarchy.dart';
@@ -18,11 +18,12 @@ import 'package:kernel/library_index.dart';
 import 'package:kernel/type_environment.dart';
 import 'package:kernel/util/reader.dart';
 
-import 'laboratory_ui.dart' show ui;
-export 'laboratory_ui.dart' show ui;
-
+import 'keycodes.dart';
 import 'laboratory_data.dart';
+import 'laboratory_ui.dart' show ui;
+
 export 'laboratory_data.dart';
+export 'laboratory_ui.dart' show ui;
 
 info(message) {
   print(message);
