@@ -159,12 +159,12 @@ class CodeView {
     return token;
   }
 
-  int getIndexOfLastExpressionBeforeOffset(int offset) {
+  int getIndexOfLastExpressionStrictlyBeforeOffset(int offset) {
     int first = 0, last = expressions.length - 1;
     while (first < last) {
       int mid = last - ((last - first) >> 1);
       int pivot = expressions[mid].fileOffset;
-      if (offset < pivot) {
+      if (offset <= pivot) {
         last = mid - 1;
       } else if (pivot < offset) {
         first = mid;
@@ -176,7 +176,7 @@ class CodeView {
   }
 
   int getExpressionIndexFromToken(Token token) {
-    var index = getIndexOfLastExpressionBeforeOffset(token.end);
+    var index = getIndexOfLastExpressionStrictlyBeforeOffset(token.end);
     var expression = expressions[index];
     if (token.offset <= expression.fileOffset &&
         expression.fileOffset < token.end) {
