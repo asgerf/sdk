@@ -166,17 +166,16 @@ class CodeView {
       int pivot = expressions[mid].fileOffset;
       if (offset <= pivot) {
         last = mid - 1;
-      } else if (pivot < offset) {
-        first = mid;
       } else {
-        return mid;
+        first = mid;
       }
     }
-    return first;
+    return last;
   }
 
   int getExpressionIndexFromToken(Token token) {
     var index = getIndexOfLastExpressionStrictlyBeforeOffset(token.end);
+    if (index == -1) return -1;
     var expression = expressions[index];
     if (token.offset <= expression.fileOffset &&
         expression.fileOffset < token.end) {
