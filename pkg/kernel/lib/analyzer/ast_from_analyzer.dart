@@ -1376,7 +1376,7 @@ class ExpressionBuilder
     }
     // For some method invocations we have already set a file offset to
     // override the default behavior of _getOffset.
-    if (node is! MethodInvocation || result.fileOffset < 0) {
+    if (result.fileOffset == ast.TreeNode.noOffset) {
       result.fileOffset = _getOffset(node);
     }
     return result;
