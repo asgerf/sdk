@@ -75,7 +75,7 @@ class KernelHtmlBuffer extends HtmlBuffer {
       appendPush(new SpanElement()
         ..onMouseMove.listen(ui.typeView.showValueOnEvent(value)));
       appendReference(value.baseClass, hint: false);
-      appendText(value.hasExactBaseClass ? '!' : '?');
+      appendText(value.hasExactBaseClass ? '!' : '+');
       if (value.canBeNull) {
         appendText('?');
       }
