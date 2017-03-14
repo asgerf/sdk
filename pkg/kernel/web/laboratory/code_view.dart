@@ -102,6 +102,7 @@ class CodeView {
   }
 
   void showObject(NamedNode node) {
+    window.scroll(0, 0);
     if (node is Library) {
       showLibrary(node);
     } else if (node is Class) {
@@ -118,6 +119,7 @@ class CodeView {
     shownObject = library;
     if (setCurrentFile(library.fileUri, library)) {
       setContent([makeSourceList()]);
+      ui.constraintView.show(library);
     }
   }
 
@@ -125,6 +127,7 @@ class CodeView {
     shownObject = node;
     if (setCurrentFile(node.fileUri, node)) {
       setContent([makeSourceList(node.fileOffset)]);
+      ui.constraintView.show(node);
     }
   }
 
@@ -138,6 +141,7 @@ class CodeView {
     }
     contents.add(makeSourceList(member.fileOffset, member.fileEndOffset));
     setContent(contents);
+    ui.constraintView.show(member);
   }
 
   void showErrorMessage(String message) {

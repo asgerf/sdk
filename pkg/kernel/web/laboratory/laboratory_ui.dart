@@ -3,6 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.laboratory.ui;
 
+import 'constraint_view.dart';
 import 'dart:html';
 
 import 'code_view.dart';
@@ -32,6 +33,8 @@ class UI {
 
   TypeView typeView = new TypeView(
       $('type-view'), $('type-view-expression-kind'), $('type-view-table'));
+
+  ConstraintView constraintView = new ConstraintView($('constraint-view'));
 }
 
 // We use a singleton class (as opposed to static fields) so that all fields
@@ -45,4 +48,5 @@ class CssClass {
   static const String valueFlagLabel = 'value-flag-label';
   static const String valueFlagOn = 'value-flag-on';
   static const String valueFlagOff = 'value-flag-off';
+  static const String reference = 'reference';
 }

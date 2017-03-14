@@ -100,6 +100,16 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       .value-flag-off {
         color: #268bd2;
       }
+      #constraint-view {
+        visibility: hidden;
+      }
+      a.reference {
+      }
+      a.reference:hover {
+        border-bottom: 1px solid black;
+        cursor: pointer;
+      }
+      a.reference:visited {}
     </style>
   </head>
   <body id="body">
@@ -123,6 +133,8 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       <div id="code-view"></div>
     </div>
 
+    <div id="constraint-view">
+    </div>
 
     <div id="debug-box"/>
     <script type="application/javascript" src="laboratory.js"></script>
