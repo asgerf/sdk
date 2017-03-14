@@ -2009,8 +2009,7 @@ void InstanceOfInstr::EmitNativeCode(FlowGraphCompiler* compiler) {
   ASSERT(locs()->in(0).reg() == EAX);  // Value.
   ASSERT(locs()->in(1).reg() == EDX);  // Instantiator type arguments.
 
-  compiler->GenerateInstanceOf(token_pos(), deopt_id(), type(), negate_result(),
-                               locs());
+  compiler->GenerateInstanceOf(token_pos(), deopt_id(), type(), locs());
   ASSERT(locs()->out(0).reg() == EAX);
 }
 
@@ -2117,8 +2116,9 @@ void CreateArrayInstr::EmitNativeCode(FlowGraphCompiler* compiler) {
   const Code& stub = Code::ZoneHandle(compiler->zone(),
                                       StubCode::AllocateArray_entry()->code());
   compiler->AddStubCallTarget(stub);
-  compiler->GenerateCall(token_pos(), *StubCode::AllocateArray_entry(),
-                         RawPcDescriptors::kOther, locs());
+  compiler->GenerateCallWithDeopt(token_pos(), deopt_id(),
+                                  *StubCode::AllocateArray_entry(),
+                                  RawPcDescriptors::kOther, locs());
   __ Bind(&done);
   ASSERT(locs()->out(0).reg() == kResultReg);
 }

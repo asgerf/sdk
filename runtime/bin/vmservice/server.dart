@@ -233,21 +233,33 @@ class Server {
       List fsNameList;
       List fsPathList;
       List fsPathBase64List;
+      List fsUriBase64List;
       Object fsName;
       Object fsPath;
+      Object fsUri;
 
       try {
         // Extract the fs name and fs path from the request headers.
         fsNameList = request.headers['dev_fs_name'];
         fsName = fsNameList[0];
 
-        fsPathList = request.headers['dev_fs_path'];
-        fsPathBase64List = request.headers['dev_fs_path_b64'];
-        // If the 'dev_fs_path_b64' header field was sent, use that instead.
-        if ((fsPathBase64List != null) && (fsPathBase64List.length > 0)) {
-          fsPath = UTF8.decode(BASE64.decode(fsPathBase64List[0]));
-        } else {
-          fsPath = fsPathList[0];
+        // Prefer Uri encoding first.
+        fsUriBase64List = request.headers['dev_fs_uri_b64'];
+        if ((fsUriBase64List != null) && (fsUriBase64List.length > 0)) {
+          String decodedFsUri = UTF8.decode(BASE64.decode(fsUriBase64List[0]));
+          fsUri = Uri.parse(decodedFsUri);
+        }
+
+        // Fallback to path encoding.
+        if (fsUri == null) {
+          fsPathList = request.headers['dev_fs_path'];
+          fsPathBase64List = request.headers['dev_fs_path_b64'];
+          // If the 'dev_fs_path_b64' header field was sent, use that instead.
+          if ((fsPathBase64List != null) && (fsPathBase64List.length > 0)) {
+            fsPath = UTF8.decode(BASE64.decode(fsPathBase64List[0]));
+          } else {
+            fsPath = fsPathList[0];
+          }
         }
       } catch (e) { /* ignore */ }
 
@@ -256,6 +268,7 @@ class Server {
         result = await _service.devfs.handlePutStream(
             fsName,
             fsPath,
+            fsUri,
             request.transform(GZIP.decoder));
       } catch (e) { /* ignore */ }
 
@@ -319,7 +332,7 @@ class Server {
     try {
       var address;
       if (Platform.isFuchsia) {
-        address = InternetAddress.ANY_IP_V6;
+        address = InternetAddress.ANY_IP_V4;
       } else {
         var addresses = await InternetAddress.lookup(_ip);
         // Prefer IPv4 addresses.
@@ -331,6 +344,13 @@ class Server {
       _server = await HttpServer.bind(address, _port);
       _server.listen(_requestHandler, cancelOnError: true);
       serverPrint('Observatory listening on $serverAddress');
+      if (Platform.isFuchsia) {
+        // Create a file with the port number.
+        String tmp = Directory.systemTemp.path;
+        String path = "$tmp/dart.services/${_server.port}";
+        serverPrint("Creating $path");
+        new File(path)..createSync(recursive: true);
+      }
       // Server is up and running.
       _notifyServerState(serverAddress.toString());
       onServerAddressChange('$serverAddress');
@@ -346,6 +366,13 @@ class Server {
   Future cleanup(bool force) {
     if (_server == null) {
       return new Future.value(null);
+    }
+    if (Platform.isFuchsia) {
+      // Remove the file with the port number.
+      String tmp = Directory.systemTemp.path;
+      String path = "$tmp/dart.services/${_server.port}";
+      serverPrint("Deleting $path");
+      new File(path)..deleteSync();
     }
     return _server.close(force: force);
   }

@@ -229,8 +229,16 @@ const PrecedenceInfo KEYWORD_INFO =
 
 const PrecedenceInfo EOF_INFO = const PrecedenceInfo('EOF', 0, EOF_TOKEN);
 
+/// Precedence info used by synthetic tokens that are created during parser
+/// recovery (non-analyzer use case).
+const PrecedenceInfo RECOVERY_INFO =
+    const PrecedenceInfo('recovery', 0, RECOVERY_TOKEN);
+
 const PrecedenceInfo IDENTIFIER_INFO =
     const PrecedenceInfo('identifier', 0, IDENTIFIER_TOKEN);
+
+const PrecedenceInfo SCRIPT_INFO =
+    const PrecedenceInfo('script', 0, SCRIPT_TOKEN);
 
 const PrecedenceInfo BAD_INPUT_INFO =
     const PrecedenceInfo('malformed input', 0, BAD_INPUT_TOKEN);

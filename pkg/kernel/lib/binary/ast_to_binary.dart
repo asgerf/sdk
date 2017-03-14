@@ -70,6 +70,11 @@ class BinaryPrinter extends Visitor {
     writeByte(value & 0xFF);
   }
 
+  void writeUtf8Bytes(List<int> utf8Bytes) {
+    writeUInt30(utf8Bytes.length);
+    writeBytes(utf8Bytes);
+  }
+
   void writeStringTableEntry(String string) {
     List<int> utf8Bytes = const Utf8Encoder().convert(string);
     writeUInt30(utf8Bytes.length);
@@ -172,9 +177,9 @@ class BinaryPrinter extends Visitor {
     writeStringTable(_sourceUriIndexer);
     for (int i = 0; i < _sourceUriIndexer.entries.length; i++) {
       String uri = _sourceUriIndexer.entries[i].value;
-      Source source = program.uriToSource[uri] ?? new Source([], '');
-      String sourceCode = source.source;
-      writeStringTableEntry(sourceCode);
+      Source source =
+          program.uriToSource[uri] ?? new Source(<int>[], const <int>[]);
+      writeUtf8Bytes(source.source);
       List<int> lineStarts = source.lineStarts;
       writeUInt30(lineStarts.length);
       int previousLineStart = 0;
@@ -530,6 +535,7 @@ class BinaryPrinter extends Visitor {
 
   visitStaticSet(StaticSet node) {
     writeByte(Tag.StaticSet);
+    writeOffset(node, node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.value);
     writeInferredValueOffset(node.inferredValueOffset);
@@ -642,6 +648,7 @@ class BinaryPrinter extends Visitor {
 
   visitAsExpression(AsExpression node) {
     writeByte(Tag.AsExpression);
+    writeOffset(node, node.fileOffset);
     writeNode(node.operand);
     writeNode(node.type);
     writeInferredValueOffset(node.inferredValueOffset);
@@ -711,6 +718,7 @@ class BinaryPrinter extends Visitor {
 
   visitRethrow(Rethrow node) {
     writeByte(Tag.Rethrow);
+    writeOffset(node, node.fileOffset);
     writeInferredValueOffset(node.inferredValueOffset);
   }
 
@@ -723,6 +731,7 @@ class BinaryPrinter extends Visitor {
 
   visitListLiteral(ListLiteral node) {
     writeByte(node.isConst ? Tag.ConstListLiteral : Tag.ListLiteral);
+    writeOffset(node, node.fileOffset);
     writeNode(node.typeArgument);
     writeNodeList(node.expressions);
     writeInferredValueOffset(node.inferredTypeArgumentOffset);
@@ -820,6 +829,7 @@ class BinaryPrinter extends Visitor {
 
   visitBreakStatement(BreakStatement node) {
     writeByte(Tag.BreakStatement);
+    writeOffset(node, node.fileOffset);
     writeUInt30(_labelIndexer[node.target]);
   }
 
@@ -923,6 +933,7 @@ class BinaryPrinter extends Visitor {
 
   void writeVariableDeclaration(VariableDeclaration node) {
     writeOffset(node, node.fileOffset);
+    writeOffset(node, node.fileEqualsOffset);
     writeByte(node.flags);
     writeStringReference(node.name ?? '');
     writeNode(node.type);

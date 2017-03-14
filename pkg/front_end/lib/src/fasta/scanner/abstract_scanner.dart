@@ -17,7 +17,7 @@ import 'keyword.dart' show KeywordState, Keyword;
 
 import 'precedence.dart';
 
-import 'token.dart' show BeginGroupToken, KeywordToken, SymbolToken, Token;
+import 'token.dart' show BeginGroupToken, SymbolToken, Token;
 
 import 'token_constants.dart';
 
@@ -48,6 +48,18 @@ abstract class AbstractScanner implements Scanner {
    * A pointer to the last scanned token.
    */
   Token tail;
+
+  /**
+   * A pointer to the stream of comment tokens created by this scanner
+   * before they are assigned to the [Token] precedingComments field
+   * of a non-comment token. A value of `null` indicates no comment tokens.
+   */
+  Token comments;
+
+  /**
+   * A pointer to the last scanned comment token or `null` if none.
+   */
+  Token commentsTail;
 
   final List<int> lineStarts;
 
@@ -391,7 +403,7 @@ abstract class AbstractScanner implements Scanner {
     // # or #!.*[\n\r]
     if (scanOffset == 0) {
       if (identical(peek(), $BANG)) {
-        int start = scanOffset + 1;
+        int start = scanOffset;
         bool asciiOnly = true;
         do {
           next = advance();
@@ -400,6 +412,7 @@ abstract class AbstractScanner implements Scanner {
             !identical(next, $CR) &&
             !identical(next, $EOF));
         if (!asciiOnly) handleUnicode(start);
+        appendSubstringToken(SCRIPT_INFO, start, asciiOnly);
         return next;
       }
     }
@@ -422,11 +435,7 @@ abstract class AbstractScanner implements Scanner {
     // [ [] []=
     next = advance();
     if (identical(next, $CLOSE_SQUARE_BRACKET)) {
-      Token token = previousToken();
-      if (token is KeywordToken && token.keyword.syntax == 'operator' ||
-          token is SymbolToken && token.info == HASH_INFO) {
-        return select($EQ, INDEX_EQ_INFO, INDEX_INFO);
-      }
+      return select($EQ, INDEX_EQ_INFO, INDEX_INFO);
     }
     appendBeginGroup(OPEN_SQUARE_BRACKET_INFO);
     return next;
@@ -1160,7 +1169,7 @@ PrecedenceInfo closeBraceInfoFor(BeginGroupToken begin) {
     '{': CLOSE_CURLY_BRACKET_INFO,
     '<': GT_INFO,
     r'${': CLOSE_CURLY_BRACKET_INFO,
-  }[begin.value];
+  }[begin.lexeme];
 }
 
 class LineStarts extends Object with ListMixin<int> {

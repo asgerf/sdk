@@ -29,6 +29,23 @@ abstract class Token {
   Token next;
 
   /**
+   * The previous token in the token stream.
+   *
+   * Deprecated :: This exists for compatibility with the Analyzer token stream
+   * and will be removed at some future date.
+   */
+  @deprecated
+  Token previousToken;
+
+  /**
+   * Return the first comment in the list of comments that precede this token,
+   * or `null` if there are no comments preceding this token. Additional
+   * comments can be reached by following the token stream using [next] until
+   * `null` is returned.
+   */
+  Token precedingComments;
+
+  /**
    * The precedence info for this token. [info] determines the kind and the
    * precedence level of this token.
    *
@@ -39,9 +56,9 @@ abstract class Token {
   /**
    * The string represented by this token, a substring of the source code.
    *
-   * For [StringToken]s the [value] includes the quotes, explicit escapes, etc.
+   * For [StringToken]s the [lexeme] includes the quotes, explicit escapes, etc.
    */
-  String get value;
+  String get lexeme;
 
   /**
    * For symbol and keyword tokens, returns the string value represented by this
@@ -53,7 +70,7 @@ abstract class Token {
    * [:identical('class', token.value):].
    *
    * Note that returning [:null:] for string tokens is important to identify
-   * symbols and keywords, we cannot use [value] instead. The string literal
+   * symbols and keywords, we cannot use [lexeme] instead. The string literal
    *   "$a($b"
    * produces ..., SymbolToken($), StringToken(a), StringToken((), ...
    *
@@ -85,7 +102,7 @@ abstract class Token {
    * structure of the token, for example 'StringToken(foo)' for the identifier
    * token 'foo'.
    *
-   * Use [value] for the text actually parsed by the token.
+   * Use [lexeme] for the text actually parsed by the token.
    */
   String toString();
 
@@ -98,7 +115,7 @@ abstract class Token {
       // instead of the size of the length of the error message.
       return 1;
     } else {
-      return value.length;
+      return lexeme.length;
     }
   }
 
@@ -117,13 +134,13 @@ class SymbolToken extends Token {
 
   SymbolToken(this.info, int charOffset) : super(charOffset);
 
-  String get value => info.value;
+  String get lexeme => info.value;
 
   String get stringValue => info.value;
 
   bool isIdentifier() => false;
 
-  String toString() => "SymbolToken($value)";
+  String toString() => "SymbolToken($lexeme)";
 
   bool get isEof => info == EOF_INFO;
 }
@@ -151,13 +168,13 @@ class KeywordToken extends Token {
 
   PrecedenceInfo get info => keyword.info;
 
-  String get value => keyword.syntax;
+  String get lexeme => keyword.syntax;
 
   String get stringValue => keyword.syntax;
 
   bool isIdentifier() => keyword.isPseudo || keyword.isBuiltIn;
 
-  String toString() => "KeywordToken($value)";
+  String toString() => "KeywordToken($lexeme)";
 }
 
 /**
@@ -223,7 +240,7 @@ class StringToken extends Token {
     }
   }
 
-  String get value {
+  String get lexeme {
     if (valueOrLazySubstring is String) {
       return valueOrLazySubstring;
     } else {
@@ -247,7 +264,7 @@ class StringToken extends Token {
 
   bool isIdentifier() => identical(kind, IDENTIFIER_TOKEN);
 
-  String toString() => "StringToken($value)";
+  String toString() => "StringToken($lexeme)";
 
   static final StringCanonicalizer canonicalizer = new StringCanonicalizer();
 

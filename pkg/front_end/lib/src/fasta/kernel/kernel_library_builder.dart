@@ -34,6 +34,7 @@ import 'kernel_builder.dart'
         KernelFieldBuilder,
         KernelFormalParameterBuilder,
         KernelFunctionTypeAliasBuilder,
+        KernelFunctionTypeBuilder,
         KernelInvalidTypeBuilder,
         KernelMixinApplicationBuilder,
         KernelNamedMixinApplicationBuilder,
@@ -152,6 +153,12 @@ class KernelLibraryBuilder
         charOffset);
   }
 
+  String computeConstructorName(String name) {
+    assert(isConstructorName(name, currentDeclaration.name));
+    int index = name.indexOf(".");
+    return index == -1 ? "" : name.substring(index + 1);
+  }
+
   void addProcedure(
       List<MetadataBuilder> metadata,
       int modifiers,
@@ -162,6 +169,7 @@ class KernelLibraryBuilder
       AsyncMarker asyncModifier,
       ProcedureKind kind,
       int charOffset,
+      int charEndOffset,
       String nativeMethodName,
       {bool isTopLevel}) {
     // Nested declaration began in `OutlineBuilder.beginMethod` or
@@ -169,8 +177,7 @@ class KernelLibraryBuilder
     endNestedDeclaration().resolveTypes(typeVariables, this);
     ProcedureBuilder procedure;
     if (!isTopLevel && isConstructorName(name, currentDeclaration.name)) {
-      int index = name.indexOf(".");
-      name = index == -1 ? "" : name.substring(index + 1);
+      name = computeConstructorName(name);
       procedure = new KernelConstructorBuilder(
           metadata,
           modifiers & ~abstractMask,
@@ -180,6 +187,7 @@ class KernelLibraryBuilder
           formals,
           this,
           charOffset,
+          charEndOffset,
           nativeMethodName);
     } else {
       procedure = new KernelProcedureBuilder(
@@ -193,6 +201,7 @@ class KernelLibraryBuilder
           kind,
           this,
           charOffset,
+          charEndOffset,
           nativeMethodName);
     }
     addBuilder(name, procedure, charOffset);
@@ -209,13 +218,15 @@ class KernelLibraryBuilder
       AsyncMarker asyncModifier,
       ConstructorReferenceBuilder redirectionTarget,
       int charOffset,
+      int charEndOffset,
       String nativeMethodName) {
     // Nested declaration began in `OutlineBuilder.beginFactoryMethod`.
     DeclarationBuilder<KernelTypeBuilder> factoryDeclaration =
         endNestedDeclaration();
     String name = constructorName.name;
-    int index = name.indexOf(".");
-    name = index == -1 ? "" : name.substring(index + 1);
+    if (isConstructorName(name, currentDeclaration.name)) {
+      name = computeConstructorName(name);
+    }
     assert(constructorName.suffix == null);
     KernelProcedureBuilder procedure = new KernelProcedureBuilder(
         metadata,
@@ -228,6 +239,7 @@ class KernelLibraryBuilder
         ProcedureKind.Factory,
         this,
         charOffset,
+        charEndOffset,
         nativeMethodName,
         redirectionTarget);
     currentDeclaration.addFactoryDeclaration(procedure, factoryDeclaration);
@@ -238,10 +250,11 @@ class KernelLibraryBuilder
   }
 
   void addEnum(List<MetadataBuilder> metadata, String name,
-      List<String> constants, int charOffset) {
+      List<String> constants, int charOffset, int charEndOffset) {
     addBuilder(
         name,
-        new KernelEnumBuilder(metadata, name, constants, this, charOffset),
+        new KernelEnumBuilder(
+            metadata, name, constants, this, charOffset, charEndOffset),
         charOffset);
   }
 
@@ -257,6 +270,15 @@ class KernelLibraryBuilder
     // Nested declaration began in `OutlineBuilder.beginFunctionTypeAlias`.
     endNestedDeclaration().resolveTypes(typeVariables, this);
     addBuilder(name, typedef, charOffset);
+  }
+
+  KernelFunctionTypeBuilder addFunctionType(
+      KernelTypeBuilder returnType,
+      List<TypeVariableBuilder> typeVariables,
+      List<FormalParameterBuilder> formals,
+      int charOffset) {
+    return new KernelFunctionTypeBuilder(
+        charOffset, fileUri, returnType, typeVariables, formals);
   }
 
   KernelFormalParameterBuilder addFormalParameter(

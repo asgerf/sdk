@@ -54,7 +54,11 @@ export 'scope.dart' show AccessErrorBuilder;
 
 export 'dynamic_type_builder.dart' show DynamicTypeBuilder;
 
+export 'function_type_builder.dart' show FunctionTypeBuilder;
+
 import 'library_builder.dart' show LibraryBuilder;
+
+import 'invalid_type_builder.dart' show InvalidTypeBuilder;
 
 abstract class Builder {
   /// Used when multiple things with the same name are declared within the same
@@ -93,6 +97,7 @@ abstract class Builder {
   Builder combineAmbiguousImport(
       String name, Builder other, LibraryBuilder library) {
     if (other == this) return this;
+    if (other is InvalidTypeBuilder) return other;
     bool isLocal = false;
     Builder preferred;
     Builder hidden;

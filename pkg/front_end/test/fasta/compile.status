@@ -7,7 +7,7 @@
 # pkg/fasta/lib/src/kernel/.
 
 await: Fail
-function_type_recovery: Crash
+function_type_recovery: Fail
 invocations: Fail
 statements: Fail # Make async tranformer optional for golden file testing.
 type_variable_as_super: Fail
@@ -67,7 +67,7 @@ rasta/super_operator: Fail
 rasta/switch_execution_case_t02: Fail
 rasta/switch_fall_through: Fail
 rasta/try_label: Fail
-rasta/type_literals: VerificationError
+rasta/type_literals: Fail
 rasta/type_with_parse_error: Fail
 rasta/typedef: VerificationError
 rasta/unresolved: Fail

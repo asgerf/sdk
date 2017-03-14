@@ -26,7 +26,7 @@ import 'element_store.dart'
         AnalyzerParameterElement,
         ElementStore,
         KernelClassElement;
-import 'token_utils.dart' show toAnalyzerToken;
+import 'token_utils.dart' show toAnalyzerToken, toAnalyzerCommentToken;
 
 class AstBuilder extends ScopeListener {
   final AstFactory ast = standard.astFactory;
@@ -77,12 +77,22 @@ class AstBuilder extends ScopeListener {
   }
 
   @override
-  void handleNewExpression(Token token) {
-    debugEvent("NewExpression");
+  void handleConstExpression(Token token) {
+    debugEvent("ConstExpression");
+    _handleInstanceCreation(token);
+  }
+
+  void _handleInstanceCreation(Token token) {
     MethodInvocation arguments = pop();
     ConstructorName constructorName = pop();
     push(ast.instanceCreationExpression(
         toAnalyzerToken(token), constructorName, arguments.argumentList));
+  }
+
+  @override
+  void handleNewExpression(Token token) {
+    debugEvent("NewExpression");
+    _handleInstanceCreation(token);
   }
 
   @override
@@ -99,28 +109,28 @@ class AstBuilder extends ScopeListener {
   }
 
   void doStringPart(Token token) {
-    push(ast.simpleStringLiteral(toAnalyzerToken(token), token.value));
+    push(ast.simpleStringLiteral(toAnalyzerToken(token), token.lexeme));
   }
 
-  void endLiteralString(int interpolationCount) {
+  void endLiteralString(int interpolationCount, Token endToken) {
     debugEvent("endLiteralString");
     if (interpolationCount == 0) {
       Token token = pop();
-      String value = unescapeString(token.value);
+      String value = unescapeString(token.lexeme);
       push(ast.simpleStringLiteral(toAnalyzerToken(token), value));
     } else {
       List parts = popList(1 + interpolationCount * 2);
       Token first = parts.first;
       Token last = parts.last;
-      Quote quote = analyzeQuote(first.value);
+      Quote quote = analyzeQuote(first.lexeme);
       List<InterpolationElement> elements = <InterpolationElement>[];
-      elements.add(ast.interpolationString(
-          toAnalyzerToken(first), unescapeFirstStringPart(first.value, quote)));
+      elements.add(ast.interpolationString(toAnalyzerToken(first),
+          unescapeFirstStringPart(first.lexeme, quote)));
       for (int i = 1; i < parts.length - 1; i++) {
         var part = parts[i];
         if (part is Token) {
           elements
-              .add(ast.interpolationString(toAnalyzerToken(part), part.value));
+              .add(ast.interpolationString(toAnalyzerToken(part), part.lexeme));
         } else if (part is Expression) {
           elements.add(ast.interpolationExpression(null, part, null));
         } else {
@@ -129,9 +139,14 @@ class AstBuilder extends ScopeListener {
         }
       }
       elements.add(ast.interpolationString(
-          toAnalyzerToken(last), unescapeLastStringPart(last.value, quote)));
+          toAnalyzerToken(last), unescapeLastStringPart(last.lexeme, quote)));
       push(ast.stringInterpolation(elements));
     }
+  }
+
+  void handleScript(Token token) {
+    debugEvent("Script");
+    push(ast.scriptTag(toAnalyzerToken(token)));
   }
 
   void handleStringJuxtaposition(int literalCount) {
@@ -156,7 +171,8 @@ class AstBuilder extends ScopeListener {
       return;
     }
 
-    SimpleIdentifier identifier = ast.simpleIdentifier(analyzerToken);
+    SimpleIdentifier identifier = ast.simpleIdentifier(analyzerToken,
+        isDeclaration: context.inDeclaration);
     if (context.inLibraryOrPartOfDeclaration) {
       if (!context.isContinuation) {
         push([identifier]);
@@ -167,12 +183,11 @@ class AstBuilder extends ScopeListener {
       // TODO(paulberry): analyzer's ASTs allow for enumerated values to have
       // metadata, but the spec doesn't permit it.
       List<Annotation> metadata;
-      // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-      Comment comment = null;
+      Comment comment = _toAnalyzerComment(token.precedingComments);
       push(ast.enumConstantDeclaration(comment, metadata, identifier));
     } else {
       if (context.isScopeReference) {
-        String name = token.value;
+        String name = token.lexeme;
         Builder builder = scope.lookup(name, token.charOffset, uri);
         if (builder != null) {
           Element element = elementStore[builder];
@@ -186,14 +201,14 @@ class AstBuilder extends ScopeListener {
     }
   }
 
-  void endSend(Token token) {
+  void endSend(Token beginToken, Token endToken) {
     debugEvent("Send");
     MethodInvocation arguments = pop();
     TypeArgumentList typeArguments = pop();
     if (arguments != null) {
-      doInvocation(token, typeArguments, arguments);
+      doInvocation(endToken, typeArguments, arguments);
     } else {
-      doPropertyGet(token);
+      doPropertyGet(endToken);
     }
   }
 
@@ -219,6 +234,15 @@ class AstBuilder extends ScopeListener {
     push(ast.expressionStatement(pop(), toAnalyzerToken(token)));
   }
 
+  @override
+  void endEmptyFunctionBody(Token semicolon) {
+    debugEvent("EmptyFunctionBody");
+    // TODO(scheglov) Change the parser to not produce these modifiers.
+    pop(); // star
+    pop(); // async
+    push(ast.emptyFunctionBody(toAnalyzerToken(semicolon)));
+  }
+
   void endFunctionBody(int count, Token beginToken, Token endToken) {
     debugEvent("FunctionBody");
     List statements = popList(count);
@@ -235,7 +259,9 @@ class AstBuilder extends ScopeListener {
   void finishFunction(formals, asyncModifier, FunctionBody body) {
     debugEvent("finishFunction");
     Statement bodyStatement;
-    if (body is ExpressionFunctionBody) {
+    if (body is EmptyFunctionBody) {
+      bodyStatement = ast.emptyStatement(body.semicolon);
+    } else if (body is ExpressionFunctionBody) {
       bodyStatement = ast.returnStatement(null, body.expression, null);
     } else {
       bodyStatement = (body as BlockFunctionBody).block;
@@ -272,6 +298,11 @@ class AstBuilder extends ScopeListener {
 
   void handleOperator(Token token) {
     debugEvent("Operator");
+    push(toAnalyzerToken(token));
+  }
+
+  void handleSymbolVoid(Token token) {
+    debugEvent("SymbolVoid");
     push(toAnalyzerToken(token));
   }
 
@@ -313,7 +344,7 @@ class AstBuilder extends ScopeListener {
 
   void handleLiteralInt(Token token) {
     debugEvent("LiteralInt");
-    push(ast.integerLiteral(toAnalyzerToken(token), int.parse(token.value)));
+    push(ast.integerLiteral(toAnalyzerToken(token), int.parse(token.lexeme)));
   }
 
   void endExpressionFunctionBody(Token arrowToken, Token endToken) {
@@ -377,7 +408,7 @@ class AstBuilder extends ScopeListener {
     debugEvent("NoVariableInitializer");
   }
 
-  void endInitializedIdentifier() {
+  void endInitializedIdentifier(Token nameToken) {
     debugEvent("InitializedIdentifier");
     AstNode node = pop();
     VariableDeclaration variable;
@@ -400,7 +431,7 @@ class AstBuilder extends ScopeListener {
   void endVariablesDeclaration(int count, Token endToken) {
     debugEvent("VariablesDeclaration");
     List<VariableDeclaration> variables = popList(count);
-    TypeName type = pop();
+    TypeAnnotation type = pop();
     pop(); // TODO(paulberry): Modifiers.
     push(ast.variableDeclarationStatement(
         ast.variableDeclarationList(null, null, null, type, variables),
@@ -475,7 +506,7 @@ class AstBuilder extends ScopeListener {
 
   void handleLiteralDouble(Token token) {
     debugEvent("LiteralDouble");
-    push(ast.doubleLiteral(toAnalyzerToken(token), double.parse(token.value)));
+    push(ast.doubleLiteral(toAnalyzerToken(token), double.parse(token.lexeme)));
   }
 
   void handleLiteralNull(Token token) {
@@ -529,14 +560,14 @@ class AstBuilder extends ScopeListener {
 
   void handleAsOperator(Token operator, Token endToken) {
     debugEvent("AsOperator");
-    TypeName type = pop();
+    TypeAnnotation type = pop();
     Expression expression = pop();
     push(ast.asExpression(expression, toAnalyzerToken(operator), type));
   }
 
   void handleIsOperator(Token operator, Token not, Token endToken) {
     debugEvent("IsOperator");
-    TypeName type = pop();
+    TypeAnnotation type = pop();
     Expression expression = pop();
     push(ast.isExpression(
         expression, toAnalyzerToken(operator), toAnalyzerToken(not), type));
@@ -549,6 +580,25 @@ class AstBuilder extends ScopeListener {
     Expression condition = pop();
     push(ast.conditionalExpression(condition, toAnalyzerToken(question),
         thenExpression, toAnalyzerToken(colon), elseExpression));
+  }
+
+  @override
+  void endRedirectingFactoryBody(Token equalToken, Token endToken) {
+    debugEvent("RedirectingFactoryBody");
+    ConstructorName constructorName = pop();
+    Token starToken = pop();
+    Token asyncToken = pop();
+    push(new _RedirectingFactoryBody(
+        asyncToken, starToken, equalToken, constructorName));
+  }
+
+  @override
+  void endRethrowStatement(Token rethrowToken, Token endToken) {
+    debugEvent("RethrowStatement");
+    RethrowExpression expression =
+        ast.rethrowExpression(toAnalyzerToken(rethrowToken));
+    // TODO(scheglov) According to the specification, 'rethrow' is a statement.
+    push(ast.expressionStatement(expression, toAnalyzerToken(endToken)));
   }
 
   void endThrowExpression(Token throwToken, Token endToken) {
@@ -567,6 +617,15 @@ class AstBuilder extends ScopeListener {
     debugEvent("ValuedFormalParameter");
     Expression value = pop();
     push(new _ParameterDefaultValue(equals, value));
+  }
+
+  void handleFunctionType(Token functionToken, Token semicolon) {
+    debugEvent("FunctionType");
+    FormalParameterList parameters = pop();
+    TypeParameterList typeParameters = pop();
+    TypeAnnotation returnType = pop();
+    push(ast.genericFunctionType(returnType, toAnalyzerToken(functionToken),
+        typeParameters, parameters));
   }
 
   void handleFormalParameterWithoutValue(Token token) {
@@ -588,12 +647,14 @@ class AstBuilder extends ScopeListener {
       name = nameOrFunctionTypedParameter.identifier;
     } else {
       name = nameOrFunctionTypedParameter;
-      TypeName type = pop();
+      TypeAnnotation type = pop();
       _Modifiers modifiers = pop();
       Token keyword = modifiers?.finalConstOrVarKeyword;
       pop(); // TODO(paulberry): Metadata.
+      Comment comment = pop();
       if (thisKeyword == null) {
         node = ast.simpleFormalParameter2(
+            comment: comment,
             covariantKeyword: toAnalyzerToken(covariantKeyword),
             keyword: toAnalyzerToken(keyword),
             type: type,
@@ -604,6 +665,7 @@ class AstBuilder extends ScopeListener {
             ? thisKeyword.next
             : null;
         node = ast.fieldFormalParameter2(
+            comment: comment,
             covariantKeyword: toAnalyzerToken(covariantKeyword),
             keyword: toAnalyzerToken(keyword),
             type: type,
@@ -613,12 +675,16 @@ class AstBuilder extends ScopeListener {
       }
     }
 
-    if (defaultValue != null) {
-      node = ast.defaultFormalParameter(node, _toAnalyzerParameterKind(kind),
-          toAnalyzerToken(defaultValue.separator), defaultValue.value);
+    ParameterKind analyzerKind = _toAnalyzerParameterKind(kind);
+    if (analyzerKind != ParameterKind.REQUIRED) {
+      node = ast.defaultFormalParameter(node, analyzerKind,
+          toAnalyzerToken(defaultValue?.separator), defaultValue?.value);
     }
 
-    scope[name.name] = name.staticElement = new AnalyzerParameterElement(node);
+    if (name != null) {
+      scope[name.name] =
+          name.staticElement = new AnalyzerParameterElement(node);
+    }
     push(node);
   }
 
@@ -630,7 +696,7 @@ class AstBuilder extends ScopeListener {
     FormalParameterList formalParameters = pop();
     TypeParameterList typeParameters = pop();
     SimpleIdentifier name = pop();
-    TypeName returnType = pop();
+    TypeAnnotation returnType = pop();
 
     {
       _Modifiers modifiers = pop();
@@ -641,10 +707,12 @@ class AstBuilder extends ScopeListener {
     }
 
     pop(); // TODO(paulberry): Metadata.
+    Comment comment = pop();
 
     FormalParameter node;
     if (thisKeyword == null) {
       node = ast.functionTypedFormalParameter2(
+          comment: comment,
           covariantKeyword: toAnalyzerToken(covariantKeyword),
           returnType: returnType,
           identifier: name,
@@ -656,6 +724,7 @@ class AstBuilder extends ScopeListener {
           ? thisKeyword.next
           : null;
       node = ast.fieldFormalParameter2(
+          comment: comment,
           covariantKeyword: toAnalyzerToken(covariantKeyword),
           type: returnType,
           thisKeyword: toAnalyzerToken(thisKeyword),
@@ -699,7 +768,7 @@ class AstBuilder extends ScopeListener {
     if (catchKeyword != null) {
       exitLocalScope();
     }
-    TypeName type = popIfNotNull(onKeyword);
+    TypeAnnotation type = popIfNotNull(onKeyword);
     SimpleIdentifier exception;
     SimpleIdentifier stackTrace;
     if (catchParameters != null) {
@@ -803,8 +872,7 @@ class AstBuilder extends ScopeListener {
     _Modifiers modifiers = pop();
     Token externalKeyword = modifiers?.externalKeyword;
     List<Annotation> metadata = pop();
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
+    Comment comment = pop();
     push(ast.functionDeclaration(
         comment,
         metadata,
@@ -824,18 +892,23 @@ class AstBuilder extends ScopeListener {
   void endCompilationUnit(int count, Token token) {
     debugEvent("CompilationUnit");
     analyzer.Token beginToken = null; // TODO(paulberry)
-    ScriptTag scriptTag = null; // TODO(paulberry)
+    ScriptTag scriptTag = null;
     var directives = <Directive>[];
     var declarations = <CompilationUnitMember>[];
     analyzer.Token endToken = null; // TODO(paulberry)
-    for (AstNode node in popList(count)) {
-      if (node is Directive) {
-        directives.add(node);
-      } else if (node is CompilationUnitMember) {
-        declarations.add(node);
-      } else {
-        internalError(
-            'Unrecognized compilation unit member: ${node.runtimeType}');
+    List<Object> elements = popList(count);
+    if (elements != null) {
+      for (AstNode node in elements) {
+        if (node is ScriptTag) {
+          scriptTag = node;
+        } else if (node is Directive) {
+          directives.add(node);
+        } else if (node is CompilationUnitMember) {
+          declarations.add(node);
+        } else {
+          internalError(
+              'Unrecognized compilation unit member: ${node.runtimeType}');
+        }
       }
     }
     push(ast.compilationUnit(
@@ -851,9 +924,8 @@ class AstBuilder extends ScopeListener {
     List<Configuration> configurations = pop();
     StringLiteral uri = pop();
     List<Annotation> metadata = pop();
-    assert(metadata == null);
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
+    assert(metadata == null); // TODO(paulberry): fix.
+    Comment comment = pop();
     push(ast.importDirective(
         comment,
         metadata,
@@ -874,8 +946,7 @@ class AstBuilder extends ScopeListener {
     StringLiteral uri = pop();
     List<Annotation> metadata = pop();
     assert(metadata == null);
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
+    Comment comment = pop();
     push(ast.exportDirective(comment, metadata, toAnalyzerToken(exportKeyword),
         uri, configurations, combinators, toAnalyzerToken(semicolon)));
   }
@@ -991,8 +1062,7 @@ class AstBuilder extends ScopeListener {
     _Modifiers modifiers = pop();
     Token abstractKeyword = modifiers?.abstractKeyword;
     List<Annotation> metadata = pop();
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
+    Comment comment = pop();
     push(ast.classDeclaration(
         comment,
         metadata,
@@ -1009,12 +1079,9 @@ class AstBuilder extends ScopeListener {
   }
 
   @override
-  void endMixinApplication() {
+  void endMixinApplication(Token withKeyword) {
     debugEvent("MixinApplication");
     List<TypeName> mixinTypes = pop();
-    // TODO(paulberry,ahe): the parser doesn't give us enough information to
-    // locate the "with" keyword.
-    Token withKeyword;
     TypeName supertype = pop();
     push(new _MixinApplication(supertype, withKeyword, mixinTypes));
   }
@@ -1040,8 +1107,7 @@ class AstBuilder extends ScopeListener {
     _Modifiers modifiers = pop();
     Token abstractKeyword = modifiers?.abstractKeyword;
     List<Annotation> metadata = pop();
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
+    Comment comment = pop();
     push(ast.classTypeAlias(
         comment,
         metadata,
@@ -1062,8 +1128,7 @@ class AstBuilder extends ScopeListener {
     List<SimpleIdentifier> libraryName = pop();
     var name = ast.libraryIdentifier(libraryName);
     List<Annotation> metadata = pop();
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
+    Comment comment = pop();
     push(ast.libraryDirective(comment, metadata,
         toAnalyzerToken(libraryKeyword), name, toAnalyzerToken(semicolon)));
   }
@@ -1091,8 +1156,7 @@ class AstBuilder extends ScopeListener {
     debugEvent("Part");
     StringLiteral uri = pop();
     List<Annotation> metadata = pop();
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
+    Comment comment = pop();
     push(ast.partDirective(comment, metadata, toAnalyzerToken(partKeyword), uri,
         toAnalyzerToken(semicolon)));
   }
@@ -1107,8 +1171,7 @@ class AstBuilder extends ScopeListener {
     // in a reference to the "of" keyword.
     var ofKeyword = partKeyword.next;
     List<Annotation> metadata = pop();
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
+    Comment comment = pop();
     push(ast.partOfDirective(comment, metadata, toAnalyzerToken(partKeyword),
         toAnalyzerToken(ofKeyword), uri, name, toAnalyzerToken(semicolon)));
   }
@@ -1132,6 +1195,46 @@ class AstBuilder extends ScopeListener {
     push(ast.variableDeclaration(name, null, null));
   }
 
+  @override
+  void endFactoryMethod(
+      Token beginToken, Token factoryKeyword, Token semicolon) {
+    debugEvent("FactoryMethod");
+
+    FunctionBody body;
+    Token separator;
+    ConstructorName redirectedConstructor;
+    Object bodyObject = pop();
+    if (bodyObject is FunctionBody) {
+      body = bodyObject;
+    } else if (bodyObject is _RedirectingFactoryBody) {
+      separator = bodyObject.equalToken;
+      redirectedConstructor = bodyObject.constructorName;
+      body = ast.emptyFunctionBody(toAnalyzerToken(semicolon));
+    } else {
+      internalError('Unexpected body object: ${bodyObject.runtimeType}');
+    }
+
+    FormalParameterList parameters = pop();
+    ConstructorName constructorName = pop();
+    _Modifiers modifiers = pop();
+    List<Annotation> metadata = pop();
+    Comment comment = pop();
+    push(ast.constructorDeclaration(
+        comment,
+        metadata,
+        toAnalyzerToken(modifiers?.externalKeyword),
+        toAnalyzerToken(modifiers?.finalConstOrVarKeyword),
+        toAnalyzerToken(factoryKeyword),
+        constructorName.type.name,
+        constructorName.period,
+        constructorName.name,
+        parameters,
+        toAnalyzerToken(separator),
+        null,
+        redirectedConstructor,
+        body));
+  }
+
   void endFieldInitializer(Token assignment) {
     debugEvent("FieldInitializer");
     Expression initializer = pop();
@@ -1149,8 +1252,7 @@ class AstBuilder extends ScopeListener {
     var variableList = ast.variableDeclarationList(
         null, null, toAnalyzerToken(keyword), type, variables);
     List<Annotation> metadata = pop();
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
+    Comment comment = pop();
     push(ast.topLevelVariableDeclaration(
         comment, metadata, variableList, toAnalyzerToken(endToken)));
   }
@@ -1192,19 +1294,18 @@ class AstBuilder extends ScopeListener {
     TypeAnnotation returnType = pop(); // TODO(paulberry)
     _Modifiers modifiers = pop();
     List<Annotation> metadata = pop();
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
-    Token period;
-    void unnamedConstructor(
-        SimpleIdentifier returnType, SimpleIdentifier name) {
+    Comment comment = pop();
+
+    void constructor(SimpleIdentifier returnType, analyzer.Token period,
+        SimpleIdentifier name) {
       push(ast.constructorDeclaration(
           comment,
           metadata,
           toAnalyzerToken(modifiers?.externalKeyword),
           toAnalyzerToken(modifiers?.finalConstOrVarKeyword),
           null, // TODO(paulberry): factoryKeyword
-          returnType,
-          toAnalyzerToken(period),
+          ast.simpleIdentifier(returnType.token),
+          period,
           name,
           parameters,
           toAnalyzerToken(separator),
@@ -1231,12 +1332,14 @@ class AstBuilder extends ScopeListener {
 
     if (name is SimpleIdentifier) {
       if (name.name == className) {
-        unnamedConstructor(name, null);
+        constructor(name, null, null);
       } else {
         method(null, name);
       }
     } else if (name is _OperatorName) {
       method(name.operatorKeyword, name.name);
+    } else if (name is PrefixedIdentifier) {
+      constructor(name.prefix, name.period, name.identifier);
     } else {
       throw new UnimplementedError();
     }
@@ -1267,8 +1370,7 @@ class AstBuilder extends ScopeListener {
       SimpleIdentifier name = pop();
       TypeAnnotation returnType = pop();
       List<Annotation> metadata = pop();
-      // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-      Comment comment = null;
+      Comment comment = pop();
       push(ast.functionTypeAlias(
           comment,
           metadata,
@@ -1283,8 +1385,7 @@ class AstBuilder extends ScopeListener {
       TypeParameterList templateParameters = pop();
       SimpleIdentifier name = pop();
       List<Annotation> metadata = pop();
-      // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-      Comment comment = null;
+      Comment comment = pop();
       if (type is! GenericFunctionType) {
         // TODO(paulberry) Generate an error and recover (better than
         // this).
@@ -1313,8 +1414,7 @@ class AstBuilder extends ScopeListener {
     Token closeBrace = openBrace.endGroup;
     SimpleIdentifier name = pop();
     List<Annotation> metadata = pop();
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
+    Comment comment = pop();
     push(ast.enumDeclaration(
         comment,
         metadata,
@@ -1343,8 +1443,7 @@ class AstBuilder extends ScopeListener {
     var variableList = ast.variableDeclarationList(null, null,
         toAnalyzerToken(modifiers?.finalConstOrVarKeyword), type, variables);
     List<Annotation> metadata = pop();
-    // TODO(paulberry): capture doc comments.  See dartbug.com/28851.
-    Comment comment = null;
+    Comment comment = pop();
     push(ast.fieldDeclaration2(
         comment: comment,
         metadata: metadata,
@@ -1361,6 +1460,16 @@ class AstBuilder extends ScopeListener {
         ast.simpleIdentifier(toAnalyzerToken(token), isDeclaration: true)));
   }
 
+  @override
+  void beginMetadataStar(Token token) {
+    debugEvent("beginMetadataStar");
+    if (token.precedingComments != null) {
+      push(_toAnalyzerComment(token.precedingComments));
+    } else {
+      push(NullValue.Comments);
+    }
+  }
+
   ParameterKind _toAnalyzerParameterKind(FormalParameterType type) {
     if (type == FormalParameterType.POSITIONAL) {
       return ParameterKind.POSITIONAL;
@@ -1369,6 +1478,19 @@ class AstBuilder extends ScopeListener {
     } else {
       return ParameterKind.REQUIRED;
     }
+  }
+
+  Comment _toAnalyzerComment(Token comments) {
+    if (comments == null) return null;
+
+    // This is temporary placeholder code to get tests to pass.
+    // TODO(paulberry): after analyzer and fasta token representations are
+    // unified, refactor the code in analyzer's parser that handles
+    // documentation comments so that it is reusable, and reuse it here.
+    // See Parser.parseCommentAndMetadata
+    var tokens = <analyzer.Token>[toAnalyzerCommentToken(comments)];
+    var references = <CommentReference>[];
+    return ast.documentationComment(tokens, references);
   }
 }
 
@@ -1412,6 +1534,17 @@ class _ParameterDefaultValue {
   _ParameterDefaultValue(this.separator, this.value);
 }
 
+/// Data structure placed on stack to represent the redirected constructor.
+class _RedirectingFactoryBody {
+  final Token asyncKeyword;
+  final Token starKeyword;
+  final Token equalToken;
+  final ConstructorName constructorName;
+
+  _RedirectingFactoryBody(this.asyncKeyword, this.starKeyword, this.equalToken,
+      this.constructorName);
+}
+
 /// Data structure placed on the stack as a container for optional parameters.
 class _OptionalFormalParameters {
   final List<FormalParameter> parameters;
@@ -1444,7 +1577,7 @@ class _Modifiers {
     // disallowed modifiers are not used; the parser should do that.
     // TODO(paulberry,ahe): implement the necessary logic in the parser.
     for (var token in modifierTokens) {
-      var s = token.value;
+      var s = token.lexeme;
       if (identical('abstract', s)) {
         abstractKeyword = token;
       } else if (identical('const', s)) {

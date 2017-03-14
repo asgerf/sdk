@@ -5946,10 +5946,11 @@ RawTypeParameter* Function::LookupTypeParameter(
         if (type_param_name.Equals(type_name)) {
           if (parent_level > 0) {
             // Clone type parameter and set parent_level.
-            return TypeParameter::New(
+            type_param = TypeParameter::New(
                 Class::Handle(), function, type_param.index(), parent_level,
                 type_param_name, AbstractType::Handle(type_param.bound()),
                 TokenPosition::kNoSource);
+            type_param.SetIsFinalized();
           }
           return type_param.raw();
         }
@@ -9221,9 +9222,18 @@ void Script::GetTokenLocation(TokenPosition token_pos,
       *column = offset - smi.Value() + 1;
     }
     if (token_len != NULL) {
-      // We don't explicitly save this data.
-      // TODO(jensj): Load the source and attempt to find it from there.
+      // We don't explicitly save this data: Load the source
+      // and find it from there.
+      const String& source = String::Handle(zone, Source());
       *token_len = 1;
+      if (offset < source.Length() &&
+          Scanner::IsIdentStartChar(source.CharAt(offset))) {
+        for (intptr_t i = offset + 1;
+             i < source.Length() && Scanner::IsIdentChar(source.CharAt(i));
+             ++i) {
+          ++*token_len;
+        }
+      }
     }
     return;
   }
@@ -13998,6 +14008,17 @@ void Code::set_stackmaps(const Array& maps) const {
 }
 
 
+#if !defined(DART_PRECOMPILED_RUNTIME) && !defined(DART_PRECOMPILER)
+void Code::set_variables(const Smi& smi) const {
+  StorePointer(&raw_ptr()->catch_entry_.variables_, smi.raw());
+}
+#else
+void Code::set_catch_entry_state_maps(const TypedData& maps) const {
+  StorePointer(&raw_ptr()->catch_entry_.catch_entry_state_maps_, maps.raw());
+}
+#endif
+
+
 void Code::set_deopt_info_array(const Array& array) const {
 #if defined(DART_PRECOMPILED_RUNTIME)
   UNREACHABLE();
@@ -17731,11 +17752,15 @@ bool TypeParameter::IsEquivalent(const Instance& other, TrailPtr trail) const {
     return false;
   }
   const TypeParameter& other_type_param = TypeParameter::Cast(other);
-  if (parameterized_class() != other_type_param.parameterized_class()) {
+  if (parameterized_class_id() != other_type_param.parameterized_class_id()) {
+    return false;
+  }
+  if (parameterized_function() != other_type_param.parameterized_function()) {
     return false;
   }
   if (IsFinalized() == other_type_param.IsFinalized()) {
-    return index() == other_type_param.index();
+    return (index() == other_type_param.index()) &&
+           (parent_level() == other_type_param.parent_level());
   }
   return name() == other_type_param.name();
 }
@@ -17929,7 +17954,13 @@ RawString* TypeParameter::EnumerateURIs() const {
 
 intptr_t TypeParameter::ComputeHash() const {
   ASSERT(IsFinalized());
-  uint32_t result = Class::Handle(parameterized_class()).id();
+  uint32_t result;
+  if (IsClassTypeParameter()) {
+    result = parameterized_class_id();
+  } else {
+    result = Function::Handle(parameterized_function()).Hash();
+    result = CombineHashes(result, parent_level());
+  }
   // No need to include the hash of the bound, since the type parameter is fully
   // identified by its class and index.
   result = CombineHashes(result, index());

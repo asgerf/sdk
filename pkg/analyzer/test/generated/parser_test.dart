@@ -82,8 +82,7 @@ abstract class AbstractParserTestCase implements ParserTestHelpers {
 
   Expression parseAssignableExpression(String code, bool primaryAllowed);
 
-  Expression parseAssignableSelector(
-      String code, bool optional,
+  Expression parseAssignableSelector(String code, bool optional,
       {bool allowConditional: true});
 
   AwaitExpression parseAwaitExpression(String code);
@@ -287,13 +286,6 @@ class ClassMemberParserTest extends ParserTestCase
  * Tests which exercise the parser using a class member.
  */
 abstract class ClassMemberParserTestMixin implements AbstractParserTestCase {
-  void test_constFactory() {
-    createParser('const factory C() = A;');
-    ClassMember member = parser.parseClassMember('C');
-    expect(member, isNotNull);
-    assertNoErrors();
-  }
-
   void test_parseAwaitExpression_asStatement_inAsync() {
     createParser('m() async { await x; }');
     ClassMember member = parser.parseClassMember('C');
@@ -355,6 +347,12 @@ abstract class ClassMemberParserTestMixin implements AbstractParserTestCase {
         AwaitExpression, (expression as BinaryExpression).rightOperand);
   }
 
+  void test_parseClassMember_constructor_withDocComment() {
+    createParser('/// Doc\nC();');
+    var constructor = parser.parseClassMember('C') as ConstructorDeclaration;
+    expectCommentText(constructor.documentationComment, '/// Doc');
+  }
+
   void test_parseClassMember_constructor_withInitializers() {
     // TODO(brianwilkerson) Test other kinds of class members: fields, getters
     // and setters.
@@ -412,6 +410,7 @@ abstract class ClassMemberParserTestMixin implements AbstractParserTestCase {
     expect(variables, hasLength(1));
     VariableDeclaration variable = variables[0];
     expect(variable.name, isNotNull);
+    _assertIsDeclarationName(variable.name);
   }
 
   void test_parseClassMember_field_namedGet() {
@@ -541,6 +540,7 @@ abstract class ClassMemberParserTestMixin implements AbstractParserTestCase {
     expect(method.propertyKeyword, isNotNull);
     expect(method.returnType, isNotNull);
     expect(method.name, isNotNull);
+    _assertIsDeclarationName(method.name);
     expect(method.operatorKeyword, isNull);
     expect(method.body, isNotNull);
     expect(method.parameters, isNull);
@@ -553,16 +553,21 @@ abstract class ClassMemberParserTestMixin implements AbstractParserTestCase {
     assertNoErrors();
     expect(member, new isInstanceOf<MethodDeclaration>());
     MethodDeclaration method = member;
-    expect(method.body, isNotNull);
     expect(method.documentationComment, isNull);
     expect(method.externalKeyword, isNotNull);
     expect(method.modifierKeyword, isNull);
     expect(method.name, isNotNull);
+    _assertIsDeclarationName(method.name);
     expect(method.operatorKeyword, isNull);
     expect(method.typeParameters, isNull);
     expect(method.parameters, isNotNull);
     expect(method.propertyKeyword, isNull);
     expect(method.returnType, isNull);
+
+    var body = method.body as EmptyFunctionBody;
+    expect(body.keyword, isNull);
+    expect(body.star, isNull);
+    expect(body.semicolon.type, TokenType.SEMICOLON);
   }
 
   void test_parseClassMember_method_external_withTypeAndArgs() {
@@ -1016,23 +1021,51 @@ abstract class ClassMemberParserTestMixin implements AbstractParserTestCase {
   }
 
   void test_parseClassMember_redirectingFactory_const() {
-    createParser('const factory C() = B;');
-    ClassMember member = parser.parseClassMember('C');
-    expect(member, isNotNull);
+    createParser('const factory C() = prefix.B.foo;');
+    var constructor = parser.parseClassMember('C') as ConstructorDeclaration;
     assertNoErrors();
-    expect(member, new isInstanceOf<ConstructorDeclaration>());
-    ConstructorDeclaration constructor = member;
+    expect(constructor, isNotNull);
     expect(constructor.externalKeyword, isNull);
-    expect(constructor.constKeyword, isNotNull);
-    expect(constructor.factoryKeyword, isNotNull);
-    expect(constructor.returnType, isNotNull);
+    expect(constructor.constKeyword.keyword, Keyword.CONST);
+    expect(constructor.factoryKeyword.keyword, Keyword.FACTORY);
+    expect(constructor.returnType.name, 'C');
+    expect(constructor.period, isNull);
+    expect(constructor.name, isNull);
+    _assertIsDeclarationName(constructor.returnType, false);
+    expect(constructor.parameters, isNotNull);
+    expect(constructor.parameters.parameters, isEmpty);
+    expect(constructor.separator.type, TokenType.EQ);
+    expect(constructor.initializers, isEmpty);
+    expect(constructor.redirectedConstructor, isNotNull);
+    expect(constructor.redirectedConstructor.type.name.name, 'prefix.B');
+    expect(constructor.redirectedConstructor.period.type, TokenType.PERIOD);
+    expect(constructor.redirectedConstructor.name.name, 'foo');
+    expect(constructor.body, new isInstanceOf<EmptyFunctionBody>());
+  }
+
+  void test_parseClassMember_redirectingFactory_expressionBody() {
+    createParser('factory C() => null;');
+    var constructor = parser.parseClassMember('C') as ConstructorDeclaration;
+    assertNoErrors();
+    expect(constructor, isNotNull);
+    expect(constructor.externalKeyword, isNull);
+    expect(constructor.constKeyword, isNull);
+    expect(constructor.factoryKeyword.keyword, Keyword.FACTORY);
+    expect(constructor.returnType.name, 'C');
     expect(constructor.period, isNull);
     expect(constructor.name, isNull);
     expect(constructor.parameters, isNotNull);
-    expect(constructor.separator, isNotNull);
-    expect(constructor.initializers, hasLength(0));
-    expect(constructor.redirectedConstructor, isNotNull);
-    expect(constructor.body, isNotNull);
+    expect(constructor.parameters.parameters, isEmpty);
+    expect(constructor.separator, isNull);
+    expect(constructor.initializers, isEmpty);
+    expect(constructor.redirectedConstructor, isNull);
+
+    var body = constructor.body as ExpressionFunctionBody;
+    expect(body.keyword, isNull);
+    expect(body.star, isNull);
+    expect(body.functionDefinition.type, TokenType.FUNCTION);
+    expect(body.expression, isNotNull);
+    expect(body.semicolon, isNotNull);
   }
 
   void test_parseClassMember_redirectingFactory_nonConst() {
@@ -1044,15 +1077,20 @@ abstract class ClassMemberParserTestMixin implements AbstractParserTestCase {
     ConstructorDeclaration constructor = member;
     expect(constructor.externalKeyword, isNull);
     expect(constructor.constKeyword, isNull);
-    expect(constructor.factoryKeyword, isNotNull);
-    expect(constructor.returnType, isNotNull);
+    expect(constructor.factoryKeyword.keyword, Keyword.FACTORY);
+    expect(constructor.returnType.name, 'C');
+    _assertIsDeclarationName(constructor.returnType, false);
     expect(constructor.period, isNull);
     expect(constructor.name, isNull);
     expect(constructor.parameters, isNotNull);
-    expect(constructor.separator, isNotNull);
-    expect(constructor.initializers, hasLength(0));
+    expect(constructor.parameters.parameters, isEmpty);
+    expect(constructor.separator.type, TokenType.EQ);
+    expect(constructor.initializers, isEmpty);
     expect(constructor.redirectedConstructor, isNotNull);
-    expect(constructor.body, isNotNull);
+    expect(constructor.redirectedConstructor.type.name.name, 'B');
+    expect(constructor.redirectedConstructor.period, isNull);
+    expect(constructor.redirectedConstructor.name, isNull);
+    expect(constructor.body, new isInstanceOf<EmptyFunctionBody>());
   }
 
   void test_parseConstructor_assert() {
@@ -1070,6 +1108,47 @@ abstract class ClassMemberParserTestMixin implements AbstractParserTestCase {
     AssertInitializer assertInitializer = initializer;
     expect(assertInitializer.condition, isNotNull);
     expect(assertInitializer.message, isNull);
+  }
+
+  void test_parseConstructor_named() {
+    createParser('C.foo();');
+    var constructor = parser.parseClassMember('C') as ConstructorDeclaration;
+    assertNoErrors();
+    expect(constructor, isNotNull);
+    expect(constructor.externalKeyword, isNull);
+    expect(constructor.constKeyword, isNull);
+    expect(constructor.factoryKeyword, isNull);
+    expect(constructor.returnType.name, 'C');
+    _assertIsDeclarationName(constructor.returnType, false);
+    expect(constructor.period.type, TokenType.PERIOD);
+    expect(constructor.name.name, 'foo');
+    _assertIsDeclarationName(constructor.name);
+    expect(constructor.parameters, isNotNull);
+    expect(constructor.parameters.parameters, isEmpty);
+    expect(constructor.separator, isNull);
+    expect(constructor.initializers, isEmpty);
+    expect(constructor.redirectedConstructor, isNull);
+    expect(constructor.body, new isInstanceOf<EmptyFunctionBody>());
+  }
+
+  void test_parseConstructor_unnamed() {
+    createParser('C();');
+    var constructor = parser.parseClassMember('C') as ConstructorDeclaration;
+    assertNoErrors();
+    expect(constructor, isNotNull);
+    expect(constructor.externalKeyword, isNull);
+    expect(constructor.constKeyword, isNull);
+    expect(constructor.factoryKeyword, isNull);
+    expect(constructor.returnType.name, 'C');
+    _assertIsDeclarationName(constructor.returnType, false);
+    expect(constructor.period, isNull);
+    expect(constructor.name, isNull);
+    expect(constructor.parameters, isNotNull);
+    expect(constructor.parameters.parameters, isEmpty);
+    expect(constructor.separator, isNull);
+    expect(constructor.initializers, isEmpty);
+    expect(constructor.redirectedConstructor, isNull);
+    expect(constructor.body, new isInstanceOf<EmptyFunctionBody>());
   }
 
   void test_parseConstructor_with_pseudo_function_literal() {
@@ -1232,6 +1311,25 @@ abstract class ClassMemberParserTestMixin implements AbstractParserTestCase {
     expect(method.parameters, isNotNull);
     expect(method.propertyKeyword, isNotNull);
     expect((method.returnType as TypeName).name.name, 'T');
+  }
+
+  void test_simpleFormalParameter_withDocComment() {
+    createParser('''
+int f(
+    /// Doc
+    int x) {}
+''');
+    var function = parseFullCompilationUnitMember() as FunctionDeclaration;
+    var parameter = function.functionExpression.parameters.parameters[0]
+        as NormalFormalParameter;
+    expectCommentText(parameter.documentationComment, '/// Doc');
+  }
+
+  /**
+   * Assert that the given [name] is in declaration context.
+   */
+  void _assertIsDeclarationName(SimpleIdentifier name, [bool expected = true]) {
+    expect(name.inDeclarationContext(), expected);
   }
 }
 
@@ -3418,8 +3516,10 @@ class Foo {
   }
 
   void test_nonIdentifierLibraryName_partOf() {
-    CompilationUnit unit = parseCompilationUnit(
-        "part of 'lib';", [ParserErrorCode.NON_IDENTIFIER_LIBRARY_NAME]);
+    CompilationUnit unit = parseCompilationUnit("part of 3;", [
+      ParserErrorCode.MISSING_NAME_IN_PART_OF_DIRECTIVE,
+      ParserErrorCode.UNEXPECTED_TOKEN
+    ]);
     expect(unit, isNotNull);
   }
 
@@ -4057,7 +4157,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
   }
 
   void
-      test_parseAssignableExpression_expression_args_dot_typeParameterComments() {
+      test_parseAssignableExpression_expression_args_dot_typeArgumentComments() {
     enableGenericMethodComments = true;
     Expression expression = parseAssignableExpression('(x)/*<F>*/(y).z', false);
     expect(expression, isNotNull);
@@ -4074,7 +4174,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
     expect(propertyAccess.propertyName, isNotNull);
   }
 
-  void test_parseAssignableExpression_expression_args_dot_typeParameters() {
+  void test_parseAssignableExpression_expression_args_dot_typeArguments() {
     Expression expression = parseAssignableExpression('(x)<F>(y).z', false);
     expect(expression, isNotNull);
     assertNoErrors();
@@ -4145,7 +4245,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
   }
 
   void
-      test_parseAssignableExpression_identifier_args_dot_typeParameterComments() {
+      test_parseAssignableExpression_identifier_args_dot_typeArgumentComments() {
     enableGenericMethodComments = true;
     Expression expression = parseAssignableExpression('x/*<E>*/(y).z', false);
     expect(expression, isNotNull);
@@ -4161,7 +4261,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
     expect(propertyAccess.propertyName, isNotNull);
   }
 
-  void test_parseAssignableExpression_identifier_args_dot_typeParameters() {
+  void test_parseAssignableExpression_identifier_args_dot_typeArguments() {
     Expression expression = parseAssignableExpression('x<E>(y).z', false);
     expect(expression, isNotNull);
     assertNoErrors();
@@ -4267,7 +4367,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
   }
 
   void test_parseAwaitExpression() {
-    AwaitExpression expression = parseAwaitExpression('await x;');
+    AwaitExpression expression = parseAwaitExpression('await x');
     expect(expression, isNotNull);
     assertNoErrors();
     expect(expression.awaitKeyword, isNotNull);
@@ -5005,7 +5105,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
   }
 
   void
-      test_parseInstanceCreationExpression_qualifiedType_named_typeParameterComment() {
+      test_parseInstanceCreationExpression_qualifiedType_named_typeArgumentComments() {
     enableGenericMethodComments = true;
     Token token = TokenFactory.tokenFromKeyword(Keyword.NEW);
     InstanceCreationExpression expression =
@@ -5024,7 +5124,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
   }
 
   void
-      test_parseInstanceCreationExpression_qualifiedType_named_typeParameters() {
+      test_parseInstanceCreationExpression_qualifiedType_named_typeArguments() {
     Token token = TokenFactory.tokenFromKeyword(Keyword.NEW);
     InstanceCreationExpression expression =
         parseInstanceCreationExpression('A.B<E>.c()', token);
@@ -5042,7 +5142,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
   }
 
   void
-      test_parseInstanceCreationExpression_qualifiedType_typeParameterComment() {
+      test_parseInstanceCreationExpression_qualifiedType_typeArgumentComments() {
     enableGenericMethodComments = true;
     Token token = TokenFactory.tokenFromKeyword(Keyword.NEW);
     InstanceCreationExpression expression =
@@ -5060,7 +5160,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
     expect(expression.argumentList, isNotNull);
   }
 
-  void test_parseInstanceCreationExpression_qualifiedType_typeParameters() {
+  void test_parseInstanceCreationExpression_qualifiedType_typeArguments() {
     Token token = TokenFactory.tokenFromKeyword(Keyword.NEW);
     InstanceCreationExpression expression =
         parseInstanceCreationExpression('A.B<E>()', token);
@@ -5111,7 +5211,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
     expect(expression.argumentList, isNotNull);
   }
 
-  void test_parseInstanceCreationExpression_type_named_typeParameterComment() {
+  void test_parseInstanceCreationExpression_type_named_typeArgumentComments() {
     enableGenericMethodComments = true;
     Token token = TokenFactory.tokenFromKeyword(Keyword.NEW);
     InstanceCreationExpression expression =
@@ -5129,7 +5229,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
     expect(expression.argumentList, isNotNull);
   }
 
-  void test_parseInstanceCreationExpression_type_named_typeParameters() {
+  void test_parseInstanceCreationExpression_type_named_typeArguments() {
     Token token = TokenFactory.tokenFromKeyword(Keyword.NEW);
     InstanceCreationExpression expression =
         parseInstanceCreationExpression('A<B>.c()', token);
@@ -5146,7 +5246,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
     expect(expression.argumentList, isNotNull);
   }
 
-  void test_parseInstanceCreationExpression_type_typeParameterComment() {
+  void test_parseInstanceCreationExpression_type_typeArgumentComments() {
     enableGenericMethodComments = true;
     Token token = TokenFactory.tokenFromKeyword(Keyword.NEW);
     InstanceCreationExpression expression =
@@ -5164,7 +5264,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
     expect(expression.argumentList, isNotNull);
   }
 
-  void test_parseInstanceCreationExpression_type_typeParameters() {
+  void test_parseInstanceCreationExpression_type_typeArguments() {
     Token token = TokenFactory.tokenFromKeyword(Keyword.NEW);
     InstanceCreationExpression expression =
         parseInstanceCreationExpression('A<B>()', token);
@@ -5181,7 +5281,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
     expect(expression.argumentList, isNotNull);
   }
 
-  void test_parseInstanceCreationExpression_type_typeParameters_nullable() {
+  void test_parseInstanceCreationExpression_type_typeArguments_nullable() {
     enableNnbd = true;
     Token token = TokenFactory.tokenFromKeyword(Keyword.NEW);
     InstanceCreationExpression expression =
@@ -5206,7 +5306,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
     ListLiteral literal = parseListLiteral(token, null, '[]');
     expect(literal, isNotNull);
     assertNoErrors();
-    expect(literal.constKeyword, token);
+    expect(literal.constKeyword.keyword, Keyword.CONST);
     expect(literal.typeArguments, isNull);
     expect(literal.leftBracket, isNotNull);
     expect(literal.elements, hasLength(0));
@@ -5231,7 +5331,7 @@ abstract class ExpressionParserTestMixin implements AbstractParserTestCase {
     ListLiteral literal = parseListLiteral(token, null, '[ ]');
     expect(literal, isNotNull);
     assertNoErrors();
-    expect(literal.constKeyword, token);
+    expect(literal.constKeyword.keyword, Keyword.CONST);
     expect(literal.typeArguments, isNull);
     expect(literal.leftBracket, isNotNull);
     expect(literal.elements, hasLength(0));
@@ -6835,6 +6935,25 @@ abstract class FormalParameterParserTestMixin
     expect(defaultParameter.kind, kind);
   }
 
+  void test_parseFormalParameter_type_named_noDefault() {
+    ParameterKind kind = ParameterKind.NAMED;
+    FormalParameter parameter = parseFormalParameter('A a', kind);
+    expect(parameter, isNotNull);
+    assertNoErrors();
+    expect(parameter, new isInstanceOf<DefaultFormalParameter>());
+    DefaultFormalParameter defaultParameter = parameter;
+    SimpleFormalParameter simpleParameter =
+        defaultParameter.parameter as SimpleFormalParameter;
+    expect(simpleParameter.covariantKeyword, isNull);
+    expect(simpleParameter.identifier, isNotNull);
+    expect(simpleParameter.keyword, isNull);
+    expect(simpleParameter.type, isNotNull);
+    expect(simpleParameter.kind, kind);
+    expect(defaultParameter.separator, isNull);
+    expect(defaultParameter.defaultValue, isNull);
+    expect(defaultParameter.kind, kind);
+  }
+
   void test_parseFormalParameter_type_normal() {
     ParameterKind kind = ParameterKind.REQUIRED;
     FormalParameter parameter = parseFormalParameter('A a', kind);
@@ -6865,6 +6984,25 @@ abstract class FormalParameterParserTestMixin
     expect(simpleParameter.kind, kind);
     expect(defaultParameter.separator, isNotNull);
     expect(defaultParameter.defaultValue, isNotNull);
+    expect(defaultParameter.kind, kind);
+  }
+
+  void test_parseFormalParameter_type_positional_noDefault() {
+    ParameterKind kind = ParameterKind.POSITIONAL;
+    FormalParameter parameter = parseFormalParameter('A a', kind);
+    expect(parameter, isNotNull);
+    assertNoErrors();
+    expect(parameter, new isInstanceOf<DefaultFormalParameter>());
+    DefaultFormalParameter defaultParameter = parameter;
+    SimpleFormalParameter simpleParameter =
+        defaultParameter.parameter as SimpleFormalParameter;
+    expect(simpleParameter.covariantKeyword, isNull);
+    expect(simpleParameter.identifier, isNotNull);
+    expect(simpleParameter.keyword, isNull);
+    expect(simpleParameter.type, isNotNull);
+    expect(simpleParameter.kind, kind);
+    expect(defaultParameter.separator, isNull);
+    expect(defaultParameter.defaultValue, isNull);
     expect(defaultParameter.kind, kind);
   }
 
@@ -7213,6 +7351,11 @@ abstract class FormalParameterParserTestMixin
     expect(parameterList.parameters, hasLength(0));
   }
 
+  void test_parseNormalFormalParameter_field_function_withDocComment() {
+    var parameter = parseNormalFormalParameter('/// Doc\nthis.f()');
+    expectCommentText(parameter.documentationComment, '/// Doc');
+  }
+
   void test_parseNormalFormalParameter_field_noType() {
     NormalFormalParameter parameter = parseNormalFormalParameter('this.a');
     expect(parameter, isNotNull);
@@ -7247,6 +7390,11 @@ abstract class FormalParameterParserTestMixin
     expect(fieldParameter.type, isNull);
     expect(fieldParameter.identifier, isNotNull);
     expect(fieldParameter.parameters, isNull);
+  }
+
+  void test_parseNormalFormalParameter_field_withDocComment() {
+    var parameter = parseNormalFormalParameter('/// Doc\nthis.a');
+    expectCommentText(parameter.documentationComment, '/// Doc');
   }
 
   void test_parseNormalFormalParameter_function_named() {
@@ -7487,6 +7635,12 @@ abstract class FormalParameterParserTestMixin
     expect(functionParameter.question, isNotNull);
   }
 
+  void test_parseNormalFormalParameter_function_withDocComment() {
+    var parameter = parseFormalParameter('/// Doc\nf()', ParameterKind.REQUIRED)
+        as FunctionTypedFormalParameter;
+    expectCommentText(parameter.documentationComment, '/// Doc');
+  }
+
   void test_parseNormalFormalParameter_simple_const_noType() {
     NormalFormalParameter parameter = parseNormalFormalParameter('const a');
     expect(parameter, isNotNull);
@@ -7717,11 +7871,10 @@ class ParserTestCase extends EngineTestCase
   }
 
   @override
-  Expression parseAssignableSelector(
-      String code, bool optional,
+  Expression parseAssignableSelector(String code, bool optional,
       {bool allowConditional: true}) {
-    Expression prefix =
-        astFactory.simpleIdentifier(new StringToken(TokenType.STRING, 'foo', 0));
+    Expression prefix = astFactory
+        .simpleIdentifier(new StringToken(TokenType.STRING, 'foo', 0));
     createParser(code);
     return parser.parseAssignableSelector(prefix, optional,
         allowConditional: allowConditional);
@@ -9084,6 +9237,14 @@ class C<K {
 
   void test_missing_commaInArgumentList() {
     parseExpression("f(x: 1 y: 2)", [ParserErrorCode.EXPECTED_TOKEN]);
+  }
+
+  void test_missingComma_beforeNamedArgument() {
+    createParser('(a b: c)');
+    ArgumentList argumentList = parser.parseArgumentList();
+    expectNotNullIfNoErrors(argumentList);
+    listener.assertErrorsWithCodes([ParserErrorCode.EXPECTED_TOKEN]);
+    expect(argumentList.arguments, hasLength(2));
   }
 
   void test_missingGet() {
@@ -13012,6 +13173,12 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
         "import 'import1_lib.dart' show hide, show hide ugly;");
   }
 
+  void test_import_withDocComment() {
+    var compilationUnit = parseCompilationUnit('/// Doc\nimport "foo.dart";');
+    var importDirective = compilationUnit.directives[0];
+    expectCommentText(importDirective.documentationComment, '/// Doc');
+  }
+
   void test_parseClassDeclaration_abstract() {
     createParser('abstract class A {}');
     CompilationUnitMember member = parseFullCompilationUnitMember();
@@ -13045,6 +13212,7 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     expect(declaration.classKeyword, isNotNull);
     expect(declaration.leftBracket, isNotNull);
     expect(declaration.name, isNotNull);
+    _assertIsDeclarationName(declaration.name);
     expect(declaration.members, hasLength(0));
     expect(declaration.rightBracket, isNotNull);
     expect(declaration.typeParameters, isNull);
@@ -13190,6 +13358,7 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     ClassTypeAlias typeAlias = member;
     expect(typeAlias.typedefKeyword, isNotNull);
     expect(typeAlias.name, isNotNull);
+    _assertIsDeclarationName(typeAlias.name);
     expect(typeAlias.typeParameters, isNull);
     expect(typeAlias.withClause, isNotNull);
     expect(typeAlias.implementsClause, isNotNull);
@@ -13229,10 +13398,24 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     expect(declaration.classKeyword, isNotNull);
     expect(declaration.leftBracket, isNotNull);
     expect(declaration.name, isNotNull);
+    _assertIsDeclarationName(declaration.name);
     expect(declaration.members, hasLength(0));
     expect(declaration.rightBracket, isNotNull);
     expect(declaration.typeParameters, isNotNull);
     expect(declaration.typeParameters.typeParameters, hasLength(1));
+    _assertIsDeclarationName(declaration.typeParameters.typeParameters[0].name);
+  }
+
+  void test_parseClassDeclaration_withDocumentationComment() {
+    createParser('/// Doc\nclass C {}');
+    var classDeclaration = parseFullCompilationUnitMember() as ClassDeclaration;
+    expectCommentText(classDeclaration.documentationComment, '/// Doc');
+  }
+
+  void test_parseClassTypeAlias_withDocumentationComment() {
+    createParser('/// Doc\nclass C = D with E;');
+    var classTypeAlias = parseFullCompilationUnitMember() as ClassTypeAlias;
+    expectCommentText(classTypeAlias.documentationComment, '/// Doc');
   }
 
   void test_parseCompilationUnit_abstractAsPrefix_parameterized() {
@@ -13406,6 +13589,7 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     expect(declaration.semicolon, isNotNull);
     expect(declaration.variables, isNotNull);
     expect(declaration.variables.keyword.lexeme, 'const');
+    _assertIsDeclarationName(declaration.variables.variables[0].name);
   }
 
   void test_parseCompilationUnitMember_expressionFunctionBody_tokens() {
@@ -13414,6 +13598,7 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     var body = f.functionExpression.body as ExpressionFunctionBody;
     expect(body.functionDefinition.lexeme, '=>');
     expect(body.semicolon.lexeme, ';');
+    _assertIsDeclarationName(f.name);
   }
 
   void test_parseCompilationUnitMember_finalVariable() {
@@ -13539,6 +13724,7 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     expect(declaration.externalKeyword, isNotNull);
     expect(declaration.functionExpression, isNotNull);
     expect(declaration.propertyKeyword, isNotNull);
+    _assertIsDeclarationName(declaration.name);
   }
 
   void test_parseCompilationUnitMember_getter_external_type() {
@@ -13608,6 +13794,7 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     FunctionDeclaration declaration = member;
     expect(declaration.functionExpression, isNotNull);
     expect(declaration.propertyKeyword, isNotNull);
+    _assertIsDeclarationName(declaration.name);
   }
 
   void test_parseCompilationUnitMember_setter_type() {
@@ -13631,6 +13818,7 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     ClassTypeAlias typeAlias = member;
     expect(typeAlias.typedefKeyword, isNotNull);
     expect(typeAlias.name.name, "C");
+    _assertIsDeclarationName(typeAlias.name);
     expect(typeAlias.typeParameters, isNull);
     expect(typeAlias.equals, isNotNull);
     expect(typeAlias.abstractKeyword, isNotNull);
@@ -13703,6 +13891,13 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     FunctionTypeAlias typeAlias = member;
     expect(typeAlias.name.name, "F");
     expect(typeAlias.parameters.parameters, hasLength(0));
+    _assertIsDeclarationName(typeAlias.name);
+  }
+
+  void test_parseCompilationUnitMember_typedef_withDocComment() {
+    createParser('/// Doc\ntypedef F();');
+    var typeAlias = parseFullCompilationUnitMember() as FunctionTypeAlias;
+    expectCommentText(typeAlias.documentationComment, '/// Doc');
   }
 
   void test_parseCompilationUnitMember_typedVariable() {
@@ -13716,6 +13911,7 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     expect(declaration.variables, isNotNull);
     expect(declaration.variables.type, isNotNull);
     expect(declaration.variables.keyword, isNull);
+    _assertIsDeclarationName(declaration.variables.variables[0].name);
   }
 
   void test_parseCompilationUnitMember_variable() {
@@ -13728,6 +13924,13 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     expect(declaration.semicolon, isNotNull);
     expect(declaration.variables, isNotNull);
     expect(declaration.variables.keyword.lexeme, 'var');
+  }
+
+  void test_parseCompilationUnitMember_variable_withDocumentationComment() {
+    createParser('/// Doc\nvar x = 0;');
+    var declaration =
+        parseFullCompilationUnitMember() as TopLevelVariableDeclaration;
+    expectCommentText(declaration.documentationComment, '/// Doc');
   }
 
   void test_parseCompilationUnitMember_variableGet() {
@@ -13763,6 +13966,12 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     expect(exportDirective.uri, isNotNull);
     expect(exportDirective.combinators, hasLength(0));
     expect(exportDirective.semicolon, isNotNull);
+  }
+
+  void test_parseDirective_export_withDocComment() {
+    createParser("/// Doc\nexport 'foo.dart';");
+    var directive = parseFullDirective() as ExportDirective;
+    expectCommentText(directive.documentationComment, '/// Doc');
   }
 
   void test_parseDirective_import() {
@@ -13816,6 +14025,12 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     expect(lib.name.components[2].name, 'c');
   }
 
+  void test_parseDirective_library_withDocumentationComment() {
+    createParser('/// Doc\nlibrary l;');
+    var directive = parseFullDirective() as LibraryDirective;
+    expectCommentText(directive.documentationComment, '/// Doc');
+  }
+
   void test_parseDirective_part() {
     createParser("part 'lib/lib.dart';");
     Directive directive = parseFullDirective();
@@ -13850,6 +14065,18 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     expect(partOf.libraryName.components[0].name, 'a');
     expect(partOf.libraryName.components[1].name, 'b');
     expect(partOf.libraryName.components[2].name, 'c');
+  }
+
+  void test_parseDirective_part_of_withDocumentationComment() {
+    createParser('/// Doc\npart of a;');
+    var partOf = parseFullDirective() as PartOfDirective;
+    expectCommentText(partOf.documentationComment, '/// Doc');
+  }
+
+  void test_parseDirective_part_withDocumentationComment() {
+    createParser("/// Doc\npart 'lib.dart';");
+    var directive = parseFullDirective() as PartDirective;
+    expectCommentText(directive.documentationComment, '/// Doc');
   }
 
   void test_parseDirective_partOf() {
@@ -13946,6 +14173,23 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     expect(declaration.name, isNotNull);
     expect(declaration.constants, hasLength(2));
     expect(declaration.rightBracket, isNotNull);
+  }
+
+  void test_parseEnumDeclaration_withDocComment_onEnum() {
+    createParser('/// Doc\nenum E {ONE}');
+    var declaration = parseFullCompilationUnitMember() as EnumDeclaration;
+    expectCommentText(declaration.documentationComment, '/// Doc');
+  }
+
+  void test_parseEnumDeclaration_withDocComment_onValue() {
+    createParser('''
+enum E {
+  /// Doc
+  ONE
+}''');
+    var declaration = parseFullCompilationUnitMember() as EnumDeclaration;
+    var value = declaration.constants[0];
+    expectCommentText(value.documentationComment, '/// Doc');
   }
 
   void test_parseExportDirective_configuration_multiple() {
@@ -14581,5 +14825,18 @@ abstract class TopLevelParserTestMixin implements AbstractParserTestCase {
     expect(functionType.parameters, isNotNull);
     expect(functionType.returnType, isNotNull);
     expect(functionType.typeParameters, isNull);
+  }
+
+  void test_parseTypeAlias_genericFunction_withDocComment() {
+    createParser('/// Doc\ntypedef F = bool Function();');
+    var typeAlias = parseFullCompilationUnitMember() as GenericTypeAlias;
+    expectCommentText(typeAlias.documentationComment, '/// Doc');
+  }
+
+  /**
+   * Assert that the given [name] is in declaration context.
+   */
+  void _assertIsDeclarationName(SimpleIdentifier name) {
+    expect(name.inDeclarationContext(), isTrue);
   }
 }

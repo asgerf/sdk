@@ -76,7 +76,7 @@ class LookupMapAnalysis {
   final DiagnosticReporter reporter;
 
   /// The resolved [VariableElement] associated with the top-level `_version`.
-  VariableElement lookupMapVersionVariable;
+  FieldElement lookupMapVersionVariable;
 
   /// The resolved [LibraryElement] associated with
   /// `package:lookup_map/lookup_map.dart`.
@@ -286,7 +286,8 @@ class LookupMapAnalysis {
         // type_lookup_map/generic_type_test
         // TODO(sigmund): can we get rid of this?
         backend.computeImpactForInstantiatedConstantType(
-            backend.backendClasses.typeType, impactBuilderForCodegen);
+            backend.backendClasses.typeType, impactBuilderForCodegen,
+            forResolution: false);
         _addGenerics(arg);
       }
     }
@@ -427,7 +428,8 @@ class _LookupMapInfo {
     ConstantValue constant = unusedEntries.remove(key);
     usedEntries[key] = constant;
     analysis.backend.computeImpactForCompileTimeConstant(
-        constant, analysis.impactBuilderForCodegen, false);
+        constant, analysis.impactBuilderForCodegen,
+        forResolution: false);
   }
 
   /// Restores [original] to contain all of the entries marked as possibly used.

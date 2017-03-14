@@ -64,6 +64,19 @@ class _ReferenceKindReader extends fb.Reader<idl.ReferenceKind> {
   }
 }
 
+class _TypedefStyleReader extends fb.Reader<idl.TypedefStyle> {
+  const _TypedefStyleReader() : super();
+
+  @override
+  int get size => 1;
+
+  @override
+  idl.TypedefStyle read(fb.BufferContext bc, int offset) {
+    int index = const fb.Uint8Reader().read(bc, offset);
+    return index < idl.TypedefStyle.values.length ? idl.TypedefStyle.values[index] : idl.TypedefStyle.functionType;
+  }
+}
+
 class _UnlinkedConstructorInitializerKindReader extends fb.Reader<idl.UnlinkedConstructorInitializerKind> {
   const _UnlinkedConstructorInitializerKindReader() : super();
 
@@ -1794,7 +1807,9 @@ class EntityRefBuilder extends Object with _EntityRefMixin implements idl.Entity
   int _slot;
   List<UnlinkedParamBuilder> _syntheticParams;
   EntityRefBuilder _syntheticReturnType;
+  List<TopLevelInferenceErrorBuilder> _topLevelInferenceErrors;
   List<EntityRefBuilder> _typeArguments;
+  List<UnlinkedTypeParamBuilder> _typeParameters;
 
   @override
   List<int> get implicitFunctionTypeIndices => _implicitFunctionTypeIndices ??= <int>[];
@@ -1907,6 +1922,20 @@ class EntityRefBuilder extends Object with _EntityRefMixin implements idl.Entity
   }
 
   @override
+  List<TopLevelInferenceErrorBuilder> get topLevelInferenceErrors => _topLevelInferenceErrors ??= <TopLevelInferenceErrorBuilder>[];
+
+  /**
+   * If this [EntityRef] is a result of type inference, and so contained within
+   * [LinkedUnit.types], and was computed as a result of top-level type
+   * inference, which failed for this target, contains the list of one or more
+   * errors describing the failure.  The [reference] must point at `dynamic` in
+   * this case.
+   */
+  void set topLevelInferenceErrors(List<TopLevelInferenceErrorBuilder> value) {
+    this._topLevelInferenceErrors = value;
+  }
+
+  @override
   List<EntityRefBuilder> get typeArguments => _typeArguments ??= <EntityRefBuilder>[];
 
   /**
@@ -1917,14 +1946,27 @@ class EntityRefBuilder extends Object with _EntityRefMixin implements idl.Entity
     this._typeArguments = value;
   }
 
-  EntityRefBuilder({List<int> implicitFunctionTypeIndices, int paramReference, int reference, int slot, List<UnlinkedParamBuilder> syntheticParams, EntityRefBuilder syntheticReturnType, List<EntityRefBuilder> typeArguments})
+  @override
+  List<UnlinkedTypeParamBuilder> get typeParameters => _typeParameters ??= <UnlinkedTypeParamBuilder>[];
+
+  /**
+   * If this is a function type, the type parameters defined for the function
+   * type (if any).
+   */
+  void set typeParameters(List<UnlinkedTypeParamBuilder> value) {
+    this._typeParameters = value;
+  }
+
+  EntityRefBuilder({List<int> implicitFunctionTypeIndices, int paramReference, int reference, int slot, List<UnlinkedParamBuilder> syntheticParams, EntityRefBuilder syntheticReturnType, List<TopLevelInferenceErrorBuilder> topLevelInferenceErrors, List<EntityRefBuilder> typeArguments, List<UnlinkedTypeParamBuilder> typeParameters})
     : _implicitFunctionTypeIndices = implicitFunctionTypeIndices,
       _paramReference = paramReference,
       _reference = reference,
       _slot = slot,
       _syntheticParams = syntheticParams,
       _syntheticReturnType = syntheticReturnType,
-      _typeArguments = typeArguments;
+      _topLevelInferenceErrors = topLevelInferenceErrors,
+      _typeArguments = typeArguments,
+      _typeParameters = typeParameters;
 
   /**
    * Flush [informative] data recursively.
@@ -1932,7 +1974,9 @@ class EntityRefBuilder extends Object with _EntityRefMixin implements idl.Entity
   void flushInformative() {
     _syntheticParams?.forEach((b) => b.flushInformative());
     _syntheticReturnType?.flushInformative();
+    _topLevelInferenceErrors?.forEach((b) => b.flushInformative());
     _typeArguments?.forEach((b) => b.flushInformative());
+    _typeParameters?.forEach((b) => b.flushInformative());
   }
 
   /**
@@ -1968,13 +2012,31 @@ class EntityRefBuilder extends Object with _EntityRefMixin implements idl.Entity
         x?.collectApiSignature(signature);
       }
     }
+    if (this._typeParameters == null) {
+      signature.addInt(0);
+    } else {
+      signature.addInt(this._typeParameters.length);
+      for (var x in this._typeParameters) {
+        x?.collectApiSignature(signature);
+      }
+    }
+    if (this._topLevelInferenceErrors == null) {
+      signature.addInt(0);
+    } else {
+      signature.addInt(this._topLevelInferenceErrors.length);
+      for (var x in this._topLevelInferenceErrors) {
+        x?.collectApiSignature(signature);
+      }
+    }
   }
 
   fb.Offset finish(fb.Builder fbBuilder) {
     fb.Offset offset_implicitFunctionTypeIndices;
     fb.Offset offset_syntheticParams;
     fb.Offset offset_syntheticReturnType;
+    fb.Offset offset_topLevelInferenceErrors;
     fb.Offset offset_typeArguments;
+    fb.Offset offset_typeParameters;
     if (!(_implicitFunctionTypeIndices == null || _implicitFunctionTypeIndices.isEmpty)) {
       offset_implicitFunctionTypeIndices = fbBuilder.writeListUint32(_implicitFunctionTypeIndices);
     }
@@ -1984,8 +2046,14 @@ class EntityRefBuilder extends Object with _EntityRefMixin implements idl.Entity
     if (_syntheticReturnType != null) {
       offset_syntheticReturnType = _syntheticReturnType.finish(fbBuilder);
     }
+    if (!(_topLevelInferenceErrors == null || _topLevelInferenceErrors.isEmpty)) {
+      offset_topLevelInferenceErrors = fbBuilder.writeList(_topLevelInferenceErrors.map((b) => b.finish(fbBuilder)).toList());
+    }
     if (!(_typeArguments == null || _typeArguments.isEmpty)) {
       offset_typeArguments = fbBuilder.writeList(_typeArguments.map((b) => b.finish(fbBuilder)).toList());
+    }
+    if (!(_typeParameters == null || _typeParameters.isEmpty)) {
+      offset_typeParameters = fbBuilder.writeList(_typeParameters.map((b) => b.finish(fbBuilder)).toList());
     }
     fbBuilder.startTable();
     if (offset_implicitFunctionTypeIndices != null) {
@@ -2006,8 +2074,14 @@ class EntityRefBuilder extends Object with _EntityRefMixin implements idl.Entity
     if (offset_syntheticReturnType != null) {
       fbBuilder.addOffset(5, offset_syntheticReturnType);
     }
+    if (offset_topLevelInferenceErrors != null) {
+      fbBuilder.addOffset(8, offset_topLevelInferenceErrors);
+    }
     if (offset_typeArguments != null) {
       fbBuilder.addOffset(1, offset_typeArguments);
+    }
+    if (offset_typeParameters != null) {
+      fbBuilder.addOffset(7, offset_typeParameters);
     }
     return fbBuilder.endTable();
   }
@@ -2032,7 +2106,9 @@ class _EntityRefImpl extends Object with _EntityRefMixin implements idl.EntityRe
   int _slot;
   List<idl.UnlinkedParam> _syntheticParams;
   idl.EntityRef _syntheticReturnType;
+  List<idl.TopLevelInferenceError> _topLevelInferenceErrors;
   List<idl.EntityRef> _typeArguments;
+  List<idl.UnlinkedTypeParam> _typeParameters;
 
   @override
   List<int> get implicitFunctionTypeIndices {
@@ -2071,9 +2147,21 @@ class _EntityRefImpl extends Object with _EntityRefMixin implements idl.EntityRe
   }
 
   @override
+  List<idl.TopLevelInferenceError> get topLevelInferenceErrors {
+    _topLevelInferenceErrors ??= const fb.ListReader<idl.TopLevelInferenceError>(const _TopLevelInferenceErrorReader()).vTableGet(_bc, _bcOffset, 8, const <idl.TopLevelInferenceError>[]);
+    return _topLevelInferenceErrors;
+  }
+
+  @override
   List<idl.EntityRef> get typeArguments {
     _typeArguments ??= const fb.ListReader<idl.EntityRef>(const _EntityRefReader()).vTableGet(_bc, _bcOffset, 1, const <idl.EntityRef>[]);
     return _typeArguments;
+  }
+
+  @override
+  List<idl.UnlinkedTypeParam> get typeParameters {
+    _typeParameters ??= const fb.ListReader<idl.UnlinkedTypeParam>(const _UnlinkedTypeParamReader()).vTableGet(_bc, _bcOffset, 7, const <idl.UnlinkedTypeParam>[]);
+    return _typeParameters;
   }
 }
 
@@ -2087,7 +2175,9 @@ abstract class _EntityRefMixin implements idl.EntityRef {
     if (slot != 0) _result["slot"] = slot;
     if (syntheticParams.isNotEmpty) _result["syntheticParams"] = syntheticParams.map((_value) => _value.toJson()).toList();
     if (syntheticReturnType != null) _result["syntheticReturnType"] = syntheticReturnType.toJson();
+    if (topLevelInferenceErrors.isNotEmpty) _result["topLevelInferenceErrors"] = topLevelInferenceErrors.map((_value) => _value.toJson()).toList();
     if (typeArguments.isNotEmpty) _result["typeArguments"] = typeArguments.map((_value) => _value.toJson()).toList();
+    if (typeParameters.isNotEmpty) _result["typeParameters"] = typeParameters.map((_value) => _value.toJson()).toList();
     return _result;
   }
 
@@ -2099,7 +2189,9 @@ abstract class _EntityRefMixin implements idl.EntityRef {
     "slot": slot,
     "syntheticParams": syntheticParams,
     "syntheticReturnType": syntheticReturnType,
+    "topLevelInferenceErrors": topLevelInferenceErrors,
     "typeArguments": typeArguments,
+    "typeParameters": typeParameters,
   };
 
   @override
@@ -3748,8 +3840,8 @@ class PackageIndexBuilder extends Object with _PackageIndexMixin implements idl.
 
   /**
    * Each item of this list corresponds to a unique referenced element.  It is
-   * the identifier of the class member element name, or `null` if the element is
-   * a top-level element.  The list is sorted in ascending order, so that the
+   * the identifier of the class member element name, or `null` if the element
+   * is a top-level element.  The list is sorted in ascending order, so that the
    * client can quickly check whether an element is referenced in this
    * [PackageIndex].
    */
@@ -4128,6 +4220,87 @@ abstract class _PackageIndexMixin implements idl.PackageIndex {
     "unitLibraryUris": unitLibraryUris,
     "units": units,
     "unitUnitUris": unitUnitUris,
+  };
+
+  @override
+  String toString() => convert.JSON.encode(toJson());
+}
+
+class TopLevelInferenceErrorBuilder extends Object with _TopLevelInferenceErrorMixin implements idl.TopLevelInferenceError {
+  String _message;
+
+  @override
+  String get message => _message ??= '';
+
+  /**
+   * The message describing the error.
+   */
+  void set message(String value) {
+    this._message = value;
+  }
+
+  TopLevelInferenceErrorBuilder({String message})
+    : _message = message;
+
+  /**
+   * Flush [informative] data recursively.
+   */
+  void flushInformative() {
+  }
+
+  /**
+   * Accumulate non-[informative] data into [signature].
+   */
+  void collectApiSignature(api_sig.ApiSignature signature) {
+    signature.addString(this._message ?? '');
+  }
+
+  fb.Offset finish(fb.Builder fbBuilder) {
+    fb.Offset offset_message;
+    if (_message != null) {
+      offset_message = fbBuilder.writeString(_message);
+    }
+    fbBuilder.startTable();
+    if (offset_message != null) {
+      fbBuilder.addOffset(0, offset_message);
+    }
+    return fbBuilder.endTable();
+  }
+}
+
+class _TopLevelInferenceErrorReader extends fb.TableReader<_TopLevelInferenceErrorImpl> {
+  const _TopLevelInferenceErrorReader();
+
+  @override
+  _TopLevelInferenceErrorImpl createObject(fb.BufferContext bc, int offset) => new _TopLevelInferenceErrorImpl(bc, offset);
+}
+
+class _TopLevelInferenceErrorImpl extends Object with _TopLevelInferenceErrorMixin implements idl.TopLevelInferenceError {
+  final fb.BufferContext _bc;
+  final int _bcOffset;
+
+  _TopLevelInferenceErrorImpl(this._bc, this._bcOffset);
+
+  String _message;
+
+  @override
+  String get message {
+    _message ??= const fb.StringReader().vTableGet(_bc, _bcOffset, 0, '');
+    return _message;
+  }
+}
+
+abstract class _TopLevelInferenceErrorMixin implements idl.TopLevelInferenceError {
+  @override
+  Map<String, Object> toJson() {
+    Map<String, Object> _result = <String, Object>{};
+    if (message != '') _result["message"] = message;
+    return _result;
+  }
+
+  @override
+  Map<String, Object> toMap() => {
+    "message": message,
   };
 
   @override
@@ -8371,8 +8544,8 @@ class UnlinkedParamBuilder extends Object with _UnlinkedParamMixin implements id
   UnlinkedExecutableBuilder get initializer => _initializer;
 
   /**
-   * The synthetic initializer function of the parameter.  Absent if the variable
-   * does not have an initializer.
+   * The synthetic initializer function of the parameter.  Absent if the
+   * variable does not have an initializer.
    */
   void set initializer(UnlinkedExecutableBuilder value) {
     this._initializer = value;
@@ -8402,7 +8575,14 @@ class UnlinkedParamBuilder extends Object with _UnlinkedParamMixin implements id
   bool get isFunctionTyped => _isFunctionTyped ??= false;
 
   /**
-   * Indicates whether this is a function-typed parameter.
+   * Indicates whether this is a function-typed parameter. A parameter is
+   * function-typed if the declaration of the parameter has explicit formal
+   * parameters
+   * ```
+   * int functionTyped(int p)
+   * ```
+   * but is not function-typed if it does not, even if the type of the parameter
+   * is a function type.
    */
   void set isFunctionTyped(bool value) {
     this._isFunctionTyped = value;
@@ -9445,6 +9625,7 @@ class UnlinkedTypedefBuilder extends Object with _UnlinkedTypedefMixin implement
   int _nameOffset;
   List<UnlinkedParamBuilder> _parameters;
   EntityRefBuilder _returnType;
+  idl.TypedefStyle _style;
   List<UnlinkedTypeParamBuilder> _typeParameters;
 
   @override
@@ -9513,10 +9694,22 @@ class UnlinkedTypedefBuilder extends Object with _UnlinkedTypedefMixin implement
   EntityRefBuilder get returnType => _returnType;
 
   /**
-   * Return type of the typedef.
+   * If [style] is [TypedefStyle.functionType], the return type of the typedef.
+   * If [style] is [TypedefStyle.genericFunctionType], the function type being
+   * defined.
    */
   void set returnType(EntityRefBuilder value) {
     this._returnType = value;
+  }
+
+  @override
+  idl.TypedefStyle get style => _style ??= idl.TypedefStyle.functionType;
+
+  /**
+   * The style of the typedef.
+   */
+  void set style(idl.TypedefStyle value) {
+    this._style = value;
   }
 
   @override
@@ -9529,7 +9722,7 @@ class UnlinkedTypedefBuilder extends Object with _UnlinkedTypedefMixin implement
     this._typeParameters = value;
   }
 
-  UnlinkedTypedefBuilder({List<UnlinkedExprBuilder> annotations, CodeRangeBuilder codeRange, UnlinkedDocumentationCommentBuilder documentationComment, String name, int nameOffset, List<UnlinkedParamBuilder> parameters, EntityRefBuilder returnType, List<UnlinkedTypeParamBuilder> typeParameters})
+  UnlinkedTypedefBuilder({List<UnlinkedExprBuilder> annotations, CodeRangeBuilder codeRange, UnlinkedDocumentationCommentBuilder documentationComment, String name, int nameOffset, List<UnlinkedParamBuilder> parameters, EntityRefBuilder returnType, idl.TypedefStyle style, List<UnlinkedTypeParamBuilder> typeParameters})
     : _annotations = annotations,
       _codeRange = codeRange,
       _documentationComment = documentationComment,
@@ -9537,6 +9730,7 @@ class UnlinkedTypedefBuilder extends Object with _UnlinkedTypedefMixin implement
       _nameOffset = nameOffset,
       _parameters = parameters,
       _returnType = returnType,
+      _style = style,
       _typeParameters = typeParameters;
 
   /**
@@ -9583,6 +9777,7 @@ class UnlinkedTypedefBuilder extends Object with _UnlinkedTypedefMixin implement
         x?.collectApiSignature(signature);
       }
     }
+    signature.addInt(this._style == null ? 0 : this._style.index);
   }
 
   fb.Offset finish(fb.Builder fbBuilder) {
@@ -9636,6 +9831,9 @@ class UnlinkedTypedefBuilder extends Object with _UnlinkedTypedefMixin implement
     if (offset_returnType != null) {
       fbBuilder.addOffset(2, offset_returnType);
     }
+    if (_style != null && _style != idl.TypedefStyle.functionType) {
+      fbBuilder.addUint8(8, _style.index);
+    }
     if (offset_typeParameters != null) {
       fbBuilder.addOffset(5, offset_typeParameters);
     }
@@ -9663,6 +9861,7 @@ class _UnlinkedTypedefImpl extends Object with _UnlinkedTypedefMixin implements 
   int _nameOffset;
   List<idl.UnlinkedParam> _parameters;
   idl.EntityRef _returnType;
+  idl.TypedefStyle _style;
   List<idl.UnlinkedTypeParam> _typeParameters;
 
   @override
@@ -9708,6 +9907,12 @@ class _UnlinkedTypedefImpl extends Object with _UnlinkedTypedefMixin implements 
   }
 
   @override
+  idl.TypedefStyle get style {
+    _style ??= const _TypedefStyleReader().vTableGet(_bc, _bcOffset, 8, idl.TypedefStyle.functionType);
+    return _style;
+  }
+
+  @override
   List<idl.UnlinkedTypeParam> get typeParameters {
     _typeParameters ??= const fb.ListReader<idl.UnlinkedTypeParam>(const _UnlinkedTypeParamReader()).vTableGet(_bc, _bcOffset, 5, const <idl.UnlinkedTypeParam>[]);
     return _typeParameters;
@@ -9725,6 +9930,7 @@ abstract class _UnlinkedTypedefMixin implements idl.UnlinkedTypedef {
     if (nameOffset != 0) _result["nameOffset"] = nameOffset;
     if (parameters.isNotEmpty) _result["parameters"] = parameters.map((_value) => _value.toJson()).toList();
     if (returnType != null) _result["returnType"] = returnType.toJson();
+    if (style != idl.TypedefStyle.functionType) _result["style"] = style.toString().split('.')[1];
     if (typeParameters.isNotEmpty) _result["typeParameters"] = typeParameters.map((_value) => _value.toJson()).toList();
     return _result;
   }
@@ -9738,6 +9944,7 @@ abstract class _UnlinkedTypedefMixin implements idl.UnlinkedTypedef {
     "nameOffset": nameOffset,
     "parameters": parameters,
     "returnType": returnType,
+    "style": style,
     "typeParameters": typeParameters,
   };
 

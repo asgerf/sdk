@@ -47,7 +47,7 @@ class UnboxIntegerInstr;
 // Values of CompileType form a lattice with a None type as a bottom and a
 // nullable Dynamic type as a top element. Method Union provides a join
 // operation for the lattice.
-class CompileType : public ValueObject {
+class CompileType : public ZoneAllocated {
  public:
   static const bool kNullable = true;
   static const bool kNonNullable = false;
@@ -56,7 +56,7 @@ class CompileType : public ValueObject {
       : is_nullable_(is_nullable), cid_(cid), type_(type) {}
 
   CompileType(const CompileType& other)
-      : ValueObject(),
+      : ZoneAllocated(),
         is_nullable_(other.is_nullable_),
         cid_(other.cid_),
         type_(other.type_) {}
@@ -173,23 +173,6 @@ class CompileType : public ValueObject {
   bool is_nullable_;
   intptr_t cid_;
   const AbstractType* type_;
-};
-
-
-// Zone allocated wrapper for the CompileType value.
-class ZoneCompileType : public ZoneAllocated {
- public:
-  static CompileType* Wrap(const CompileType& type) {
-    ZoneCompileType* zone_type = new ZoneCompileType(type);
-    return zone_type->ToCompileType();
-  }
-
-  CompileType* ToCompileType() { return &type_; }
-
- protected:
-  explicit ZoneCompileType(const CompileType& type) : type_(type) {}
-
-  CompileType type_;
 };
 
 
@@ -1644,7 +1627,7 @@ class Definition : public Instruction {
   // propagation during graph building.
   CompileType* Type() {
     if (type_ == NULL) {
-      type_ = ZoneCompileType::Wrap(ComputeType());
+      type_ = new CompileType(ComputeType());
     }
     return type_;
   }
@@ -1670,7 +1653,7 @@ class Definition : public Instruction {
 
   bool UpdateType(CompileType new_type) {
     if (type_ == NULL) {
-      type_ = ZoneCompileType::Wrap(new_type);
+      type_ = new CompileType(new_type);
       return true;
     }
 
@@ -2426,7 +2409,9 @@ class DeoptimizeInstr : public TemplateInstruction<0, NoThrow, Pure> {
 
 class RedefinitionInstr : public TemplateDefinition<1, NoThrow> {
  public:
-  explicit RedefinitionInstr(Value* value) { SetInputAt(0, value); }
+  explicit RedefinitionInstr(Value* value) : type_(NULL) {
+    SetInputAt(0, value);
+  }
 
   DECLARE_INSTRUCTION(Redefinition)
 
@@ -2435,11 +2420,15 @@ class RedefinitionInstr : public TemplateDefinition<1, NoThrow> {
   virtual CompileType ComputeType() const;
   virtual bool RecomputeType();
 
+  void set_type(CompileType* type) { type_ = type; }
+  CompileType* type() const { return type_; }
+
   virtual bool CanDeoptimize() const { return false; }
   virtual EffectSet Dependencies() const { return EffectSet::None(); }
   virtual EffectSet Effects() const { return EffectSet::None(); }
 
  private:
+  CompileType* type_;
   DISALLOW_COPY_AND_ASSIGN(RedefinitionInstr);
 };
 
@@ -2762,6 +2751,8 @@ class InstanceCallInstr : public TemplateDefinition<0, Throws> {
   virtual EffectSet Effects() const { return EffectSet::All(); }
 
   PRINT_OPERANDS_TO_SUPPORT
+
+  bool MatchesCoreName(const String& name);
 
  protected:
   friend class JitOptimizer;
@@ -3956,12 +3947,8 @@ class InstanceOfInstr : public TemplateDefinition<2, Throws> {
                   Value* value,
                   Value* instantiator_type_arguments,
                   const AbstractType& type,
-                  bool negate_result,
                   intptr_t deopt_id)
-      : TemplateDefinition(deopt_id),
-        token_pos_(token_pos),
-        type_(type),
-        negate_result_(negate_result) {
+      : TemplateDefinition(deopt_id), token_pos_(token_pos), type_(type) {
     ASSERT(!type.IsNull());
     SetInputAt(0, value);
     SetInputAt(1, instantiator_type_arguments);
@@ -3973,7 +3960,6 @@ class InstanceOfInstr : public TemplateDefinition<2, Throws> {
   Value* value() const { return inputs_[0]; }
   Value* instantiator_type_arguments() const { return inputs_[1]; }
 
-  bool negate_result() const { return negate_result_; }
   const AbstractType& type() const { return type_; }
   virtual TokenPosition token_pos() const { return token_pos_; }
 
@@ -3988,7 +3974,6 @@ class InstanceOfInstr : public TemplateDefinition<2, Throws> {
   Value* value_;
   Value* type_arguments_;
   const AbstractType& type_;
-  const bool negate_result_;
 
   DISALLOW_COPY_AND_ASSIGN(InstanceOfInstr);
 };
