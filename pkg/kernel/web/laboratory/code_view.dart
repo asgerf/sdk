@@ -30,7 +30,6 @@ class CodeView {
     assert(viewElement != null);
     assert(filenameElement != null);
     viewElement.onMouseMove.listen(onMouseMove);
-    viewElement.onMouseOut.listen(onMouseOut);
   }
 
   bool setCurrentFile(String uri, TreeNode node) {
@@ -79,7 +78,8 @@ class CodeView {
       }
     }
     if (hoveredSpan != null) {
-      ui.typeView.showAt(ev.page.x, ev.page.y + 16);
+      ev.stopPropagation();
+      ui.typeView.showAt(ev.page.x, ev.page.y);
     }
   }
 

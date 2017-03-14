@@ -17,7 +17,11 @@ class TypeView {
   final TableElement tableElement;
 
   TypeView(
-      this.containerElement, this.expressionKindElement, this.tableElement);
+      this.containerElement, this.expressionKindElement, this.tableElement) {
+    document.body.onMouseMove.listen((e) {
+      hide();
+    });
+  }
 
   void hide() {
     containerElement.style.visibility = "hidden";
@@ -27,7 +31,7 @@ class TypeView {
     containerElement.style
       ..visibility = 'visible'
       ..left = '${left}px'
-      ..top = '${top}px';
+      ..top = '${top + 16}px';
   }
 
   String getPrettyClassName(Class class_) {
@@ -37,6 +41,39 @@ class TypeView {
       return '${library.name}.${class_.name}';
     } else {
       return class_.name;
+    }
+  }
+
+  void _setShownValue(Value value) {
+    tableElement.children.clear();
+    // Add base class row
+    {
+      var row = new TableRowElement();
+
+      row.append(new TableCellElement()
+        ..text = getPrettyClassName(value.baseClass)
+        ..classes.add(CssClass.valueBaseClass)
+        ..colSpan = 2);
+
+      tableElement.append(row);
+    }
+    // Add flag rows
+    for (int i = 0; i < ValueFlags.numberOfFlags; ++i) {
+      var row = new TableRowElement();
+
+      bool hasFlag = (value.flags & (1 << i) != 0);
+      var hasFlagCss = hasFlag ? CssClass.valueFlagOn : CssClass.valueFlagOff;
+
+      String flagName = ValueFlags.flagNames[i];
+      row.append(new TableCellElement()
+        ..text = flagName
+        ..classes.add(CssClass.valueFlagLabel));
+
+      var hasFlagText = hasFlag ? 'yes' : 'no';
+      row.append(new TableCellElement()..text = hasFlagText);
+      row.classes.add(hasFlagCss);
+
+      tableElement.append(row);
     }
   }
 
@@ -54,37 +91,31 @@ class TypeView {
       var location = constraintSystem.getStorageLocation(
           owner.reference, expression.inferredValueOffset);
       var value = report.getValue(location, report.endOfTime);
-      // Add base class row
-      {
-        var row = new TableRowElement();
-
-        row.append(new TableCellElement()
-          ..text = getPrettyClassName(value.baseClass)
-          ..classes.add(CssClass.valueBaseClass)
-          ..colSpan = 2);
-
-        tableElement.append(row);
-      }
-      // Add flag rows
-      for (int i = 0; i < ValueFlags.numberOfFlags; ++i) {
-        var row = new TableRowElement();
-
-        bool hasFlag = (value.flags & (1 << i) != 0);
-        var hasFlagCss = hasFlag ? CssClass.valueFlagOn : CssClass.valueFlagOff;
-
-        String flagName = ValueFlags.flagNames[i];
-        row.append(new TableCellElement()
-          ..text = flagName
-          ..classes.add(CssClass.valueFlagLabel));
-
-        var hasFlagText = hasFlag ? 'yes' : 'no';
-        row.append(new TableCellElement()..text = hasFlagText);
-        row.classes.add(hasFlagCss);
-
-        tableElement.append(row);
-      }
+      _setShownValue(value);
     }
     containerElement.style.visibility = 'visible';
     return true;
   }
+
+  void showValue(Value value) {
+    _setShownValue(value);
+    expressionKindElement.text = 'Value';
+    containerElement.style.visibility = 'visible';
+  }
+
+  /// Returns an event listener that will open the type view at the cursor and
+  /// show details about [value].
+  ///
+  /// This event listener should be registered on the `mouseMove` event.  It is
+  /// generally not necessary to register the `mouseOut` event since the body's
+  /// `mouseMove` event hides the type view again.
+  MouseEventListener showValueOnEvent(Value value) {
+    return (MouseEvent ev) {
+      ev.stopPropagation();
+      showValue(value);
+      showAt(ev.page.x, ev.page.y);
+    };
+  }
 }
+
+typedef void MouseEventListener(MouseEvent ev);
