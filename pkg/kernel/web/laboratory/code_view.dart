@@ -24,7 +24,8 @@ class CodeView {
   Element hoveredSpan;
   Token tokenizedSource; // May be null, even if source is not null.
 
-  List<Expression> expressions;
+  List<TreeNode> astNodes;
+  List<int> inferredValueOffsets;
 
   CodeView(this.viewElement, this.filenameElement) {
     assert(viewElement != null);
@@ -49,9 +50,10 @@ class CodeView {
       print("Could not tokenize source for URI '$uri'");
       print(e);
     }
-    expressions = <Expression>[];
-    node?.accept(new ExpressionCollector(expressions));
-    expressions.sort((e1, e2) => e1.fileOffset.compareTo(e2.fileOffset));
+    astNodes = <TreeNode>[];
+    inferredValueOffsets = <int>[];
+    node?.accept(new AstNodeCollector(astNodes, inferredValueOffsets));
+    astNodes.sort((e1, e2) => e1.fileOffset.compareTo(e2.fileOffset));
     return true;
   }
 
@@ -68,9 +70,11 @@ class CodeView {
       hideTypeView();
     } else if (index != -1 && hoveredSpan != target) {
       hoveredSpan?.classes?.remove(CssClass.highlightedToken);
-      var expression = expressions[index];
+      var expression = astNodes[index];
+      var inferredValueOffset = inferredValueOffsets[index];
       if (expression != null &&
-          ui.typeView.showTypeOfExpression(shownObject, expression)) {
+          ui.typeView.showTypeOfExpression(
+              shownObject, expression, inferredValueOffset)) {
         hoveredSpan = target;
         hoveredSpan.classes.add(CssClass.highlightedToken);
       } else {
@@ -166,10 +170,10 @@ class CodeView {
   }
 
   int getIndexOfLastExpressionStrictlyBeforeOffset(int offset) {
-    int first = 0, last = expressions.length - 1;
+    int first = 0, last = astNodes.length - 1;
     while (first < last) {
       int mid = last - ((last - first) >> 1);
-      int pivot = expressions[mid].fileOffset;
+      int pivot = astNodes[mid].fileOffset;
       if (offset <= pivot) {
         last = mid - 1;
       } else {
@@ -182,7 +186,7 @@ class CodeView {
   int getExpressionIndexFromToken(Token token) {
     var index = getIndexOfLastExpressionStrictlyBeforeOffset(token.end);
     if (index == -1) return -1;
-    var expression = expressions[index];
+    var expression = astNodes[index];
     if (token.offset <= expression.fileOffset &&
         expression.fileOffset < token.end) {
       return index;
@@ -291,15 +295,31 @@ class CodeView {
   }
 }
 
-class ExpressionCollector extends RecursiveVisitor {
-  final List<Expression> result;
+class AstNodeCollector extends RecursiveVisitor {
+  final List<TreeNode> result;
+  final List<int> inferredValueOffsets;
 
-  ExpressionCollector(this.result);
+  AstNodeCollector(this.result, this.inferredValueOffsets);
+
+  void add(TreeNode node, int inferredValueOffset) {
+    result.add(node);
+    inferredValueOffsets.add(inferredValueOffset);
+  }
 
   @override
   defaultExpression(Expression node) {
-    if (node.fileOffset != TreeNode.noOffset) {
-      result.add(node);
+    if (node.fileOffset != TreeNode.noOffset &&
+        node.inferredValueOffset != -1) {
+      add(node, node.inferredValueOffset);
+    }
+    node.visitChildren(this);
+  }
+
+  @override
+  visitVariableDeclaration(VariableDeclaration node) {
+    if (node.fileOffset != TreeNode.noOffset &&
+        node.inferredValueOffset != -1) {
+      add(node, node.inferredValueOffset);
     }
     node.visitChildren(this);
   }

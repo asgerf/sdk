@@ -78,19 +78,20 @@ class TypeView {
     }
   }
 
-  bool showTypeOfExpression(NamedNode owner, Expression expression) {
+  bool showTypeOfExpression(
+      NamedNode owner, TreeNode node, int inferredValueOffset) {
     if (constraintSystem == null) return false;
-    expressionKindElement.text = '${expression.runtimeType}';
+    expressionKindElement.text = '${node.runtimeType}';
     tableElement.children.clear();
-    if (expression.inferredValueOffset == -1) {
+    if (inferredValueOffset == -1) {
       var row = new TableRowElement();
       row.append(new TableCellElement()
         ..text = 'The value cannot be shown here because no inference location '
-            'was stored on the expression');
+            'was stored on the node');
       tableElement.append(row);
     } else {
       var location = constraintSystem.getStorageLocation(
-          owner.reference, expression.inferredValueOffset);
+          owner.reference, inferredValueOffset);
       var value = report.getValue(location, report.endOfTime);
       _setShownValue(value);
     }
