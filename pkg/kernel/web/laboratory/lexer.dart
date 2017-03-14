@@ -12,6 +12,9 @@ class Lexer extends Scanner {
 
   Lexer(String string) : super(new CharSequenceReader(string));
 
+  Lexer.fromCharCodes(List<int> charCodes)
+      : this(new String.fromCharCodes(charCodes));
+
   @override
   void reportError(
       ScannerErrorCode errorCode, int offset, List<Object> arguments) {

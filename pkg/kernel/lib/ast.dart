@@ -4051,6 +4051,11 @@ class Source {
     if (lineIndex + 1 >= lineStarts.length) return source.length;
     return lineStarts[lineIndex + 1];
   }
+
+  String getSubstring(int begin, [int end]) {
+    end ??= source.length;
+    return new String.fromCharCodes(source, begin, end);
+  }
 }
 
 /// Returns the [Reference] object for the given member.

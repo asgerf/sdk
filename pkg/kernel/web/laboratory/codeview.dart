@@ -42,7 +42,7 @@ class CodeView {
       return false;
     }
     try {
-      tokenizedSource = new Lexer(source.source).tokenize();
+      tokenizedSource = new Lexer.fromCharCodes(source.source).tokenize();
     } catch (e) {
       tokenizedSource = null;
       print("Could not tokenize source for URI '$uri'");
@@ -70,7 +70,6 @@ class CodeView {
       var expression = expressions[index];
       if (expression != null &&
           ui.typeView.showTypeOfExpression(shownObject, expression)) {
-        print('Highlighting $target with index $indexString');
         hoveredSpan = target;
         hoveredSpan.classes.add(CssClass.highlightedToken);
       } else {
@@ -229,11 +228,11 @@ class CodeView {
       int offset = start;
       while (offset < end) {
         if (token == null || end <= token.offset) {
-          htmlLine.appendText(code.substring(offset, end));
+          htmlLine.appendText(source.getSubstring(offset, end));
           break;
         }
         if (offset < token.offset) {
-          htmlLine.appendText(code.substring(offset, token.offset));
+          htmlLine.appendText(source.getSubstring(offset, token.offset));
         }
         htmlLine.append(makeTokenElement(token));
         offset = token.end;
