@@ -167,18 +167,17 @@ class FuzzyFinder {
 
   bool get hasMaximumCandidates => suggestedNodes.length >= maximumCandidates;
 
-  static final RegExp sanitizerRegExp = new RegExp(r'[^a-zA-Z0-9_$&/\^\\]');
-  static final RegExp escapeRegExp = new RegExp(r'[\^\\]');
+  /// Matches characters that should be escaped in the regular expression.
+  static final RegExp escapeRegExp = new RegExp(r'[^a-zA-Z0-9$_]');
+
+  String escapeChar(String char) {
+    return escapeRegExp.hasMatch(char) ? '\\$char' : char;
+  }
 
   FuzzyFinder(this.patterns) {
     for (var pattern in patterns) {
       if (pattern.isEmpty) continue;
-      pattern = pattern.replaceAllMapped(sanitizerRegExp, (m) => '#');
-      regexps.add(new RegExp(
-          pattern
-              .split('')
-              .join('.*')
-              .replaceAllMapped(escapeRegExp, (m) => '\\${m.input}'),
+      regexps.add(new RegExp(pattern.split('').map(escapeChar).join('.*'),
           caseSensitive: false));
     }
   }
