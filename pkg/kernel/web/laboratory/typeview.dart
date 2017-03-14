@@ -55,10 +55,6 @@ class TypeView {
       {
         var row = new TableRowElement();
 
-        // row.append(new TableCellElement()
-        //   ..text = 'Base class'
-        //   ..classes.add(CssClass.valueBaseClassLabel));
-
         row.append(new TableCellElement()
           ..text = getPrettyClassName(value.baseClass)
           ..classes.add(CssClass.valueBaseClass)
