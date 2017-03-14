@@ -6,6 +6,7 @@ library kernel.laboratory.type_view;
 import 'dart:html';
 
 import 'package:kernel/ast.dart';
+import 'package:kernel/inference/storage_location.dart';
 import 'package:kernel/inference/value.dart';
 
 import 'laboratory.dart';
@@ -103,6 +104,13 @@ class TypeView {
     containerElement.style.visibility = 'visible';
   }
 
+  void showStorageLocation(StorageLocation location) {
+    var value = report.getValue(location, report.timestamp);
+    _setShownValue(value);
+    expressionKindElement.text = 'StorageLocation';
+    containerElement.style.visibility = 'visible';
+  }
+
   /// Returns an event listener that will open the type view at the cursor and
   /// show details about [value].
   ///
@@ -113,6 +121,20 @@ class TypeView {
     return (MouseEvent ev) {
       ev.stopPropagation();
       showValue(value);
+      showAt(ev.page.x, ev.page.y);
+    };
+  }
+
+  /// Returns an event listener that will open the type view at the cursor and
+  /// show details about the given storage location.
+  ///
+  /// This event listener should be registered on the `mouseMove` event.  It is
+  /// generally not necessary to register the `mouseOut` event since the body's
+  /// `mouseMove` event hides the type view again.
+  MouseEventListener showStorageLocationOnEvent(StorageLocation location) {
+    return (MouseEvent ev) {
+      ev.stopPropagation();
+      showStorageLocation(location);
       showAt(ev.page.x, ev.page.y);
     };
   }

@@ -51,47 +51,68 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..classes.add(CssClass.constraintLabel);
   }
 
+  TableCellElement rightAlignedCell() {
+    return new TableCellElement()..classes.add(CssClass.right);
+  }
+
+  TableCellElement separator() {
+    return new TableCellElement()..text = ' <- ';
+  }
+
   @override
   visitEscapeConstraint(EscapeConstraint constraint) {
     buffer
-      ..append(titleCell('Escape'))
+      ..appendPush(rightAlignedCell()..classes.add(CssClass.constraintEscape))
+      ..appendText('escape')
+      ..pop()
+      ..append(separator())
       ..appendPush(new TableCellElement())
       ..appendLocation(constraint.escaping)
-      ..pop(); // cell
+      ..pop()
+      ..append(titleCell('Escape'));
   }
 
   @override
   visitSubtypeConstraint(SubtypeConstraint constraint) {
     buffer
-      ..append(titleCell('Subtype'))
-      ..appendPush(new TableCellElement())
+      ..appendPush(rightAlignedCell())
       ..appendLocation(constraint.destination)
       ..pop()
-      ..appendPush(new TableCellElement())
-      ..appendText(' <- ')
-      ..pop()
+      ..append(separator())
       ..appendPush(new TableCellElement())
       ..appendLocation(constraint.source)
-      ..pop();
+      ..pop()
+      ..append(titleCell('Subtype'));
   }
 
   @override
   visitTypeArgumentConstraint(TypeArgumentConstraint constraint) {
-    buffer.append(titleCell('TypeArgument'));
+    buffer
+      ..appendPush(rightAlignedCell())
+      ..appendLocation(constraint.typeArgument)
+      ..pop()
+      ..append(separator())
+      ..appendPush(new TableCellElement())
+      ..appendValue(constraint.value)
+      ..appendPush(new SpanElement()..classes.add(CssClass.constraintGuard))
+      ..appendText(' if ')
+      ..appendLocation(constraint.createdObject)
+      ..appendText(' escapes')
+      ..pop()
+      ..pop()
+      ..append(titleCell('TypeArgument'));
   }
 
   @override
   visitValueConstraint(ValueConstraint constraint) {
     buffer
-      ..append(titleCell('Value'))
-      ..appendPush(new TableCellElement())
+      ..appendPush(rightAlignedCell())
       ..appendLocation(constraint.destination)
       ..pop()
-      ..appendPush(new TableCellElement())
-      ..appendText(' <- ')
-      ..pop()
+      ..append(separator())
       ..appendPush(new TableCellElement())
       ..appendValue(constraint.value)
-      ..pop();
+      ..pop()
+      ..append(titleCell('Value'));
   }
 }

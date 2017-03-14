@@ -113,6 +113,7 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
         display: inline-block;
         vertical-align: top;
       }
+
       a.reference {
       }
       a.reference:hover {
@@ -120,9 +121,17 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
         cursor: pointer;
       }
       a.reference:visited {}
-      .constraint-label {
-        color: orange;
-        padding-right: 4px;
+
+      .constraint-label, .constraint-guard {
+        color: #93a1a1;
+        padding-left: 4px;
+        font-size: 10px;
+      }
+      .constraint-escape {
+        font-style: italic;
+      }
+      .right {
+        text-align: right;
       }
 
     </style>

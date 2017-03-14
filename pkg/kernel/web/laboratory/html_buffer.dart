@@ -57,12 +57,13 @@ class KernelHtmlBuffer extends HtmlBuffer {
   }
 
   void appendLocation(StorageLocation location) {
-    if (location.owner == shownObject?.reference) {
-      appendText('v${location.index}');
-    } else {
+    if (location.owner != shownObject?.reference) {
       appendReference(location.owner.node);
-      appendText('/v${location.index}');
+      appendText('/');
     }
+    append(new SpanElement()
+      ..text = 'v${location.index}'
+      ..onMouseMove.listen(ui.typeView.showStorageLocationOnEvent(location)));
   }
 
   void appendValue(Value value) {
