@@ -60,20 +60,6 @@ class KernelHtmlBuffer extends HtmlBuffer {
       }));
   }
 
-  void beginConstraintTable() {
-    appendPush(new TableElement());
-  }
-
-  void appendConstraintRow(Constraint constraint) {
-    appendPush(new TableRowElement());
-    constraint.accept(constraintRowEmitter);
-    pop();
-  }
-
-  void endConstraintTable() {
-    pop();
-  }
-
   void appendLocation(StorageLocation location) {
     if (location.owner == shownObject.reference) {
       appendText('v${location.index}');
@@ -125,11 +111,14 @@ class ConstraintView {
     var cluster = constraintSystem.getCluster(shownObject.reference);
     if (cluster == null) return;
     var buffer = new KernelHtmlBuffer(containerElement, shownObject);
-    buffer.beginConstraintTable();
+    var visitor = new ConstraintRowEmitter(buffer);
+    buffer.appendPush(new TableElement());
     for (var constraint in cluster.constraints) {
-      buffer.appendConstraintRow(constraint);
+      buffer.appendPush(new TableRowElement());
+      constraint.accept(visitor);
+      buffer.pop(); // End row.
     }
-    buffer.endConstraintTable();
+    buffer.pop(); // End the table.
   }
 }
 
