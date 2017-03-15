@@ -19,6 +19,8 @@ class ConstraintView {
 
   ConstraintView(this.containerElement);
 
+  Source get shownSource => ui.codeView.source;
+
   void hide() {
     containerElement.style.visibility = 'hidden';
   }
@@ -53,13 +55,38 @@ class ConstraintView {
     var buffer = new KernelHtmlBuffer(containerElement, shownObject);
     var visitor = new ConstraintRowEmitter(buffer);
     buffer.appendPush(new TableElement());
-    for (var constraint in cluster.constraints) {
+    var constraintList = cluster.constraints.toList();
+    constraintList.sort((c1, c2) => c1.fileOffset.compareTo(c2.fileOffset));
+    int currentLineIndex = -2;
+    for (var constraint in constraintList) {
       if (!visibleSourceRange.contains(constraint.fileOffset)) continue;
+
+      // Add a line number separator if we are at a different line number.
+      int lineIndex = getLineFromOffset(constraint.fileOffset);
+      if (lineIndex != currentLineIndex) {
+        currentLineIndex = lineIndex;
+        String lineText = lineIndex == -1
+            ? 'Missing source information'
+            : 'Line ${1 + lineIndex}';
+        var row = new TableRowElement();
+        row.classes.add(CssClass.constraintLineNumber);
+        buffer.appendPush(row);
+        buffer.append(new TableCellElement()..colSpan = 3);
+        buffer.append(new TableCellElement()..text = lineText);
+        buffer.pop();
+      }
+
+      // Add the constraint details.
       buffer.appendPush(new TableRowElement());
       constraint.accept(visitor);
       buffer.pop(); // End row.
     }
     buffer.pop(); // End the table.
+  }
+
+  int getLineFromOffset(int offset) {
+    if (offset == -1) return -1;
+    return shownSource?.getLineFromOffset(offset) ?? -1;
   }
 }
 

@@ -50,6 +50,7 @@ class CssClass {
   static const String valueFlagOff = 'value-flag-off';
   static const String reference = 'reference';
   static const String constraintLabel = 'constraint-label';
+  static const String constraintLineNumber = 'constraint-line-number';
   static const String constraintGuard = 'constraint-guard';
   static const String constraintEscape = 'constraint-escape';
   static const String right = 'right';
