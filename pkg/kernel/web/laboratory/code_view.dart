@@ -263,7 +263,8 @@ class CodeView {
     return element;
   }
 
-  /// Words that are recognized as keywords but should be highlighted as such.
+  /// Words that are not recognized as keywords by the lexer but should be
+  /// highlighted as such.
   static final Set<String> keywords =
       new Set<String>.from(['int', 'double', 'num', 'bool', 'void']);
 
@@ -304,8 +305,6 @@ class AstNodeCollector extends RecursiveVisitor {
   final List<TreeNode> result;
 
   AstNodeCollector(this.result);
-
-  void add(TreeNode node, int inferredValueOffset) {}
 
   @override
   defaultExpression(Expression node) {
