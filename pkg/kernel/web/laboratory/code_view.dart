@@ -18,7 +18,6 @@ class CodeView {
   final DivElement viewElement;
   final Element filenameElement;
 
-  int firstLineShown = -1;
   Source source;
   NamedNode shownObject;
   Element hoveredSpan;
@@ -223,7 +222,6 @@ class CodeView {
       lastLine = 1 + source.getLineFromOffset(endOffset);
     }
     Token token = getFirstTokenAfterOffset(tokenizedSource, startOffset ?? 0);
-    firstLineShown = firstLine;
     for (int lineIndex = firstLine; lineIndex < lastLine; ++lineIndex) {
       int start = source.lineStarts[lineIndex];
       int end = lineIndex == numberOfLines - 1
