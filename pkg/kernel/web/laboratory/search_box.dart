@@ -8,7 +8,7 @@ import 'dart:html';
 
 import 'package:kernel/ast.dart';
 
-import 'keycodes.dart';
+import 'key_codes.dart';
 import 'laboratory.dart';
 
 class SearchBox {

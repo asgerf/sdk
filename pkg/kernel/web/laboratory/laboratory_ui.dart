@@ -3,10 +3,10 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.laboratory.ui;
 
-import 'constraint_view.dart';
 import 'dart:html';
 
 import 'code_view.dart';
+import 'constraint_view.dart';
 import 'search_box.dart';
 import 'type_view.dart';
 

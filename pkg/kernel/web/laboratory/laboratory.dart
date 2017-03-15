@@ -18,7 +18,7 @@ import 'package:kernel/library_index.dart';
 import 'package:kernel/type_environment.dart';
 import 'package:kernel/util/reader.dart';
 
-import 'keycodes.dart';
+import 'key_codes.dart';
 import 'laboratory_data.dart';
 import 'laboratory_ui.dart' show ui;
 
