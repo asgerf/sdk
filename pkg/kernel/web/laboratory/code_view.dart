@@ -20,7 +20,6 @@ class CodeView {
 
   Source source;
   NamedNode shownObject;
-  Element hoveredSpan;
   Token tokenizedSource; // May be null, even if source is not null.
 
   List<TreeNode> astNodes;
@@ -65,33 +64,25 @@ class CodeView {
     int index = indexString == null ? -1 : int.parse(indexString);
     if (index == -1) {
       hideTypeView();
-    } else if (hoveredSpan != target) {
-      hoveredSpan?.classes?.remove(CssClass.highlightedToken);
+    } else if (target != ui.typeView.highlightedElement) {
       var astNode = astNodes[index];
       var inferredValueOffset = getInferredValueOffset(astNode);
       if (astNode != null &&
           ui.typeView.showTypeOfExpression(
               shownObject, astNode, inferredValueOffset)) {
-        hoveredSpan = target;
-        hoveredSpan.classes.add(CssClass.highlightedToken);
+        ui.typeView.setHighlightedElement(target);
       } else {
         hideTypeView();
       }
     }
-    if (hoveredSpan != null) {
+    if (index != -1) {
       ev.stopPropagation();
       ui.typeView.showAt(ev.page.x, ev.page.y);
     }
   }
 
   void hideTypeView() {
-    hoveredSpan?.classes?.remove(CssClass.highlightedToken);
-    hoveredSpan = null;
     ui.typeView.hide();
-  }
-
-  void onMouseOut(Event ev) {
-    hideTypeView();
   }
 
   String getMissingSourceMessage(String uri) {

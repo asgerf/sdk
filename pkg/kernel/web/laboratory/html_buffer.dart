@@ -43,17 +43,14 @@ class KernelHtmlBuffer extends HtmlBuffer {
 
   KernelHtmlBuffer(Element root, this.shownObject) : super(root);
 
-  void appendReference(NamedNode node, {bool hint: true}) {
-    var element = new AnchorElement()
+  void appendReference(NamedNode node) {
+    append(new AnchorElement()
       ..classes.add(CssClass.reference)
       ..text = getShortName(node)
+      ..title = getLongName(node)
       ..onClick.listen((e) {
         ui.codeView.showObject(node);
-      });
-    if (hint) {
-      element.title = getLongName(node);
-    }
-    append(element);
+      }));
   }
 
   void appendLocation(StorageLocation location) {
@@ -72,7 +69,7 @@ class KernelHtmlBuffer extends HtmlBuffer {
     } else {
       appendPush(new SpanElement()
         ..onMouseMove.listen(ui.typeView.showValueOnEvent(value)));
-      appendReference(value.baseClass, hint: false);
+      appendText(getShortName(value.baseClass));
       appendText(value.hasExactBaseClass ? '!' : '+');
       if (value.canBeNull) {
         appendText('?');

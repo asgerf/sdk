@@ -17,6 +17,8 @@ class TypeView {
   final Element expressionKindElement;
   final TableElement tableElement;
 
+  Element highlightedElement;
+
   TypeView(
       this.containerElement, this.expressionKindElement, this.tableElement) {
     document.body.onMouseMove.listen((e) {
@@ -26,6 +28,7 @@ class TypeView {
 
   void hide() {
     containerElement.style.visibility = "hidden";
+    unsetHighlightedElement();
   }
 
   void showAt(int left, int top) {
@@ -33,6 +36,19 @@ class TypeView {
       ..visibility = 'visible'
       ..left = '${left}px'
       ..top = '${top + 16}px';
+  }
+
+  void setHighlightedElement(Element element) {
+    if (highlightedElement != element) {
+      unsetHighlightedElement();
+      highlightedElement = element;
+      element.classes.add(CssClass.highlightedToken);
+    }
+  }
+
+  void unsetHighlightedElement() {
+    highlightedElement?.classes?.remove(CssClass.highlightedToken);
+    highlightedElement = null;
   }
 
   String getPrettyClassName(Class class_) {
@@ -121,8 +137,12 @@ class TypeView {
   MouseEventListener showValueOnEvent(Value value) {
     return (MouseEvent ev) {
       ev.stopPropagation();
-      showValue(value);
       showAt(ev.page.x, ev.page.y);
+      if (highlightedElement != ev.target) {
+        // Only rebuild the DOM if the highlighted element changed.
+        showValue(value);
+        setHighlightedElement(ev.target);
+      }
     };
   }
 
@@ -135,8 +155,12 @@ class TypeView {
   MouseEventListener showStorageLocationOnEvent(StorageLocation location) {
     return (MouseEvent ev) {
       ev.stopPropagation();
-      showStorageLocation(location);
       showAt(ev.page.x, ev.page.y);
+      if (highlightedElement != ev.target) {
+        // Only rebuild the DOM if the highlighted element changed.
+        showStorageLocation(location);
+        setHighlightedElement(ev.target);
+      }
     };
   }
 }
