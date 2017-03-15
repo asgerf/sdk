@@ -35,7 +35,7 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
         display: inline-block;
         vertical-align: top;
       }
-      #code-view {
+      #code-view-body {
         font-family: 'Source Code Pro', monospace;
         size: 12pt;
         white-space: pre-wrap;
@@ -83,7 +83,8 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       }
 
       /*  Type view  */
-      #type-view {
+      #type-view-container {
+        z-index: 1;
         display: inline-block;
         background-color: #111;
         position: absolute;
@@ -107,15 +108,17 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       }
 
       /*  Constraint view  */
-      #constraint-view {
+      #constraint-view-container {
         visibility: hidden;
         width: 39%;
         display: inline-block;
         vertical-align: top;
         cursor: default;
       }
-      #constraint-view table {
+      #constraint-view-table {
         border-collapse: collapse;
+        text-align: left;
+        width: 100%;
       }
 
       a.reference {
@@ -140,6 +143,9 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       .constraint-escape {
         font-style: italic;
       }
+      .constraint-subset {
+        background-color: #eee8d5;
+      }
       .right {
         text-align: right;
       }
@@ -157,7 +163,7 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       <select id="search-input-select" size="10"></select>
     </div>
 
-    <div id="type-view">
+    <div id="type-view-container">
       <span id="type-view-expression-kind"></span><br/>
       <table id="type-view-table"></table>
     </div>
@@ -166,10 +172,18 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
 
     <div id="code-view-container">
       <div id="code-view-filename"></div>
-      <div id="code-view"></div>
+      <div id="code-view-body"></div>
     </div>
 
-    <div id="constraint-view">
+    <div id="constraint-view-container">
+      <table id="constraint-view-table">
+        <tr id="constraint-view-header">
+          <th style="width: 35%;"></th>
+          <th style="width: 10px;"></th>
+          <th style="width: 35%;"></th>
+          <th style="width: auto;"></th>
+        </tr>
+      </table>
     </div>
 
     <div id="debug-box"/>

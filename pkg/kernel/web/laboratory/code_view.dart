@@ -28,6 +28,7 @@ class CodeView {
     assert(viewElement != null);
     assert(filenameElement != null);
     viewElement.onMouseMove.listen(onMouseMove);
+    viewElement.onClick.listen(onClick);
   }
 
   bool setCurrentFile(String uri, TreeNode node) {
@@ -50,6 +51,7 @@ class CodeView {
     astNodes = <TreeNode>[];
     node?.accept(new AstNodeCollector(astNodes));
     astNodes.sort((e1, e2) => e1.fileOffset.compareTo(e2.fileOffset));
+    ui.constraintView.reset();
     return true;
   }
 
@@ -79,6 +81,36 @@ class CodeView {
       ev.stopPropagation();
       ui.typeView.showAt(ev.page.x, ev.page.y);
     }
+  }
+
+  /// Event handler for clicks on the whole code view.
+  void onClick(MouseEvent ev) {
+    if (source == null || shownObject == null) return;
+    var target = ev.target;
+    if (target is! Element) return;
+    Element element = target;
+    while (element != viewElement && element != null) {
+      if (element is LIElement) {
+        onListItemClicked(element, ev);
+        return;
+      }
+      element = element.parent;
+    }
+  }
+
+  void onListItemClicked(LIElement listItem, MouseEvent ev) {
+    String lineIndexData = listItem.dataset['lineIndex'];
+    if (lineIndexData == null) return;
+    ev.stopPropagation();
+    if (ui.constraintView.currentListItemAnchor == listItem) {
+      ui.constraintView.reset();
+      return;
+    }
+    int lineIndex = int.parse(lineIndexData);
+    int start = source.lineStarts[lineIndex];
+    int end = source.getEndOfLine(lineIndex);
+    ui.constraintView.setVisibleSourceRange(start, end);
+    ui.constraintView.anchorAtListItem(listItem);
   }
 
   void hideTypeView() {
@@ -112,6 +144,7 @@ class CodeView {
     if (setCurrentFile(library.fileUri, library)) {
       setContent([makeSourceList()]);
       ui.constraintView.show(library);
+      ui.constraintView.unsetVisibleSourceRange();
     }
   }
 
@@ -120,6 +153,7 @@ class CodeView {
     if (setCurrentFile(node.fileUri, node)) {
       setContent([makeSourceList(node.fileOffset)]);
       ui.constraintView.show(node);
+      ui.constraintView.unsetVisibleSourceRange();
     }
   }
 
@@ -134,6 +168,7 @@ class CodeView {
     contents.add(makeSourceList(member.fileOffset, member.fileEndOffset));
     setContent(contents);
     ui.constraintView.show(member);
+    ui.constraintView.unsetVisibleSourceRange();
   }
 
   void showErrorMessage(String message) {
@@ -219,7 +254,11 @@ class CodeView {
           ? code.length
           : source.lineStarts[lineIndex + 1];
 
-      var htmlLine = new LIElement();
+      var htmlListItem = new LIElement();
+      htmlListItem.dataset['lineIndex'] = '$lineIndex';
+
+      var htmlLine = new SpanElement();
+      htmlListItem.append(htmlLine);
 
       int offset = start;
       while (offset < end) {
@@ -235,7 +274,7 @@ class CodeView {
         token = token.next;
       }
 
-      htmlList.append(htmlLine);
+      htmlList.append(htmlListItem);
     }
     return htmlList;
   }

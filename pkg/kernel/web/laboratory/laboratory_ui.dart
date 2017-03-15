@@ -26,15 +26,19 @@ class UI {
 
   DivElement debugBox = $('debug-box');
 
-  CodeView codeView = new CodeView($('code-view'), $('code-view-filename'));
+  CodeView codeView =
+      new CodeView($('code-view-body'), $('code-view-filename'));
 
   SearchBox searchBox = new SearchBox($('search-input'),
       $('search-input-suggestions'), $('search-input-select'));
 
-  TypeView typeView = new TypeView(
-      $('type-view'), $('type-view-expression-kind'), $('type-view-table'));
+  TypeView typeView = new TypeView($('type-view-container'),
+      $('type-view-expression-kind'), $('type-view-table'));
 
-  ConstraintView constraintView = new ConstraintView($('constraint-view'));
+  ConstraintView constraintView = new ConstraintView(
+      $('constraint-view-container'),
+      $('constraint-view-table'),
+      $('constraint-view-header'));
 }
 
 // We use a singleton class (as opposed to static fields) so that all fields
@@ -53,5 +57,6 @@ class CssClass {
   static const String constraintLineNumber = 'constraint-line-number';
   static const String constraintGuard = 'constraint-guard';
   static const String constraintEscape = 'constraint-escape';
+  static const String constraintSubset = 'constraint-subset';
   static const String right = 'right';
 }
