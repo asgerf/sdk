@@ -160,8 +160,12 @@ class ConstraintExtractor {
       var stringListType = new InterfaceAType(
           value, ValueSink.nowhere, coreTypes.listClass, [stringType]);
       builder.setOwner(program.mainMethod);
-      checkAssignable(program.mainMethod, stringListType,
-          bank.positionalParameters.first, new GlobalScope(binding));
+      checkAssignable(
+          program.mainMethod,
+          stringListType,
+          bank.positionalParameters.first,
+          new GlobalScope(binding),
+          program.mainMethod.fileOffset);
     }
   }
 
@@ -194,23 +198,32 @@ class ConstraintExtractor {
       Class host, Member ownMember, Member superMember, bool isSetter) {
     builder.setOwner(ownMember);
     if (isSetter) {
-      checkAssignable(ownMember, setterType(host, superMember),
-          setterType(host, ownMember), new GlobalScope(binding));
+      checkAssignable(
+          ownMember,
+          setterType(host, superMember),
+          setterType(host, ownMember),
+          new GlobalScope(binding),
+          ownMember.fileOffset);
     } else {
-      checkAssignable(ownMember, getterType(host, ownMember),
-          getterType(host, superMember), new GlobalScope(binding));
+      checkAssignable(
+          ownMember,
+          getterType(host, ownMember),
+          getterType(host, superMember),
+          new GlobalScope(binding),
+          ownMember.fileOffset);
     }
   }
 
   /// Check that [from] is a subtype of [to].
   ///
   /// [where] is an AST node indicating roughly where the check is required.
-  void checkAssignable(
-      TreeNode where, AType from, AType to, TypeParameterScope scope) {
+  void checkAssignable(TreeNode where, AType from, AType to,
+      TypeParameterScope scope, int fileOffset) {
     // assert(!from.containsPlaceholder);
     // assert(!to.containsPlaceholder);
     // TODO: Expose type parameters in 'scope' and check closedness
     try {
+      builder.setFileOffset(fileOffset);
       from.generateSubtypeConstraints(to, new SubtypingScope(builder, scope));
     } on UnassignableSinkError catch (e) {
       e.assignmentLocation = where.location;
@@ -338,17 +351,27 @@ class ConstraintExtractorVisitor
   ConstraintExtractorVisitor(this.extractor, this.currentMember, this.bank,
       this.classBank, this.isUncheckedLibrary);
 
-  void checkTypeBound(TreeNode where, AType type, AType bound) {
+  void checkTypeBound(TreeNode where, AType type, AType bound,
+      [int fileOffset = TreeNode.noOffset]) {
+    builder.setFileOffset(fileOffset);
     type.generateSubBoundConstraint(bound, new SubtypingScope(builder, scope));
   }
 
-  void checkAssignable(TreeNode where, AType from, AType to) {
-    extractor.checkAssignable(where, from, to, scope);
+  void checkAssignable(TreeNode where, AType from, AType to,
+      [int fileOffset = TreeNode.noOffset]) {
+    if (fileOffset == TreeNode.noOffset) {
+      fileOffset = where.fileOffset;
+    }
+    extractor.checkAssignable(where, from, to, scope, fileOffset);
   }
 
-  AType checkAssignableExpression(Expression from, AType to) {
+  AType checkAssignableExpression(Expression from, AType to,
+      [int fileOffset = TreeNode.noOffset]) {
+    if (fileOffset == TreeNode.noOffset) {
+      fileOffset = from.fileOffset;
+    }
     var type = visitExpression(from);
-    extractor.checkAssignable(from, type, to, scope);
+    extractor.checkAssignable(from, type, to, scope, fileOffset);
     return type;
   }
 
@@ -370,6 +393,7 @@ class ConstraintExtractorVisitor
       node.inferredValueOffset = source.index;
     } else {
       var newKey = bank.newLocation();
+      builder.setFileOffset(node.fileOffset);
       builder.addAssignment(source, newKey, ValueFlags.all);
       type = type.withSource(newKey);
       node.inferredValueOffset = newKey.index;
@@ -527,6 +551,7 @@ class ConstraintExtractorVisitor
     if (node.body != null) {
       bool completes = visitStatement(node.body);
       if (completes && returnType != null) {
+        builder.setFileOffset(node.fileEndOffset);
         builder.addAssignment(
             extractor.nullValue, returnType.sink, ValueFlags.null_);
       }
@@ -565,7 +590,8 @@ class ConstraintExtractorVisitor
         node.namedParameters.map((v) => v.name).toList(growable: false),
         node.namedParameters.map(getVariableType).toList(growable: false),
         augmentedReturnType);
-    addAllocationConstraints(functionObject, extractor.functionValue, type);
+    addAllocationConstraints(
+        functionObject, extractor.functionValue, type, node.fileOffset);
     if (selfReference != null) {
       scope.variables[selfReference] = type;
     }
@@ -589,9 +615,10 @@ class ConstraintExtractorVisitor
 
   void handleOptionalParameter(VariableDeclaration parameter) {
     if (parameter.initializer != null) {
-      checkAssignableExpression(
-          parameter.initializer, getVariableType(parameter));
+      checkAssignableExpression(parameter.initializer,
+          getVariableType(parameter), parameter.fileEqualsOffset);
     } else {
+      builder.setFileOffset(parameter.fileOffset);
       builder.addAssignment(extractor.nullValue,
           getVariableType(parameter).sink, ValueFlags.null_);
     }
@@ -636,15 +663,15 @@ class ConstraintExtractorVisitor
   }
 
   void checkTypeParameterBounds(TreeNode where, List<AType> arguments,
-      List<AType> bounds, Substitution substitution) {
+      List<AType> bounds, Substitution substitution, int fileOffset) {
     for (int i = 0; i < arguments.length; ++i) {
       var argument = arguments[i];
       var bound = substitution.substituteBound(bounds[i]);
-      checkTypeBound(where, argument, bound);
+      checkTypeBound(where, argument, bound, fileOffset);
     }
   }
 
-  AType handleCall(Arguments arguments, Member member,
+  AType handleCall(Arguments arguments, Member member, int fileOffset,
       {Substitution receiver: Substitution.empty}) {
     var function = member.function;
     if (arguments.positional.length < function.requiredParameterCount) {
@@ -671,8 +698,8 @@ class ConstraintExtractorVisitor
       assert(typeParameters.isEmpty);
     }
     var substitution = Substitution.either(receiver, instantiation);
-    checkTypeParameterBounds(
-        arguments, typeArguments, target.typeParameterBounds, substitution);
+    checkTypeParameterBounds(arguments, typeArguments,
+        target.typeParameterBounds, substitution, fileOffset);
     for (int i = 0; i < arguments.positional.length; ++i) {
       var expectedType =
           substitution.substituteType(target.positionalParameters[i]);
@@ -784,9 +811,11 @@ class ConstraintExtractorVisitor
   AType visitAsExpression(AsExpression node) {
     var input = visitExpression(node.operand);
     var output = augmentor.augmentType(node.type);
+    builder.setFileOffset(node.fileOffset);
     builder.addAssignment(input.source, output.sink, ValueFlags.all);
     if (isTaintingDowncast(node.type)) {
       taintSubterms(output);
+      builder.setFileOffset(node.fileOffset);
       builder.addEscape(input.source);
     }
     return output;
@@ -833,7 +862,8 @@ class ConstraintExtractorVisitor
   }
 
   void addAllocationConstraints(
-      StorageLocation createdObject, Value value, AType type) {
+      StorageLocation createdObject, Value value, AType type, int fileOffset) {
+    builder.setFileOffset(fileOffset);
     builder.addConstraint(
         new ValueConstraint(createdObject, value, canEscape: true));
     new AllocationVisitor(extractor, createdObject).visitSubterms(type);
@@ -848,9 +878,13 @@ class ConstraintExtractorVisitor
     var typeArguments = augmentor.augmentTypeList(arguments.types);
     Substitution substitution =
         Substitution.fromPairs(class_.typeParameters, typeArguments);
-    checkTypeParameterBounds(node, typeArguments,
-        binding.getClassBank(class_).typeParameterBounds, substitution);
-    handleCall(arguments, target, receiver: substitution);
+    checkTypeParameterBounds(
+        node,
+        typeArguments,
+        binding.getClassBank(class_).typeParameterBounds,
+        substitution,
+        node.fileOffset);
+    handleCall(arguments, target, node.fileOffset, receiver: substitution);
     var createdObject = bank.newLocation();
     var value = new Value(class_, flagsFromExactClass(class_));
     var type = new InterfaceAType(
@@ -858,13 +892,13 @@ class ConstraintExtractorVisitor
         ValueSink.unassignable('result of an expression', node),
         target.enclosingClass,
         typeArguments);
-    addAllocationConstraints(createdObject, value, type);
+    addAllocationConstraints(createdObject, value, type, node.fileOffset);
     return type;
   }
 
   @override
   AType visitDirectMethodInvocation(DirectMethodInvocation node) {
-    return handleCall(node.arguments, node.target,
+    return handleCall(node.arguments, node.target, node.fileOffset,
         receiver: getReceiverType(node, node.receiver, node.target));
   }
 
@@ -934,7 +968,7 @@ class ConstraintExtractorVisitor
         ValueSink.unassignable('result of an expression', node),
         coreTypes.listClass,
         <AType>[typeArgument]);
-    addAllocationConstraints(createdObject, value, type);
+    addAllocationConstraints(createdObject, value, type, node.fileOffset);
     return type;
   }
 
@@ -961,7 +995,7 @@ class ConstraintExtractorVisitor
         ValueSink.unassignable('result of an expression', node),
         coreTypes.mapClass,
         <AType>[keyType, valueType]);
-    addAllocationConstraints(createdObject, value, type);
+    addAllocationConstraints(createdObject, value, type, node.fileOffset);
     return type;
   }
 
@@ -1006,8 +1040,11 @@ class ConstraintExtractorVisitor
     var instantiation = Substitution.empty;
     // var instantiation = Substitution.instantiateFunctionType(typeArguments);
     for (int i = 0; i < typeArguments.length; ++i) {
-      checkTypeBound(where, typeArguments[i],
-          instantiation.substituteBound(function.typeParameterBounds[i]));
+      checkTypeBound(
+          where,
+          typeArguments[i],
+          instantiation.substituteBound(function.typeParameterBounds[i]),
+          where.fileOffset);
     }
     for (int i = 0; i < arguments.positional.length; ++i) {
       var expectedType =
@@ -1093,7 +1130,7 @@ class ConstraintExtractorVisitor
       var argument = visitExpression(node.arguments.positional[0]);
       return getTypeOfOverloadedArithmetic(receiver, argument);
     } else {
-      return handleCall(node.arguments, target,
+      return handleCall(node.arguments, target, node.fileOffset,
           receiver: getReceiverType(node, node.receiver, node.interfaceTarget));
     }
   }
@@ -1147,7 +1184,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitStaticInvocation(StaticInvocation node) {
-    return handleCall(node.arguments, node.target);
+    return handleCall(node.arguments, node.target, node.fileOffset);
   }
 
   @override
@@ -1174,7 +1211,7 @@ class ConstraintExtractorVisitor
     if (node.interfaceTarget == null) {
       return handleDynamicCall(thisType, node.arguments);
     } else {
-      return handleCall(node.arguments, node.interfaceTarget,
+      return handleCall(node.arguments, node.interfaceTarget, node.fileOffset,
           receiver: getSuperReceiverType(node.interfaceTarget));
     }
   }
@@ -1478,12 +1515,12 @@ class ConstraintExtractorVisitor
 
   @override
   visitRedirectingInitializer(RedirectingInitializer node) {
-    handleCall(node.arguments, node.target);
+    handleCall(node.arguments, node.target, node.fileOffset);
   }
 
   @override
   visitSuperInitializer(SuperInitializer node) {
-    handleCall(node.arguments, node.target,
+    handleCall(node.arguments, node.target, node.fileOffset,
         receiver: hierarchy.getClassAsInstanceOf(
             currentClass, node.target.enclosingClass));
   }

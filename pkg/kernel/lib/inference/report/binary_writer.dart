@@ -58,7 +58,12 @@ class BinaryReportWriter {
     constraints.forEach(writeConstraintDefinition);
   }
 
+  void writeFileOffset(int offset) {
+    writer.writeUInt(offset + 1);
+  }
+
   void writeConstraintDefinition(Constraint constraint) {
+    writeFileOffset(constraint.fileOffset);
     constraint.accept(_constraintVisitor);
   }
 

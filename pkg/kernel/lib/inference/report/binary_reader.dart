@@ -60,24 +60,34 @@ class BinaryReportReader {
     return list;
   }
 
+  int readFileOffset() {
+    return reader.readUInt() - 1;
+  }
+
   Constraint readConstraint() {
-    int byte = reader.readByte();
-    switch (byte) {
+    int fileOffset = readFileOffset();
+    int tag = reader.readByte();
+    switch (tag) {
       case ConstraintTag.EscapeConstraint:
-        return new EscapeConstraint(readLocationReference());
+        return new EscapeConstraint(readLocationReference())
+          ..fileOffset = fileOffset;
 
       case ConstraintTag.SubtypeConstraint:
-        return new SubtypeConstraint(readLocationReference(),
-            readLocationReference(), reader.readFixedUInt32());
+        return new SubtypeConstraint(
+            readLocationReference(),
+            readLocationReference(),
+            reader.readFixedUInt32())..fileOffset = fileOffset;
 
       case ConstraintTag.TypeArgumentConstraint:
         return new TypeArgumentConstraint(
-            readLocationReference(), readLocationReference(), readValue());
+            readLocationReference(), readLocationReference(), readValue())
+          ..fileOffset = fileOffset;
 
       case ConstraintTag.ValueConstraint:
-        return new ValueConstraint(readLocationReference(), readValue());
+        return new ValueConstraint(readLocationReference(), readValue())
+          ..fileOffset = fileOffset;
     }
-    throw 'Unexpected constraint tag: $byte';
+    throw 'Unexpected constraint tag: $tag';
   }
 
   Value readValue() {

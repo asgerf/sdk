@@ -17,6 +17,7 @@ class ConstraintBuilder {
   final AugmentedHierarchy hierarchy;
 
   NamedNode currentOwner;
+  int currentFileOffset = -1;
 
   ConstraintBuilder(this.hierarchy, this.constraintSystem);
 
@@ -24,12 +25,17 @@ class ConstraintBuilder {
     currentOwner = owner;
   }
 
+  void setFileOffset(int fileOffset) {
+    currentFileOffset = fileOffset;
+  }
+
   InterfaceAType getTypeAsInstanceOf(InterfaceAType subtype, Class superclass) {
     return hierarchy.getTypeAsInstanceOf(subtype, superclass);
   }
 
   void addConstraint(Constraint constraint) {
-    constraintSystem.addConstraint(currentOwner.reference, constraint);
+    constraintSystem.addConstraint(
+        constraint, currentOwner.reference, currentFileOffset);
   }
 
   void addAssignment(ValueSource source, ValueSink sink, int mask) {

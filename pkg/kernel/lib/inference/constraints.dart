@@ -28,9 +28,9 @@ class ConstraintSystem {
     return cluster.locations[index];
   }
 
-  void addConstraint(Reference owner, Constraint constraint) {
+  void addConstraint(Constraint constraint, Reference owner, int fileOffset) {
     var cluster = clusters[owner] ??= new ConstraintCluster(owner);
-    cluster.addConstraint(constraint);
+    cluster.addConstraint(constraint, fileOffset);
   }
 
   void forEachConstraint(void action(Constraint constraint)) {
@@ -55,11 +55,13 @@ class ConstraintCluster {
 
   ConstraintCluster(this.owner);
 
-  void addConstraint(Constraint constraint) {
+  void addConstraint(Constraint constraint, int fileOffset) {
     assert(constraint.owner == null);
     assert(constraint.index == null);
+    assert(constraint.fileOffset == -1);
     constraint.owner = owner;
     constraint.index = constraints.length;
+    constraint.fileOffset = fileOffset;
     constraints.add(constraint);
   }
 
@@ -69,6 +71,7 @@ class ConstraintCluster {
 abstract class Constraint {
   Reference owner;
   int index;
+  int fileOffset = -1;
   void transfer(ConstraintSolver solver);
   void register(ConstraintSolver solver);
   T accept<T>(ConstraintVisitor<T> visitor);
