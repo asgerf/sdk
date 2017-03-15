@@ -25,7 +25,6 @@ class CodeView {
   Token tokenizedSource; // May be null, even if source is not null.
 
   List<TreeNode> astNodes;
-  List<int> inferredValueOffsets;
 
   CodeView(this.viewElement, this.filenameElement) {
     assert(viewElement != null);
@@ -51,8 +50,7 @@ class CodeView {
       print(e);
     }
     astNodes = <TreeNode>[];
-    inferredValueOffsets = <int>[];
-    node?.accept(new AstNodeCollector(astNodes, inferredValueOffsets));
+    node?.accept(new AstNodeCollector(astNodes));
     astNodes.sort((e1, e2) => e1.fileOffset.compareTo(e2.fileOffset));
     return true;
   }
@@ -68,13 +66,13 @@ class CodeView {
     int index = indexString == null ? -1 : int.parse(indexString);
     if (index == -1) {
       hideTypeView();
-    } else if (index != -1 && hoveredSpan != target) {
+    } else if (hoveredSpan != target) {
       hoveredSpan?.classes?.remove(CssClass.highlightedToken);
-      var expression = astNodes[index];
-      var inferredValueOffset = inferredValueOffsets[index];
-      if (expression != null &&
+      var astNode = astNodes[index];
+      var inferredValueOffset = getInferredValueOffset(astNode);
+      if (astNode != null &&
           ui.typeView.showTypeOfExpression(
-              shownObject, expression, inferredValueOffset)) {
+              shownObject, astNode, inferredValueOffset)) {
         hoveredSpan = target;
         hoveredSpan.classes.add(CssClass.highlightedToken);
       } else {
@@ -295,22 +293,27 @@ class CodeView {
   }
 }
 
+int getInferredValueOffset(TreeNode node) {
+  if (node is Expression) {
+    return node.inferredValueOffset;
+  } else if (node is VariableDeclaration) {
+    return node.inferredValueOffset;
+  }
+  return -1;
+}
+
 class AstNodeCollector extends RecursiveVisitor {
   final List<TreeNode> result;
-  final List<int> inferredValueOffsets;
 
-  AstNodeCollector(this.result, this.inferredValueOffsets);
+  AstNodeCollector(this.result);
 
-  void add(TreeNode node, int inferredValueOffset) {
-    result.add(node);
-    inferredValueOffsets.add(inferredValueOffset);
-  }
+  void add(TreeNode node, int inferredValueOffset) {}
 
   @override
   defaultExpression(Expression node) {
     if (node.fileOffset != TreeNode.noOffset &&
         node.inferredValueOffset != -1) {
-      add(node, node.inferredValueOffset);
+      result.add(node);
     }
     node.visitChildren(this);
   }
@@ -319,7 +322,7 @@ class AstNodeCollector extends RecursiveVisitor {
   visitVariableDeclaration(VariableDeclaration node) {
     if (node.fileOffset != TreeNode.noOffset &&
         node.inferredValueOffset != -1) {
-      add(node, node.inferredValueOffset);
+      result.add(node);
     }
     node.visitChildren(this);
   }
