@@ -41,7 +41,7 @@ class ConstraintView {
   }
 
   void _buildHtmlContent() {
-    if (shownObject == null) {
+    if (shownObject == null || constraintSystem == null) {
       hide();
       return;
     }
