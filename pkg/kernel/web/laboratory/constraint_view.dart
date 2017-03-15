@@ -15,6 +15,7 @@ import 'laboratory_ui.dart';
 class ConstraintView {
   final DivElement containerElement;
   NamedNode shownObject;
+  SourceRange visibleSourceRange = SourceRange.everything;
 
   ConstraintView(this.containerElement);
 
@@ -22,16 +23,38 @@ class ConstraintView {
     containerElement.style.visibility = 'hidden';
   }
 
+  void setVisibleSourceRange(int start, int end) {
+    visibleSourceRange = new SourceRange(start, end);
+    _buildHtmlContent();
+  }
+
+  void unsetVisibleSourceRange() {
+    visibleSourceRange = SourceRange.everything;
+    _buildHtmlContent();
+  }
+
   void show(NamedNode shownObject) {
     this.shownObject = shownObject;
+    _buildHtmlContent();
+  }
+
+  void _buildHtmlContent() {
+    if (shownObject == null) {
+      hide();
+      return;
+    }
+    var cluster = constraintSystem.getCluster(shownObject.reference);
+    if (cluster == null) {
+      hide();
+      return;
+    }
     containerElement.style.visibility = 'visible';
     containerElement.children.clear();
-    var cluster = constraintSystem.getCluster(shownObject.reference);
-    if (cluster == null) return;
     var buffer = new KernelHtmlBuffer(containerElement, shownObject);
     var visitor = new ConstraintRowEmitter(buffer);
     buffer.appendPush(new TableElement());
     for (var constraint in cluster.constraints) {
+      if (!visibleSourceRange.contains(constraint.fileOffset)) continue;
       buffer.appendPush(new TableRowElement());
       constraint.accept(visitor);
       buffer.pop(); // End row.
@@ -114,5 +137,19 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..appendValue(constraint.value)
       ..pop()
       ..append(titleCell('Value'));
+  }
+}
+
+class SourceRange {
+  final int start, end;
+
+  SourceRange(this.start, this.end);
+
+  static final SourceRange everything = new SourceRange(-1, -1);
+
+  bool get isEverything => start == -1 && end == -1;
+
+  bool contains(int offset) {
+    return isEverything || (start <= offset && offset < end);
   }
 }
