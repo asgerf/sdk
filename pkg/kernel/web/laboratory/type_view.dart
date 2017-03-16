@@ -19,6 +19,7 @@ class TypeView {
   final TableElement tableElement;
 
   Element highlightedElement;
+  String relatedElementCssClass;
 
   TypeView(this.containerElement, this.expressionKindElement,
       this.storageLocationNameElement, this.tableElement) {
@@ -30,6 +31,7 @@ class TypeView {
   void hide() {
     containerElement.style.visibility = "hidden";
     unsetHighlightedElement();
+    unsetRelatedElements();
   }
 
   void showAt(int left, int top) {
@@ -50,6 +52,28 @@ class TypeView {
   void unsetHighlightedElement() {
     highlightedElement?.classes?.remove(CssClass.highlightedToken);
     highlightedElement = null;
+  }
+
+  void unsetRelatedElements() {
+    if (relatedElementCssClass != null) {
+      for (var elm in document.getElementsByClassName(relatedElementCssClass)) {
+        if (elm is Element) {
+          elm.classes.remove(CssClass.relatedElement);
+        }
+      }
+      relatedElementCssClass = null;
+    }
+  }
+
+  void setRelatedElementsFromCssClass(String cssClass) {
+    if (cssClass == relatedElementCssClass) return;
+    unsetRelatedElements();
+    relatedElementCssClass = cssClass;
+    for (var elm in document.getElementsByClassName(cssClass)) {
+      if (elm is Element) {
+        elm.classes.add(CssClass.relatedElement);
+      }
+    }
   }
 
   String getPrettyClassName(Class class_) {
@@ -107,12 +131,15 @@ class TypeView {
         ..text = 'The value cannot be shown here because no inference location '
             'was stored on the node');
       tableElement.append(row);
+      unsetRelatedElements();
     } else {
       var location = constraintSystem.getStorageLocation(
           owner.reference, inferredValueOffset);
       var value = report.getValue(location, report.endOfTime);
       _setShownValue(value);
-      storageLocationNameElement.text = 'v${location.index}';
+      var locationName = 'v${location.index}';
+      storageLocationNameElement.text = locationName;
+      setRelatedElementsFromCssClass(locationName);
     }
     containerElement.style.visibility = 'visible';
     return true;
@@ -120,6 +147,7 @@ class TypeView {
 
   void showValue(Value value) {
     _setShownValue(value);
+    unsetRelatedElements();
     expressionKindElement.text = 'Value';
     storageLocationNameElement.text = '';
     containerElement.style.visibility = 'visible';
@@ -128,6 +156,11 @@ class TypeView {
   void showStorageLocation(StorageLocation location) {
     var value = report.getValue(location, report.endOfTime);
     _setShownValue(value);
+    if (location.owner == ui.codeView.shownObject.reference) {
+      setRelatedElementsFromCssClass('v${location.index}');
+    } else {
+      unsetRelatedElements();
+    }
     expressionKindElement.text = 'StorageLocation';
     storageLocationNameElement.text = '';
     containerElement.style.visibility = 'visible';

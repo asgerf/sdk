@@ -289,6 +289,11 @@ class CodeView {
     var index = getExpressionIndexFromToken(token);
     if (index != -1) {
       element.dataset['id'] = '$index';
+      var astNode = astNodes[index];
+      int locationIndex = getInferredValueOffset(astNode);
+      if (locationIndex != -1) {
+        element.classes.add('v$locationIndex');
+      }
     }
     return element;
   }

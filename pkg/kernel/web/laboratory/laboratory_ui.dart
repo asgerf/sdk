@@ -62,4 +62,5 @@ class CssClass {
   static const String constraintEscape = 'constraint-escape';
   static const String constraintSubset = 'constraint-subset';
   static const String right = 'right';
+  static const String relatedElement = 'related-element';
 }
