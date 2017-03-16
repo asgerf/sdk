@@ -32,8 +32,11 @@ class UI {
   SearchBox searchBox = new SearchBox($('search-input'),
       $('search-input-suggestions'), $('search-input-select'));
 
-  TypeView typeView = new TypeView($('type-view-container'),
-      $('type-view-expression-kind'), $('type-view-table'));
+  TypeView typeView = new TypeView(
+      $('type-view-container'),
+      $('type-view-expression-kind'),
+      $('type-view-storage-location-name'),
+      $('type-view-table'));
 
   ConstraintView constraintView = new ConstraintView(
       $('constraint-view-container'),

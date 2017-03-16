@@ -15,12 +15,13 @@ import 'laboratory_ui.dart';
 class TypeView {
   final DivElement containerElement;
   final Element expressionKindElement;
+  final Element storageLocationNameElement;
   final TableElement tableElement;
 
   Element highlightedElement;
 
-  TypeView(
-      this.containerElement, this.expressionKindElement, this.tableElement) {
+  TypeView(this.containerElement, this.expressionKindElement,
+      this.storageLocationNameElement, this.tableElement) {
     document.body.onMouseMove.listen((e) {
       hide();
     });
@@ -100,6 +101,7 @@ class TypeView {
     expressionKindElement.text = '${node.runtimeType}';
     tableElement.children.clear();
     if (inferredValueOffset == -1) {
+      storageLocationNameElement.text = '';
       var row = new TableRowElement();
       row.append(new TableCellElement()
         ..text = 'The value cannot be shown here because no inference location '
@@ -110,6 +112,7 @@ class TypeView {
           owner.reference, inferredValueOffset);
       var value = report.getValue(location, report.endOfTime);
       _setShownValue(value);
+      storageLocationNameElement.text = 'v${location.index}';
     }
     containerElement.style.visibility = 'visible';
     return true;
@@ -118,13 +121,15 @@ class TypeView {
   void showValue(Value value) {
     _setShownValue(value);
     expressionKindElement.text = 'Value';
+    storageLocationNameElement.text = '';
     containerElement.style.visibility = 'visible';
   }
 
   void showStorageLocation(StorageLocation location) {
-    var value = report.getValue(location, report.timestamp);
+    var value = report.getValue(location, report.endOfTime);
     _setShownValue(value);
     expressionKindElement.text = 'StorageLocation';
+    storageLocationNameElement.text = '';
     containerElement.style.visibility = 'visible';
   }
 
