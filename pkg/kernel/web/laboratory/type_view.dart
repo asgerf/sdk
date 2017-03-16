@@ -3,6 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.laboratory.type_view;
 
+import 'code_view.dart';
 import 'dart:html';
 
 import 'package:kernel/ast.dart';
@@ -16,13 +17,14 @@ class TypeView {
   final DivElement containerElement;
   final Element expressionKindElement;
   final Element storageLocationNameElement;
+  final Element warningElement;
   final TableElement tableElement;
 
   Element highlightedElement;
   String relatedElementCssClass;
 
   TypeView(this.containerElement, this.expressionKindElement,
-      this.storageLocationNameElement, this.tableElement) {
+      this.storageLocationNameElement, this.warningElement, this.tableElement) {
     document.body.onMouseMove.listen((e) {
       hide();
     });
@@ -123,6 +125,12 @@ class TypeView {
       NamedNode owner, TreeNode node, int inferredValueOffset) {
     if (constraintSystem == null) return false;
     expressionKindElement.text = '${node.runtimeType}';
+    if (isDynamicCall(node)) {
+      warningElement.text = 'Dynamic call';
+      warningElement.style.display = 'block';
+    } else {
+      warningElement.style.display = 'none';
+    }
     tableElement.children.clear();
     if (inferredValueOffset == -1) {
       storageLocationNameElement.text = '';
@@ -151,6 +159,7 @@ class TypeView {
     expressionKindElement.text = 'Value';
     storageLocationNameElement.text = '';
     containerElement.style.visibility = 'visible';
+    warningElement.style.display = 'none';
   }
 
   void showStorageLocation(StorageLocation location) {
@@ -164,6 +173,7 @@ class TypeView {
     expressionKindElement.text = 'StorageLocation';
     storageLocationNameElement.text = '';
     containerElement.style.visibility = 'visible';
+    warningElement.style.display = 'none';
   }
 
   /// Returns an event listener that will open the type view at the cursor and

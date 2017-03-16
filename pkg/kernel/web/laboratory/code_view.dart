@@ -327,11 +327,21 @@ class CodeView {
   }
 }
 
+bool isDynamicCall(TreeNode node) {
+  return node is MethodInvocation && node.interfaceTarget == null ||
+      node is PropertyGet && node.interfaceTarget == null ||
+      node is PropertySet && node.interfaceTarget == null;
+}
+
 int getInferredValueOffset(TreeNode node) {
   if (node is Expression) {
     return node.inferredValueOffset;
   } else if (node is VariableDeclaration) {
     return node.inferredValueOffset;
+  } else if (node is Field) {
+    return Field.inferredValueOffset;
+  } else if (node is Member) {
+    return node.function.inferredReturnValueOffset;
   }
   return -1;
 }
@@ -340,6 +350,32 @@ class AstNodeCollector extends RecursiveVisitor {
   final List<TreeNode> result;
 
   AstNodeCollector(this.result);
+
+  @override
+  visitProcedure(Procedure node) {
+    if (node.fileOffset != TreeNode.noOffset &&
+        node.function.inferredReturnValueOffset != -1) {
+      result.add(node);
+    }
+    node.visitChildren(this);
+  }
+
+  @override
+  visitConstructor(Constructor node) {
+    if (node.fileOffset != TreeNode.noOffset &&
+        node.function.inferredReturnValueOffset != -1) {
+      result.add(node);
+    }
+    node.visitChildren(this);
+  }
+
+  @override
+  visitField(Field node) {
+    if (node.fileOffset != TreeNode.noOffset) {
+      result.add(node);
+    }
+    node.visitChildren(this);
+  }
 
   @override
   defaultExpression(Expression node) {

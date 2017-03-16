@@ -37,6 +37,7 @@ class UI {
       $('type-view-container'),
       $('type-view-expression-kind'),
       $('type-view-storage-location-name'),
+      $('type-view-warning'),
       $('type-view-table'));
 
   ConstraintView constraintView = new ConstraintView(

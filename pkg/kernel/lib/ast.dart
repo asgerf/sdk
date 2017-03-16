@@ -741,6 +741,8 @@ class Field extends Member {
   /// The uri of the source file this field was loaded from.
   String fileUri;
 
+  static const int inferredValueOffset = 0; // Always 0 for fields.
+
   Field(Name name,
       {this.type: const DynamicType(),
       this.inferredValue,
