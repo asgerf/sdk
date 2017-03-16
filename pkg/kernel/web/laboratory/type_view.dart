@@ -135,7 +135,7 @@ class TypeView {
     } else {
       var location = constraintSystem.getStorageLocation(
           owner.reference, inferredValueOffset);
-      var value = report.getValue(location, report.endOfTime);
+      var value = report.getValue(location, ui.timeline.currentTimestamp);
       _setShownValue(value);
       var locationName = 'v${location.index}';
       storageLocationNameElement.text = locationName;
@@ -154,7 +154,7 @@ class TypeView {
   }
 
   void showStorageLocation(StorageLocation location) {
-    var value = report.getValue(location, report.endOfTime);
+    var value = report.getValue(location, ui.timeline.currentTimestamp);
     _setShownValue(value);
     if (location.owner == ui.codeView.shownObject.reference) {
       setRelatedElementsFromCssClass('v${location.index}');

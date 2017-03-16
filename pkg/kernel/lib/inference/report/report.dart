@@ -69,6 +69,7 @@ class Report implements SolverListener {
     return <ChangeEvent>[ChangeEvent.beginning(location)];
   }
 
+  /// Returns the latest change to [location] no later than [timestamp].
   ChangeEvent getMostRecentChange(StorageLocation location, int timestamp) {
     List<ChangeEvent> list = locationChanges[location];
     if (list == null) return ChangeEvent.beginning(location);
@@ -94,6 +95,11 @@ class Report implements SolverListener {
 
   bool leadsToEscape(StorageLocation location, int timestamp) {
     return getMostRecentChange(location, timestamp).leadsToEscape;
+  }
+
+  TransferEvent getTransferEventFromTimestamp(int timestamp) {
+    assert(timestamp != beginningOfTime);
+    return transferEvents[timestamp];
   }
 }
 

@@ -8,6 +8,7 @@ import 'dart:html';
 import 'code_view.dart';
 import 'constraint_view.dart';
 import 'search_box.dart';
+import 'timeline.dart';
 import 'type_view.dart';
 
 // This library contains bindings to the HTML file, possibly wrapped in a
@@ -42,6 +43,9 @@ class UI {
       $('constraint-view-container'),
       $('constraint-view-table'),
       $('constraint-view-header'));
+
+  Timeline timeline = new Timeline(
+      $('timeline-container'), $('timeline-text'), $('timeline-reset-button'));
 }
 
 // We use a singleton class (as opposed to static fields) so that all fields

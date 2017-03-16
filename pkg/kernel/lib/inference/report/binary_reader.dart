@@ -43,7 +43,9 @@ class BinaryReportReader {
       var cluster = constraintSystem.getCluster(owner);
       cluster.constraints.length = numberOfConstraints;
       for (int i = 0; i < numberOfConstraints; ++i) {
-        cluster.constraints[i] = readConstraint();
+        cluster.constraints[i] = readConstraint()
+          ..owner = owner
+          ..index = i;
       }
     }
     return constraintSystem;

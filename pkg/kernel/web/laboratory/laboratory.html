@@ -66,6 +66,10 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       }
 
       /*  Search box  */
+      #search-input-container {
+        display: inline-block;
+        width: 450px;
+      }
       #search-input {
         font-size: 16pt;
         font-family: monospace;
@@ -158,6 +162,12 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
         background-color: #cb4b16;
       }
 
+      /*  Timeline  */
+      #timeline-container {
+        display: inline-block;
+        width: 450px;
+      }
+
     </style>
   </head>
   <body id="body">
@@ -166,9 +176,16 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
     <input type="button" id="reload-button" value="Reload"/>
     <br/>
     <hr/>
-    <input type="text" id="search-input" placeholder="Fuzzy search (hotkey: q)"/>
-    <div id="search-input-suggestions">
-      <select id="search-input-select" size="10"></select>
+    <div id="search-input-container">
+      <input type="text" id="search-input" placeholder="Fuzzy search (hotkey: q)"/>
+      <div id="search-input-suggestions">
+        <select id="search-input-select" size="10"></select>
+      </div>
+    </div>
+
+    <div id="timeline-container">
+      <span id="timeline-text"></span>
+      <input type="button" id="timeline-reset-button" value="Reset time" />
     </div>
 
     <div id="type-view-container">

@@ -12,6 +12,7 @@ import 'package:kernel/inference/value.dart';
 
 import 'laboratory.dart';
 import 'laboratory_ui.dart';
+import 'timeline.dart';
 
 class HtmlBuffer {
   final List<Element> containerStack = <Element>[];
@@ -61,7 +62,8 @@ class KernelHtmlBuffer extends HtmlBuffer {
     var locationName = 'v${location.index}';
     var element = new SpanElement()
       ..text = locationName
-      ..onMouseMove.listen(ui.typeView.showStorageLocationOnEvent(location));
+      ..onMouseMove.listen(ui.typeView.showStorageLocationOnEvent(location))
+      ..onClick.listen(ui.timeline.investigateStorageLocationOnEvent(location));
     if (location.owner == shownObject?.reference) {
       element.className = locationName;
     }
