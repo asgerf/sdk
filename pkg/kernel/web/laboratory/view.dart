@@ -55,6 +55,31 @@ class View {
     TreeNode node = shownObject;
     return node is Member ? node : null;
   }
+
+  int getIndexOfLastAstNodeStrictlyBeforeOffset(int offset) {
+    int first = 0, last = astNodes.length - 1;
+    while (first < last) {
+      int mid = last - ((last - first) >> 1);
+      int pivot = astNodes[mid].fileOffset;
+      if (offset <= pivot) {
+        last = mid - 1;
+      } else {
+        first = mid;
+      }
+    }
+    return last;
+  }
+
+  int getAstNodeIndexFromToken(Token token) {
+    var index = getIndexOfLastAstNodeStrictlyBeforeOffset(token.end);
+    if (index == -1) return -1;
+    var expression = astNodes[index];
+    if (token.offset <= expression.fileOffset &&
+        expression.fileOffset < token.end) {
+      return index;
+    }
+    return -1;
+  }
 }
 
 class AstNodeCollector extends RecursiveVisitor {

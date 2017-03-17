@@ -178,33 +178,6 @@ class CodeView {
     return token;
   }
 
-  int getIndexOfLastExpressionStrictlyBeforeOffset(int offset) {
-    // TODO: Move this into the view
-    int first = 0, last = view.astNodes.length - 1;
-    while (first < last) {
-      int mid = last - ((last - first) >> 1);
-      int pivot = view.astNodes[mid].fileOffset;
-      if (offset <= pivot) {
-        last = mid - 1;
-      } else {
-        first = mid;
-      }
-    }
-    return last;
-  }
-
-  int getExpressionIndexFromToken(Token token) {
-    // TODO: Move this into the view
-    var index = getIndexOfLastExpressionStrictlyBeforeOffset(token.end);
-    if (index == -1) return -1;
-    var expression = view.astNodes[index];
-    if (token.offset <= expression.fileOffset &&
-        expression.fileOffset < token.end) {
-      return index;
-    }
-    return -1;
-  }
-
   /// Returns the part of the given token that is between the absolute file
   /// offsets [from] and [to].
   ///
@@ -275,7 +248,7 @@ class CodeView {
     } else if (Lexer.isUpperCaseLetter(token.lexeme.codeUnitAt(0))) {
       element.classes.add('typename');
     }
-    var index = getExpressionIndexFromToken(token);
+    var index = view.getAstNodeIndexFromToken(token);
     if (index != -1) {
       element.dataset['id'] = '$index';
       var astNode = view.astNodes[index];
