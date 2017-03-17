@@ -16,8 +16,9 @@ import 'ui_component.dart';
 class ConstraintView extends UIComponent {
   final TableElement tableElement;
   final TableRowElement headerRowElement;
-  NamedNode shownObject;
-  SourceRange visibleSourceRange = SourceRange.everything;
+
+  NamedNode _shownObject;
+  SourceRange _visibleSourceRange = SourceRange.everything;
 
   ConstraintView(this.tableElement, this.headerRowElement) {
     tableElement.remove();
@@ -28,52 +29,52 @@ class ConstraintView extends UIComponent {
   /// To add the constraint view to a container, add its root element.
   Element get rootElement => tableElement;
 
-  Source get shownSource => ui.codeView.source;
-
-  void setVisibleSourceRange(int start, int end) {
-    visibleSourceRange = new SourceRange(start, end);
-    invalidate();
-  }
-
-  void unsetVisibleSourceRange() {
-    if (visibleSourceRange != SourceRange.everything) {
-      visibleSourceRange = SourceRange.everything;
-      invalidate();
-    }
-  }
-
   void remove() {
     tableElement.remove();
   }
 
-  bool get shouldShowLineNumberSeparators => false;
+  Source get shownSource => ui.codeView.source;
 
-  void show(NamedNode shownObject) {
-    this.shownObject = shownObject;
+  void setShownObject(NamedNode shownObject) {
+    this._shownObject = shownObject;
     invalidate();
   }
 
+  void setVisibleSourceRange(int start, int end) {
+    _visibleSourceRange = new SourceRange(start, end);
+    invalidate();
+  }
+
+  void unsetVisibleSourceRange() {
+    if (_visibleSourceRange != SourceRange.everything) {
+      _visibleSourceRange = SourceRange.everything;
+      invalidate();
+    }
+  }
+
+  bool get shouldShowLineNumberSeparators => false;
+
   @override
   void buildHtml() {
-    if (shownObject == null || constraintSystem == null) {
+    if (_shownObject == null || constraintSystem == null) {
       remove();
       return;
     }
-    var cluster = constraintSystem.getCluster(shownObject.reference);
+    var cluster = constraintSystem.getCluster(_shownObject.reference);
     if (cluster == null) {
       remove();
       return;
     }
     tableElement.children.clear();
     tableElement.append(headerRowElement);
-    var buffer = new KernelHtmlBuffer(tableElement, shownObject);
+    var buffer = new KernelHtmlBuffer(tableElement, _shownObject);
     var visitor = new ConstraintRowEmitter(buffer);
     var constraintList = cluster.constraints.toList();
     constraintList.sort((c1, c2) => c1.fileOffset.compareTo(c2.fileOffset));
     int currentLineIndex = -2;
     bool isEmpty = true;
     for (var constraint in constraintList) {
-      if (!visibleSourceRange.contains(constraint.fileOffset)) continue;
+      if (!_visibleSourceRange.contains(constraint.fileOffset)) continue;
 
       if (shouldShowLineNumberSeparators) {
         // Add a line number separator if we are at a different line number.
