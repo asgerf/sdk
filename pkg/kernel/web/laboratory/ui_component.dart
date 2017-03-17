@@ -4,15 +4,13 @@
 library kernel.laboratory.ui_component;
 
 import 'dart:async';
-import 'dart:html';
 
 enum _State { clean, dirty, rebuilding }
 
 abstract class UIComponent {
-  final Element root;
   _State _state = _State.clean;
 
-  UIComponent(this.root) {
+  UIComponent() {
     invalidate();
   }
 

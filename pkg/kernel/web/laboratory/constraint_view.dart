@@ -23,8 +23,7 @@ class ConstraintView extends UIComponent {
   LIElement currentListItemAnchor;
 
   ConstraintView(
-      this.containerElement, this.tableElement, this.headerRowElement)
-      : super(containerElement);
+      this.containerElement, this.tableElement, this.headerRowElement);
 
   Source get shownSource => ui.codeView.source;
 
