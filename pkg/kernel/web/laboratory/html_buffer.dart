@@ -12,7 +12,6 @@ import 'package:kernel/inference/value.dart';
 
 import 'laboratory.dart';
 import 'laboratory_ui.dart';
-import 'timeline.dart';
 
 class HtmlBuffer {
   final List<Element> containerStack = <Element>[];

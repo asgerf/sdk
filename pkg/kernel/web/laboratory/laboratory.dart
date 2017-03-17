@@ -21,7 +21,6 @@ import 'package:kernel/util/reader.dart';
 import 'key_codes.dart';
 import 'laboratory_data.dart';
 import 'laboratory_ui.dart' show ui;
-import 'timeline.dart';
 
 export 'laboratory_data.dart';
 export 'laboratory_ui.dart' show ui;
