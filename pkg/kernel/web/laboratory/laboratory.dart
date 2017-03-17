@@ -68,6 +68,8 @@ void onProgramLoaded() {
 void onReportFileLoaded() {
   binding = new Binding(constraintSystem, coreTypes);
   ui.backtracker.reset();
+  ui.mainContentDiv.style.visibility = 'visible';
+  ui.fileSelectDiv.style.display = 'none';
 }
 
 Future<Uint8List> readBytesFromFileInput(FileUploadInputElement input) async {

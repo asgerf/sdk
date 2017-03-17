@@ -19,13 +19,14 @@ Element $(x) => document.getElementById(x);
 class UI {
   BodyElement body = document.body;
 
+  DivElement fileSelectDiv = $('file-select');
   FileUploadInputElement reportFileInput = $('report-file-input');
-
   FileUploadInputElement kernelFileInput = $('kernel-file-input');
-
   ButtonElement reloadButton = $('reload-button');
 
   DivElement debugBox = $('debug-box');
+
+  DivElement mainContentDiv = $('main-content');
 
   CodeView codeView =
       new CodeView($('code-view-body'), $('code-view-filename'));

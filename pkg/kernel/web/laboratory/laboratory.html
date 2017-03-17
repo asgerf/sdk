@@ -28,9 +28,77 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
         font-family: Verdana, Geneva, sans-serif;
         background-color: #fdf6e3;
       }
+
+      #file-select {
+        width: 800px;
+        background-color: white;
+        margin: 200px auto;
+      }
+
       #top-bar {
+        position: fixed;
+        top: 0px;
+        left: 0px;
         display: flex;
         justify-content: space-between;
+        background-color: white;
+        border-bottom: 1px solid black;
+        width: 100%;
+        height: 45px;
+        /*vertical-align: center;*/
+        line-height: 45px;
+      }
+      #top-bar-filler {
+        /* Prevents main content from displaying under the top bar */
+        height: 45px;
+      }
+      .bottom-filler {
+        /* Makes space for type view from below without resizing page */
+        height: 300px;
+      }
+
+      /*  Search box  */
+      #search-input-container {
+        display: inline-block;
+        width: 800px;
+      }
+      #search-input {
+        font-size: 16pt;
+        font-family: monospace;
+        width: 800px;
+        border: none;
+      }
+      #search-input-suggestions {
+        position: absolute;
+        background-color: white;
+        width: 800px;
+      }
+      #search-input-suggestions select {
+        width: 800px;
+        font-family: monospace;
+        font-size: 12pt;
+      }
+
+      /*  Backtracker  */
+      #backtracker-container {
+        display: inline-block;
+        /*padding: 6px 6px 6px 6px;*/
+        height: 100%;
+      }
+      #backtracker-progress {
+        width: 300px;
+      }
+      #backtracker-title {}
+
+      #main-content {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        visibility: hidden;
+        overflow-x: hidden;
       }
 
       /*  Code view  */
@@ -69,26 +137,6 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
         background-color: #cb4b16;
       }
 
-      /*  Search box  */
-      #search-input-container {
-        display: inline-block;
-        width: 450px;
-      }
-      #search-input {
-        font-size: 16pt;
-        font-family: monospace;
-        width: 450px;
-      }
-      #search-input-suggestions {
-        position: absolute;
-        background-color: white;
-        width: 450px;
-      }
-      #search-input-suggestions select {
-        width: 450px;
-        font-family: monospace;
-        font-size: 12pt;
-      }
 
       /*  Type view  */
       #type-view-container {
@@ -171,37 +219,54 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
         background-color: #cb4b16;
       }
 
-      /*  Backtracker  */
-      #backtracker-container {
-        display: inline-block;
-        padding: 6px 6px 6px 6px;
-      }
-      #backtracker-progress {
-        width: 300px;
-      }
-      #backtracker-title {}
-
     </style>
   </head>
   <body id="body">
-    Dill file: <input type="file" id="kernel-file-input" />
-    Report file: <input type="file" id="report-file-input" />
-    <input type="button" id="reload-button" value="Reload"/>
-    <br/>
-    <hr/>
+    <div id="file-select">
+      Dill file: <input type="file" id="kernel-file-input" />
+      Report file: <input type="file" id="report-file-input" />
+      <input type="button" id="reload-button" value="Reload"/>
+    </div>
 
-    <div id="top-bar">
-      <div id="search-input-container">
-        <input type="text" id="search-input" placeholder="Fuzzy search (hotkey: q)"/>
-        <div id="search-input-suggestions">
-          <select id="search-input-select" size="10"></select>
+    <div id="main-content" style="position: absolute;"> <!-- shown when files are selected -->
+
+      <div id="top-bar">
+        <div id="search-input-container">
+          <input type="text" id="search-input" placeholder="Fuzzy search (hotkey: q)"/>
+          <div id="search-input-suggestions">
+            <select id="search-input-select" size="10"></select>
+          </div>
+        </div>
+
+        <div id="backtracker-container">
+          <span id="backtracker-title">Backtracking</span>
+          <progress id="backtracker-progress"></progress>
+          <input type="button" id="backtracker-reset-button" value="Stop backtracking" />
         </div>
       </div>
-      <div id="backtracker-container">
-        <span id="backtracker-title">Backtracking</span>
-        <progress id="backtracker-progress"></progress>
-        <input type="button" id="backtracker-reset-button" value="Stop backtracking" />
+
+      <div id="top-bar-filler"></div>
+
+      <br/>
+
+      <div id="code-view-container">
+        <div id="code-view-filename"></div>
+        <div id="code-view-body"></div>
       </div>
+
+      <div id="constraint-view-container">
+        <table id="constraint-view-table">
+          <tr id="constraint-view-header">
+            <th style="width: 35%;"></th>
+            <th style="width: 10px;"></th>
+            <th style="width: 35%;"></th>
+            <th style="width: auto;"></th>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Prevent type view from resizing and scrolling the page -->
+      <div class="bottom-filler"></div>
     </div>
 
     <div id="type-view-container">
@@ -211,28 +276,8 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       <table id="type-view-table"></table>
     </div>
 
-    <br/>
-
-    <div id="code-view-container">
-      <div id="code-view-filename"></div>
-      <div id="code-view-body"></div>
-    </div>
-
-    <div id="constraint-view-container">
-      <table id="constraint-view-table">
-        <tr id="constraint-view-header">
-          <th style="width: 35%;"></th>
-          <th style="width: 10px;"></th>
-          <th style="width: 35%;"></th>
-          <th style="width: auto;"></th>
-        </tr>
-      </table>
-    </div>
-
     <div id="debug-box"/>
     <script type="application/javascript" src="laboratory.js"></script>
 
-    <!-- Prevent type view from resizing and scrolling the page -->
-    <div style="height: 300px;"></div>
   </body>
 </html>

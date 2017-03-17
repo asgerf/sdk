@@ -49,7 +49,7 @@ class ConstraintView {
 
   void anchorAtListItem(LIElement listItem) {
     containerElement.style
-      ..position = 'absolute'
+      ..position = 'relative'
       ..top = '${listItem.offsetTo(containerElement.parent).y}px'
       ..transform = 'translateY(-50%)';
     containerElement.classes.add(CssClass.constraintSubset);
