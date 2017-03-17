@@ -13,9 +13,10 @@ import 'laboratory.dart';
 import 'laboratory_data.dart';
 import 'laboratory_ui.dart';
 import 'lexer.dart';
+import 'ui_component.dart';
 import 'view.dart';
 
-class CodeView {
+class CodeView extends UIComponent {
   final DivElement viewElement;
   final Element filenameElement;
 
@@ -26,22 +27,6 @@ class CodeView {
     assert(filenameElement != null);
     viewElement.onMouseMove.listen(onMouseMove);
     viewElement.onClick.listen(onClick);
-  }
-
-  bool setCurrentFile(String uri, TreeNode node) {
-    String shownFilename = extractRelevantFilePath(uri);
-    filenameElement.children
-      ..clear()
-      ..add(new OListElement()..append(new LIElement()..text = shownFilename));
-    if (!view.hasSource) {
-      showErrorMessage(getMissingSourceMessage(uri));
-      return false;
-    }
-    if (!view.hasTokens) {
-      print("Could not tokenize source for URI '$uri'");
-    }
-    ui.constraintView.remove();
-    return true;
   }
 
   void onMouseMove(MouseEvent ev) {
@@ -92,7 +77,7 @@ class CodeView {
     if (_focusedListItem == listItem) {
       _focusedListItem?.classes?.remove(CssClass.codeLineHighlighted);
       _focusedListItem = null;
-      ui.constraintView.remove();
+      ui.constraintView.hide();
       return;
     }
     int lineIndex = int.parse(lineIndexData);
@@ -119,50 +104,47 @@ class CodeView {
   }
 
   void showObject(NamedNode node) {
-    window.scroll(0, 0);
-    if (node is Library) {
-      showLibrary(node);
-    } else if (node is Class) {
-      showClass(node);
-    } else if (node is Member) {
-      showMember(node);
-    } else {
-      showNothing();
-    }
-  }
-
-  void showLibrary(Library library) {
-    view = new View(library);
-    if (setCurrentFile(library.fileUri, library)) {
-      setContent([makeSourceList()]);
-    }
-  }
-
-  void showClass(Class node) {
     view = new View(node);
-    if (setCurrentFile(node.fileUri, node)) {
+    window.scroll(0, 0);
+    ui.constraintView.hide();
+    ui.typeView.hide();
+    invalidate();
+  }
+
+  @override
+  void buildHtml() {
+    if (!view.hasSource) return;
+    String shownFilename = extractRelevantFilePath(view.fileUri);
+    filenameElement.children
+      ..clear()
+      ..add(new OListElement()..append(new LIElement()..text = shownFilename));
+    if (!view.hasSource) {
+      _showErrorMessage(getMissingSourceMessage(view.fileUri));
+      return;
+    }
+    if (!view.hasTokens) {
+      print("Could not tokenize source for URI '${view.fileUri}'");
+    }
+    var node = view.shownObject;
+    if (node is Library) {
+      setContent([makeSourceList()]);
+    } else if (node is Class) {
       setContent([makeSourceList(node.fileOffset)]);
+    } else if (node is Member) {
+      var contents = <Element>[];
+      var class_ = node.enclosingClass;
+      if (class_ != null) {
+        contents.add(makeSourceList(class_.fileOffset));
+      }
+      contents.add(makeSourceList(node.fileOffset, node.fileEndOffset));
+      setContent(contents);
+    } else {
+      setContent([]);
     }
   }
 
-  void showMember(Member member) {
-    view = new View(member);
-    if (!setCurrentFile(member.fileUri, member)) return;
-    var contents = <Element>[];
-    var class_ = member.enclosingClass;
-    if (class_ != null) {
-      contents.add(makeSourceList(class_.fileOffset));
-    }
-    contents.add(makeSourceList(member.fileOffset, member.fileEndOffset));
-    setContent(contents);
-  }
-
-  void showErrorMessage(String message) {
+  void _showErrorMessage(String message) {
     setContent([new DivElement()..text = message]);
-  }
-
-  void showNothing() {
-    setContent([]);
   }
 
   void setContent(List<Element> content) {

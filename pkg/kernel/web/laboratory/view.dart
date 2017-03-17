@@ -56,6 +56,8 @@ class View {
     return node is Member ? node : null;
   }
 
+  String get fileUri => getFileUriFromNamedNode(shownObject);
+
   int getIndexOfLastAstNodeStrictlyBeforeOffset(int offset) {
     int first = 0, last = astNodes.length - 1;
     while (first < last) {
@@ -144,7 +146,7 @@ String getFileUriFromNamedNode(NamedNode node) {
   if (node is Library) return node.fileUri;
   if (node is Class) return node.fileUri;
   if (node is Member) return node.fileUri;
-  throw 'Not a named node: $node';
+  return '';
 }
 
 bool isDynamicCall(TreeNode node) {

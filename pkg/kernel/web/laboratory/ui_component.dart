@@ -24,7 +24,7 @@ abstract class UIComponent {
       case _State.clean:
         _state = _State.dirty;
         scheduleMicrotask(_onBuildCallback);
-        break;
+        return;
 
       case _State.dirty:
         return;
@@ -36,8 +36,11 @@ abstract class UIComponent {
 
   void _onBuildCallback() {
     _state = _State.rebuilding;
-    buildHtml();
-    _state = _State.clean;
+    try {
+      buildHtml();
+    } finally {
+      _state = _State.clean;
+    }
   }
 
   /// Builds the HTML DOM for this UI component.

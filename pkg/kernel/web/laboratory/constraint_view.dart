@@ -30,7 +30,7 @@ class ConstraintView extends UIComponent {
   /// To add the constraint view to a container, add its root element.
   Element get rootElement => tableElement;
 
-  void remove() {
+  void hide() {
     tableElement.remove();
   }
 
@@ -58,12 +58,12 @@ class ConstraintView extends UIComponent {
   @override
   void buildHtml() {
     if (_shownObject == null || constraintSystem == null) {
-      remove();
+      hide();
       return;
     }
     var cluster = constraintSystem.getCluster(_shownObject.reference);
     if (cluster == null) {
-      remove();
+      hide();
       return;
     }
     tableElement.children.clear();
@@ -108,7 +108,7 @@ class ConstraintView extends UIComponent {
     }
 
     if (isEmpty) {
-      remove();
+      hide();
       return;
     }
   }

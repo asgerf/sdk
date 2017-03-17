@@ -62,7 +62,7 @@ void onProgramLoaded() {
   classHierarchy = new ClassHierarchy(program);
   typeEnvironment = new TypeEnvironment(coreTypes, classHierarchy);
   ui.searchBox.onProgramLoaded();
-  ui.codeView.showMember(program.mainMethod);
+  ui.codeView.showObject(program.mainMethod);
 }
 
 void onReportFileLoaded() {

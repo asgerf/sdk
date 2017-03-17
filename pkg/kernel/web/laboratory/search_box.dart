@@ -110,7 +110,6 @@ class SearchBox {
     var index = suggestionBoxSelect.selectedIndex;
     if (index >= 0 && index < suggestedNodes.length) {
       ui.codeView.showObject(suggestedNodes[index]);
-      ui.constraintView.remove();
     }
     hideSuggestionBox();
   }
