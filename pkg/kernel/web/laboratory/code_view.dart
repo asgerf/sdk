@@ -51,7 +51,7 @@ class CodeView {
     astNodes = <TreeNode>[];
     node?.accept(new AstNodeCollector(astNodes));
     astNodes.sort((e1, e2) => e1.fileOffset.compareTo(e2.fileOffset));
-    ui.constraintView.reset();
+    ui.constraintView.remove();
     return true;
   }
 
@@ -98,12 +98,16 @@ class CodeView {
     }
   }
 
+  LIElement currentListItemAnchor = null;
+
   void onListItemClicked(LIElement listItem, MouseEvent ev) {
     String lineIndexData = listItem.dataset['lineIndex'];
     if (lineIndexData == null) return;
     ev.stopPropagation();
-    if (ui.constraintView.currentListItemAnchor == listItem) {
-      ui.constraintView.reset();
+    if (currentListItemAnchor == listItem) {
+      currentListItemAnchor?.classes?.remove(CssClass.codeLineHighlighted);
+      currentListItemAnchor = null;
+      ui.constraintView.remove();
       return;
     }
     int lineIndex = int.parse(lineIndexData);
@@ -111,7 +115,10 @@ class CodeView {
     int end = source.getEndOfLine(lineIndex);
     ui.constraintView.show(shownObject);
     ui.constraintView.setVisibleSourceRange(start, end);
-    ui.constraintView.anchorAtListItem(listItem);
+    currentListItemAnchor?.classes?.remove(CssClass.codeLineHighlighted);
+    currentListItemAnchor = listItem;
+    listItem.classes.add(CssClass.codeLineHighlighted);
+    listItem.append(ui.constraintView.embedded());
   }
 
   void hideTypeView() {

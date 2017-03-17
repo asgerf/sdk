@@ -20,8 +20,6 @@ class ConstraintView extends UIComponent {
   NamedNode shownObject;
   SourceRange visibleSourceRange = SourceRange.everything;
 
-  LIElement currentListItemAnchor;
-
   ConstraintView(
       this.containerElement, this.tableElement, this.headerRowElement);
 
@@ -29,11 +27,6 @@ class ConstraintView extends UIComponent {
 
   void hide() {
     containerElement.style.visibility = 'hidden';
-  }
-
-  void reset() {
-    unsetAnchor();
-    unsetVisibleSourceRange();
   }
 
   void setVisibleSourceRange(int start, int end) {
@@ -48,24 +41,16 @@ class ConstraintView extends UIComponent {
     }
   }
 
-  void anchorAtListItem(LIElement listItem) {
-    currentListItemAnchor?.classes?.remove(CssClass.codeLineHighlighted);
-    currentListItemAnchor = listItem;
-    listItem.classes.add(CssClass.codeLineHighlighted);
-    listItem.append(tableElement..remove());
+  Element embedded() {
     invalidate();
+    return tableElement..remove();
   }
 
-  void unsetAnchor() {
-    if (currentListItemAnchor != null) {
-      currentListItemAnchor.classes.remove(CssClass.codeLineHighlighted);
-      containerElement.append(tableElement..remove());
-      currentListItemAnchor = null;
-      hide();
-    }
+  void remove() {
+    tableElement.remove();
   }
 
-  bool get shouldShowLineNumberSeparators => currentListItemAnchor == null;
+  bool get shouldShowLineNumberSeparators => false;
 
   void show(NamedNode shownObject) {
     this.shownObject = shownObject;
@@ -74,9 +59,7 @@ class ConstraintView extends UIComponent {
 
   @override
   void buildHtml() {
-    if (shownObject == null ||
-        constraintSystem == null ||
-        currentListItemAnchor == null) {
+    if (shownObject == null || constraintSystem == null) {
       hide();
       return;
     }
