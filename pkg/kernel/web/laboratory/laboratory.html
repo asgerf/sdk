@@ -28,6 +28,10 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
         font-family: Verdana, Geneva, sans-serif;
         background-color: #fdf6e3;
       }
+      #top-bar {
+        display: flex;
+        justify-content: space-between;
+      }
 
       /*  Code view  */
       #code-view-container {
@@ -170,8 +174,12 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       /*  Timeline  */
       #timeline-container {
         display: inline-block;
-        width: 450px;
+        padding: 6px 6px 6px 6px;
       }
+      #timeline-progress {
+        width: 300px;
+      }
+      #timeline-title {}
 
     </style>
   </head>
@@ -181,16 +189,19 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
     <input type="button" id="reload-button" value="Reload"/>
     <br/>
     <hr/>
-    <div id="search-input-container">
-      <input type="text" id="search-input" placeholder="Fuzzy search (hotkey: q)"/>
-      <div id="search-input-suggestions">
-        <select id="search-input-select" size="10"></select>
-      </div>
-    </div>
 
-    <div id="timeline-container">
-      <span id="timeline-text"></span>
-      <input type="button" id="timeline-reset-button" value="Reset time" />
+    <div id="top-bar">
+      <div id="search-input-container">
+        <input type="text" id="search-input" placeholder="Fuzzy search (hotkey: q)"/>
+        <div id="search-input-suggestions">
+          <select id="search-input-select" size="10"></select>
+        </div>
+      </div>
+      <div id="timeline-container">
+        <span id="timeline-title">Backtracking</span>
+        <progress id="timeline-progress"></progress>
+        <input type="button" id="timeline-reset-button" value="Stop backtracking" />
+      </div>
     </div>
 
     <div id="type-view-container">

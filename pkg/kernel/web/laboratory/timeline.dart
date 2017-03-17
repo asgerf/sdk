@@ -12,12 +12,12 @@ import 'type_view.dart';
 
 class Timeline {
   final Element containerElement;
-  final Element textElement;
+  final ProgressElement progressElement;
   final ButtonElement resetButton;
 
   int currentTimestamp = 0;
 
-  Timeline(this.containerElement, this.textElement, this.resetButton) {
+  Timeline(this.containerElement, this.progressElement, this.resetButton) {
     resetButton.onClick.listen(onResetButtonClick);
     hide();
   }
@@ -42,8 +42,8 @@ class Timeline {
       hide();
       return;
     }
-    double percent = 100.0 * currentTimestamp / report.endOfTime;
-    textElement.text = '${percent.toStringAsFixed(1)}%';
+    progressElement.max = report.endOfTime;
+    progressElement.value = currentTimestamp;
     containerElement.style.visibility = 'visible';
   }
 

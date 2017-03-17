@@ -45,8 +45,8 @@ class UI {
       $('constraint-view-table'),
       $('constraint-view-header'));
 
-  Timeline timeline = new Timeline(
-      $('timeline-container'), $('timeline-text'), $('timeline-reset-button'));
+  Timeline timeline = new Timeline($('timeline-container'),
+      $('timeline-progress'), $('timeline-reset-button'));
 }
 
 // We use a singleton class (as opposed to static fields) so that all fields
