@@ -13,16 +13,11 @@ import 'laboratory.dart';
 import 'laboratory_data.dart';
 import 'laboratory_ui.dart';
 import 'lexer.dart';
+import 'view.dart';
 
 class CodeView {
   final DivElement viewElement;
   final Element filenameElement;
-
-  Source source;
-  NamedNode shownObject;
-  Token tokenizedSource; // May be null, even if source is not null.
-
-  List<TreeNode> astNodes;
 
   CodeView(this.viewElement, this.filenameElement) {
     assert(viewElement != null);
@@ -36,29 +31,19 @@ class CodeView {
     filenameElement.children
       ..clear()
       ..add(new OListElement()..append(new LIElement()..text = shownFilename));
-    source = program.uriToSource[uri];
-    if (source == null) {
+    if (!view.hasSource) {
       showErrorMessage(getMissingSourceMessage(uri));
       return false;
     }
-    try {
-      tokenizedSource = new Lexer.fromCharCodes(source.source).tokenize();
-    } catch (e) {
-      tokenizedSource = null;
+    if (!view.hasTokens) {
       print("Could not tokenize source for URI '$uri'");
-      print(e);
     }
-    astNodes = <TreeNode>[];
-    node?.accept(new AstNodeCollector(astNodes));
-    astNodes.sort((e1, e2) => e1.fileOffset.compareTo(e2.fileOffset));
     ui.constraintView.remove();
     return true;
   }
 
-  bool get hasSource => source != null;
-
   void onMouseMove(MouseEvent ev) {
-    if (source == null || shownObject == null) return;
+    if (!view.hasAstNodes) return;
     var target = ev.target;
     if (target is! Element) return;
     Element targetElement = target;
@@ -67,11 +52,11 @@ class CodeView {
     if (index == -1) {
       hideTypeView();
     } else if (target != ui.typeView.highlightedElement) {
-      var astNode = astNodes[index];
+      var astNode = view.astNodes[index];
       var inferredValueOffset = getInferredValueOffset(astNode);
       if (astNode != null &&
           ui.typeView.showTypeOfExpression(
-              shownObject, astNode, inferredValueOffset)) {
+              view.shownObject, astNode, inferredValueOffset)) {
         ui.typeView.setHighlightedElement(target);
       } else {
         hideTypeView();
@@ -85,7 +70,7 @@ class CodeView {
 
   /// Event handler for clicks on the whole code view.
   void onClick(MouseEvent ev) {
-    if (source == null || shownObject == null) return;
+    if (!view.hasSource) return;
     var target = ev.target;
     if (target is! Element) return;
     Element element = target;
@@ -111,10 +96,10 @@ class CodeView {
       return;
     }
     int lineIndex = int.parse(lineIndexData);
-    int start = source.lineStarts[lineIndex];
-    int end = source.getEndOfLine(lineIndex);
+    int start = view.source.lineStarts[lineIndex];
+    int end = view.source.getEndOfLine(lineIndex);
     listItem.append(ui.constraintView.rootElement);
-    ui.constraintView.setShownObject(shownObject);
+    ui.constraintView.setShownObject(view.shownObject);
     ui.constraintView.setVisibleSourceRange(start, end);
     currentListItemAnchor?.classes?.remove(CssClass.codeLineHighlighted);
     currentListItemAnchor = listItem;
@@ -142,27 +127,26 @@ class CodeView {
     } else if (node is Member) {
       showMember(node);
     } else {
-      shownObject = null;
       showNothing();
     }
   }
 
   void showLibrary(Library library) {
-    shownObject = library;
+    view = new View(library);
     if (setCurrentFile(library.fileUri, library)) {
       setContent([makeSourceList()]);
     }
   }
 
   void showClass(Class node) {
-    shownObject = node;
+    view = new View(node);
     if (setCurrentFile(node.fileUri, node)) {
       setContent([makeSourceList(node.fileOffset)]);
     }
   }
 
   void showMember(Member member) {
-    shownObject = member;
+    view = new View(member);
     if (!setCurrentFile(member.fileUri, member)) return;
     var contents = <Element>[];
     var class_ = member.enclosingClass;
@@ -195,10 +179,11 @@ class CodeView {
   }
 
   int getIndexOfLastExpressionStrictlyBeforeOffset(int offset) {
-    int first = 0, last = astNodes.length - 1;
+    // TODO: Move this into the view
+    int first = 0, last = view.astNodes.length - 1;
     while (first < last) {
       int mid = last - ((last - first) >> 1);
-      int pivot = astNodes[mid].fileOffset;
+      int pivot = view.astNodes[mid].fileOffset;
       if (offset <= pivot) {
         last = mid - 1;
       } else {
@@ -209,9 +194,10 @@ class CodeView {
   }
 
   int getExpressionIndexFromToken(Token token) {
+    // TODO: Move this into the view
     var index = getIndexOfLastExpressionStrictlyBeforeOffset(token.end);
     if (index == -1) return -1;
-    var expression = astNodes[index];
+    var expression = view.astNodes[index];
     if (token.offset <= expression.fileOffset &&
         expression.fileOffset < token.end) {
       return index;
@@ -235,26 +221,27 @@ class CodeView {
 
   OListElement makeSourceList([int startOffset, int endOffset]) {
     var htmlList = new OListElement();
-    var code = source.source;
-    int numberOfLines = source.lineStarts.length;
+    var code = view.source.source;
+    int numberOfLines = view.source.lineStarts.length;
     int firstLine = 0;
     int lastLine = numberOfLines;
     if (startOffset != null) {
-      firstLine = source.getLineFromOffset(startOffset);
+      firstLine = view.source.getLineFromOffset(startOffset);
       htmlList.setAttribute('start', '${1 + firstLine}');
       endOffset ??= startOffset;
       // Move startOffset back to the start of its line
-      startOffset = source.lineStarts[firstLine];
+      startOffset = view.source.lineStarts[firstLine];
     }
     if (endOffset != null) {
-      lastLine = 1 + source.getLineFromOffset(endOffset);
+      lastLine = 1 + view.source.getLineFromOffset(endOffset);
     }
-    Token token = getFirstTokenAfterOffset(tokenizedSource, startOffset ?? 0);
+    Token token =
+        getFirstTokenAfterOffset(view.tokenizedSource, startOffset ?? 0);
     for (int lineIndex = firstLine; lineIndex < lastLine; ++lineIndex) {
-      int start = source.lineStarts[lineIndex];
+      int start = view.source.lineStarts[lineIndex];
       int end = lineIndex == numberOfLines - 1
           ? code.length
-          : source.lineStarts[lineIndex + 1];
+          : view.source.lineStarts[lineIndex + 1];
 
       var htmlListItem = new LIElement();
       htmlListItem.dataset['lineIndex'] = '$lineIndex';
@@ -265,11 +252,11 @@ class CodeView {
       int offset = start;
       while (offset < end) {
         if (token == null || end <= token.offset) {
-          htmlLine.appendText(source.getSubstring(offset, end));
+          htmlLine.appendText(view.source.getSubstring(offset, end));
           break;
         }
         if (offset < token.offset) {
-          htmlLine.appendText(source.getSubstring(offset, token.offset));
+          htmlLine.appendText(view.source.getSubstring(offset, token.offset));
         }
         htmlLine.append(makeTokenElement(token));
         offset = token.end;
@@ -291,7 +278,7 @@ class CodeView {
     var index = getExpressionIndexFromToken(token);
     if (index != -1) {
       element.dataset['id'] = '$index';
-      var astNode = astNodes[index];
+      var astNode = view.astNodes[index];
       int locationIndex = getInferredValueOffset(astNode);
       if (locationIndex != -1) {
         element.classes.add('v$locationIndex');
@@ -326,74 +313,5 @@ class CodeView {
       return uri.substring(lowestIndex);
     }
     return uri;
-  }
-}
-
-bool isDynamicCall(TreeNode node) {
-  return node is MethodInvocation && node.interfaceTarget == null ||
-      node is PropertyGet && node.interfaceTarget == null ||
-      node is PropertySet && node.interfaceTarget == null;
-}
-
-int getInferredValueOffset(TreeNode node) {
-  if (node is Expression) {
-    return node.inferredValueOffset;
-  } else if (node is VariableDeclaration) {
-    return node.inferredValueOffset;
-  } else if (node is Field) {
-    return Field.inferredValueOffset;
-  } else if (node is Member) {
-    return node.function.inferredReturnValueOffset;
-  }
-  return -1;
-}
-
-class AstNodeCollector extends RecursiveVisitor {
-  final List<TreeNode> result;
-
-  AstNodeCollector(this.result);
-
-  @override
-  visitProcedure(Procedure node) {
-    if (node.fileOffset != TreeNode.noOffset &&
-        node.function.inferredReturnValueOffset != -1) {
-      result.add(node);
-    }
-    node.visitChildren(this);
-  }
-
-  @override
-  visitConstructor(Constructor node) {
-    if (node.fileOffset != TreeNode.noOffset &&
-        node.function.inferredReturnValueOffset != -1) {
-      result.add(node);
-    }
-    node.visitChildren(this);
-  }
-
-  @override
-  visitField(Field node) {
-    if (node.fileOffset != TreeNode.noOffset) {
-      result.add(node);
-    }
-    node.visitChildren(this);
-  }
-
-  @override
-  defaultExpression(Expression node) {
-    if (node.fileOffset != TreeNode.noOffset &&
-        node.inferredValueOffset != -1) {
-      result.add(node);
-    }
-    node.visitChildren(this);
-  }
-
-  @override
-  visitVariableDeclaration(VariableDeclaration node) {
-    if (node.fileOffset != TreeNode.noOffset &&
-        node.inferredValueOffset != -1) {
-      result.add(node);
-    }
-    node.visitChildren(this);
   }
 }

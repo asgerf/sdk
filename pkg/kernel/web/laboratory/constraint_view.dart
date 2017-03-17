@@ -12,6 +12,7 @@ import 'html_buffer.dart';
 import 'laboratory.dart';
 import 'laboratory_ui.dart';
 import 'ui_component.dart';
+import 'view.dart';
 
 class ConstraintView extends UIComponent {
   final TableElement tableElement;
@@ -33,7 +34,7 @@ class ConstraintView extends UIComponent {
     tableElement.remove();
   }
 
-  Source get shownSource => ui.codeView.source;
+  Source get shownSource => view.source;
 
   void setShownObject(NamedNode shownObject) {
     this._shownObject = shownObject;

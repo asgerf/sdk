@@ -3,7 +3,6 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.laboratory.type_view;
 
-import 'code_view.dart';
 import 'dart:html';
 
 import 'package:kernel/ast.dart';
@@ -12,6 +11,7 @@ import 'package:kernel/inference/value.dart';
 
 import 'laboratory.dart';
 import 'laboratory_ui.dart';
+import 'view.dart';
 
 class TypeView {
   final DivElement containerElement;
@@ -165,7 +165,7 @@ class TypeView {
   void showStorageLocation(StorageLocation location) {
     var value = report.getValue(location, ui.backtracker.currentTimestamp);
     _setShownValue(value);
-    if (location.owner == ui.codeView.shownObject.reference) {
+    if (location.owner == view.shownObject.reference) {
       setRelatedElementsFromCssClass('v${location.index}');
     } else {
       unsetRelatedElements();

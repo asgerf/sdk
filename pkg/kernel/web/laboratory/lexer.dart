@@ -7,6 +7,8 @@ import 'package:charcode/ascii.dart';
 import 'package:front_end/src/scanner/errors.dart';
 import 'package:front_end/src/scanner/reader.dart';
 import 'package:front_end/src/scanner/scanner.dart';
+import 'package:front_end/src/scanner/token.dart';
+import 'package:kernel/ast.dart';
 
 export 'package:front_end/src/scanner/token.dart' show Token, TokenType;
 
@@ -27,4 +29,14 @@ class Lexer extends Scanner {
   static bool isUpperCaseLetter(int charCode) {
     return $A <= charCode && charCode <= $Z;
   }
+}
+
+Token tryTokenizeSource(Source source) {
+  if (source == null) return null;
+  try {
+    return new Lexer.fromCharCodes(source.source).tokenize();
+  } catch (e) {
+    // Ignore exception.
+  }
+  return null;
 }
