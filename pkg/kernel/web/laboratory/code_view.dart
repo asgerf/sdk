@@ -171,13 +171,6 @@ class CodeView {
       ..addAll(content);
   }
 
-  Token getFirstTokenAfterOffset(Token token, int offset) {
-    while (token != null && token.end <= offset) {
-      token = token.next;
-    }
-    return token;
-  }
-
   /// Returns the part of the given token that is between the absolute file
   /// offsets [from] and [to].
   ///
@@ -208,8 +201,7 @@ class CodeView {
     if (endOffset != null) {
       lastLine = 1 + view.source.getLineFromOffset(endOffset);
     }
-    Token token =
-        getFirstTokenAfterOffset(view.tokenizedSource, startOffset ?? 0);
+    Token token = view.getFirstTokenAfterOffset(startOffset ?? 0);
     for (int lineIndex = firstLine; lineIndex < lastLine; ++lineIndex) {
       int start = view.source.lineStarts[lineIndex];
       int end = lineIndex == numberOfLines - 1
@@ -231,7 +223,7 @@ class CodeView {
         if (offset < token.offset) {
           htmlLine.appendText(view.source.getSubstring(offset, token.offset));
         }
-        htmlLine.append(makeTokenElement(token));
+        htmlLine.append(makeElementFromToken(token));
         offset = token.end;
         token = token.next;
       }
@@ -241,7 +233,7 @@ class CodeView {
     return htmlList;
   }
 
-  html.Node makeTokenElement(Token token) {
+  html.Node makeElementFromToken(Token token) {
     var element = new SpanElement()..text = token.lexeme;
     if (token.keyword != null || keywords.contains(token.lexeme)) {
       element.classes.add('keyword');

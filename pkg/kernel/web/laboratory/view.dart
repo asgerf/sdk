@@ -80,6 +80,14 @@ class View {
     }
     return -1;
   }
+
+  Token getFirstTokenAfterOffset(int offset) {
+    Token token = tokenizedSource;
+    while (token != null && token.end <= offset) {
+      token = token.next;
+    }
+    return token;
+  }
 }
 
 class AstNodeCollector extends RecursiveVisitor {
