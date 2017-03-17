@@ -11,8 +11,9 @@ import 'package:kernel/inference/constraints.dart';
 import 'html_buffer.dart';
 import 'laboratory.dart';
 import 'laboratory_ui.dart';
+import 'ui_component.dart';
 
-class ConstraintView {
+class ConstraintView extends UIComponent {
   final DivElement containerElement;
   final TableElement tableElement;
   final TableRowElement headerRowElement;
@@ -22,7 +23,8 @@ class ConstraintView {
   LIElement currentListItemAnchor;
 
   ConstraintView(
-      this.containerElement, this.tableElement, this.headerRowElement);
+      this.containerElement, this.tableElement, this.headerRowElement)
+      : super(containerElement);
 
   Source get shownSource => ui.codeView.source;
 
@@ -37,13 +39,13 @@ class ConstraintView {
 
   void setVisibleSourceRange(int start, int end) {
     visibleSourceRange = new SourceRange(start, end);
-    _buildHtmlContent();
+    invalidate();
   }
 
   void unsetVisibleSourceRange() {
     if (visibleSourceRange != SourceRange.everything) {
       visibleSourceRange = SourceRange.everything;
-      _buildHtmlContent();
+      invalidate();
     }
   }
 
@@ -52,7 +54,7 @@ class ConstraintView {
     currentListItemAnchor = listItem;
     listItem.classes.add(CssClass.codeLineHighlighted);
     listItem.append(tableElement..remove());
-    _buildHtmlContent();
+    invalidate();
   }
 
   void unsetAnchor() {
@@ -68,10 +70,11 @@ class ConstraintView {
 
   void show(NamedNode shownObject) {
     this.shownObject = shownObject;
-    _buildHtmlContent();
+    invalidate();
   }
 
-  void _buildHtmlContent() {
+  @override
+  void buildHtml() {
     if (shownObject == null ||
         constraintSystem == null ||
         currentListItemAnchor == null) {
