@@ -109,6 +109,7 @@ class CodeView {
     int lineIndex = int.parse(lineIndexData);
     int start = source.lineStarts[lineIndex];
     int end = source.getEndOfLine(lineIndex);
+    ui.constraintView.show(shownObject);
     ui.constraintView.setVisibleSourceRange(start, end);
     ui.constraintView.anchorAtListItem(listItem);
   }
@@ -143,8 +144,6 @@ class CodeView {
     shownObject = library;
     if (setCurrentFile(library.fileUri, library)) {
       setContent([makeSourceList()]);
-      ui.constraintView.show(library);
-      ui.constraintView.unsetVisibleSourceRange();
     }
   }
 
@@ -152,8 +151,6 @@ class CodeView {
     shownObject = node;
     if (setCurrentFile(node.fileUri, node)) {
       setContent([makeSourceList(node.fileOffset)]);
-      ui.constraintView.show(node);
-      ui.constraintView.unsetVisibleSourceRange();
     }
   }
 
@@ -167,8 +164,6 @@ class CodeView {
     }
     contents.add(makeSourceList(member.fileOffset, member.fileEndOffset));
     setContent(contents);
-    ui.constraintView.show(member);
-    ui.constraintView.unsetVisibleSourceRange();
   }
 
   void showErrorMessage(String message) {
