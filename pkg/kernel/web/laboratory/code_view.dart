@@ -113,12 +113,12 @@ class CodeView {
     int lineIndex = int.parse(lineIndexData);
     int start = source.lineStarts[lineIndex];
     int end = source.getEndOfLine(lineIndex);
+    listItem.append(ui.constraintView.rootElement);
     ui.constraintView.show(shownObject);
     ui.constraintView.setVisibleSourceRange(start, end);
     currentListItemAnchor?.classes?.remove(CssClass.codeLineHighlighted);
     currentListItemAnchor = listItem;
     listItem.classes.add(CssClass.codeLineHighlighted);
-    listItem.append(ui.constraintView.embedded());
   }
 
   void hideTypeView() {

@@ -174,18 +174,12 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       }
 
       /*  Constraint view  */
-      #constraint-view-container {
-        display: none;
-        width: 39%;
-        display: inline-block;
-        vertical-align: top;
-        cursor: default;
-      }
       #constraint-view-table {
         background-color: #eee8d5;
         border-collapse: collapse;
         text-align: left;
         width: 100%;
+        height: 100%;
         font-family: sans-serif;
       }
       #constraint-view-table td {
@@ -263,16 +257,14 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
         <div id="code-view-body"></div>
       </div>
 
-      <div id="constraint-view-container">
-        <table id="constraint-view-table">
-          <tr id="constraint-view-header">
-            <th style="width: 35%;"></th>
-            <th style="width: 10px;"></th>
-            <th style="width: 35%;"></th>
-            <th style="width: auto;"></th>
-          </tr>
-        </table>
-      </div>
+      <table id="constraint-view-table">
+        <tr id="constraint-view-header">
+          <th style="width: 35%;"></th>
+          <th style="width: 10px;"></th>
+          <th style="width: 35%;"></th>
+          <th style="width: auto;"></th>
+        </tr>
+      </table>
 
       <!-- Prevent type view from resizing and scrolling the page -->
       <div class="bottom-filler"></div>

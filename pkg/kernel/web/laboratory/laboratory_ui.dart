@@ -42,9 +42,7 @@ class UI {
       $('type-view-table'));
 
   ConstraintView constraintView = new ConstraintView(
-      $('constraint-view-container'),
-      $('constraint-view-table'),
-      $('constraint-view-header'));
+      $('constraint-view-table'), $('constraint-view-header'));
 
   Backtracker backtracker = new Backtracker($('backtracker-container'),
       $('backtracker-progress'), $('backtracker-reset-button'));

@@ -14,20 +14,21 @@ import 'laboratory_ui.dart';
 import 'ui_component.dart';
 
 class ConstraintView extends UIComponent {
-  final DivElement containerElement;
   final TableElement tableElement;
   final TableRowElement headerRowElement;
   NamedNode shownObject;
   SourceRange visibleSourceRange = SourceRange.everything;
 
-  ConstraintView(
-      this.containerElement, this.tableElement, this.headerRowElement);
+  ConstraintView(this.tableElement, this.headerRowElement) {
+    tableElement.remove();
+  }
+
+  /// Returns the root HTML element of the constraint view.
+  ///
+  /// To add the constraint view to a container, add its root element.
+  Element get rootElement => tableElement;
 
   Source get shownSource => ui.codeView.source;
-
-  void hide() {
-    containerElement.style.visibility = 'hidden';
-  }
 
   void setVisibleSourceRange(int start, int end) {
     visibleSourceRange = new SourceRange(start, end);
@@ -39,11 +40,6 @@ class ConstraintView extends UIComponent {
       visibleSourceRange = SourceRange.everything;
       invalidate();
     }
-  }
-
-  Element embedded() {
-    invalidate();
-    return tableElement..remove();
   }
 
   void remove() {
@@ -60,15 +56,14 @@ class ConstraintView extends UIComponent {
   @override
   void buildHtml() {
     if (shownObject == null || constraintSystem == null) {
-      hide();
+      remove();
       return;
     }
     var cluster = constraintSystem.getCluster(shownObject.reference);
     if (cluster == null) {
-      hide();
+      remove();
       return;
     }
-    containerElement.style.visibility = 'visible';
     tableElement.children.clear();
     tableElement.append(headerRowElement);
     var buffer = new KernelHtmlBuffer(tableElement, shownObject);
@@ -111,7 +106,7 @@ class ConstraintView extends UIComponent {
     }
 
     if (isEmpty) {
-      hide();
+      remove();
       return;
     }
   }
