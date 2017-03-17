@@ -5,8 +5,11 @@ library kernel.laboratory.ui_component;
 
 import 'dart:async';
 
-enum _State { clean, dirty, rebuilding }
-
+/// A base class for high-level UI objects that needs to update its HTML DOM
+/// when some state has changed.
+///
+/// Calling [invalidate] on a UI component will cause its [buildHtml] method
+/// to be invoked before returning to the event loop (using a microtask).
 abstract class UIComponent {
   _State _state = _State.clean;
 
@@ -14,6 +17,8 @@ abstract class UIComponent {
     invalidate();
   }
 
+  /// Ensures the HTML DOM for this component gets rebuild before returning to
+  /// the event loop.
   void invalidate() {
     switch (_state) {
       case _State.clean:
@@ -35,5 +40,11 @@ abstract class UIComponent {
     _state = _State.clean;
   }
 
+  /// Builds the HTML DOM for this UI component.
+  ///
+  /// This should not be called directly - call [invalidate] to ensure this gets
+  /// called at the right time.
   void buildHtml();
 }
+
+enum _State { clean, dirty, rebuilding }
