@@ -19,6 +19,8 @@ class CodeView {
   final DivElement viewElement;
   final Element filenameElement;
 
+  LIElement _focusedListItem = null;
+
   CodeView(this.viewElement, this.filenameElement) {
     assert(viewElement != null);
     assert(filenameElement != null);
@@ -83,15 +85,13 @@ class CodeView {
     }
   }
 
-  LIElement currentListItemAnchor = null;
-
   void onListItemClicked(LIElement listItem, MouseEvent ev) {
     String lineIndexData = listItem.dataset['lineIndex'];
     if (lineIndexData == null) return;
     ev.stopPropagation();
-    if (currentListItemAnchor == listItem) {
-      currentListItemAnchor?.classes?.remove(CssClass.codeLineHighlighted);
-      currentListItemAnchor = null;
+    if (_focusedListItem == listItem) {
+      _focusedListItem?.classes?.remove(CssClass.codeLineHighlighted);
+      _focusedListItem = null;
       ui.constraintView.remove();
       return;
     }
@@ -101,8 +101,8 @@ class CodeView {
     listItem.append(ui.constraintView.rootElement);
     ui.constraintView.setShownObject(view.shownObject);
     ui.constraintView.setVisibleSourceRange(start, end);
-    currentListItemAnchor?.classes?.remove(CssClass.codeLineHighlighted);
-    currentListItemAnchor = listItem;
+    _focusedListItem?.classes?.remove(CssClass.codeLineHighlighted);
+    _focusedListItem = listItem;
     listItem.classes.add(CssClass.codeLineHighlighted);
   }
 
