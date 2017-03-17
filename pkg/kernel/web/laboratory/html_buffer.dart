@@ -62,7 +62,8 @@ class KernelHtmlBuffer extends HtmlBuffer {
     var element = new SpanElement()
       ..text = locationName
       ..onMouseMove.listen(ui.typeView.showStorageLocationOnEvent(location))
-      ..onClick.listen(ui.timeline.investigateStorageLocationOnEvent(location));
+      ..onClick
+          .listen(ui.backtracker.investigateStorageLocationOnEvent(location));
     if (location.owner == shownObject?.reference) {
       element.className = locationName;
     }

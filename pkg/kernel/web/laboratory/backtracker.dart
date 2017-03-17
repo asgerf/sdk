@@ -1,7 +1,7 @@
 // Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-library kernel.laboratory.timeline;
+library kernel.laboratory.backtracker;
 
 import 'dart:html';
 import 'laboratory_data.dart';
@@ -10,14 +10,14 @@ import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/storage_location.dart';
 import 'type_view.dart';
 
-class Timeline {
+class Backtracker {
   final Element containerElement;
   final ProgressElement progressElement;
   final ButtonElement resetButton;
 
   int currentTimestamp = 0;
 
-  Timeline(this.containerElement, this.progressElement, this.resetButton) {
+  Backtracker(this.containerElement, this.progressElement, this.resetButton) {
     resetButton.onClick.listen(onResetButtonClick);
     hide();
   }

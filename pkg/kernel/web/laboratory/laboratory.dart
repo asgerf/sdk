@@ -67,7 +67,7 @@ void onProgramLoaded() {
 
 void onReportFileLoaded() {
   binding = new Binding(constraintSystem, coreTypes);
-  ui.timeline.reset();
+  ui.backtracker.reset();
 }
 
 Future<Uint8List> readBytesFromFileInput(FileUploadInputElement input) async {
