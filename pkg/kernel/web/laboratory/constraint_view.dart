@@ -48,26 +48,20 @@ class ConstraintView {
   }
 
   void anchorAtListItem(LIElement listItem) {
-    containerElement.style
-      ..position = 'relative'
-      ..top = '${listItem.offsetTo(containerElement.parent).y}px'
-      ..transform = 'translateY(-50%)';
-    containerElement.classes.add(CssClass.constraintSubset);
-    currentListItemAnchor?.classes?.remove(CssClass.constraintSubset);
+    currentListItemAnchor?.classes?.remove(CssClass.codeLineHighlighted);
     currentListItemAnchor = listItem;
-    currentListItemAnchor.classes.add(CssClass.constraintSubset);
+    listItem.classes.add(CssClass.codeLineHighlighted);
+    listItem.append(tableElement..remove());
     _buildHtmlContent();
   }
 
   void unsetAnchor() {
-    containerElement.style
-      ..position = 'static'
-      ..transform = ''
-      ..top = '0px';
-    containerElement.classes.remove(CssClass.constraintSubset);
-    currentListItemAnchor?.classes?.remove(CssClass.constraintSubset);
-    currentListItemAnchor = null;
-    _buildHtmlContent();
+    if (currentListItemAnchor != null) {
+      currentListItemAnchor.classes.remove(CssClass.codeLineHighlighted);
+      containerElement.append(tableElement..remove());
+      currentListItemAnchor = null;
+      hide();
+    }
   }
 
   bool get shouldShowLineNumberSeparators => currentListItemAnchor == null;
@@ -78,7 +72,9 @@ class ConstraintView {
   }
 
   void _buildHtmlContent() {
-    if (shownObject == null || constraintSystem == null) {
+    if (shownObject == null ||
+        constraintSystem == null ||
+        currentListItemAnchor == null) {
       hide();
       return;
     }
@@ -157,7 +153,7 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
   }
 
   TableCellElement separator() {
-    return new TableCellElement()..text = ' <- ';
+    return new TableCellElement()..text = '\u2190';
   }
 
   @override

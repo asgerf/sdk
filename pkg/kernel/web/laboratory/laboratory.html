@@ -103,9 +103,11 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
 
       /*  Code view  */
       #code-view-container {
-        width: 59%;
-        display: inline-block;
+        min-width: 800px;
+        width: 80%;
+        display: block;
         vertical-align: top;
+        margin: 0 auto; /* center horizontally */
       }
       #code-view-body {
         font-family: 'Source Code Pro', monospace;
@@ -173,16 +175,28 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
 
       /*  Constraint view  */
       #constraint-view-container {
-        visibility: hidden;
+        display: none;
         width: 39%;
         display: inline-block;
         vertical-align: top;
         cursor: default;
       }
       #constraint-view-table {
+        background-color: #eee8d5;
         border-collapse: collapse;
         text-align: left;
         width: 100%;
+        font-family: sans-serif;
+      }
+      #constraint-view-table td {
+        vertical-align: center;
+      }
+
+      .storage-location {
+        font-family: 'Source Code Pro', monospace;
+      }
+      .code-line-highlighted {
+        background-color: #eee8d5;
       }
 
       a.reference {
@@ -206,9 +220,6 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       }
       .constraint-escape {
         font-style: italic;
-      }
-      .constraint-subset {
-        background-color: #eee8d5;
       }
       .right {
         text-align: right;
@@ -246,8 +257,6 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       </div>
 
       <div id="top-bar-filler"></div>
-
-      <br/>
 
       <div id="code-view-container">
         <div id="code-view-filename"></div>

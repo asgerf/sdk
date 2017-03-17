@@ -66,7 +66,8 @@ class CssClass {
   static const String constraintLineNumber = 'constraint-line-number';
   static const String constraintGuard = 'constraint-guard';
   static const String constraintEscape = 'constraint-escape';
-  static const String constraintSubset = 'constraint-subset';
+  static const String codeLineHighlighted = 'code-line-highlighted';
   static const String right = 'right';
   static const String relatedElement = 'related-element';
+  static const String storageLocation = 'storage-location';
 }
