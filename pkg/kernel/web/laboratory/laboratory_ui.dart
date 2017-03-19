@@ -14,7 +14,7 @@ import 'type_view.dart';
 // This library contains bindings to the HTML file, possibly wrapped in a
 // higher-level view object.
 
-Element $(x) => document.getElementById(x);
+Element $(String x) => document.getElementById(x);
 
 class UI {
   BodyElement body = document.body;
