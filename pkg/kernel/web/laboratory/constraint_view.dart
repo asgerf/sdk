@@ -69,13 +69,13 @@ class ConstraintView extends UIComponent {
 
   @override
   void buildHtml() {
-    if (view.shownObject == null || view.constraintList == null) {
+    if (view.reference == null || view.constraintList == null) {
       hide();
       return;
     }
     tableElement.children.clear();
     tableElement.append(headerRowElement);
-    var buffer = new KernelHtmlBuffer(tableElement, view.shownObject);
+    var buffer = new KernelHtmlBuffer(tableElement, view.reference);
     var visitor = new ConstraintRowEmitter(buffer);
     int currentLineIndex = -2;
     bool isEmpty = true;

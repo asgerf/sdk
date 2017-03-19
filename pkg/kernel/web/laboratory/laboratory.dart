@@ -47,7 +47,7 @@ main() {
 }
 
 void startMainUI() {
-  ui.codeView.showObject(program.mainMethod);
+  ui.codeView.showObject(program.mainMethodName);
   ui.mainContentDiv.style.visibility = 'visible';
   ui.fileSelectDiv.style.display = 'none';
 }

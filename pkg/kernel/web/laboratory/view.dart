@@ -12,39 +12,42 @@ import 'lexer.dart';
 View view = new View(null);
 
 class View {
-  final NamedNode shownObject;
+  final Reference reference;
   final Source _source;
   final Token tokenizedSource;
   final List<TreeNode> astNodes;
   final List<Constraint> constraintList;
 
-  factory View(NamedNode shownObject) {
-    if (shownObject == null) {
+  factory View(Reference reference) {
+    if (reference == null) {
       return new View._(null, null, null, null, null);
     }
-    String fileUri = getFileUriFromNamedNode(shownObject);
+    NamedNode node = reference.node;
+    String fileUri = getFileUriFromNamedNode(node);
     Source source = program.uriToSource[fileUri];
     Token tokenizedSource = tryTokenizeSource(source);
     List<TreeNode> astNodes = <TreeNode>[];
-    shownObject.accept(new AstNodeCollector(astNodes));
+    node.accept(new AstNodeCollector(astNodes));
     astNodes.sort((e1, e2) => e1.fileOffset.compareTo(e2.fileOffset));
-    var cluster = constraintSystem.getCluster(shownObject.reference);
+    var cluster = constraintSystem.getCluster(node.reference);
     var constraintList = cluster.constraints.toList();
     constraintList.sort((c1, c2) => c1.fileOffset.compareTo(c2.fileOffset));
     return new View._(
-        shownObject, source, tokenizedSource, astNodes, constraintList);
+        reference, source, tokenizedSource, astNodes, constraintList);
   }
 
-  View._(this.shownObject, this._source, this.tokenizedSource, this.astNodes,
+  View._(this.reference, this._source, this.tokenizedSource, this.astNodes,
       this.constraintList);
 
-  bool get hasObject => shownObject != null;
+  NamedNode get astNode => reference.node;
+
+  bool get hasObject => astNode != null;
   bool get hasTokens => tokenizedSource != null;
   bool get hasSource => _source != null;
   bool get hasAstNodes => astNodes != null;
 
   Library get libraryNode {
-    TreeNode node = shownObject;
+    TreeNode node = astNode;
     while (node != null && node is! Library) {
       node = node.parent;
     }
@@ -52,7 +55,7 @@ class View {
   }
 
   Class get classNode {
-    TreeNode node = shownObject;
+    TreeNode node = astNode;
     while (node != null && node is! Class) {
       node = node.parent;
     }
@@ -60,11 +63,11 @@ class View {
   }
 
   Member get memberNode {
-    TreeNode node = shownObject;
+    TreeNode node = astNode;
     return node is Member ? node : null;
   }
 
-  String get fileUri => getFileUriFromNamedNode(shownObject);
+  String get fileUri => getFileUriFromNamedNode(astNode);
 
   int getStartOfLine(int lineIndex) {
     return _source.lineStarts[lineIndex];

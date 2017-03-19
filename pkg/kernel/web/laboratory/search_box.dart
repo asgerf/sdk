@@ -20,7 +20,7 @@ class SearchBox {
   Timer hideSuggestionBoxTimer;
 
   bool suggestionsAreVisible = false;
-  List<NamedNode> suggestedNodes = <NamedNode>[];
+  List<Reference> suggestedNodes = <Reference>[];
 
   SearchBox(this.inputElement, this.suggestionBoxContainer,
       this.suggestionBoxSelect) {
@@ -120,8 +120,8 @@ class SearchBox {
     matcher.scanProgram(program);
     if (matcher.suggestedNodes.isEmpty) return false;
     suggestedNodes = matcher.suggestedNodes.take(10).toList();
-    for (var node in suggestedNodes) {
-      var listItem = new OptionElement()..text = '$node';
+    for (var reference in suggestedNodes) {
+      var listItem = new OptionElement()..text = '${reference.node}';
       suggestionBoxSelect.children.add(listItem);
     }
     return true;
@@ -147,10 +147,10 @@ class SearchBox {
 }
 
 class Suggestion implements Comparable<Suggestion> {
-  final NamedNode node;
+  final Reference reference;
   final int penalty;
 
-  Suggestion(this.node, this.penalty);
+  Suggestion(this.reference, this.penalty);
 
   int compareTo(Suggestion other) => penalty.compareTo(other.penalty);
 }
@@ -160,7 +160,7 @@ class FuzzyFinder {
   final List<RegExp> regexps = <RegExp>[];
   final List<Suggestion> suggestions = <Suggestion>[];
 
-  Iterable<NamedNode> get suggestedNodes => suggestions.map((s) => s.node);
+  Iterable<Reference> get suggestedNodes => suggestions.map((s) => s.reference);
 
   static const int maximumCandidates = 1000;
 
@@ -205,7 +205,7 @@ class FuzzyFinder {
       ++regexpIndex;
       penalty = computeMatchPenalty(library.name, patterns[0]);
       if (regexps.length == 1) {
-        suggestions.add(new Suggestion(library, penalty));
+        suggestions.add(new Suggestion(library.reference, penalty));
         return;
       }
     }
@@ -238,7 +238,7 @@ class FuzzyFinder {
       penalty += computeMatchPenalty(class_.name, patterns[regexpIndex]);
       ++regexpIndex;
       if (regexpIndex == regexps.length) {
-        suggestions.add(new Suggestion(class_, penalty));
+        suggestions.add(new Suggestion(class_.reference, penalty));
         return;
       }
     }
@@ -258,7 +258,7 @@ class FuzzyFinder {
       penalty += computeMatchPenalty(name, pattern);
       // Ensure members are listed below classes with the same name.
       penalty += 1;
-      suggestions.add(new Suggestion(member, penalty));
+      suggestions.add(new Suggestion(member.reference, penalty));
     }
   }
 }

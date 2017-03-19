@@ -59,7 +59,7 @@ class CodeView extends UIComponent {
       var inferredValueOffset = getInferredValueOffset(astNode);
       if (astNode != null &&
           ui.typeView.showTypeOfExpression(
-              view.shownObject, astNode, inferredValueOffset)) {
+              view.reference, astNode, inferredValueOffset)) {
         ui.typeView.setHighlightedElement(target);
       } else {
         hideTypeView();
@@ -126,8 +126,8 @@ class CodeView extends UIComponent {
     }
   }
 
-  void showObject(NamedNode node) {
-    view = new View(node);
+  void showObject(Reference reference) {
+    view = new View(reference);
     window.scroll(0, 0);
     ui.constraintView.hide();
     ui.typeView.hide();
@@ -135,8 +135,8 @@ class CodeView extends UIComponent {
   }
 
   void showConstraint(Constraint constraint) {
-    if (view.shownObject != constraint.owner.node) {
-      view = new View(constraint.owner.node);
+    if (view.reference != constraint.owner) {
+      view = new View(constraint.owner);
       invalidate();
     }
     addOneShotAnimation(() {
@@ -165,7 +165,7 @@ class CodeView extends UIComponent {
       print("Could not tokenize source for URI '${view.fileUri}'");
     }
     sections.clear();
-    var node = view.shownObject;
+    var node = view.astNode;
     if (node is Library) {
       setContent([makeSourceList()]);
     } else if (node is Class) {

@@ -122,7 +122,7 @@ class TypeView {
   }
 
   bool showTypeOfExpression(
-      NamedNode owner, TreeNode node, int inferredValueOffset) {
+      Reference owner, TreeNode node, int inferredValueOffset) {
     if (constraintSystem == null) return false;
     expressionKindElement.text = '${node.runtimeType}';
     if (isDynamicCall(node)) {
@@ -141,8 +141,8 @@ class TypeView {
       tableElement.append(row);
       unsetRelatedElements();
     } else {
-      var location = constraintSystem.getStorageLocation(
-          owner.reference, inferredValueOffset);
+      var location =
+          constraintSystem.getStorageLocation(owner, inferredValueOffset);
       var value = report.getValue(location, ui.backtracker.currentTimestamp);
       _setShownValue(value);
       var locationName = 'v${location.index}';
@@ -165,7 +165,7 @@ class TypeView {
   void showStorageLocation(StorageLocation location) {
     var value = report.getValue(location, ui.backtracker.currentTimestamp);
     _setShownValue(value);
-    if (location.owner == view.shownObject.reference) {
+    if (location.owner == view.reference) {
       setRelatedElementsFromCssClass('v${location.index}');
     } else {
       unsetRelatedElements();

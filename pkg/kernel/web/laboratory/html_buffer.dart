@@ -39,23 +39,23 @@ class HtmlBuffer {
 }
 
 class KernelHtmlBuffer extends HtmlBuffer {
-  final NamedNode shownObject;
+  final Reference reference;
 
-  KernelHtmlBuffer(Element root, this.shownObject) : super(root);
+  KernelHtmlBuffer(Element root, this.reference) : super(root);
 
-  void appendReference(NamedNode node) {
+  void appendReference(Reference reference) {
     append(new AnchorElement()
       ..classes.add(CssClass.reference)
-      ..text = getShortName(node)
-      ..title = getLongName(node)
+      ..text = getShortName(reference.node)
+      ..title = getLongName(reference.node)
       ..onClick.listen((e) {
-        ui.codeView.showObject(node);
+        ui.codeView.showObject(reference);
       }));
   }
 
   void appendLocation(StorageLocation location) {
-    if (location.owner != shownObject?.reference) {
-      appendReference(location.owner.node);
+    if (location.owner != reference) {
+      appendReference(location.owner);
       appendText('/');
     }
     var locationName = 'v${location.index}';
@@ -65,7 +65,7 @@ class KernelHtmlBuffer extends HtmlBuffer {
       ..onMouseMove.listen(ui.typeView.showStorageLocationOnEvent(location))
       ..onClick
           .listen(ui.backtracker.investigateStorageLocationOnEvent(location));
-    if (location.owner == shownObject?.reference) {
+    if (location.owner == reference) {
       element.classes.add(locationName);
     }
     append(element);
