@@ -28,6 +28,7 @@ class Backtracker {
 
   void reset() {
     currentTimestamp = report?.endOfTime;
+    ui.constraintView.unfocusConstraint();
     updateUI();
   }
 
@@ -50,6 +51,7 @@ class Backtracker {
   MouseEventListener investigateStorageLocationOnEvent(
       StorageLocation location) {
     return (MouseEvent ev) {
+      ev.stopPropagation();
       investigateStorageLocation(location);
     };
   }
@@ -63,9 +65,7 @@ class Backtracker {
         report.getTransferEventFromTimestamp(changeEvent.timestamp);
     currentTimestamp = changeEvent.timestamp - 1;
     var constraint = transferEvent.constraint;
-    var owner = constraint.owner;
-    ui.codeView.showObject(owner.node);
-    ui.typeView.showStorageLocation(location);
+    ui.codeView.showConstraint(constraint);
     updateUI();
   }
 }

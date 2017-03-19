@@ -13,12 +13,28 @@ import 'laboratory.dart';
 import 'laboratory_data.dart';
 import 'laboratory_ui.dart';
 import 'lexer.dart';
+import 'package:kernel/inference/constraints.dart';
 import 'ui_component.dart';
 import 'view.dart';
+
+class CodeViewSection {
+  int firstLineIndex;
+  OListElement listElement;
+
+  CodeViewSection(this.firstLineIndex, this.listElement);
+
+  LIElement getLineNumberItem(int lineIndex) {
+    int index = lineIndex - firstLineIndex;
+    if (index < 0 || index >= listElement.children.length) return null;
+    return listElement.children[index];
+  }
+}
 
 class CodeView extends UIComponent {
   final DivElement viewElement;
   final Element filenameElement;
+
+  final List<CodeViewSection> sections = <CodeViewSection>[];
 
   LIElement _focusedListItem = null;
 
@@ -75,12 +91,20 @@ class CodeView extends UIComponent {
     if (lineIndexData == null) return;
     ev.stopPropagation();
     if (_focusedListItem == listItem) {
-      _focusedListItem?.classes?.remove(CssClass.codeLineHighlighted);
-      _focusedListItem = null;
-      ui.constraintView.hide();
-      return;
+      closeConstraintView();
+    } else {
+      int lineIndex = int.parse(lineIndexData);
+      openConstraintViewAt(listItem, lineIndex);
     }
-    int lineIndex = int.parse(lineIndexData);
+  }
+
+  void closeConstraintView() {
+    _focusedListItem?.classes?.remove(CssClass.codeLineHighlighted);
+    _focusedListItem = null;
+    ui.constraintView.hide();
+  }
+
+  void openConstraintViewAt(LIElement listItem, int lineIndex) {
     int start = view.source.lineStarts[lineIndex];
     int end = view.source.getEndOfLine(lineIndex);
     listItem.append(ui.constraintView.rootElement);
@@ -111,6 +135,22 @@ class CodeView extends UIComponent {
     invalidate();
   }
 
+  void showConstraint(Constraint constraint) {
+    if (view.shownObject != constraint.owner.node) {
+      view = new View(constraint.owner.node);
+      invalidate();
+    }
+    oneShotCallback(() {
+      int lineIndex = view.source.getLineFromOffset(constraint.fileOffset);
+      for (var section in sections) {
+        var listItem = section.getLineNumberItem(lineIndex);
+        if (listItem == null) continue;
+        openConstraintViewAt(listItem, lineIndex);
+        ui.constraintView.focusConstraint(constraint);
+      }
+    });
+  }
+
   @override
   void buildHtml() {
     if (!view.hasSource) return;
@@ -125,6 +165,7 @@ class CodeView extends UIComponent {
     if (!view.hasTokens) {
       print("Could not tokenize source for URI '${view.fileUri}'");
     }
+    sections.clear();
     var node = view.shownObject;
     if (node is Library) {
       setContent([makeSourceList()]);
@@ -183,6 +224,7 @@ class CodeView extends UIComponent {
     if (endOffset != null) {
       lastLine = 1 + view.source.getLineFromOffset(endOffset);
     }
+    var section = new CodeViewSection(firstLine, htmlList);
     Token token = view.getFirstTokenAfterOffset(startOffset ?? 0);
     for (int lineIndex = firstLine; lineIndex < lastLine; ++lineIndex) {
       int start = view.source.lineStarts[lineIndex];
@@ -212,6 +254,7 @@ class CodeView extends UIComponent {
 
       htmlList.append(htmlListItem);
     }
+    sections.add(section);
     return htmlList;
   }
 

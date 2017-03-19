@@ -5,6 +5,8 @@ library kernel.laboratory.ui_component;
 
 import 'dart:async';
 
+typedef void Callback();
+
 /// A base class for high-level UI objects that needs to update its HTML DOM
 /// when some state has changed.
 ///
@@ -12,6 +14,8 @@ import 'dart:async';
 /// to be invoked before returning to the event loop (using a microtask).
 abstract class UIComponent {
   _State _state = _State.clean;
+  final List<Callback> oneShotCallbacks = <Callback>[];
+  bool _microtaskScheduled = false;
 
   UIComponent() {
     invalidate();
@@ -23,7 +27,10 @@ abstract class UIComponent {
     switch (_state) {
       case _State.clean:
         _state = _State.dirty;
-        scheduleMicrotask(_onBuildCallback);
+        if (!_microtaskScheduled) {
+          _microtaskScheduled = true;
+          scheduleMicrotask(_onBuildCallback);
+        }
         return;
 
       case _State.dirty:
@@ -34,12 +41,27 @@ abstract class UIComponent {
     }
   }
 
+  void oneShotCallback(Callback callback) {
+    oneShotCallbacks.add(callback);
+    if (!_microtaskScheduled) {
+      _microtaskScheduled = true;
+      scheduleMicrotask(_onBuildCallback);
+    }
+  }
+
   void _onBuildCallback() {
-    _state = _State.rebuilding;
     try {
-      buildHtml();
+      var oldState = _state;
+      _state = _State.rebuilding;
+      if (oldState == _State.dirty) {
+        buildHtml();
+      }
+      for (var callback in oneShotCallbacks) {
+        callback();
+      }
     } finally {
       _state = _State.clean;
+      _microtaskScheduled = false;
     }
   }
 

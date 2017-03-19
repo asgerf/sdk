@@ -20,6 +20,8 @@ class ConstraintView extends UIComponent {
 
   NamedNode _shownObject;
   SourceRange _visibleSourceRange = SourceRange.everything;
+  final List<ConstraintViewRow> _constraintRows = <ConstraintViewRow>[];
+  ConstraintViewRow _focusedConstraint;
 
   ConstraintView(this.tableElement, this.headerRowElement) {
     tableElement.remove();
@@ -53,6 +55,26 @@ class ConstraintView extends UIComponent {
     }
   }
 
+  void focusConstraint(Constraint constraint) {
+    _focusedConstraint?.unfocus();
+    _focusedConstraint = null;
+    invalidate();
+    oneShotCallback(() {
+      for (var row in _constraintRows) {
+        if (row.constraint == constraint) {
+          _focusedConstraint = row;
+          row.focus();
+          return;
+        }
+      }
+    });
+  }
+
+  void unfocusConstraint() {
+    _focusedConstraint?.unfocus();
+    _focusedConstraint = null;
+  }
+
   bool get shouldShowLineNumberSeparators => false;
 
   @override
@@ -74,6 +96,7 @@ class ConstraintView extends UIComponent {
     constraintList.sort((c1, c2) => c1.fileOffset.compareTo(c2.fileOffset));
     int currentLineIndex = -2;
     bool isEmpty = true;
+    _constraintRows.clear();
     for (var constraint in constraintList) {
       if (!_visibleSourceRange.contains(constraint.fileOffset)) continue;
 
@@ -100,9 +123,12 @@ class ConstraintView extends UIComponent {
       }
 
       // Add the constraint details.
-      buffer.appendPush(new TableRowElement());
+      var row = new TableRowElement();
+      buffer.appendPush(row);
       constraint.accept(visitor);
       buffer.pop(); // End row.
+
+      _constraintRows.add(new ConstraintViewRow(constraint, row));
 
       isEmpty = false;
     }
@@ -116,6 +142,22 @@ class ConstraintView extends UIComponent {
   int getLineFromOffset(int offset) {
     if (offset == -1) return -1;
     return shownSource?.getLineFromOffset(offset) ?? -1;
+  }
+}
+
+class ConstraintViewRow {
+  final Constraint constraint;
+  final TableRowElement row;
+
+  ConstraintViewRow(this.constraint, this.row);
+
+  void focus() {
+    row.classes.add(CssClass.constraintFocused);
+    row.scrollIntoView(ScrollAlignment.CENTER);
+  }
+
+  void unfocus() {
+    row.classes.remove(CssClass.constraintFocused);
   }
 }
 

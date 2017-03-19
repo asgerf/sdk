@@ -212,6 +212,18 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
         color: #93a1a1;
         background-color: #eee8d5;
       }
+      .constraint-focused {
+        animation: 200ms 5 alternate constraint-focused-blinking;
+        background-color: yellow;
+      }
+      @keyframes constraint-focused-blinking {
+        from {
+          background-color: inherit;
+        }
+        to {
+          background-color: yellow;
+        }
+      }
       .constraint-escape {
         font-style: italic;
       }
