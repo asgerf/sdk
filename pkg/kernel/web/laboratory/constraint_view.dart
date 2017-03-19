@@ -5,7 +5,6 @@ library kernel.laboratory.constraint_view;
 
 import 'dart:html';
 
-import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
 
 import 'html_buffer.dart';
