@@ -9,7 +9,6 @@ import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
 
 import 'html_buffer.dart';
-import 'laboratory.dart';
 import 'laboratory_ui.dart';
 import 'ui_component.dart';
 import 'view.dart';
@@ -77,12 +76,7 @@ class ConstraintView extends UIComponent {
 
   @override
   void buildHtml() {
-    if (_shownObject == null || constraintSystem == null) {
-      hide();
-      return;
-    }
-    var cluster = constraintSystem.getCluster(_shownObject.reference);
-    if (cluster == null) {
+    if (_shownObject == null || view.constraintList == null) {
       hide();
       return;
     }
@@ -90,12 +84,10 @@ class ConstraintView extends UIComponent {
     tableElement.append(headerRowElement);
     var buffer = new KernelHtmlBuffer(tableElement, _shownObject);
     var visitor = new ConstraintRowEmitter(buffer);
-    var constraintList = cluster.constraints.toList();
-    constraintList.sort((c1, c2) => c1.fileOffset.compareTo(c2.fileOffset));
     int currentLineIndex = -2;
     bool isEmpty = true;
     _constraintRows.clear();
-    for (var constraint in constraintList) {
+    for (var constraint in view.constraintList) {
       if (!_visibleSourceRange.contains(constraint.fileOffset)) continue;
 
       if (shouldShowLineNumberSeparators) {

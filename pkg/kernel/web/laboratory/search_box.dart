@@ -144,8 +144,6 @@ class SearchBox {
       ..visibility = "visible";
     suggestionsAreVisible = true;
   }
-
-  void onProgramLoaded() {}
 }
 
 class Suggestion implements Comparable<Suggestion> {

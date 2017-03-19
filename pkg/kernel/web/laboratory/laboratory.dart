@@ -46,6 +46,12 @@ main() {
   ui.body.onKeyPress.listen(onBodyKeyPressed);
 }
 
+void startMainUI() {
+  ui.codeView.showObject(program.mainMethod);
+  ui.mainContentDiv.style.visibility = 'visible';
+  ui.fileSelectDiv.style.display = 'none';
+}
+
 void onBodyKeyPressed(KeyboardEvent ev) {
   if (ev.target != ui.body) return;
   var target = hotkeys[ev.which];
@@ -61,15 +67,17 @@ void onProgramLoaded() {
   coreTypes = new CoreTypes(program);
   classHierarchy = new ClassHierarchy(program);
   typeEnvironment = new TypeEnvironment(coreTypes, classHierarchy);
-  ui.searchBox.onProgramLoaded();
-  ui.codeView.showObject(program.mainMethod);
+  if (report != null && program != null) {
+    startMainUI();
+  }
 }
 
 void onReportFileLoaded() {
   binding = new Binding(constraintSystem, coreTypes);
   ui.backtracker.reset();
-  ui.mainContentDiv.style.visibility = 'visible';
-  ui.fileSelectDiv.style.display = 'none';
+  if (report != null && program != null) {
+    startMainUI();
+  }
 }
 
 Future<Uint8List> readBytesFromFileInput(FileUploadInputElement input) async {

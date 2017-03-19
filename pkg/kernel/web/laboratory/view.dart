@@ -3,8 +3,10 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.laboratory.view;
 
-import 'laboratory_data.dart';
 import 'package:kernel/ast.dart';
+import 'package:kernel/inference/constraints.dart';
+
+import 'laboratory_data.dart';
 import 'lexer.dart';
 
 View view = new View(null);
@@ -14,10 +16,11 @@ class View {
   final Source _source;
   final Token tokenizedSource;
   final List<TreeNode> astNodes;
+  final List<Constraint> constraintList;
 
   factory View(NamedNode shownObject) {
     if (shownObject == null) {
-      return new View._(null, null, null, null);
+      return new View._(null, null, null, null, null);
     }
     String fileUri = getFileUriFromNamedNode(shownObject);
     Source source = program.uriToSource[fileUri];
@@ -25,10 +28,15 @@ class View {
     List<TreeNode> astNodes = <TreeNode>[];
     shownObject.accept(new AstNodeCollector(astNodes));
     astNodes.sort((e1, e2) => e1.fileOffset.compareTo(e2.fileOffset));
-    return new View._(shownObject, source, tokenizedSource, astNodes);
+    var cluster = constraintSystem.getCluster(shownObject.reference);
+    var constraintList = cluster.constraints.toList();
+    constraintList.sort((c1, c2) => c1.fileOffset.compareTo(c2.fileOffset));
+    return new View._(
+        shownObject, source, tokenizedSource, astNodes, constraintList);
   }
 
-  View._(this.shownObject, this._source, this.tokenizedSource, this.astNodes);
+  View._(this.shownObject, this._source, this.tokenizedSource, this.astNodes,
+      this.constraintList);
 
   bool get hasObject => shownObject != null;
   bool get hasTokens => tokenizedSource != null;
