@@ -56,10 +56,10 @@ class ConstraintView extends UIComponent {
   }
 
   void focusConstraint(Constraint constraint) {
-    _focusedConstraint?.unfocus();
-    _focusedConstraint = null;
     invalidate();
-    oneShotCallback(() {
+    addOneShotAnimation(() {
+      _focusedConstraint?.unfocus();
+      _focusedConstraint = null;
       for (var row in _constraintRows) {
         if (row.constraint == constraint) {
           _focusedConstraint = row;

@@ -140,7 +140,7 @@ class CodeView extends UIComponent {
       view = new View(constraint.owner.node);
       invalidate();
     }
-    oneShotCallback(() {
+    addOneShotAnimation(() {
       int lineIndex = view.source.getLineFromOffset(constraint.fileOffset);
       for (var section in sections) {
         var listItem = section.getLineNumberItem(lineIndex);
