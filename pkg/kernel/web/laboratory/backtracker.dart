@@ -9,8 +9,9 @@ import 'laboratory_ui.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/storage_location.dart';
 import 'type_view.dart';
+import 'ui_component.dart';
 
-class Backtracker {
+class Backtracker extends UIComponent {
   final Element containerElement;
   final ProgressElement progressElement;
   final ButtonElement resetButton;
@@ -19,7 +20,6 @@ class Backtracker {
 
   Backtracker(this.containerElement, this.progressElement, this.resetButton) {
     resetButton.onClick.listen(onResetButtonClick);
-    hide();
   }
 
   void onResetButtonClick(MouseEvent ev) {
@@ -29,18 +29,15 @@ class Backtracker {
   void reset() {
     currentTimestamp = report?.endOfTime;
     ui.constraintView.unfocusConstraint();
-    updateUI();
+    invalidate();
   }
 
-  void hide() {
-    containerElement.style.visibility = 'hidden';
-  }
-
-  void updateUI() {
+  @override
+  void buildHtml() {
     if (report == null ||
         report.endOfTime == 0 ||
         currentTimestamp == report.endOfTime) {
-      hide();
+      containerElement.style.visibility = 'hidden';
       return;
     }
     progressElement.max = report.endOfTime;
@@ -66,6 +63,6 @@ class Backtracker {
     currentTimestamp = changeEvent.timestamp - 1;
     var constraint = transferEvent.constraint;
     ui.codeView.showConstraint(constraint);
-    updateUI();
+    invalidate();
   }
 }
