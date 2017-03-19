@@ -36,8 +36,6 @@ class ConstraintView extends UIComponent {
     tableElement.remove();
   }
 
-  Source get shownSource => view.source;
-
   void setShownObject(NamedNode shownObject) {
     this._shownObject = shownObject;
     invalidate();
@@ -102,7 +100,7 @@ class ConstraintView extends UIComponent {
 
       if (shouldShowLineNumberSeparators) {
         // Add a line number separator if we are at a different line number.
-        int lineIndex = getLineFromOffset(constraint.fileOffset);
+        int lineIndex = view.getLineFromOffset(constraint.fileOffset);
         if (lineIndex != currentLineIndex) {
           currentLineIndex = lineIndex;
           var row = new TableRowElement();
@@ -137,11 +135,6 @@ class ConstraintView extends UIComponent {
       hide();
       return;
     }
-  }
-
-  int getLineFromOffset(int offset) {
-    if (offset == -1) return -1;
-    return shownSource?.getLineFromOffset(offset) ?? -1;
   }
 }
 

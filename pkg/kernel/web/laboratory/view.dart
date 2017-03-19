@@ -11,7 +11,7 @@ View view = new View(null);
 
 class View {
   final NamedNode shownObject;
-  final Source source;
+  final Source _source;
   final Token tokenizedSource;
   final List<TreeNode> astNodes;
 
@@ -28,11 +28,11 @@ class View {
     return new View._(shownObject, source, tokenizedSource, astNodes);
   }
 
-  View._(this.shownObject, this.source, this.tokenizedSource, this.astNodes);
+  View._(this.shownObject, this._source, this.tokenizedSource, this.astNodes);
 
   bool get hasObject => shownObject != null;
   bool get hasTokens => tokenizedSource != null;
-  bool get hasSource => source != null;
+  bool get hasSource => _source != null;
   bool get hasAstNodes => astNodes != null;
 
   Library get libraryNode {
@@ -58,6 +58,20 @@ class View {
 
   String get fileUri => getFileUriFromNamedNode(shownObject);
 
+  int getStartOfLine(int lineIndex) {
+    return _source.lineStarts[lineIndex];
+  }
+
+  int getEndOfLine(int lineIndex) {
+    return _source.getEndOfLine(lineIndex);
+  }
+
+  int getLineFromOffset(int offset) {
+    return _source.getLineFromOffset(offset);
+  }
+
+  int get numberOfLines => _source.lineStarts.length;
+
   int getIndexOfLastAstNodeStrictlyBeforeOffset(int offset) {
     int first = 0, last = astNodes.length - 1;
     while (first < last) {
@@ -81,6 +95,10 @@ class View {
       return index;
     }
     return -1;
+  }
+
+  String getSourceCodeSubstring(int begin, int end) {
+    return _source.getSubstring(begin, end);
   }
 
   Token getFirstTokenAfterOffset(int offset) {

@@ -105,8 +105,8 @@ class CodeView extends UIComponent {
   }
 
   void openConstraintViewAt(LIElement listItem, int lineIndex) {
-    int start = view.source.lineStarts[lineIndex];
-    int end = view.source.getEndOfLine(lineIndex);
+    int start = view.getStartOfLine(lineIndex);
+    int end = view.getEndOfLine(lineIndex);
     listItem.append(ui.constraintView.rootElement);
     ui.constraintView.setShownObject(view.shownObject);
     ui.constraintView.setVisibleSourceRange(start, end);
@@ -141,7 +141,7 @@ class CodeView extends UIComponent {
       invalidate();
     }
     addOneShotAnimation(() {
-      int lineIndex = view.source.getLineFromOffset(constraint.fileOffset);
+      int lineIndex = view.getLineFromOffset(constraint.fileOffset);
       for (var section in sections) {
         var listItem = section.getLineNumberItem(lineIndex);
         if (listItem == null) continue;
@@ -210,27 +210,23 @@ class CodeView extends UIComponent {
 
   OListElement makeSourceList([int startOffset, int endOffset]) {
     var htmlList = new OListElement();
-    var code = view.source.source;
-    int numberOfLines = view.source.lineStarts.length;
     int firstLine = 0;
-    int lastLine = numberOfLines;
+    int lastLine = view.numberOfLines;
     if (startOffset != null) {
-      firstLine = view.source.getLineFromOffset(startOffset);
+      firstLine = view.getLineFromOffset(startOffset);
       htmlList.setAttribute('start', '${1 + firstLine}');
       endOffset ??= startOffset;
       // Move startOffset back to the start of its line
-      startOffset = view.source.lineStarts[firstLine];
+      startOffset = view.getStartOfLine(firstLine);
     }
     if (endOffset != null) {
-      lastLine = 1 + view.source.getLineFromOffset(endOffset);
+      lastLine = 1 + view.getLineFromOffset(endOffset);
     }
     var section = new CodeViewSection(firstLine, htmlList);
     Token token = view.getFirstTokenAfterOffset(startOffset ?? 0);
     for (int lineIndex = firstLine; lineIndex < lastLine; ++lineIndex) {
-      int start = view.source.lineStarts[lineIndex];
-      int end = lineIndex == numberOfLines - 1
-          ? code.length
-          : view.source.lineStarts[lineIndex + 1];
+      int start = view.getStartOfLine(lineIndex);
+      int end = view.getEndOfLine(lineIndex);
 
       var htmlListItem = new LIElement();
       htmlListItem.dataset['lineIndex'] = '$lineIndex';
@@ -241,13 +237,14 @@ class CodeView extends UIComponent {
       int offset = start;
       while (offset < end) {
         if (token == null || end <= token.offset) {
-          htmlLine.appendText(view.source.getSubstring(offset, end));
+          htmlLine.appendText(view.getSourceCodeSubstring(offset, end));
           break;
         }
         if (offset < token.offset) {
-          htmlLine.appendText(view.source.getSubstring(offset, token.offset));
+          htmlLine
+              .appendText(view.getSourceCodeSubstring(offset, token.offset));
         }
-        htmlLine.append(makeElementFromToken(token));
+        htmlLine.append(makeElementFromToken(token, start, end));
         offset = token.end;
         token = token.next;
       }
@@ -258,8 +255,8 @@ class CodeView extends UIComponent {
     return htmlList;
   }
 
-  html.Node makeElementFromToken(Token token) {
-    var element = new SpanElement()..text = token.lexeme;
+  html.Node makeElementFromToken(Token token, int start, int end) {
+    var element = new SpanElement()..text = clampTokenString(token, start, end);
     if (token.keyword != null || keywords.contains(token.lexeme)) {
       element.classes.add('keyword');
     } else if (Lexer.isUpperCaseLetter(token.lexeme.codeUnitAt(0))) {
