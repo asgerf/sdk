@@ -107,9 +107,8 @@ class CodeView extends UIComponent {
   void openConstraintViewAt(LIElement listItem, int lineIndex) {
     int start = view.getStartOfLine(lineIndex);
     int end = view.getEndOfLine(lineIndex);
-    listItem.append(ui.constraintView.rootElement);
-    ui.constraintView.setShownObject(view.shownObject);
     ui.constraintView.setVisibleSourceRange(start, end);
+    listItem.append(ui.constraintView.rootElement);
     _focusedListItem?.classes?.remove(CssClass.codeLineHighlighted);
     _focusedListItem = listItem;
     listItem.classes.add(CssClass.codeLineHighlighted);

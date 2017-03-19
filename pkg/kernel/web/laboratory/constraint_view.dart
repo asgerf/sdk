@@ -17,7 +17,6 @@ class ConstraintView extends UIComponent {
   final TableElement tableElement;
   final TableRowElement headerRowElement;
 
-  NamedNode _shownObject;
   SourceRange _visibleSourceRange = SourceRange.everything;
   final List<ConstraintViewRow> _constraintRows = <ConstraintViewRow>[];
   ConstraintViewRow _focusedConstraint;
@@ -33,11 +32,6 @@ class ConstraintView extends UIComponent {
 
   void hide() {
     tableElement.remove();
-  }
-
-  void setShownObject(NamedNode shownObject) {
-    this._shownObject = shownObject;
-    invalidate();
   }
 
   void setVisibleSourceRange(int start, int end) {
@@ -76,13 +70,13 @@ class ConstraintView extends UIComponent {
 
   @override
   void buildHtml() {
-    if (_shownObject == null || view.constraintList == null) {
+    if (view.shownObject == null || view.constraintList == null) {
       hide();
       return;
     }
     tableElement.children.clear();
     tableElement.append(headerRowElement);
-    var buffer = new KernelHtmlBuffer(tableElement, _shownObject);
+    var buffer = new KernelHtmlBuffer(tableElement, view.shownObject);
     var visitor = new ConstraintRowEmitter(buffer);
     int currentLineIndex = -2;
     bool isEmpty = true;
