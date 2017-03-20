@@ -28,7 +28,6 @@ class HistoryManager {
     event.stopPropagation();
     event.preventDefault();
     ui.backtracker.currentTimestamp = item.timestamp;
-    ui.backtracker.invalidate();
     if (item.constraintIndex != -1) {
       var constraint =
           constraintSystem.getConstraint(item.reference, item.constraintIndex);

@@ -19,13 +19,20 @@ class Backtracker extends UIComponent {
   final ProgressElement progressElement;
   final ButtonElement resetButton;
 
-  int currentTimestamp = 0;
-
-  bool get isBacktracking => currentTimestamp < report.endOfTime;
+  int _currentTimestamp = 0;
 
   Backtracker(this.containerElement, this.progressElement, this.resetButton) {
     resetButton.onClick.listen(onResetButtonClick);
   }
+
+  int get currentTimestamp => _currentTimestamp;
+
+  void set currentTimestamp(int time) {
+    _currentTimestamp = time;
+    invalidate();
+  }
+
+  bool get isBacktracking => currentTimestamp < report.endOfTime;
 
   void onResetButtonClick(MouseEvent ev) {
     reset();
