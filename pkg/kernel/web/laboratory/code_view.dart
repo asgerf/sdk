@@ -152,6 +152,9 @@ class CodeView extends UIComponent {
 
   @override
   void buildHtml() {
+    if (view == null) {
+      throw 'View became null when building HTML';
+    }
     if (!view.hasSource) return;
     String shownFilename = extractRelevantFilePath(view.fileUri);
     filenameElement.children

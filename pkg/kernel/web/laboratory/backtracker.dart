@@ -4,12 +4,15 @@
 library kernel.laboratory.backtracker;
 
 import 'dart:html';
+import 'history.dart';
 import 'laboratory_data.dart';
 import 'laboratory_ui.dart';
+import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/storage_location.dart';
 import 'type_view.dart';
 import 'ui_component.dart';
+import 'view.dart';
 
 class Backtracker extends UIComponent {
   final Element containerElement;
@@ -48,9 +51,13 @@ class Backtracker extends UIComponent {
   }
 
   MouseEventListener investigateStorageLocationOnEvent(
-      StorageLocation location) {
+      StorageLocation location, Constraint referee) {
     return (MouseEvent ev) {
       ev.stopPropagation();
+      if (referee != null && referee != ui.constraintView.focusedConstraint) {
+        history.push(new HistoryItem(referee.owner,
+            constraintIndex: referee.index, timestamp: currentTimestamp));
+      }
       investigateStorageLocation(location);
     };
   }
@@ -66,5 +73,7 @@ class Backtracker extends UIComponent {
     var constraint = transferEvent.constraint;
     ui.codeView.showConstraint(constraint);
     invalidate();
+    history.push(new HistoryItem(constraint.owner,
+        constraintIndex: constraint.index, timestamp: currentTimestamp));
   }
 }

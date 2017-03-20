@@ -3,6 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.laboratory.view;
 
+import 'html_buffer.dart';
 import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
 
@@ -40,6 +41,8 @@ class View {
       this.constraintList);
 
   NamedNode get astNode => reference.node;
+
+  String get name => getShortName(astNode);
 
   bool get hasObject => astNode != null;
   bool get hasTokens => tokenizedSource != null;

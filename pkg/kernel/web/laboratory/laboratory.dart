@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:html';
 import 'dart:typed_data';
 
+import 'history.dart';
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/class_hierarchy.dart';
@@ -47,6 +48,7 @@ main() {
 }
 
 void startMainUI() {
+  history = new HistoryManager();
   ui.codeView.showObject(program.mainMethodName);
   ui.mainContentDiv.style.visibility = 'visible';
   ui.fileSelectDiv.style.display = 'none';
@@ -63,6 +65,7 @@ void onBodyKeyPressed(KeyboardEvent ev) {
 }
 
 void onProgramLoaded() {
+  program.computeCanonicalNames();
   libraryIndex = new LibraryIndex.all(program);
   coreTypes = new CoreTypes(program);
   classHierarchy = new ClassHierarchy(program);

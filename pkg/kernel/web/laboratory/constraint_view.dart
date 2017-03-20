@@ -5,6 +5,7 @@ library kernel.laboratory.constraint_view;
 
 import 'dart:html';
 
+import 'history.dart';
 import 'package:kernel/inference/constraints.dart';
 
 import 'html_buffer.dart';
@@ -37,6 +38,8 @@ class ConstraintView extends UIComponent {
     _visibleSourceRange = new SourceRange(start, end);
     invalidate();
   }
+
+  Constraint get focusedConstraint => _focusedConstraint?.constraint;
 
   void unsetVisibleSourceRange() {
     if (_visibleSourceRange != SourceRange.everything) {
@@ -110,7 +113,9 @@ class ConstraintView extends UIComponent {
       // Add the constraint details.
       var row = new TableRowElement();
       buffer.appendPush(row);
+      buffer.currentConstraint = constraint;
       constraint.accept(visitor);
+      buffer.currentConstraint = null;
       buffer.pop(); // End row.
 
       _constraintRows.add(new ConstraintViewRow(constraint, row));

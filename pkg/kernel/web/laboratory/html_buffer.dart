@@ -6,7 +6,9 @@ library kernel.laboratory.html_buffer;
 import 'dart:html';
 import 'dart:html' as html;
 
+import 'history.dart';
 import 'package:kernel/ast.dart';
+import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/inference/storage_location.dart';
 import 'package:kernel/inference/value.dart';
 
@@ -40,6 +42,7 @@ class HtmlBuffer {
 
 class KernelHtmlBuffer extends HtmlBuffer {
   final Reference reference;
+  Constraint currentConstraint;
 
   KernelHtmlBuffer(Element root, this.reference) : super(root);
 
@@ -63,8 +66,8 @@ class KernelHtmlBuffer extends HtmlBuffer {
       ..text = locationName
       ..classes.add(CssClass.storageLocation)
       ..onMouseMove.listen(ui.typeView.showStorageLocationOnEvent(location))
-      ..onClick
-          .listen(ui.backtracker.investigateStorageLocationOnEvent(location));
+      ..onClick.listen(ui.backtracker
+          .investigateStorageLocationOnEvent(location, currentConstraint));
     if (location.owner == reference) {
       element.classes.add(locationName);
     }
@@ -85,24 +88,24 @@ class KernelHtmlBuffer extends HtmlBuffer {
       pop();
     }
   }
+}
 
-  String getShortName(NamedNode node) {
-    if (node is Class) {
-      return node.name;
-    } else if (node is Member) {
-      var class_ = node.enclosingClass;
-      if (class_ != null) {
-        return '${class_.name}.${node.name.name}';
-      }
-      return node.name.name;
-    } else if (node is Library) {
-      return node.name ?? '${node.importUri}';
-    } else {
-      throw 'Unexpected node: ${node.runtimeType}';
+String getShortName(NamedNode node) {
+  if (node is Class) {
+    return node.name;
+  } else if (node is Member) {
+    var class_ = node.enclosingClass;
+    if (class_ != null) {
+      return '${class_.name}.${node.name.name}';
     }
+    return node.name.name;
+  } else if (node is Library) {
+    return node.name ?? '${node.importUri}';
+  } else {
+    throw 'Unexpected node: ${node.runtimeType}';
   }
+}
 
-  String getLongName(NamedNode node) {
-    return '$node';
-  }
+String getLongName(NamedNode node) {
+  return '$node';
 }
