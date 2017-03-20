@@ -814,9 +814,9 @@ class ConstraintExtractorVisitor
     builder.setFileOffset(node.fileOffset);
     builder.addAssignment(input.source, output.sink, ValueFlags.all);
     if (isTaintingDowncast(node.type)) {
-      taintSubterms(output);
       builder.setFileOffset(node.fileOffset);
       builder.addEscape(input.source);
+      taintSubterms(output);
     }
     return output;
   }
