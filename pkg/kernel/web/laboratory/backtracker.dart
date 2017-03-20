@@ -29,18 +29,20 @@ class Backtracker extends UIComponent {
   void set currentTimestamp(int time) {
     _currentTimestamp = time;
     invalidate();
+    if (_currentTimestamp == report?.endOfTime) {
+      ui.constraintView.unfocusConstraint();
+    }
   }
 
   bool get isBacktracking => currentTimestamp < report.endOfTime;
 
   void onResetButtonClick(MouseEvent ev) {
+    history?.push(new HistoryItem(null, timestamp: report.endOfTime));
     reset();
   }
 
   void reset() {
-    currentTimestamp = report?.endOfTime;
-    ui.constraintView.unfocusConstraint();
-    invalidate();
+    currentTimestamp = report.endOfTime;
   }
 
   @override
@@ -74,26 +76,26 @@ class Backtracker extends UIComponent {
         history.push(new HistoryItem(referee.owner,
             constraintIndex: referee.index, timestamp: currentTimestamp));
       }
-      investigateStorageLocation(location);
+      history.push(investigateStorageLocation(location));
     };
   }
 
   /// Rewinds time to the most recent change that affected [location] and
   /// focuses the UI on the constraint that caused the change.
   ///
-  /// This will push a history item with the new UI location.
-  void investigateStorageLocation(StorageLocation location) {
-    if (report == null) return;
+  /// This returns a history item describing the new UI location.
+  HistoryItem investigateStorageLocation(StorageLocation location) {
+    if (report == null) return null;
     var changeEvent =
         report.getMostRecentChange(location, currentTimestamp - 1);
-    if (changeEvent.timestamp == Report.beginningOfTime) return;
+    if (changeEvent.timestamp == Report.beginningOfTime) return null;
     var transferEvent =
         report.getTransferEventFromTimestamp(changeEvent.timestamp);
     currentTimestamp = changeEvent.timestamp;
     var constraint = transferEvent.constraint;
     ui.codeView.showConstraint(constraint);
     invalidate();
-    history.push(new HistoryItem(constraint.owner,
-        constraintIndex: constraint.index, timestamp: currentTimestamp));
+    return new HistoryItem(constraint.owner,
+        constraintIndex: constraint.index, timestamp: currentTimestamp);
   }
 }
