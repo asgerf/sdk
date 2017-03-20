@@ -2401,7 +2401,8 @@ class InitializerBuilder extends GeneralizingAstVisitor<ast.Initializer> {
       return new ast.InvalidInitializer();
     }
     return new ast.FieldInitializer(
-        target, scope.buildExpression(node.expression));
+        target, scope.buildExpression(node.expression))
+      ..fileOffset = node.equals.offset;
   }
 
   visitSuperConstructorInvocation(SuperConstructorInvocation node) {
@@ -2411,7 +2412,8 @@ class InitializerBuilder extends GeneralizingAstVisitor<ast.Initializer> {
     }
     scope.addTransformerFlag(TransformerFlag.superCalls);
     return new ast.SuperInitializer(
-        target, scope._expressionBuilder.buildArguments(node.argumentList));
+        target, scope._expressionBuilder.buildArguments(node.argumentList))
+      ..fileOffset = node.superKeyword.offset;
   }
 
   visitRedirectingConstructorInvocation(RedirectingConstructorInvocation node) {
@@ -2420,7 +2422,8 @@ class InitializerBuilder extends GeneralizingAstVisitor<ast.Initializer> {
       return new ast.InvalidInitializer();
     }
     return new ast.RedirectingInitializer(
-        target, scope._expressionBuilder.buildArguments(node.argumentList));
+        target, scope._expressionBuilder.buildArguments(node.argumentList))
+      ..fileOffset = node.thisKeyword.offset;
   }
 
   visitNode(AstNode node) {
@@ -2625,10 +2628,13 @@ class ClassBodyBuilder extends GeneralizingAstVisitor<Null> {
         isConst: true,
         initializers: [
           new ast.FieldInitializer(
-              indexField, new ast.VariableGet(indexParameter)),
+              indexField, new ast.VariableGet(indexParameter))
+            ..fileOffset = node.name.offset,
           new ast.FieldInitializer(
-              nameField, new ast.VariableGet(nameParameter)),
+              nameField, new ast.VariableGet(nameParameter))
+            ..fileOffset = node.name.offset,
           new ast.SuperInitializer(superConstructor, new ast.Arguments.empty())
+            ..fileOffset = node.name.offset
         ])..fileOffset = element.nameOffset;
     classNode.addMember(constructor);
 
@@ -2643,6 +2649,7 @@ class ClassBodyBuilder extends GeneralizingAstVisitor<Null> {
             new ast.StringLiteral('${classNode.name}.${field.name.name}')
           ]),
           isConst: true)..parent = field;
+      field.fileOffset = constant.name.offset;
       field.type = classNode.rawType;
       classNode.addMember(field);
       ++index;
@@ -2652,6 +2659,7 @@ class ClassBodyBuilder extends GeneralizingAstVisitor<Null> {
     // Add the 'values' field.
     var valuesFieldElement = element.fields.firstWhere(_isValuesField);
     ast.Field valuesField = scope.getMemberReference(valuesFieldElement);
+    valuesField.fileOffset = node.name.offset;
     var enumType = classNode.rawType;
     valuesField.type = new ast.InterfaceType(
         scope.loader.getCoreClassReference('List'), <ast.DartType>[enumType]);
@@ -2667,7 +2675,7 @@ class ClassBodyBuilder extends GeneralizingAstVisitor<Null> {
     var toStringFunction = new ast.FunctionNode(body, returnType: stringType);
     var toStringMethod = new ast.Procedure(
         new ast.Name('toString'), ast.ProcedureKind.Method, toStringFunction,
-        fileUri: classNode.fileUri);
+        fileUri: classNode.fileUri)..fileOffset = node.name.offset;
     classNode.addMember(toStringMethod);
   }
 
@@ -2782,7 +2790,9 @@ class MemberBodyBuilder extends GeneralizingAstVisitor<Null> {
       var function = constructor.function;
       function.body = new ast.EmptyStatement()..parent = function;
     }
+    int parameterIndex = -1;
     for (var parameter in node.parameters.parameterElements) {
+      ++parameterIndex;
       if (parameter is FieldFormalParameterElement) {
         ast.Initializer initializer;
         if (parameter.field == null) {
@@ -2796,6 +2806,8 @@ class MemberBodyBuilder extends GeneralizingAstVisitor<Null> {
               scope.getMemberReference(parameter.field),
               new ast.VariableGet(scope.getVariableReference(parameter)));
         }
+        initializer.fileOffset =
+            node.parameters.parameters[parameterIndex].identifier.offset;
         constructor.initializers.add(initializer..parent = constructor);
       }
     }

@@ -197,6 +197,9 @@ class ConstraintExtractor {
   void checkOverride(
       Class host, Member ownMember, Member superMember, bool isSetter) {
     builder.setOwner(ownMember);
+    if (ownMember.fileOffset == -1) {
+      throw 'No file offset for member $ownMember';
+    }
     if (isSetter) {
       checkAssignable(
           ownMember,
@@ -465,10 +468,12 @@ class ConstraintExtractorVisitor
       checkAssignableExpression(node.initializer, fieldType);
     }
     if (node.isExternal || seenTypeError) {
+      builder.setFileOffset(node.fileOffset);
       bank.type.accept(new ExternalVisitor(extractor,
           extractor.externalModel.isSafeExternal(node), true, !node.isFinal));
     }
     if (extractor.externalModel.isEntryPoint(node)) {
+      builder.setFileOffset(node.fileOffset);
       bank.type
           .accept(new ExternalVisitor(extractor, false, true, !node.isFinal));
     }
@@ -482,10 +487,12 @@ class ConstraintExtractorVisitor
     node.initializers.forEach(visitInitializer);
     handleFunctionBody(node.function);
     if (node.isExternal || seenTypeError) {
+      builder.setFileOffset(node.fileOffset);
       bank.type.accept(new ExternalVisitor(extractor,
           extractor.externalModel.isSafeExternal(node), true, false));
     }
     if (extractor.externalModel.isEntryPoint(node)) {
+      builder.setFileOffset(node.fileOffset);
       bank.type.accept(new ExternalVisitor(extractor, false, false, true));
     }
   }
@@ -498,10 +505,12 @@ class ConstraintExtractorVisitor
     recordParameterTypes(bank, node.function);
     handleFunctionBody(node.function);
     if (node.isExternal || seenTypeError) {
+      builder.setFileOffset(node.fileOffset);
       bank.type.accept(new ExternalVisitor(extractor,
           extractor.externalModel.isSafeExternal(node), true, false));
     }
     if (extractor.externalModel.isEntryPoint(node)) {
+      builder.setFileOffset(node.fileOffset);
       bank.type.accept(new ExternalVisitor(extractor, false, false, true));
     }
   }
@@ -1510,7 +1519,7 @@ class ConstraintExtractorVisitor
   visitFieldInitializer(FieldInitializer node) {
     var type =
         thisSubstitution.substituteType(binding.getFieldType(node.field));
-    checkAssignableExpression(node.value, type);
+    checkAssignableExpression(node.value, type, node.fileOffset);
   }
 
   @override

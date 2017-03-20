@@ -547,20 +547,22 @@ class BinaryBuilder {
 
   Initializer readInitializer() {
     int tag = readByte();
+    int offset = readOffset();
     switch (tag) {
       case Tag.InvalidInitializer:
-        return new InvalidInitializer();
+        return new InvalidInitializer()..fileOffset = offset;
       case Tag.FieldInitializer:
         return new FieldInitializer.byReference(
-            readMemberReference(), readExpression());
+            readMemberReference(), readExpression())..fileOffset = offset;
       case Tag.SuperInitializer:
         return new SuperInitializer.byReference(
-            readMemberReference(), readArguments());
+            readMemberReference(), readArguments())..fileOffset = offset;
       case Tag.RedirectingInitializer:
         return new RedirectingInitializer.byReference(
-            readMemberReference(), readArguments());
+            readMemberReference(), readArguments())..fileOffset = offset;
       case Tag.LocalInitializer:
-        return new LocalInitializer(readAndPushVariableDeclaration());
+        return new LocalInitializer(readAndPushVariableDeclaration())
+          ..fileOffset = offset;
       default:
         throw fail('Invalid initializer tag: $tag');
     }

@@ -384,28 +384,33 @@ class BinaryPrinter extends Visitor {
 
   visitInvalidInitializer(InvalidInitializer node) {
     writeByte(Tag.InvalidInitializer);
+    writeOffset(node, node.fileOffset);
   }
 
   visitFieldInitializer(FieldInitializer node) {
     writeByte(Tag.FieldInitializer);
+    writeOffset(node, node.fileOffset);
     writeReference(node.fieldReference);
     writeNode(node.value);
   }
 
   visitSuperInitializer(SuperInitializer node) {
     writeByte(Tag.SuperInitializer);
+    writeOffset(node, node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.arguments);
   }
 
   visitRedirectingInitializer(RedirectingInitializer node) {
     writeByte(Tag.RedirectingInitializer);
+    writeOffset(node, node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.arguments);
   }
 
   visitLocalInitializer(LocalInitializer node) {
     writeByte(Tag.LocalInitializer);
+    writeOffset(node, node.fileOffset);
     writeVariableDeclaration(node.variable);
   }
 
