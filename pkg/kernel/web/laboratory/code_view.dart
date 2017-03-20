@@ -8,12 +8,12 @@ import 'dart:html' as html;
 import 'dart:math';
 
 import 'package:kernel/ast.dart';
+import 'package:kernel/inference/constraints.dart';
 
 import 'laboratory.dart';
 import 'laboratory_data.dart';
 import 'laboratory_ui.dart';
 import 'lexer.dart';
-import 'package:kernel/inference/constraints.dart';
 import 'ui_component.dart';
 import 'view.dart';
 
