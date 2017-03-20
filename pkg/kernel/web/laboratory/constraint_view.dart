@@ -73,6 +73,8 @@ class ConstraintView extends UIComponent {
       hide();
       return;
     }
+    _focusedConstraint?.unfocus();
+    _focusedConstraint = null;
     tableElement.children.clear();
     tableElement.append(headerRowElement);
     var buffer = new KernelHtmlBuffer(tableElement, view.reference);
