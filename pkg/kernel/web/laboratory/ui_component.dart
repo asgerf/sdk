@@ -73,6 +73,7 @@ abstract class UIComponent {
       for (var animation in _oneShotAnimations) {
         animation();
       }
+      _oneShotAnimations.clear();
     } finally {
       _state = 0; // Not dirty, not rebuilding, and microtask not scheduled.
     }
