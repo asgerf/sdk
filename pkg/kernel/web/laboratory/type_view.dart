@@ -178,11 +178,6 @@ class TypeView {
         const [CssClass.typeViewNextValue, CssClass.typeViewFinalValue]);
   }
 
-  String getFlagCssClass(Value value, int index) {
-    bool hasFlag = (value.flags & (1 << index) != 0);
-    return hasFlag ? CssClass.valueFlagOn : CssClass.valueFlagOff;
-  }
-
   bool showTypeOfExpression(
       Reference owner, TreeNode node, int inferredValueOffset) {
     if (constraintSystem == null) return false;
