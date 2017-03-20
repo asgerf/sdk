@@ -59,6 +59,9 @@ class CssClass {
   static const String valueFlagLabel = 'value-flag-label';
   static const String valueFlagOn = 'value-flag-on';
   static const String valueFlagOff = 'value-flag-off';
+  static const String typeViewCurrentValue = 'type-view-current-value';
+  static const String typeViewNextValue = 'type-view-next-value';
+  static const String typeViewFinalValue = 'type-view-final-value';
   static const String reference = 'reference';
   static const String constraintLabel = 'constraint-label';
   static const String constraintLineNumber = 'constraint-line-number';

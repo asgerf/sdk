@@ -18,6 +18,8 @@ class Backtracker extends UIComponent {
 
   int currentTimestamp = 0;
 
+  bool get isBacktracking => currentTimestamp < report.endOfTime;
+
   Backtracker(this.containerElement, this.progressElement, this.resetButton) {
     resetButton.onClick.listen(onResetButtonClick);
   }
@@ -60,7 +62,7 @@ class Backtracker extends UIComponent {
     if (changeEvent.timestamp == Report.beginningOfTime) return;
     var transferEvent =
         report.getTransferEventFromTimestamp(changeEvent.timestamp);
-    currentTimestamp = changeEvent.timestamp - 1;
+    currentTimestamp = changeEvent.timestamp;
     var constraint = transferEvent.constraint;
     ui.codeView.showConstraint(constraint);
     invalidate();

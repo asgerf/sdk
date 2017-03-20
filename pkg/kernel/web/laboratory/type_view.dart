@@ -88,37 +88,99 @@ class TypeView {
     }
   }
 
+  static const String changesTo = '→';
+
   void _setShownValue(Value value) {
+    _setShownValues(value, const [], const []);
+  }
+
+  void _setShownValues(Value currentValue, List<Value> futureValues,
+      List<String> futureClasses) {
     tableElement.children.clear();
     // Add base class row
     {
       var row = new TableRowElement();
 
-      row.append(new TableCellElement()
-        ..text = getPrettyClassName(value.baseClass)
-        ..classes.add(CssClass.valueBaseClass)
-        ..colSpan = 2);
+      // The current base class
+      {
+        row.append(new TableCellElement()
+          ..text = getPrettyClassName(currentValue.baseClass)
+          ..classes.add(CssClass.valueBaseClass)
+          ..colSpan = 2);
+      }
+
+      // Add future base classes
+      Value previous = currentValue;
+      for (int i = 0; i < futureValues.length; ++i) {
+        var futureValue = futureValues[i];
+        String text = futureValue.baseClass == previous.baseClass
+            ? ''
+            : '$changesTo ' + getPrettyClassName(futureValue.baseClass);
+        row.append(new TableCellElement()
+          ..text = text
+          ..classes.add(futureClasses[i]));
+        previous = futureValue;
+      }
 
       tableElement.append(row);
     }
     // Add flag rows
     for (int i = 0; i < ValueFlags.numberOfFlags; ++i) {
       var row = new TableRowElement();
-
-      bool hasFlag = (value.flags & (1 << i) != 0);
-      var hasFlagCss = hasFlag ? CssClass.valueFlagOn : CssClass.valueFlagOff;
+      int mask = 1 << i;
 
       String flagName = ValueFlags.flagNames[i];
       row.append(new TableCellElement()
         ..text = flagName
         ..classes.add(CssClass.valueFlagLabel));
 
+      bool hasFlag = currentValue.flags & mask != 0;
+      var hasFlagCss = hasFlag ? CssClass.valueFlagOn : CssClass.valueFlagOff;
       var hasFlagText = hasFlag ? 'yes' : 'no';
+
       row.append(new TableCellElement()..text = hasFlagText);
       row.classes.add(hasFlagCss);
 
+      Value previous = currentValue;
+      for (int i = 0; i < futureValues.length; ++i) {
+        var futureValue = futureValues[i];
+        if (futureValue.flags & mask == previous.flags & mask) {
+          row.append(new TableCellElement());
+          continue;
+        }
+        // At this point the future value should have the flag, because flags
+        // can only change from no to yes, but if there is a bug in the solver
+        // it should be evident when viewing the report, so just show the data.
+        bool hasFlag = futureValue.flags & mask != 0;
+        String text = hasFlag ? '$changesTo yes' : '$changesTo no';
+        row.append(new TableCellElement()
+          ..text = text
+          ..classes.add(futureClasses[i]));
+        previous = futureValue;
+      }
+
       tableElement.append(row);
     }
+  }
+
+  void _setShownValueFromStorageLocation(StorageLocation location) {
+    if (!ui.backtracker.isBacktracking) {
+      _setShownValue(report.getValue(location, report.endOfTime));
+      return;
+    }
+    int currentTime = ui.backtracker.currentTimestamp;
+    int previousTime = currentTime - 1;
+    List<Value> futureValues = [
+      report.getValue(location, currentTime),
+      report.getValue(location, report.endOfTime)
+    ];
+    _setShownValues(report.getValue(location, previousTime), futureValues,
+        const [CssClass.typeViewNextValue, CssClass.typeViewFinalValue]);
+  }
+
+  String getFlagCssClass(Value value, int index) {
+    bool hasFlag = (value.flags & (1 << index) != 0);
+    return hasFlag ? CssClass.valueFlagOn : CssClass.valueFlagOff;
   }
 
   bool showTypeOfExpression(
@@ -143,8 +205,7 @@ class TypeView {
     } else {
       var location =
           constraintSystem.getStorageLocation(owner, inferredValueOffset);
-      var value = report.getValue(location, ui.backtracker.currentTimestamp);
-      _setShownValue(value);
+      _setShownValueFromStorageLocation(location);
       var locationName = 'v${location.index}';
       storageLocationNameElement.text = locationName;
       setRelatedElementsFromCssClass(locationName);
@@ -163,8 +224,7 @@ class TypeView {
   }
 
   void showStorageLocation(StorageLocation location) {
-    var value = report.getValue(location, ui.backtracker.currentTimestamp);
-    _setShownValue(value);
+    _setShownValueFromStorageLocation(location);
     if (location.owner == view.reference) {
       setRelatedElementsFromCssClass('v${location.index}');
     } else {
