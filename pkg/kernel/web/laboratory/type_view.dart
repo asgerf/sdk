@@ -88,14 +88,13 @@ class TypeView {
     }
   }
 
-  static const String changesTo = '→';
-
   void _setShownValue(Value value) {
     _setShownValues(value, const [], const []);
   }
 
   void _setShownValues(Value currentValue, List<Value> futureValues,
       List<String> futureClasses) {
+    const String arrow = '→';
     tableElement.children.clear();
     // Add base class row
     {
@@ -115,7 +114,7 @@ class TypeView {
         var futureValue = futureValues[i];
         String text = futureValue.baseClass == previous.baseClass
             ? ''
-            : '$changesTo ' + getPrettyClassName(futureValue.baseClass);
+            : '$arrow ' + getPrettyClassName(futureValue.baseClass);
         row.append(new TableCellElement()
           ..text = text
           ..classes.add(futureClasses[i]));
@@ -152,7 +151,7 @@ class TypeView {
         // can only change from no to yes, but if there is a bug in the solver
         // it should be evident when viewing the report, so just show the data.
         bool hasFlag = futureValue.flags & mask != 0;
-        String text = hasFlag ? '$changesTo yes' : '$changesTo no';
+        String text = hasFlag ? '$arrow yes' : '$arrow no';
         row.append(new TableCellElement()
           ..text = text
           ..classes.add(futureClasses[i]));
