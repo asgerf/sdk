@@ -12,6 +12,12 @@ import 'package:kernel/canonical_name.dart';
 
 HistoryManager history;
 
+/// Interacts with the browser's navigation history to make the back button
+/// work.
+///
+/// UI components should call [push] with a [HistoryItem] to add an item to the
+/// history.  This class will decode the history item when the back button
+/// pressed, and update the UI accordingly.
 class HistoryManager {
   HistoryManager() {
     window.onPopState.listen(onPopState);
@@ -78,11 +84,5 @@ class HistoryItem {
       constraintIndex: map['constraintIndex'],
       timestamp: map['timestamp'],
     );
-  }
-
-  bool isSameAs(HistoryItem other) {
-    return reference == other.reference &&
-        constraintIndex == other.constraintIndex &&
-        timestamp == other.timestamp;
   }
 }

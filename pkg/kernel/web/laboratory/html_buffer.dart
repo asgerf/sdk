@@ -41,6 +41,10 @@ class HtmlBuffer {
 
 class KernelHtmlBuffer extends HtmlBuffer {
   final Reference reference;
+
+  /// Click events registered by this buffer will register [currentConstraint]
+  /// as the point of origin to which we should return when the browser's back
+  /// button is pressed.
   Constraint currentConstraint;
 
   KernelHtmlBuffer(Element root, this.reference) : super(root);

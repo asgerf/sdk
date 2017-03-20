@@ -56,10 +56,20 @@ class Backtracker extends UIComponent {
     containerElement.style.visibility = 'visible';
   }
 
+  /// Returns an event listener which will investiage the given storage location
+  /// when fired.
+  ///
+  /// If the [referee] is given, this constraint will be registered as the point
+  /// of origin to which we should return when the browser's back button is
+  /// pressed.
   MouseEventListener investigateStorageLocationOnEvent(
       StorageLocation location, Constraint referee) {
     return (MouseEvent ev) {
       ev.stopPropagation();
+      // Register the location we came from.
+      // Note that investigateStorageLocation always registers the destination,
+      // so to avoid duplicate history items, avoid registering the currently
+      // focused constraint again.
       if (referee != null && referee != ui.constraintView.focusedConstraint) {
         history.push(new HistoryItem(referee.owner,
             constraintIndex: referee.index, timestamp: currentTimestamp));
@@ -68,6 +78,10 @@ class Backtracker extends UIComponent {
     };
   }
 
+  /// Rewinds time to the most recent change that affected [location] and
+  /// focuses the UI on the constraint that caused the change.
+  ///
+  /// This will push a history item with the new UI location.
   void investigateStorageLocation(StorageLocation location) {
     if (report == null) return;
     var changeEvent =
