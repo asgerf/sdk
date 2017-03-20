@@ -7,7 +7,6 @@ import 'dart:async';
 import 'dart:html';
 import 'dart:typed_data';
 
-import 'history.dart';
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/class_hierarchy.dart';
@@ -19,6 +18,7 @@ import 'package:kernel/library_index.dart';
 import 'package:kernel/type_environment.dart';
 import 'package:kernel/util/reader.dart';
 
+import 'history_manager.dart';
 import 'key_codes.dart';
 import 'laboratory_data.dart';
 import 'laboratory_ui.dart' show ui;

@@ -6,7 +6,6 @@ library kernel.laboratory.html_buffer;
 import 'dart:html';
 import 'dart:html' as html;
 
-import 'history.dart';
 import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/inference/storage_location.dart';
