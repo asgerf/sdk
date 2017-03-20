@@ -56,7 +56,7 @@ class Backtracker extends UIComponent {
     containerElement.style.visibility = 'visible';
   }
 
-  /// Returns an event listener which will investiage the given storage location
+  /// Returns an event listener which will investigate the given storage location
   /// when fired.
   ///
   /// If the [referee] is given, this constraint will be registered as the point
