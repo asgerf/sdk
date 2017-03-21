@@ -197,9 +197,6 @@ class ConstraintExtractor {
   void checkOverride(
       Class host, Member ownMember, Member superMember, bool isSetter) {
     builder.setOwner(ownMember);
-    if (ownMember.fileOffset == -1) {
-      throw 'No file offset for member $ownMember';
-    }
     if (isSetter) {
       checkAssignable(
           ownMember,
