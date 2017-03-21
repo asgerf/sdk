@@ -96,7 +96,7 @@ class Backtracker extends UIComponent {
     var constraint = transferEvent.constraint;
     if (constraint.fileOffset == -1 && constraint is SubtypeConstraint) {
       // This happens for synthetic forwarding constructors in mixin classes.
-      // Skip over the forwarding constraint closer to the source.
+      // Skip over the forwarding constraint.
       return investigateStorageLocation(constraint.source);
     }
     ui.codeView.showConstraint(constraint);
