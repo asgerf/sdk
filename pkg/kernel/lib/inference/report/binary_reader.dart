@@ -26,16 +26,41 @@ class BinaryReportReader {
 
   ConstraintSystem readConstraintSystem() {
     constraintSystem = new ConstraintSystem();
+    // Read type parameter storage locations
     int numberOfBindings = reader.readUInt();
+    for (int i = 0; i < numberOfBindings; ++i) {
+      var owner = reader.readCanonicalName().getReference();
+      int numberOfTypeParameters = reader.readUInt();
+      var cluster = constraintSystem.getCluster(owner);
+      cluster.typeParameters.length = numberOfTypeParameters;
+      for (int i = 0; i < numberOfTypeParameters; ++i) {
+        int indexOfBound = reader.readUInt();
+        cluster.typeParameters[i] = new TypeParameterStorageLocation(owner, i)
+          ..indexOfBound = indexOfBound;
+      }
+    }
+    // Read storage locations
+    numberOfBindings = reader.readUInt();
     for (int i = 0; i < numberOfBindings; ++i) {
       var owner = reader.readCanonicalName().getReference();
       int numberOfStorageLocations = reader.readUInt();
       var cluster = constraintSystem.getCluster(owner);
       cluster.locations.length = numberOfStorageLocations;
       for (int i = 0; i < numberOfStorageLocations; ++i) {
-        cluster.locations[i] = new StorageLocation(owner, i);
+        TypeParameterStorageLocation parameterLocation;
+        var typeParameterOwner =
+            reader.readOptionalCanonicalName()?.getReference();
+        if (typeParameterOwner != null) {
+          int index = reader.readUInt();
+          parameterLocation = constraintSystem
+              .getCluster(typeParameterOwner)
+              .typeParameters[index];
+        }
+        cluster.locations[i] = new StorageLocation(owner, i)
+          ..parameterLocation = parameterLocation;
       }
     }
+    // Read constraints
     numberOfBindings = reader.readUInt();
     for (int i = 0; i < numberOfBindings; ++i) {
       var owner = reader.readCanonicalName().getReference();

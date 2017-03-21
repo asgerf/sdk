@@ -25,6 +25,12 @@ class Binding {
 
   AugmentorScope get globalAugmentorScope => _augmentorScope;
 
+  List<TypeParameterStorageLocation> _makeTypeParameterList(
+      Reference owner, int length) {
+    return new List<TypeParameterStorageLocation>.generate(
+        length, (i) => new TypeParameterStorageLocation(owner, i));
+  }
+
   MemberBank _initializeMemberBank(Member member) {
     if (member is Field) {
       var bank = new FieldBank(
@@ -38,9 +44,8 @@ class Binding {
           constraintSystem.getCluster(member.reference), coreTypes);
       memberBanks[member] = bank;
       var function = member.function;
-      bank.typeParameters = new List<TypeParameterStorageLocation>.generate(
-          function.typeParameters.length,
-          (i) => new TypeParameterStorageLocation(member, i));
+      bank.binding.typeParameters = _makeTypeParameterList(
+          member.reference, function.typeParameters.length);
       bank.type = bank
           .getInterfaceAugmentor(_augmentorScope)
           .augmentType(function.functionType);
@@ -56,9 +61,8 @@ class Binding {
     var bank =
         new ClassBank(constraintSystem.getCluster(class_.reference), coreTypes);
     classBanks[class_] = bank;
-    bank.typeParameters = new List<TypeParameterStorageLocation>.generate(
-        class_.typeParameters.length,
-        (i) => new TypeParameterStorageLocation(class_, i));
+    bank.binding.typeParameters =
+        _makeTypeParameterList(class_.reference, class_.typeParameters.length);
     var augmentor = bank.getInterfaceAugmentor(_augmentorScope);
     bank.typeParameterBounds = class_.typeParameters
         .map((p) => augmentor.augmentBound(p.bound))
@@ -75,10 +79,10 @@ class Binding {
 
   StorageLocation getBoundForParameter(TypeParameterStorageLocation parameter) {
     if (parameter.owner is Class) {
-      var bank = getClassBank(parameter.owner);
+      var bank = getClassBank(parameter.owner.node);
       return bank.locations[parameter.indexOfBound];
     } else {
-      var bank = getFunctionBank(parameter.owner);
+      var bank = getFunctionBank(parameter.owner.node);
       return bank.locations[parameter.indexOfBound];
     }
   }
@@ -204,12 +208,13 @@ class FieldBank extends MemberBank {
 
 /// The storage location bank for a procedure or constructor.
 class FunctionMemberBank extends MemberBank {
-  List<TypeParameterStorageLocation> typeParameters;
   FunctionAType type;
 
   FunctionMemberBank(ConstraintCluster binding, CoreTypes coreTypes)
       : super(binding, coreTypes);
 
+  List<TypeParameterStorageLocation> get typeParameters =>
+      binding.typeParameters;
   AType get returnType => type.returnType;
   List<AType> get typeParameterBounds => type.typeParameterBounds;
   List<AType> get positionalParameters => type.positionalParameters;
@@ -223,7 +228,6 @@ class FunctionMemberBank extends MemberBank {
 /// Provides access to the augmented type parameter bounds and augmented
 /// [supertypes].
 class ClassBank extends StorageLocationBank {
-  List<TypeParameterStorageLocation> typeParameters;
   List<AType> typeParameterBounds;
   List<ASupertype> supertypes;
 
@@ -231,4 +235,7 @@ class ClassBank extends StorageLocationBank {
       : super(binding, coreTypes);
 
   Class get classNode => binding.owner.asClass;
+
+  List<TypeParameterStorageLocation> get typeParameters =>
+      binding.typeParameters;
 }

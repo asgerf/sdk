@@ -6,6 +6,7 @@ library kernel.inference.value;
 import '../ast.dart';
 import '../text/printable.dart';
 import 'extractor/value_source.dart';
+import 'package:kernel/class_hierarchy.dart';
 
 /// An abstract value, denoting a set of possible concrete values.
 ///
@@ -174,5 +175,43 @@ class ValueFlags {
       }
     }
     return names.join(',');
+  }
+}
+
+class ValueLattice {
+  final ClassHierarchy hierarchy;
+
+  ValueLattice(this.hierarchy);
+
+  /// Returns the least upper bound of two base classes, where `null` represents
+  /// bottom.
+  Class getCommonBaseClass(Class first, Class second) {
+    if (first == null) return second;
+    if (second == null) return first;
+    return hierarchy.getCommonBaseClass(first, second);
+  }
+
+  /// Returns the least upper bound of the two values, and reuses the [oldValue]
+  /// object if it is equal to the result.
+  ///
+  /// The caller may check if the result is `identical` to [oldValue] to detect
+  /// if the value has changed.
+  Value joinValues(Value oldValue, Value inputValue) {
+    int oldFlags = oldValue.flags;
+    int inputFlags = inputValue.flags;
+    int newFlags = oldFlags | inputFlags;
+    Class oldBaseClass = oldValue.baseClass;
+    Class inputBaseClass = inputValue.baseClass;
+    Class newBaseClass = oldBaseClass;
+    if (inputBaseClass != null && oldBaseClass != inputBaseClass) {
+      if (oldBaseClass != null) {
+        newFlags |= ValueFlags.inexactBaseClass;
+      }
+      newBaseClass = getCommonBaseClass(oldBaseClass, inputBaseClass);
+    }
+    if (newBaseClass != oldBaseClass || newFlags != oldFlags) {
+      return new Value(newBaseClass, newFlags);
+    }
+    return oldValue;
   }
 }

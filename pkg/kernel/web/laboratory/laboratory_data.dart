@@ -9,6 +9,7 @@ import 'package:kernel/core_types.dart';
 import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/inference/extractor/binding.dart';
 import 'package:kernel/inference/report/report.dart';
+import 'package:kernel/inference/value.dart';
 import 'package:kernel/library_index.dart';
 import 'package:kernel/type_environment.dart';
 
@@ -20,3 +21,4 @@ ClassHierarchy classHierarchy;
 TypeEnvironment typeEnvironment;
 Binding binding;
 Report report;
+ValueLattice valueLattice;

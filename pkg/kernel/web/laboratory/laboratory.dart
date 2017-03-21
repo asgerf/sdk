@@ -14,6 +14,7 @@ import 'package:kernel/core_types.dart';
 import 'package:kernel/inference/extractor/binding.dart';
 import 'package:kernel/inference/report/binary_reader.dart';
 import 'package:kernel/inference/report/report.dart';
+import 'package:kernel/inference/value.dart';
 import 'package:kernel/library_index.dart';
 import 'package:kernel/type_environment.dart';
 import 'package:kernel/util/reader.dart';
@@ -71,6 +72,7 @@ void onProgramLoaded() {
   coreTypes = new CoreTypes(program);
   classHierarchy = new ClassHierarchy(program);
   typeEnvironment = new TypeEnvironment(coreTypes, classHierarchy);
+  valueLattice = new ValueLattice(classHierarchy);
   if (report != null && program != null) {
     startMainUI();
   }

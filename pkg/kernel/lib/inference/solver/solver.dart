@@ -3,7 +3,6 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.solver.solver;
 
-import '../../ast.dart';
 import '../../class_hierarchy.dart';
 import '../constraints.dart';
 import '../storage_location.dart';
@@ -36,50 +35,17 @@ abstract class SolverListener {
 }
 
 class ConstraintSolver {
-  final ClassHierarchy hierarchy;
+  final ValueLattice lattice;
   final ConstraintSystem constraints;
   final List<WorkItem> worklist = <WorkItem>[];
   final SolverListener report;
 
-  ConstraintSolver(this.hierarchy, this.constraints, [this.report]);
-
-  Class get rootClass => hierarchy.classes[0];
-
-  /// Returns the least upper bound of the two values, and reuses the [oldValue]
-  /// object if it is equal to the result.
-  ///
-  /// The caller may check if the result is `identical` to [oldValue] to detect
-  /// if the value has changed.
-  Value joinValues(Value oldValue, Value inputValue) {
-    int oldFlags = oldValue.flags;
-    int inputFlags = inputValue.flags;
-    int newFlags = oldFlags | inputFlags;
-    Class oldBaseClass = oldValue.baseClass;
-    Class inputBaseClass = inputValue.baseClass;
-    Class newBaseClass = oldBaseClass;
-    if (inputBaseClass != null && oldBaseClass != inputBaseClass) {
-      if (oldBaseClass != null) {
-        newFlags |= ValueFlags.inexactBaseClass;
-      }
-      newBaseClass = getCommonBaseClass(oldBaseClass, inputBaseClass);
-    }
-    if (newBaseClass != oldBaseClass || newFlags != oldFlags) {
-      return new Value(newBaseClass, newFlags);
-    }
-    return oldValue;
-  }
-
-  /// Returns the least upper bound of two base classes, where `null` represents
-  /// bottom.
-  Class getCommonBaseClass(Class first, Class second) {
-    if (first == null) return second;
-    if (second == null) return first;
-    return hierarchy.getCommonBaseClass(first, second);
-  }
+  ConstraintSolver(ClassHierarchy hierarchy, this.constraints, [this.report])
+      : lattice = new ValueLattice(hierarchy);
 
   void propagateValue(StorageLocation location, Value inputValue) {
     Value oldValue = location.value;
-    Value newValue = joinValues(oldValue, inputValue);
+    Value newValue = lattice.joinValues(oldValue, inputValue);
     if (!identical(oldValue, newValue)) {
       location.value = newValue;
       enqueue(location.forward);

@@ -40,7 +40,7 @@ class _InferenceResults extends InferenceResults {
 
   MemberInferenceResults getInferredValuesForMember(Member member) {
     return new _MemberInferenceResults(
-        _binding.getMemberBank(member), _binding, _solver, _top);
+        _binding.getMemberBank(member), _binding, _solver.lattice, _top);
   }
 
   Report get report => _report;
@@ -49,17 +49,17 @@ class _InferenceResults extends InferenceResults {
 class _MemberInferenceResults implements MemberInferenceResults {
   final StorageLocationBank _bank;
   final Binding _binding;
-  final ConstraintSolver _solver;
+  final ValueLattice _lattice;
   final Value _top;
 
-  _MemberInferenceResults(this._bank, this._binding, this._solver, this._top);
+  _MemberInferenceResults(this._bank, this._binding, this._lattice, this._top);
 
   Value _getStorageLocationValue(StorageLocation location) {
     Value value = location.value;
     // Build a value that summarizes all possible calling contexts.
     while (location.parameterLocation != null) {
       location = _binding.getBoundForParameter(location.parameterLocation);
-      value = _solver.joinValues(value, location.value);
+      value = _lattice.joinValues(value, location.value);
     }
     return value;
   }

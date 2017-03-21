@@ -28,6 +28,10 @@ class ConstraintSystem {
     return cluster.locations[index];
   }
 
+  StorageLocation getBoundLocation(TypeParameterStorageLocation typeParameter) {
+    return getStorageLocation(typeParameter.owner, typeParameter.indexOfBound);
+  }
+
   void addConstraint(Constraint constraint, Reference owner, int fileOffset) {
     var cluster = clusters[owner] ??= new ConstraintCluster(owner);
     cluster.addConstraint(constraint, fileOffset);
@@ -50,6 +54,8 @@ class ConstraintSystem {
 
 class ConstraintCluster {
   final Reference owner;
+  List<TypeParameterStorageLocation> typeParameters =
+      <TypeParameterStorageLocation>[];
   final List<StorageLocation> locations = <StorageLocation>[];
   final List<Constraint> constraints = <Constraint>[];
 

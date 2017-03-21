@@ -162,18 +162,27 @@ class TypeView {
     }
   }
 
+  Value getValue(StorageLocation location, int time) {
+    Value value = report.getValue(location, time);
+    while (location.parameterLocation != null) {
+      location = constraintSystem.getBoundLocation(location.parameterLocation);
+      value = valueLattice.joinValues(value, report.getValue(location, time));
+    }
+    return value;
+  }
+
   void _setShownValueFromStorageLocation(StorageLocation location) {
     if (!ui.backtracker.isBacktracking) {
-      _setShownValue(report.getValue(location, report.endOfTime));
+      _setShownValue(getValue(location, report.endOfTime));
       return;
     }
     int currentTime = ui.backtracker.currentTimestamp;
     int previousTime = currentTime - 1;
     List<Value> futureValues = [
-      report.getValue(location, currentTime),
-      report.getValue(location, report.endOfTime)
+      getValue(location, currentTime),
+      getValue(location, report.endOfTime)
     ];
-    _setShownValues(report.getValue(location, previousTime), futureValues,
+    _setShownValues(getValue(location, previousTime), futureValues,
         const [CssClass.typeViewNextValue, CssClass.typeViewFinalValue]);
   }
 

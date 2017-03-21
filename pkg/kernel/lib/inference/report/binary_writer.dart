@@ -35,13 +35,39 @@ class BinaryReportWriter {
     writer.writeUInt(constraints.clusters.length);
     constraints.clusters.forEach((Reference owner, ConstraintCluster cluster) {
       writer.writeCanonicalName(owner.canonicalName);
-      writer.writeUInt(cluster.locations.length);
+      writeTypeParameterStorageLocations(cluster.typeParameters);
+    });
+    writer.writeUInt(constraints.clusters.length);
+    constraints.clusters.forEach((Reference owner, ConstraintCluster cluster) {
+      writer.writeCanonicalName(owner.canonicalName);
+      writeStorageLocations(cluster.locations);
     });
     writer.writeUInt(constraints.clusters.length);
     constraints.clusters.forEach((Reference owner, ConstraintCluster cluster) {
       writer.writeCanonicalName(owner.canonicalName);
       writeConstraintList(cluster.constraints);
     });
+  }
+
+  void writeTypeParameterStorageLocations(
+      List<TypeParameterStorageLocation> typeParameters) {
+    writer.writeUInt(typeParameters.length);
+    for (var typeParameter in typeParameters) {
+      writer.writeUInt(typeParameter.indexOfBound);
+    }
+  }
+
+  void writeStorageLocations(List<StorageLocation> locations) {
+    writer.writeUInt(locations.length);
+    for (var location in locations) {
+      var parameter = location.parameterLocation;
+      if (location.parameterLocation == null) {
+        writer.writeOptionalCanonicalName(null);
+      } else {
+        writer.writeCanonicalName(parameter.owner.canonicalName);
+        writer.writeUInt(parameter.typeParameterIndex);
+      }
+    }
   }
 
   void writeConstraints(ConstraintSystem constraintSystem) {

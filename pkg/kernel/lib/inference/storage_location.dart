@@ -49,7 +49,7 @@ class StorageLocation extends solver.StorageLocationBaseClass
 }
 
 class TypeParameterStorageLocation {
-  final TreeNode owner;
+  final Reference owner;
   final int typeParameterIndex;
 
   /// Index of the storage location in the [owner]'s bank that corresponds to
