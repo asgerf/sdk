@@ -25,6 +25,7 @@ main(List<String> args) {
   testCallbackEscapeDynamic();
   testGenericCasts();
   testEscapeNonGeneric();
+  testCombinators();
 }
 
 void takeExact(Foo foo) => takeExact2(foo);
@@ -372,6 +373,7 @@ class Escaping {
     globalVar = x;
     dependentField = escapingField;
   }
+
   int escapingIdentity(int x) => x;
   int identity(int x) => x;
 }
@@ -426,4 +428,18 @@ void testEscapeNonGeneric() {
 
   var nonEscapedSubclass = new EscapingSubclass();
   int nonNullableInt12 = nonEscapedSubclass.escapingField3;
+}
+
+void testCombinators() {
+  var nonNullable = ['foo', 'bar', 'baz'];
+  nonNullable.forEach((x) {
+    print(x);
+  });
+  var nonNullableMapped = nonNullable.map((x) => x).first;
+
+  var nullable = ['foo', 'bar', null, 'baz'];
+  nullable.forEach((x) {
+    print(x);
+  });
+  var nullableMapped = nullable.map((x) => x).first;
 }
