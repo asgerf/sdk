@@ -201,6 +201,7 @@ class ConstraintExtractor {
 
   void checkOverride(
       Class host, Member ownMember, Member superMember, bool isSetter) {
+    if (externalModel.forceExternal(superMember)) return;
     builder.setOwner(ownMember);
     if (isSetter) {
       checkAssignable(
@@ -350,6 +351,7 @@ class ConstraintExtractorVisitor
   AugmentedHierarchy get hierarchy => extractor.hierarchy;
   Binding get binding => extractor.binding;
   ConstraintBuilder get builder => extractor.builder;
+  ExternalModel get externalModel => extractor.externalModel;
   Class get currentClass => currentMember.enclosingClass;
 
   Uri get currentUri => currentMember.enclosingLibrary.importUri;
@@ -479,15 +481,19 @@ class ConstraintExtractorVisitor
   visitField(Field node) {
     FieldBank bank = this.bank;
     var fieldType = thisSubstitution.substituteType(bank.type);
-    if (node.initializer != null) {
+    bool treatAsExternal = node.isExternal || externalModel.forceExternal(node);
+    if (node.initializer != null && !treatAsExternal) {
       checkAssignableExpression(node.initializer, fieldType);
+      if (seenTypeError) {
+        treatAsExternal = true;
+      }
     }
-    if (node.isExternal || seenTypeError) {
+    if (treatAsExternal) {
       builder.setFileOffset(node.fileOffset);
-      bank.type.accept(new ExternalVisitor(extractor,
-          extractor.externalModel.isCleanExternal(node), true, !node.isFinal));
+      bank.type.accept(new ExternalVisitor(
+          extractor, externalModel.isCleanExternal(node), true, !node.isFinal));
     }
-    if (extractor.externalModel.isEntryPoint(node)) {
+    if (externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
       bank.type
           .accept(new ExternalVisitor(extractor, false, true, !node.isFinal));
@@ -500,13 +506,19 @@ class ConstraintExtractorVisitor
     FunctionMemberBank bank = this.bank;
     recordParameterTypes(bank, node.function);
     node.initializers.forEach(visitInitializer);
-    handleFunctionBody(node.function);
-    if (node.isExternal || seenTypeError) {
-      builder.setFileOffset(node.fileOffset);
-      bank.type.accept(new ExternalVisitor(extractor,
-          extractor.externalModel.isCleanExternal(node), true, false));
+    bool treatAsExternal = node.isExternal || externalModel.forceExternal(node);
+    if (!treatAsExternal) {
+      handleFunctionBody(node.function);
+      if (seenTypeError) {
+        treatAsExternal = true;
+      }
     }
-    if (extractor.externalModel.isEntryPoint(node)) {
+    if (treatAsExternal) {
+      builder.setFileOffset(node.fileOffset);
+      bank.type.accept(new ExternalVisitor(
+          extractor, externalModel.isCleanExternal(node), true, false));
+    }
+    if (externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
       bank.type.accept(new ExternalVisitor(extractor, false, false, true));
     }
@@ -518,13 +530,19 @@ class ConstraintExtractorVisitor
     returnType = _getInternalReturnType(node.function.asyncMarker, ret);
     yieldType = _getYieldType(node.function.asyncMarker, ret);
     recordParameterTypes(bank, node.function);
-    handleFunctionBody(node.function);
-    if (node.isExternal || seenTypeError) {
-      builder.setFileOffset(node.fileOffset);
-      bank.type.accept(new ExternalVisitor(extractor,
-          extractor.externalModel.isCleanExternal(node), true, false));
+    bool treatAsExternal = node.isExternal || externalModel.forceExternal(node);
+    if (!treatAsExternal) {
+      handleFunctionBody(node.function);
+      if (seenTypeError) {
+        treatAsExternal = true;
+      }
     }
-    if (extractor.externalModel.isEntryPoint(node)) {
+    if (treatAsExternal) {
+      builder.setFileOffset(node.fileOffset);
+      bank.type.accept(new ExternalVisitor(
+          extractor, externalModel.isCleanExternal(node), true, false));
+    }
+    if (externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
       bank.type.accept(new ExternalVisitor(extractor, false, false, true));
     }
@@ -971,10 +989,15 @@ class ConstraintExtractorVisitor
   @override
   AType visitLet(Let node) {
     var value = visitExpression(node.variable.initializer);
-    // TODO(asgerf): Make sure let variable is not 'dynamic'.
-    var type = scope.variables[node.variable] =
-        augmentor.augmentType(node.variable.type);
-    checkAssignable(node, value, type);
+    if (node.variable.type is DynamicType) {
+      scope.variables[node.variable] = value;
+      node.variable.inferredValueOffset =
+          node.variable.initializer.inferredValueOffset;
+    } else {
+      var type = scope.variables[node.variable] =
+          augmentor.augmentType(node.variable.type);
+      checkAssignable(node, value, type);
+    }
     return visitExpression(node.body);
   }
 

@@ -13,6 +13,11 @@ abstract class ExternalModel {
   /// cause any objects to escape.
   bool isCleanExternal(Member member);
 
+  /// If true, the analysis should treat [member] as external using this model,
+  /// even though it has an implementation and/or is overridden by methods that
+  /// implement it.
+  bool forceExternal(Member member);
+
   /// True if the given member can be invoked from external code.
   ///
   /// This is not called for `main`, that is treated separately.
@@ -27,6 +32,7 @@ class VmExternalModel extends ExternalModel {
   final List<ProgramRoot> programRoots;
   final Set<Member> entryPointMembers = new Set<Member>();
   Class externalNameAnnotation;
+  final Set<Member> forceExternals = new Set<Member>();
 
   VmExternalModel(Program program, this.coreTypes, this.programRoots) {
     externalNameAnnotation =
@@ -40,6 +46,7 @@ class VmExternalModel extends ExternalModel {
         }
       }
     }
+    forceExternals.add(coreTypes.getMember('dart:core', 'num', '~/'));
   }
 
   ConstructorInvocation getAnnotation(
@@ -58,6 +65,7 @@ class VmExternalModel extends ExternalModel {
   }
 
   bool isCleanExternal(Member member) {
+    if (forceExternal(member)) return true;
     var annotation = getAnnotation(member.annotations, externalNameAnnotation);
     if (annotation == null) return false;
     if (annotation.arguments.positional.length < 1) return false;
@@ -67,6 +75,10 @@ class VmExternalModel extends ExternalModel {
 
   bool isEntryPoint(Member member) {
     return entryPointMembers.contains(member);
+  }
+
+  bool forceExternal(Member member) {
+    return forceExternals.contains(member);
   }
 }
 
