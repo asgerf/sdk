@@ -1059,7 +1059,7 @@ class _ExternalBuffer {
   List<int> data;
   int start;
   int end;
-  final size;
+  final int size;
 
   _ExternalBuffer(this.size) {
     start = end = size ~/ 2;

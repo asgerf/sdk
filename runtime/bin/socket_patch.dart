@@ -1081,7 +1081,7 @@ class _NativeSocket extends _NativeSocketNativeWrapper with _ServiceObject {
 
 
   void nativeSetSocketId(int id) native "Socket_SetSocketId";
-  nativeAvailable() native "Socket_Available";
+  int nativeAvailable() native "Socket_Available";
   nativeRead(int len) native "Socket_Read";
   nativeRecvFrom() native "Socket_RecvFrom";
   nativeWrite(List<int> buffer, int offset, int bytes)
