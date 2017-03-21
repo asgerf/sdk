@@ -4,13 +4,14 @@
 library kernel.laboratory.backtracker;
 
 import 'dart:html';
-import 'history_manager.dart';
-import 'laboratory_data.dart';
-import 'laboratory_ui.dart';
-import 'package:kernel/ast.dart';
+
 import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/storage_location.dart';
+
+import 'history_manager.dart';
+import 'laboratory_data.dart';
+import 'laboratory_ui.dart';
 import 'type_view.dart';
 import 'ui_component.dart';
 
