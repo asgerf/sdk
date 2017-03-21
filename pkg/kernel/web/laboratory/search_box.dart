@@ -6,6 +6,7 @@ library kernel.laboratory.search_box;
 import 'dart:async';
 import 'dart:html';
 
+import 'history_manager.dart';
 import 'package:kernel/ast.dart';
 
 import 'key_codes.dart';
@@ -109,7 +110,9 @@ class SearchBox {
   void presentSelectedElement() {
     var index = suggestionBoxSelect.selectedIndex;
     if (index >= 0 && index < suggestedNodes.length) {
-      ui.codeView.showObject(suggestedNodes[index]);
+      var target = suggestedNodes[index];
+      history.push(new HistoryItem(target));
+      ui.codeView.showObject(target);
     }
     hideSuggestionBox();
   }

@@ -49,6 +49,7 @@ main() {
 
 void startMainUI() {
   history = new HistoryManager();
+  history.replace(new HistoryItem(program.mainMethodName));
   ui.codeView.showObject(program.mainMethodName);
   ui.mainContentDiv.style.visibility = 'visible';
   ui.fileSelectDiv.style.display = 'none';

@@ -61,6 +61,11 @@ class HistoryManager {
     if (item == null) return;
     window.history.pushState(item.toJson(), '', '#');
   }
+
+  void replace(HistoryItem item) {
+    if (item == null) return;
+    window.history.replaceState(item.toJson(), '', '#');
+  }
 }
 
 class HistoryItem {
