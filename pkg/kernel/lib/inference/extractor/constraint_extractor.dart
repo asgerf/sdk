@@ -249,8 +249,8 @@ class ConstraintExtractor {
     return new Value(coreTypes.objectClass, ValueFlags.all);
   }
 
-  Value getWorstCaseValue(Class classNode, {bool isNice: false}) {
-    if (isNice) return getNiceCaseValue(classNode);
+  Value getWorstCaseValue(Class classNode, {bool isClean: false}) {
+    if (isClean) return getCleanValue(classNode);
     if (classNode == coreTypes.intClass) return nullableIntValue;
     if (classNode == coreTypes.doubleClass) return nullableDoubleValue;
     if (classNode == coreTypes.numClass) return nullableNumValue;
@@ -260,7 +260,7 @@ class ConstraintExtractor {
     return new Value(coreTypes.objectClass, ValueFlags.all);
   }
 
-  Value getNiceCaseValue(Class classNode) {
+  Value getCleanValue(Class classNode) {
     if (classNode == coreTypes.intClass) return intValue;
     if (classNode == coreTypes.doubleClass) return doubleValue;
     if (classNode == coreTypes.numClass) return numValue;
@@ -470,7 +470,7 @@ class ConstraintExtractorVisitor
     if (node.isExternal || seenTypeError) {
       builder.setFileOffset(node.fileOffset);
       bank.type.accept(new ExternalVisitor(extractor,
-          extractor.externalModel.isSafeExternal(node), true, !node.isFinal));
+          extractor.externalModel.isCleanExternal(node), true, !node.isFinal));
     }
     if (extractor.externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
@@ -489,7 +489,7 @@ class ConstraintExtractorVisitor
     if (node.isExternal || seenTypeError) {
       builder.setFileOffset(node.fileOffset);
       bank.type.accept(new ExternalVisitor(extractor,
-          extractor.externalModel.isSafeExternal(node), true, false));
+          extractor.externalModel.isCleanExternal(node), true, false));
     }
     if (extractor.externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
@@ -507,7 +507,7 @@ class ConstraintExtractorVisitor
     if (node.isExternal || seenTypeError) {
       builder.setFileOffset(node.fileOffset);
       bank.type.accept(new ExternalVisitor(extractor,
-          extractor.externalModel.isSafeExternal(node), true, false));
+          extractor.externalModel.isCleanExternal(node), true, false));
     }
     if (extractor.externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
@@ -1565,35 +1565,36 @@ class ConstraintExtractorVisitor
 class ExternalVisitor extends ATypeVisitor {
   final ConstraintExtractor extractor;
   final bool isCovariant, isContravariant;
-  final bool isNice;
+  final bool isClean;
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ConstraintBuilder get builder => extractor.builder;
 
   ExternalVisitor(
-      this.extractor, this.isNice, this.isCovariant, this.isContravariant);
+      this.extractor, this.isClean, this.isCovariant, this.isContravariant);
 
   ExternalVisitor.bivariant(this.extractor)
-      : isNice = false,
+      : isClean = false,
         isCovariant = true,
         isContravariant = true;
 
   ExternalVisitor.covariant(this.extractor)
-      : isNice = false,
+      : isClean = false,
         isCovariant = true,
         isContravariant = false;
 
   ExternalVisitor.contravariant(this.extractor)
-      : isNice = false,
+      : isClean = false,
         isCovariant = false,
         isContravariant = true;
 
   ExternalVisitor get inverseVisitor {
-    return new ExternalVisitor(extractor, isNice, isContravariant, isCovariant);
+    return new ExternalVisitor(
+        extractor, isClean, isContravariant, isCovariant);
   }
 
   ExternalVisitor get bivariantVisitor {
-    return new ExternalVisitor(extractor, isNice, true, true);
+    return new ExternalVisitor(extractor, isClean, true, true);
   }
 
   void visit(AType type) => type.accept(this);
@@ -1627,11 +1628,11 @@ class ExternalVisitor extends ATypeVisitor {
   visitInterfaceAType(InterfaceAType type) {
     var source = type.source;
     if (isCovariant && source is StorageLocation) {
-      var value = extractor.getWorstCaseValue(type.classNode, isNice: isNice);
+      var value = extractor.getWorstCaseValue(type.classNode, isClean: isClean);
       builder.addAssignment(value, source, ValueFlags.allValueSets);
     }
     var sink = type.sink;
-    if (!isNice && isContravariant && sink is StorageLocation) {
+    if (!isClean && isContravariant && sink is StorageLocation) {
       builder.addEscape(sink);
     }
     type.typeArguments.forEach(visitBound);

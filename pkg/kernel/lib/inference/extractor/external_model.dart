@@ -11,7 +11,7 @@ import '../../program_root.dart';
 abstract class ExternalModel {
   /// True if the given external [member] does not return `null` and does not
   /// cause any objects to escape.
-  bool isSafeExternal(Member member);
+  bool isCleanExternal(Member member);
 
   /// True if the given member can be invoked from external code.
   ///
@@ -57,7 +57,7 @@ class VmExternalModel extends ExternalModel {
     return node is StringLiteral ? node.value : null;
   }
 
-  bool isSafeExternal(Member member) {
+  bool isCleanExternal(Member member) {
     var annotation = getAnnotation(member.annotations, externalNameAnnotation);
     if (annotation == null) return false;
     if (annotation.arguments.positional.length < 1) return false;
@@ -70,13 +70,27 @@ class VmExternalModel extends ExternalModel {
   }
 }
 
+/// Classifies VM natives based on whether they can cause objects to escape
+/// and be a source of 'null' entering the dataflow.
+///
+/// The [clean] and [dirty] flags are currently the only two classifications,
+/// though some placeholders are defined to simplify transitioning to a more
+/// precise classification.
 class VMNativeDatabase {
   static const int clean = 1;
   static const int dirty = 2;
 
-  static const int mirror = dirty; // used for all mirror natives
+  /// Natives that operate on mirrors.  We always consider these dirty.
+  static const int mirror = dirty;
+
+  /// A native that throws an exception.
   static const int thrower = clean;
+
+  /// A native that may return null but does not cause any arguments to escape.
   static const int returnsNull = dirty;
+
+  /// A native that mutates one or more objects reachable from its arguments,
+  /// in a way that affects the type inference results.
   static const int mutatesArgument = dirty;
 
   /// Natives that have side-effects or may return null but because
