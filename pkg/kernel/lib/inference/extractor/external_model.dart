@@ -47,6 +47,10 @@ class VmExternalModel extends ExternalModel {
       }
     }
     forceExternals.add(coreTypes.getMember('dart:core', 'num', '~/'));
+    forceExternals.add(coreTypes.getMember('dart:core', 'num', '>'));
+    forceExternals.add(coreTypes.getMember('dart:core', 'num', '>='));
+    forceExternals.add(coreTypes.getMember('dart:core', 'num', '<'));
+    forceExternals.add(coreTypes.getMember('dart:core', 'num', '<='));
   }
 
   ConstructorInvocation getAnnotation(
