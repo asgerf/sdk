@@ -27,7 +27,7 @@ class VmTarget extends Target {
   /// The VM patch files are not strong mode clean, so we adopt a hybrid mode
   /// where the SDK is internally unchecked, but trusted to satisfy the types
   /// declared on its interface.
-  bool get strongModeSdk => false;
+  bool get strongModeSdk => strongMode;
 
   String get name => 'vm';
 
@@ -96,10 +96,10 @@ class VmTarget extends Target {
   void performTreeShaking(Program program) {
     var coreTypes = new CoreTypes(program);
     new TreeShaker(program,
-        hierarchy: _hierarchy,
-        coreTypes: coreTypes,
-        strongMode: strongMode,
-        programRoots: flags.programRoots)
+            hierarchy: _hierarchy,
+            coreTypes: coreTypes,
+            strongMode: strongMode,
+            programRoots: flags.programRoots)
         .transform(program);
     _hierarchy = null; // Hierarchy must be recomputed.
   }
