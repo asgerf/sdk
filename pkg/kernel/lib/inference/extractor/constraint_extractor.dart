@@ -201,7 +201,10 @@ class ConstraintExtractor {
 
   void checkOverride(
       Class host, Member ownMember, Member superMember, bool isSetter) {
-    if (externalModel.forceExternal(superMember)) return;
+    if (externalModel.forceExternal(superMember) &&
+        host.enclosingLibrary.importUri.scheme == 'dart') {
+      return;
+    }
     builder.setOwner(ownMember);
     if (isSetter) {
       checkAssignable(

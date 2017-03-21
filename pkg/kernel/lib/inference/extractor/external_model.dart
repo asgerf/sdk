@@ -51,6 +51,12 @@ class VmExternalModel extends ExternalModel {
     forceExternals.addAll(coreTypes.doubleClass.members);
     forceExternals.addAll(coreTypes.stringClass.members);
     forceExternals.addAll(coreTypes.boolClass.members);
+    forceExternals.addAll(coreTypes.iterableClass.members);
+    forceExternals.addAll(coreTypes.iteratorClass.members);
+    forceExternals.addAll(coreTypes.listClass.members);
+    forceExternals.addAll(coreTypes.mapClass.members);
+    forceExternals.addAll(coreTypes.futureClass.members);
+    forceExternals.addAll(coreTypes.streamClass.members);
   }
 
   ConstructorInvocation getAnnotation(
