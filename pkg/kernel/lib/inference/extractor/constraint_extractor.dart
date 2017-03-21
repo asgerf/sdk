@@ -1078,7 +1078,6 @@ class ConstraintExtractorVisitor
       TreeNode where, AType receiver, Name name, Arguments arguments) {
     if (name.isPrivate) {
       var targets = extractor.dynamicIndex.getGetters(name);
-      print('Dispatching call to $name to ${targets}');
       var types = augmentor.augmentTypeList(arguments.types);
       var positional =
           arguments.positional.map(visitExpression).toList(growable: false);
