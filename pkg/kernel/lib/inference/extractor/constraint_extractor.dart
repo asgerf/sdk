@@ -14,6 +14,7 @@ import 'binding.dart';
 import 'constraint_builder.dart';
 import 'external_model.dart';
 import 'hierarchy.dart';
+import 'dynamic_index.dart';
 import 'substitution.dart';
 import 'type_augmentor.dart';
 import 'value_sink.dart';
@@ -30,6 +31,7 @@ class ConstraintExtractor {
   ConstraintSystem constraintSystem;
   ConstraintBuilder builder;
   ExternalModel externalModel;
+  DynamicIndex dynamicIndex;
 
   AType conditionType;
   AType escapingType;
@@ -62,6 +64,7 @@ class ConstraintExtractor {
   void extractFromProgram(Program program) {
     coreTypes ??= new CoreTypes(program);
     baseHierarchy ??= new ClassHierarchy(program);
+    dynamicIndex ??= new DynamicIndex(program);
 
     constraintSystem ??= new ConstraintSystem();
     binding ??= new Binding(constraintSystem, coreTypes);
@@ -1029,15 +1032,82 @@ class ConstraintExtractorVisitor
     builder.addEscape(type.source);
   }
 
-  AType handleDynamicCall(AType receiver, Arguments arguments) {
-    handleEscapingType(receiver);
-    for (var argument in arguments.positional) {
-      handleEscapingExpression(argument);
+  AType handleDynamicCallToPotentialTarget(
+      TreeNode where,
+      AType receiver,
+      Member target,
+      List<AType> typeArguments,
+      List<AType> positional,
+      List<AType> named,
+      List<String> names) {
+    if (target is Field) {
+      return extractor.topType;
+    } else {
+      var function = target.function;
+      // Check for arity errors
+      if (positional.length < function.requiredParameterCount) {
+        return BottomAType.nonNullable;
+      }
+      if (positional.length > function.positionalParameters.length) {
+        return BottomAType.nonNullable;
+      }
+      for (var name in names) {
+        if (!function.namedParameters.any((v) => v.name == name)) {
+          return BottomAType.nonNullable;
+        }
+      }
+      var targetType = binding.getFunctionBank(target);
+      var substitution = Substitution.erasing(extractor.topType);
+      for (int i = 0; i < positional.length; ++i) {
+        var expectedType =
+            substitution.substituteType(targetType.positionalParameters[i]);
+        checkAssignable(where, positional[i], expectedType);
+      }
+      for (int i = 0; i < named.length; ++i) {
+        var name = names[i];
+        int index = targetType.type.namedParameterNames.indexOf(name);
+        var expectedType =
+            substitution.substituteType(targetType.namedParameters[index]);
+        checkAssignable(where, named[i], expectedType);
+      }
+      return substitution.substituteType(targetType.returnType);
     }
-    for (var argument in arguments.named) {
-      handleEscapingExpression(argument.value);
+  }
+
+  AType handleDynamicCall(
+      TreeNode where, AType receiver, Name name, Arguments arguments) {
+    if (name.isPrivate) {
+      var targets = extractor.dynamicIndex.getGetters(name);
+      print('Dispatching call to $name to ${targets}');
+      var types = augmentor.augmentTypeList(arguments.types);
+      var positional =
+          arguments.positional.map(visitExpression).toList(growable: false);
+      var named = arguments.named
+          .map((arg) => visitExpression(arg.value))
+          .toList(growable: false);
+      var names =
+          arguments.named.map((arg) => arg.name).toList(growable: false);
+      var destination = bank.newLocation();
+      for (var target in targets) {
+        var returnType = handleDynamicCallToPotentialTarget(
+            where, receiver, target, types, positional, named, names);
+        builder.addAssignmentToKey(
+            returnType.source, destination, ValueFlags.all);
+      }
+      return new InterfaceAType(
+          destination,
+          ValueSink.unassignable('return value of expression'),
+          coreTypes.objectClass, const []);
+    } else {
+      handleEscapingType(receiver);
+      for (var argument in arguments.positional) {
+        handleEscapingExpression(argument);
+      }
+      for (var argument in arguments.named) {
+        handleEscapingExpression(argument.value);
+      }
+      return extractor.topType;
     }
-    return extractor.topType;
   }
 
   AType handleFunctionCall(
@@ -1144,7 +1214,7 @@ class ConstraintExtractorVisitor
       if (node.name.name == 'call' && receiver is FunctionAType) {
         return handleFunctionCall(node, receiver, node.arguments);
       }
-      return handleDynamicCall(receiver, node.arguments);
+      return handleDynamicCall(node, receiver, node.name, node.arguments);
     } else if (isOverloadedArithmeticOperator(target)) {
       assert(node.arguments.positional.length == 1);
       var receiver = visitExpression(node.receiver);
@@ -1230,7 +1300,7 @@ class ConstraintExtractorVisitor
   @override
   AType visitSuperMethodInvocation(SuperMethodInvocation node) {
     if (node.interfaceTarget == null) {
-      return handleDynamicCall(thisType, node.arguments);
+      return handleDynamicCall(node, thisType, node.name, node.arguments);
     } else {
       return handleCall(node.arguments, node.interfaceTarget, node.fileOffset,
           receiver: getSuperReceiverType(node.interfaceTarget));

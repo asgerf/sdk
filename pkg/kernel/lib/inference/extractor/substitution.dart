@@ -62,6 +62,21 @@ abstract class Substitution {
   static Substitution bottomForClass(Class class_) {
     return new BottomSubstitution(class_);
   }
+
+  static Substitution erasing(AType result) {
+    return new ErasingSubstitution(result);
+  }
+}
+
+class ErasingSubstitution extends Substitution {
+  final AType type;
+
+  ErasingSubstitution(this.type);
+
+  @override
+  AType getRawSubstitute(TypeParameter parameter) {
+    return type;
+  }
 }
 
 class BottomSubstitution extends Substitution {
