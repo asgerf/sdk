@@ -69,10 +69,6 @@ class Backtracker extends UIComponent {
       StorageLocation location, Constraint referee) {
     return (MouseEvent ev) {
       ev.stopPropagation();
-      // Register the location we came from.
-      // Note that investigateStorageLocation always registers the destination,
-      // so to avoid duplicate history items, avoid registering the currently
-      // focused constraint again.
       if (referee != null && referee != ui.constraintView.focusedConstraint) {
         history.push(new HistoryItem(referee.owner,
             constraintIndex: referee.index, timestamp: currentTimestamp));
