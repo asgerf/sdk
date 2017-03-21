@@ -42,6 +42,7 @@ class ConstraintExtractor {
   AType typeType;
   AType topType;
 
+  Value anyValue;
   Value intValue;
   Value doubleValue;
   Value numValue;
@@ -68,6 +69,7 @@ class ConstraintExtractor {
     externalModel ??= new VmExternalModel(program, coreTypes, []);
     builder ??= new ConstraintBuilder(hierarchy, constraintSystem);
 
+    anyValue = new Value(coreTypes.objectClass, ValueFlags.all);
     intValue = new Value(coreTypes.intClass, ValueFlags.integer);
     doubleValue = new Value(coreTypes.doubleClass, ValueFlags.double_);
     numValue = new Value(coreTypes.numClass,
@@ -254,7 +256,16 @@ class ConstraintExtractor {
     if (classNode == coreTypes.stringClass) return nullableStringValue;
     if (classNode == coreTypes.boolClass) return nullableBoolValue;
     if (classNode == coreTypes.nullClass) return nullValue;
-    return new Value(coreTypes.objectClass, ValueFlags.all);
+    var baseClass = baseHierarchy.getSubtypesOf(classNode).getCommonBaseClass();
+    if (baseClass == baseHierarchy.rootClass) {
+      return anyValue;
+    }
+    return new Value(
+        baseClass,
+        ValueFlags.null_ |
+            ValueFlags.other |
+            ValueFlags.escaping |
+            ValueFlags.inexactBaseClass);
   }
 
   Value getCleanValue(Class classNode) {
@@ -264,7 +275,11 @@ class ConstraintExtractor {
     if (classNode == coreTypes.stringClass) return stringValue;
     if (classNode == coreTypes.boolClass) return boolValue;
     if (classNode == coreTypes.nullClass) return nullValue;
-    return new Value(coreTypes.objectClass, ValueFlags.all);
+    var baseClass = baseHierarchy.getSubtypesOf(classNode).getCommonBaseClass();
+    if (baseClass == baseHierarchy.rootClass) {
+      return anyValue.masked(ValueFlags.notNull);
+    }
+    return new Value(baseClass, ValueFlags.other | ValueFlags.inexactBaseClass);
   }
 
   final List<Function> analysisCompleteHooks = <Function>[];
@@ -1626,7 +1641,7 @@ class ExternalVisitor extends ATypeVisitor {
     var source = type.source;
     if (isCovariant && source is StorageLocation) {
       var value = extractor.getWorstCaseValue(type.classNode, isClean: isClean);
-      builder.addAssignment(value, source, ValueFlags.allValueSets);
+      builder.addAssignment(value, source, ValueFlags.all);
     }
     var sink = type.sink;
     if (!isClean && isContravariant && sink is StorageLocation) {

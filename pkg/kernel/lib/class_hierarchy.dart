@@ -15,6 +15,8 @@ class ClassHierarchy {
   /// The list is ordered so that classes occur after their super classes.
   final List<Class> classes;
 
+  final List<Class> _topDownIndexToClass;
+
   final Map<Class, _ClassInfo> _infoFor = <Class, _ClassInfo>{};
 
   ClassHierarchy(Program program)
@@ -262,7 +264,8 @@ class ClassHierarchy {
   }
 
   ClassHierarchy._internal(Program program, int numberOfClasses)
-      : classes = new List<Class>(numberOfClasses) {
+      : classes = new List<Class>(numberOfClasses),
+        _topDownIndexToClass = new List<Class>(numberOfClasses) {
     // Build the class ordering based on a topological sort.
     for (var library in program.libraries) {
       for (var classNode in library.classes) {
@@ -569,6 +572,7 @@ class ClassHierarchy {
     bool isMixedIn = info.directMixers.isNotEmpty;
     int index = _topDownSortIndex++;
     info.topDownIndex = index;
+    _topDownIndexToClass[index] = info.classNode;
     var subclassSetBuilder = new _IntervalListBuilder()..addSingleton(index);
     var submixtureSetBuilder =
         isMixedIn ? (new _IntervalListBuilder()..addSingleton(index)) : null;
@@ -904,6 +908,11 @@ class ClassSet {
         _intervalList, _hierarchy._infoFor[class_].topDownIndex);
   }
 
+  bool containsAll(ClassSet other) {
+    var joined = union(other);
+    return _listEquals(_intervalList, joined._intervalList);
+  }
+
   ClassSet union(ClassSet other) {
     assert(_hierarchy == other._hierarchy);
     if (identical(_intervalList, other._intervalList)) return this;
@@ -912,4 +921,28 @@ class ClassSet {
     builder.addIntervalList(other._intervalList);
     return new ClassSet(_hierarchy, builder.buildIntervalList());
   }
+
+  Class getCommonBaseClass() {
+    var list = _intervalList;
+    if (list.isEmpty) return null;
+    var hierarchy = _hierarchy;
+    Class candidate = hierarchy._topDownIndexToClass[list[0]];
+    while (candidate != hierarchy.rootClass) {
+      if (hierarchy.getSubclassesOf(candidate).containsAll(this)) {
+        return candidate;
+      }
+      candidate = candidate.superclass;
+    }
+    return hierarchy.rootClass;
+  }
+}
+
+bool _listEquals(List<int> first, List<int> second) {
+  if (first.length != second.length) return false;
+  for (int i = 0; i < first.length; ++i) {
+    if (first[i] != second[i]) {
+      return false;
+    }
+  }
+  return true;
 }
