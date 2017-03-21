@@ -19,6 +19,7 @@ class CoreTypes extends LibraryIndex {
   Class mapClass;
   Class iterableClass;
   Class iteratorClass;
+  Class comparableClass;
   Class futureClass;
   Class streamClass;
   Class symbolClass;
@@ -44,6 +45,7 @@ class CoreTypes extends LibraryIndex {
       'Type',
       'Function',
       'Invocation',
+      'Comparable',
     ],
     'dart:_internal': [
       'Symbol',
@@ -70,6 +72,7 @@ class CoreTypes extends LibraryIndex {
     typeClass = getClass('dart:core', 'Type');
     functionClass = getClass('dart:core', 'Function');
     invocationClass = getClass('dart:core', 'Invocation');
+    comparableClass = getClass('dart:core', 'Comparable');
     futureClass = getClass('dart:async', 'Future');
     streamClass = getClass('dart:async', 'Stream');
     internalSymbolClass = getClass('dart:_internal', 'Symbol');

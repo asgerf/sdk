@@ -462,7 +462,7 @@ class ConstraintExtractorVisitor
         thisTypeArgs
             .add(new TypeParameterAType(bound.source, bound.sink, parameter));
       }
-      var value = new Value(class_, ValueFlags.inexactBaseClass);
+      var value = new Value(class_, valueFlagsFromBaseClass(class_));
       thisType = new InterfaceAType(
           value,
           ValueSink.unassignable("type of 'this'", class_),
@@ -890,11 +890,20 @@ class ConstraintExtractorVisitor
     return type;
   }
 
-  int flagsFromExactClass(Class class_) {
+  int valueFlagFromExactClass(Class class_) {
     if (class_ == coreTypes.intClass) return ValueFlags.integer;
     if (class_ == coreTypes.doubleClass) return ValueFlags.double_;
     if (class_ == coreTypes.stringClass) return ValueFlags.string;
     if (class_ == coreTypes.boolClass) return ValueFlags.boolean;
+    return ValueFlags.other;
+  }
+
+  int valueFlagsFromBaseClass(Class class_) {
+    if (class_ == coreTypes.intClass) return ValueFlags.integer;
+    if (class_ == coreTypes.doubleClass) return ValueFlags.double_;
+    if (class_ == coreTypes.stringClass) return ValueFlags.string;
+    if (class_ == coreTypes.boolClass) return ValueFlags.boolean;
+    if (class_ == coreTypes.objectClass) return ValueFlags.allValueSets;
     return ValueFlags.other;
   }
 
@@ -928,7 +937,7 @@ class ConstraintExtractorVisitor
         node.fileOffset);
     handleCall(arguments, target, node.fileOffset, receiver: substitution);
     var createdObject = bank.newLocation();
-    var value = new Value(class_, flagsFromExactClass(class_));
+    var value = new Value(class_, valueFlagFromExactClass(class_));
     var type = new InterfaceAType(
         createdObject,
         ValueSink.unassignable('result of an expression', node),
