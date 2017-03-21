@@ -7,6 +7,7 @@ import 'dart:html';
 import 'history_manager.dart';
 import 'laboratory_data.dart';
 import 'laboratory_ui.dart';
+import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/storage_location.dart';
@@ -93,6 +94,11 @@ class Backtracker extends UIComponent {
         report.getTransferEventFromTimestamp(changeEvent.timestamp);
     currentTimestamp = changeEvent.timestamp;
     var constraint = transferEvent.constraint;
+    if (constraint.fileOffset == -1 && constraint is SubtypeConstraint) {
+      // This happens for synthetic forwarding constructors in mixin classes.
+      // Skip over the forwarding constraint closer to the source.
+      return investigateStorageLocation(constraint.source);
+    }
     ui.codeView.showConstraint(constraint);
     invalidate();
     return new HistoryItem(constraint.owner,
