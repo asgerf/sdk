@@ -3,7 +3,6 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.laboratory.view;
 
-import 'html_buffer.dart';
 import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
 
@@ -198,4 +197,31 @@ int getInferredValueOffset(TreeNode node) {
     return node.function.inferredReturnValueOffset;
   }
   return -1;
+}
+
+String getShortName(NamedNode node) {
+  if (node is Class) {
+    return node.name;
+  } else if (node is Member) {
+    var class_ = node.enclosingClass;
+    if (class_ != null) {
+      return '${class_.name}.${node.name.name}';
+    }
+    return node.name.name;
+  } else if (node is Library) {
+    return node.name ?? '${node.importUri}';
+  } else {
+    throw 'Unexpected node: ${node.runtimeType}';
+  }
+}
+
+String getLongName(NamedNode node) {
+  if (node is Class) {
+    return '${getLongName(node.enclosingLibrary)}.${node.name}';
+  } else if (node is Member) {
+    return '${getLongName(node.parent)}.${node.name.name}';
+  } else {
+    Library library = node;
+    return library.name ?? '${library.importUri}';
+  }
 }

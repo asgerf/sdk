@@ -11,6 +11,7 @@ import 'package:kernel/ast.dart';
 
 import 'key_codes.dart';
 import 'laboratory.dart';
+import 'view.dart';
 
 class SearchBox {
   static final RegExp patternSeparator = new RegExp(r' |\.|::');
@@ -124,7 +125,7 @@ class SearchBox {
     if (matcher.suggestedNodes.isEmpty) return false;
     suggestedNodes = matcher.suggestedNodes.take(10).toList();
     for (var reference in suggestedNodes) {
-      var listItem = new OptionElement()..text = '${reference.node}';
+      var listItem = new OptionElement()..text = getLongName(reference.node);
       suggestionBoxSelect.children.add(listItem);
     }
     return true;

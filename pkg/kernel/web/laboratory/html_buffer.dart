@@ -13,6 +13,7 @@ import 'package:kernel/inference/value.dart';
 
 import 'laboratory.dart';
 import 'laboratory_ui.dart';
+import 'view.dart';
 
 class HtmlBuffer {
   final List<Element> containerStack = <Element>[];
@@ -91,24 +92,4 @@ class KernelHtmlBuffer extends HtmlBuffer {
       pop();
     }
   }
-}
-
-String getShortName(NamedNode node) {
-  if (node is Class) {
-    return node.name;
-  } else if (node is Member) {
-    var class_ = node.enclosingClass;
-    if (class_ != null) {
-      return '${class_.name}.${node.name.name}';
-    }
-    return node.name.name;
-  } else if (node is Library) {
-    return node.name ?? '${node.importUri}';
-  } else {
-    throw 'Unexpected node: ${node.runtimeType}';
-  }
-}
-
-String getLongName(NamedNode node) {
-  return '$node';
 }
