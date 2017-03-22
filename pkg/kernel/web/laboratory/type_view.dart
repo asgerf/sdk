@@ -88,14 +88,11 @@ class TypeView {
     }
   }
 
-  void _setShownValue(Value value) {
-    _setShownValues(value, const [], const []);
-  }
-
-  void _setShownValues(Value currentValue, List<Value> futureValues,
-      List<String> futureClasses) {
+  void _showTable(List<String> flagLabels, List<TypeViewColumn> columns) {
+    assert(columns.isNotEmpty);
     const String arrow = '→';
     tableElement.children.clear();
+    var firstColumn = columns.first;
     // Add base class row
     {
       var row = new TableRowElement();
@@ -103,66 +100,76 @@ class TypeView {
       // The current base class
       {
         row.append(new TableCellElement()
-          ..text = getPrettyClassName(currentValue.baseClass)
+          ..text = getPrettyClassName(firstColumn.baseClass)
           ..classes.add(CssClass.valueBaseClass)
           ..colSpan = 2);
       }
 
       // Add future base classes
-      Value previous = currentValue;
-      for (int i = 0; i < futureValues.length; ++i) {
-        var futureValue = futureValues[i];
-        String text = futureValue.baseClass == previous.baseClass
+      var previous = firstColumn;
+      for (var column in columns.skip(1)) {
+        String text = column.baseClass == previous.baseClass
             ? ''
-            : '$arrow ' + getPrettyClassName(futureValue.baseClass);
-        row.append(new TableCellElement()
-          ..text = text
-          ..classes.add(futureClasses[i]));
-        previous = futureValue;
+            : '$arrow ' + getPrettyClassName(column.baseClass);
+        var cell = new TableCellElement()..text = text;
+        if (column.cssClass != null) {
+          cell.classes.add(column.cssClass);
+        }
+        row.append(cell);
+        previous = column;
       }
 
       tableElement.append(row);
     }
     // Add flag rows
-    for (int i = 0; i < ValueFlags.numberOfFlags; ++i) {
+    for (int i = 0; i < flagLabels.length; ++i) {
       var row = new TableRowElement();
       int mask = 1 << i;
 
-      String flagName = ValueFlags.flagNames[i];
+      String flagName = flagLabels[i];
       row.append(new TableCellElement()
         ..text = flagName
         ..classes.add(CssClass.valueFlagLabel));
 
-      bool hasFlag = currentValue.flags & mask != 0;
+      bool hasFlag = firstColumn.flags & mask != 0;
       var hasFlagCss = hasFlag ? CssClass.valueFlagOn : CssClass.valueFlagOff;
       var hasFlagText = hasFlag ? 'yes' : 'no';
 
       row.append(new TableCellElement()..text = hasFlagText);
       row.classes.add(hasFlagCss);
 
-      Value previous = currentValue;
-      for (int i = 0; i < futureValues.length; ++i) {
-        var futureValue = futureValues[i];
-        if (futureValue.flags & mask == previous.flags & mask) {
+      var previous = firstColumn;
+      for (var column in columns.take(1)) {
+        if (column.flags & mask == previous.flags & mask) {
           row.append(new TableCellElement());
           continue;
         }
         // At this point the future value should have the flag, because flags
         // can only change from no to yes, but if there is a bug in the solver
         // it should be evident when viewing the report, so just show the data.
-        bool hasFlag = futureValue.flags & mask != 0;
+        bool hasFlag = column.flags & mask != 0;
         String text = hasFlag ? '$arrow yes' : '$arrow no';
-        row.append(new TableCellElement()
-          ..text = text
-          ..classes.add(futureClasses[i]));
-        previous = futureValue;
+        var cell = new TableCellElement()..text = text;
+        if (column.cssClass != null) {
+          cell.classes.add(column.cssClass);
+        }
+        row.append(cell);
+        previous = column;
       }
 
       tableElement.append(row);
     }
   }
 
-  Value getValue(StorageLocation location, int time) {
+  void _showValue(Value value) {
+    _showTable(ValueFlags.flagNames, [new TypeViewColumn.value(value)]);
+  }
+
+  static final List<String> storageLocationLabels = <String>[]
+    ..addAll(ValueFlags.flagNames)
+    ..add('leadsToEscape');
+
+  Value getLocationValue(StorageLocation location, int time) {
     Value value = report.getValue(location, time);
     while (location.parameterLocation != null) {
       location = constraintSystem.getBoundLocation(location.parameterLocation);
@@ -171,19 +178,29 @@ class TypeView {
     return value;
   }
 
-  void _setShownValueFromStorageLocation(StorageLocation location) {
+  TypeViewColumn getLocationColumn(StorageLocation location, int time,
+      [String cssClass]) {
+    var value = getLocationValue(location, time);
+    bool leadsToEscape = report.leadsToEscape(location, time);
+    int extraFlags = leadsToEscape ? 1 : 0;
+    int flags = value.flags | (extraFlags << ValueFlags.numberOfFlags);
+    return new TypeViewColumn(value.baseClass, flags, cssClass);
+  }
+
+  void _showLocation(StorageLocation location) {
     if (!ui.backtracker.isBacktracking) {
-      _setShownValue(getValue(location, report.endOfTime));
+      _showTable(storageLocationLabels,
+          [getLocationColumn(location, report.endOfTime)]);
       return;
     }
     int currentTime = ui.backtracker.currentTimestamp;
     int previousTime = currentTime - 1;
-    List<Value> futureValues = [
-      getValue(location, currentTime),
-      getValue(location, report.endOfTime)
+    List<TypeViewColumn> columns = [
+      getLocationColumn(location, previousTime),
+      getLocationColumn(location, currentTime, CssClass.typeViewNextValue),
+      getLocationColumn(location, report.endOfTime, CssClass.typeViewFinalValue)
     ];
-    _setShownValues(getValue(location, previousTime), futureValues,
-        const [CssClass.typeViewNextValue, CssClass.typeViewFinalValue]);
+    _showTable(storageLocationLabels, columns);
   }
 
   bool showTypeOfExpression(
@@ -208,7 +225,7 @@ class TypeView {
     } else {
       var location =
           constraintSystem.getStorageLocation(owner, inferredValueOffset);
-      _setShownValueFromStorageLocation(location);
+      _showLocation(location);
       var locationName = 'v${location.index}';
       storageLocationNameElement.text = locationName;
       setRelatedElementsFromCssClass(locationName);
@@ -218,7 +235,7 @@ class TypeView {
   }
 
   void showValue(Value value) {
-    _setShownValue(value);
+    _showValue(value);
     unsetRelatedElements();
     expressionKindElement.text = 'Value';
     storageLocationNameElement.text = '';
@@ -227,7 +244,7 @@ class TypeView {
   }
 
   void showStorageLocation(StorageLocation location) {
-    _setShownValueFromStorageLocation(location);
+    _showLocation(location);
     if (location.owner == view.reference) {
       setRelatedElementsFromCssClass('v${location.index}');
     } else {
@@ -277,3 +294,14 @@ class TypeView {
 }
 
 typedef void MouseEventListener(MouseEvent ev);
+
+class TypeViewColumn {
+  final Class baseClass;
+  final int flags;
+  String cssClass;
+
+  TypeViewColumn(this.baseClass, this.flags, [this.cssClass]);
+  TypeViewColumn.value(Value value, [this.cssClass])
+      : baseClass = value.baseClass,
+        flags = value.flags;
+}
