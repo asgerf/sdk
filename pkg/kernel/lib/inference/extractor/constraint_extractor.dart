@@ -610,21 +610,17 @@ class ConstraintExtractorVisitor
       scope.typeParameterBounds[parameter] =
           augmentor.augmentBound(parameter.bound);
     }
-    var typeTerms = <AType>[];
     for (var parameter in node.positionalParameters) {
       parameter.inferredValueOffset = bank.nextIndex;
       var type = augmentor.augmentType(parameter.type);
       scope.variables[parameter] = type;
-      typeTerms.add(type);
     }
     for (var parameter in node.namedParameters) {
       parameter.inferredValueOffset = bank.nextIndex;
       var type = augmentor.augmentType(parameter.type);
       scope.variables[parameter] = type;
-      typeTerms.add(type);
     }
     AType augmentedReturnType = augmentor.augmentType(node.returnType);
-    typeTerms.add(augmentedReturnType);
     var functionObject = bank.newLocation();
     var type = new FunctionAType(
         functionObject,
