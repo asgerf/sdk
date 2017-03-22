@@ -28,6 +28,8 @@ class UI {
 
   DivElement mainContentDiv = $('main-content');
 
+  InputElement trackEscapeCheckbox = $('track-escape-checkbox');
+
   CodeView codeView =
       new CodeView($('code-view-body'), $('code-view-filename'));
 

@@ -90,6 +90,15 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
       }
       #backtracker-title {}
 
+      /*  Track escape checkbox */
+      #track-escape-container {
+        display: inline-block;
+        height: 100%;
+        min-width: 100px;
+        font-size: 10pt;
+        vertical-align: center;
+      }
+
       #main-content {
         position: absolute;
         width: 100%;
@@ -275,6 +284,11 @@ green     #859900  2/2 green     64 #5f8700 60 -20  65 133 153   0  68 100  60
           <span id="backtracker-title">Backtracking</span>
           <progress id="backtracker-progress"></progress>
           <input type="button" id="backtracker-reset-button" value="Stop backtracking" />
+        </div>
+
+        <div id="track-escape-container">
+          <input type="checkbox" id="track-escape-checkbox"></input>
+          <label for="track-escape-checkbox">Track escape</label>
         </div>
       </div>
 

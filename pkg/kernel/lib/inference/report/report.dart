@@ -70,7 +70,8 @@ class Report implements SolverListener {
   }
 
   /// Returns the latest change to [location] no later than [timestamp].
-  ChangeEvent getMostRecentChange(StorageLocation location, int timestamp) {
+  ChangeEvent getMostRecentChange(StorageLocation location, int timestamp,
+      {bool ignoreValueChanges: false, bool ignoreEscapeChanges: false}) {
     List<ChangeEvent> list = locationChanges[location];
     if (list == null) return ChangeEvent.beginning(location);
     int first = 0, last = list.length - 1;
@@ -78,15 +79,30 @@ class Report implements SolverListener {
       int mid = last - ((last - first) >> 1); // Get middle, rounding up.
       var pivot = list[mid];
       int pivotTimestamp = pivot.timestamp;
-      if (pivotTimestamp < timestamp) {
+      if (pivotTimestamp <= timestamp) {
         first = mid; // first is still a candidate
-      } else if (timestamp < pivotTimestamp) {
-        last = mid - 1;
       } else {
-        return pivot;
+        last = mid - 1;
       }
     }
-    return list[first];
+    int index = first;
+    var change = list[index];
+    if (ignoreValueChanges || ignoreEscapeChanges) {
+      while (index > 0) {
+        var previous = list[index - 1];
+        if (ignoreValueChanges &&
+            previous.leadsToEscape == change.leadsToEscape) {
+          --index;
+          change = previous;
+        } else if (ignoreEscapeChanges && previous.value.sameAs(change.value)) {
+          --index;
+          change = previous;
+        } else {
+          break;
+        }
+      }
+    }
+    return change;
   }
 
   Value getValue(StorageLocation location, int timestamp) {

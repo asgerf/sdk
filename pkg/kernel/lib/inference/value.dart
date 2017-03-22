@@ -101,6 +101,11 @@ class Value extends ValueSource implements Printable {
   }
 
   String toString() => Printable.show(this);
+
+  bool sameAs(Value other) {
+    return baseClassReference == other.baseClassReference &&
+        flags == other.flags;
+  }
 }
 
 /// Defines the flags tracked by [Value.flags].

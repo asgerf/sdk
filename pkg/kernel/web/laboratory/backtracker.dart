@@ -83,9 +83,10 @@ class Backtracker extends UIComponent {
   ///
   /// This returns a history item describing the new UI location.
   HistoryItem investigateStorageLocation(StorageLocation location) {
+    bool backwards = ui.trackEscapeCheckbox.checked;
     if (report == null) return null;
-    var changeEvent =
-        report.getMostRecentChange(location, currentTimestamp - 1);
+    var changeEvent = report.getMostRecentChange(location, currentTimestamp - 1,
+        ignoreEscapeChanges: !backwards, ignoreValueChanges: backwards);
     if (changeEvent.timestamp == Report.beginningOfTime) return null;
     var transferEvent =
         report.getTransferEventFromTimestamp(changeEvent.timestamp);
@@ -94,7 +95,8 @@ class Backtracker extends UIComponent {
     if (constraint.fileOffset == -1 && constraint is SubtypeConstraint) {
       // This happens for synthetic forwarding constructors in mixin classes.
       // Skip over the forwarding constraint.
-      return investigateStorageLocation(constraint.source);
+      return investigateStorageLocation(
+          backwards ? constraint.destination : constraint.source);
     }
     ui.codeView.showConstraint(constraint);
     invalidate();

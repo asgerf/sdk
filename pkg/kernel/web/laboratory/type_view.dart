@@ -30,6 +30,8 @@ class TypeView {
     });
   }
 
+  bool get shouldTrackEscape => ui.trackEscapeCheckbox.checked;
+
   void hide() {
     containerElement.style.visibility = "hidden";
     unsetHighlightedElement();
@@ -179,10 +181,18 @@ class TypeView {
 
   static const String flagSeparator = '---';
 
-  static final List<String> storageLocationLabels = <String>[]
+  static final List<String> fullStorageLocationSchema = <String>[]
     ..addAll(ValueFlags.flagNames)
     ..add('${flagSeparator} Outgoing')
     ..add('leadsToEscape');
+
+  List<String> getStorageLocationSchema() {
+    if (shouldTrackEscape) {
+      return fullStorageLocationSchema;
+    } else {
+      return ValueFlags.flagNames;
+    }
+  }
 
   Value getLocationValue(StorageLocation location, int time) {
     Value value = report.getValue(location, time);
@@ -204,7 +214,7 @@ class TypeView {
 
   void _showLocation(StorageLocation location) {
     if (!ui.backtracker.isBacktracking) {
-      _showTable(storageLocationLabels,
+      _showTable(getStorageLocationSchema(),
           [getLocationColumn(location, report.endOfTime)]);
       return;
     }
@@ -215,7 +225,7 @@ class TypeView {
       getLocationColumn(location, currentTime, CssClass.typeViewNextValue),
       getLocationColumn(location, report.endOfTime, CssClass.typeViewFinalValue)
     ];
-    _showTable(storageLocationLabels, columns);
+    _showTable(getStorageLocationSchema(), columns);
   }
 
   bool showTypeOfExpression(
