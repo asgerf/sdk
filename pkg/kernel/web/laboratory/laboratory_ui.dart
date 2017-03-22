@@ -62,6 +62,7 @@ class CssClass {
   static const String typeViewCurrentValue = 'type-view-current-value';
   static const String typeViewNextValue = 'type-view-next-value';
   static const String typeViewFinalValue = 'type-view-final-value';
+  static const String typeViewFlagSeparator = 'type-view-flag-separator';
   static const String reference = 'reference';
   static const String constraintLabel = 'constraint-label';
   static const String constraintLineNumber = 'constraint-line-number';

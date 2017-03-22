@@ -122,11 +122,23 @@ class TypeView {
       tableElement.append(row);
     }
     // Add flag rows
-    for (int i = 0; i < flagLabels.length; ++i) {
-      var row = new TableRowElement();
-      int mask = 1 << i;
+    int flagIndex = -1;
+    for (String flagName in flagLabels) {
+      // Add a section header if the name starts with `---`
+      if (flagName.startsWith(flagSeparator)) {
+        var row = new TableRowElement()
+          ..classes.add(CssClass.typeViewFlagSeparator)
+          ..append(new TableCellElement()
+            ..colSpan = 1 + columns.length
+            ..text = flagName.substring(flagSeparator.length));
+        tableElement.append(row);
+        continue;
+      }
+      ++flagIndex;
 
-      String flagName = flagLabels[i];
+      int mask = 1 << flagIndex;
+
+      var row = new TableRowElement();
       row.append(new TableCellElement()
         ..text = flagName
         ..classes.add(CssClass.valueFlagLabel));
@@ -165,8 +177,11 @@ class TypeView {
     _showTable(ValueFlags.flagNames, [new TypeViewColumn.value(value)]);
   }
 
+  static const String flagSeparator = '---';
+
   static final List<String> storageLocationLabels = <String>[]
     ..addAll(ValueFlags.flagNames)
+    ..add('${flagSeparator} Outgoing')
     ..add('leadsToEscape');
 
   Value getLocationValue(StorageLocation location, int time) {
