@@ -139,7 +139,7 @@ class TypeView {
       row.classes.add(hasFlagCss);
 
       var previous = firstColumn;
-      for (var column in columns.take(1)) {
+      for (var column in columns.skip(1)) {
         if (column.flags & mask == previous.flags & mask) {
           row.append(new TableCellElement());
           continue;
