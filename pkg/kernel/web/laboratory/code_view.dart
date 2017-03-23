@@ -101,7 +101,7 @@ class CodeView extends UIComponent {
   }
 
   void closeConstraintView() {
-    _focusedListItem?.classes?.remove(CssClass.codeLineHighlighted);
+    _focusedListItem?.classes?.remove(CssClass.codeLineWithConstraints);
     _focusedListItem = null;
     ui.constraintView.hide();
   }
@@ -111,9 +111,9 @@ class CodeView extends UIComponent {
     int end = view.getEndOfLine(lineIndex);
     ui.constraintView.setVisibleSourceRange(start, end);
     listItem.append(ui.constraintView.rootElement);
-    _focusedListItem?.classes?.remove(CssClass.codeLineHighlighted);
+    _focusedListItem?.classes?.remove(CssClass.codeLineWithConstraints);
     _focusedListItem = listItem;
-    listItem.classes.add(CssClass.codeLineHighlighted);
+    listItem.classes.add(CssClass.codeLineWithConstraints);
   }
 
   void hideTypeView() {

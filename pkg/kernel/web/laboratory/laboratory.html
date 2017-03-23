@@ -215,7 +215,6 @@
       /*  Constraint view  */
       #constraint-view-table {
         color: black;
-        background-color: #eee8d5;
         border-collapse: collapse;
         text-align: left;
         width: 100%;
@@ -226,12 +225,18 @@
       #constraint-view-table td {
         vertical-align: center;
       }
+      #constraint-view-table li {
+        box-sizing: border-box;
+      }
+      .code-line-with-constraints {
+        /* Applies to a list item containing one line of code and the
+           constraint view */
+        background-color: #ffe;
+        outline: 1px solid #ddd;
+      }
 
       .storage-location {
         font-family: monospace;
-      }
-      .code-line-highlighted {
-        background-color: #eee8d5;
       }
 
       a.reference {
@@ -255,14 +260,15 @@
       }
       .constraint-focused {
         animation: 200ms 5 alternate constraint-focused-blinking;
-        background-color: yellow;
+        background-color: #ff5;
+        outline: 1px solid #dd5;
       }
       @keyframes constraint-focused-blinking {
         from {
           background-color: inherit;
         }
         to {
-          background-color: yellow;
+          background-color: #ff5;
         }
       }
       .constraint-escape {

@@ -56,7 +56,7 @@ UI ui = new UI();
 
 class CssClass {
   static const String codeLine = 'code-line';
-  static const String codeLineHighlighted = 'code-line-highlighted';
+  static const String codeLineWithConstraints = 'code-line-with-constraints';
   static const String constraintEscape = 'constraint-escape';
   static const String constraintFocused = 'constraint-focused';
   static const String constraintGuard = 'constraint-guard';
