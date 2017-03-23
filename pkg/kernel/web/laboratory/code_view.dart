@@ -7,6 +7,7 @@ import 'dart:html';
 import 'dart:html' as html;
 import 'dart:math';
 
+import 'history_manager.dart';
 import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
 
@@ -14,6 +15,7 @@ import 'laboratory.dart';
 import 'laboratory_data.dart';
 import 'laboratory_ui.dart';
 import 'lexer.dart';
+import 'type_view.dart';
 import 'ui_component.dart';
 import 'view.dart';
 
@@ -124,6 +126,18 @@ class CodeView extends UIComponent {
     } else {
       return "There is no library or source file for '$uri'";
     }
+  }
+
+  MouseEventListener showObjectOnEvent(
+      Reference reference, Constraint referee) {
+    return (MouseEvent event) {
+      if (referee != null && referee != ui.constraintView.focusedConstraint) {
+        history.push(
+            new HistoryItem(referee.owner, constraintIndex: referee.index));
+      }
+      history.push(new HistoryItem(reference));
+      showObject(reference);
+    };
   }
 
   void showObject(Reference reference) {

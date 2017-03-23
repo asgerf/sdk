@@ -55,9 +55,8 @@ class KernelHtmlBuffer extends HtmlBuffer {
       ..classes.add(CssClass.reference)
       ..text = getShortName(reference.node)
       ..title = getLongName(reference.node)
-      ..onClick.listen((e) {
-        ui.codeView.showObject(reference);
-      }));
+      ..onClick
+          .listen(ui.codeView.showObjectOnEvent(reference, currentConstraint)));
   }
 
   void appendLocation(StorageLocation location) {
