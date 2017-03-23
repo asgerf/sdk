@@ -6,6 +6,7 @@ library kernel.laboratory.constraint_view;
 import 'dart:html';
 
 import 'package:kernel/inference/constraints.dart';
+import 'package:kernel/inference/value.dart';
 
 import 'html_buffer.dart';
 import 'laboratory_ui.dart';
@@ -194,7 +195,14 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..pop()
       ..append(separator())
       ..appendPush(new TableCellElement())
-      ..appendLocation(constraint.source)
+      ..appendLocation(constraint.source);
+    if (constraint.mask != ValueFlags.all) {
+      buffer
+        ..appendPush(new SpanElement()..classes.add(CssClass.constraintGuard))
+        ..appendText(' only {${ValueFlags.flagsToString(constraint.mask)}}')
+        ..pop();
+    }
+    buffer
       ..pop()
       ..append(titleCell('Subtype'));
   }
