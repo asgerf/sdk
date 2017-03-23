@@ -167,8 +167,9 @@ class ValueConstraint extends Constraint {
 
 class EscapeConstraint extends Constraint {
   final StorageLocation escaping;
+  final StorageLocation guard; // May be null.
 
-  EscapeConstraint(this.escaping);
+  EscapeConstraint(this.escaping, {this.guard});
 
   void transfer(ConstraintSolver solver) {
     solver.transferEscapeConstraint(this);

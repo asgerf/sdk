@@ -46,8 +46,8 @@ class ConstraintBuilder {
     source.acceptSource(new AssignmentFromValueSource(this, sink, mask));
   }
 
-  void addEscape(ValueSource source) {
-    source.acceptSource(new EscapeVisitor(this));
+  void addEscape(ValueSource source, {StorageLocation guard}) {
+    source.acceptSource(new EscapeVisitor(this, guard));
   }
 }
 
@@ -109,12 +109,13 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
 
 class EscapeVisitor extends ValueSourceVisitor {
   final ConstraintBuilder builder;
+  final StorageLocation guard;
 
-  EscapeVisitor(this.builder);
+  EscapeVisitor(this.builder, this.guard);
 
   @override
   visitStorageLocation(StorageLocation key) {
-    builder.addConstraint(new EscapeConstraint(key));
+    builder.addConstraint(new EscapeConstraint(key, guard: guard));
   }
 
   @override

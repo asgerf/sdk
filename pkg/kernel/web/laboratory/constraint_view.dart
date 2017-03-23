@@ -172,7 +172,16 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..pop()
       ..append(separator())
       ..appendPush(new TableCellElement())
-      ..appendLocation(constraint.escaping)
+      ..appendLocation(constraint.escaping);
+    if (constraint.guard != null) {
+      buffer
+        ..appendPush(new SpanElement()..classes.add(CssClass.constraintGuard))
+        ..appendText(' if ')
+        ..appendLocation(constraint.guard)
+        ..appendText(' escapes')
+        ..pop();
+    }
+    buffer
       ..pop()
       ..append(titleCell('Escape'));
   }

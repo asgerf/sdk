@@ -58,6 +58,7 @@ class ConstraintExtractor {
   Value nullableNumValue;
   Value nullableStringValue;
   Value nullableBoolValue;
+  Value nullableFunctionValue;
 
   ConstraintExtractor(this.externalModel);
 
@@ -95,6 +96,8 @@ class ConstraintExtractor {
     nullableStringValue =
         new Value(coreTypes.stringClass, ValueFlags.null_ | ValueFlags.string);
     nullableBoolValue = new Value(coreTypes.boolClass, ValueFlags.boolean);
+    nullableFunctionValue = new Value(coreTypes.functionClass,
+        ValueFlags.null_ | ValueFlags.other | ValueFlags.inexactBaseClass);
 
     conditionType = new InterfaceAType(
         Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
@@ -246,11 +249,15 @@ class ConstraintExtractor {
     print('$where: $message');
   }
 
-  Value getWorstCaseValueForType(AType type) {
-    if (type is InterfaceAType) return getWorstCaseValue(type.classNode);
+  Value getWorstCaseValueForType(AType type, {bool isClean: false}) {
+    if (type is InterfaceAType) {
+      return getWorstCaseValue(type.classNode, isClean: isClean);
+    }
     if (type is FunctionAType) {
-      return new Value(coreTypes.functionClass,
-          ValueFlags.other | ValueFlags.inexactBaseClass);
+      return isClean ? functionValue : nullableFunctionValue;
+    }
+    if (type is TypeParameterType) {
+      return isClean ? Value.bottom : nullValue;
     }
     return new Value(coreTypes.objectClass, ValueFlags.all);
   }
@@ -493,13 +500,17 @@ class ConstraintExtractorVisitor
     }
     if (treatAsExternal) {
       builder.setFileOffset(node.fileOffset);
-      bank.type.accept(new ExternalVisitor(
-          extractor, externalModel.isCleanExternal(node), true, !node.isFinal));
+      new ExternalVisitor(extractor,
+              isClean: externalModel.isCleanExternal(node),
+              isCovariant: !node.isFinal,
+              isContravariant: true)
+          .visit(bank.type);
     }
     if (externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
-      bank.type
-          .accept(new ExternalVisitor(extractor, false, true, !node.isFinal));
+      new ExternalVisitor(extractor,
+              isClean: false, isCovariant: true, isContravariant: !node.isFinal)
+          .visit(bank.type);
     }
   }
 
@@ -518,12 +529,17 @@ class ConstraintExtractorVisitor
     }
     if (treatAsExternal) {
       builder.setFileOffset(node.fileOffset);
-      bank.type.accept(new ExternalVisitor(
-          extractor, externalModel.isCleanExternal(node), true, false));
+      new ExternalVisitor(extractor,
+              isClean: externalModel.isCleanExternal(node),
+              isCovariant: false,
+              isContravariant: true)
+          .visitSubterms(bank.type);
     }
     if (externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
-      bank.type.accept(new ExternalVisitor(extractor, false, false, true));
+      new ExternalVisitor(extractor,
+              isClean: false, isCovariant: true, isContravariant: true)
+          .visitSubterms(bank.type);
     }
   }
 
@@ -542,12 +558,17 @@ class ConstraintExtractorVisitor
     }
     if (treatAsExternal) {
       builder.setFileOffset(node.fileOffset);
-      bank.type.accept(new ExternalVisitor(
-          extractor, externalModel.isCleanExternal(node), true, false));
+      new ExternalVisitor(extractor,
+              isClean: externalModel.isCleanExternal(node),
+              isCovariant: false,
+              isContravariant: true)
+          .visitSubterms(bank.type);
     }
     if (externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
-      bank.type.accept(new ExternalVisitor(extractor, false, false, true));
+      new ExternalVisitor(extractor,
+              isClean: false, isCovariant: true, isContravariant: false)
+          .visitSubterms(bank.type);
     }
   }
 
@@ -1682,8 +1703,12 @@ class ExternalVisitor extends ATypeVisitor {
   CoreTypes get coreTypes => extractor.coreTypes;
   ConstraintBuilder get builder => extractor.builder;
 
-  ExternalVisitor(
-      this.extractor, this.isClean, this.isCovariant, this.isContravariant);
+  ExternalVisitor(this.extractor,
+      {this.isClean, this.isCovariant, this.isContravariant}) {
+    assert(isClean != null);
+    assert(isCovariant != null);
+    assert(isContravariant != null);
+  }
 
   ExternalVisitor.bivariant(this.extractor)
       : isClean = false,
@@ -1701,15 +1726,46 @@ class ExternalVisitor extends ATypeVisitor {
         isContravariant = true;
 
   ExternalVisitor get inverseVisitor {
-    return new ExternalVisitor(
-        extractor, isClean, isContravariant, isCovariant);
+    return new ExternalVisitor(extractor,
+        isClean: isClean,
+        isCovariant: isContravariant,
+        isContravariant: isCovariant);
   }
 
   ExternalVisitor get bivariantVisitor {
-    return new ExternalVisitor(extractor, isClean, true, true);
+    return new ExternalVisitor(extractor,
+        isClean: isClean, isCovariant: true, isContravariant: true);
   }
 
-  void visit(AType type) => type.accept(this);
+  void visit(AType type) {
+    if (isCovariant) {
+      // Simple case intuition:
+      // For a function object of type `(A) => B`, the return type B will
+      // get processed here.  If the function escapes, the values it returns
+      // can escape too, so process B as escaping.
+      if (!isClean) {
+        builder.addEscape(type.source);
+      }
+    }
+    if (isContravariant) {
+      // Simple case intuition:
+      // For a function object of type `(A) => B`, the argument type A will get
+      // processed here.  If the function escapes, unknown arguments can be
+      // passed to it, so mark A as having worst-case values.
+      var sink = type.sink;
+      if (sink is StorageLocation) {
+        extractor.builder.addConstraint(new ValueConstraint(
+            sink, extractor.getWorstCaseValueForType(type, isClean: isClean),
+            canEscape: !isClean));
+      }
+    }
+    type.accept(this);
+  }
+
+  void visitSubterms(AType type) {
+    type.accept(this);
+  }
+
   void visitBound(AType type) => type.accept(bivariantVisitor);
   void visitInverse(AType type) => type.accept(inverseVisitor);
 
@@ -1718,15 +1774,6 @@ class ExternalVisitor extends ATypeVisitor {
 
   @override
   visitFunctionAType(FunctionAType type) {
-    var source = type.source;
-    if (isCovariant && source is StorageLocation) {
-      var anyValue = new Value(coreTypes.objectClass, ValueFlags.other);
-      builder.addAssignment(anyValue, source, ValueFlags.all);
-    }
-    var sink = type.sink;
-    if (isContravariant && sink is StorageLocation) {
-      builder.addEscape(sink);
-    }
     type.typeParameterBounds.forEach(visitBound);
     type.positionalParameters.forEach(visitInverse);
     type.namedParameters.forEach(visitInverse);
@@ -1738,15 +1785,6 @@ class ExternalVisitor extends ATypeVisitor {
 
   @override
   visitInterfaceAType(InterfaceAType type) {
-    var source = type.source;
-    if (isCovariant && source is StorageLocation) {
-      var value = extractor.getWorstCaseValue(type.classNode, isClean: isClean);
-      builder.addAssignment(value, source, ValueFlags.all);
-    }
-    var sink = type.sink;
-    if (!isClean && isContravariant && sink is StorageLocation) {
-      builder.addEscape(sink);
-    }
     type.typeArguments.forEach(visitBound);
   }
 
@@ -1759,6 +1797,8 @@ class AllocationVisitor extends ATypeVisitor {
   final StorageLocation object;
   bool isCovariant;
 
+  ConstraintBuilder get builder => extractor.builder;
+
   AllocationVisitor(this.extractor, this.object, {this.isCovariant: true});
 
   AllocationVisitor get inverse =>
@@ -1770,17 +1810,16 @@ class AllocationVisitor extends ATypeVisitor {
 
   void visit(AType type) {
     if (isCovariant) {
-      var source = type.source;
-      if (source is StorageLocation) {
-        extractor.builder.addConstraint(new TypeArgumentConstraint(
-            object, source, extractor.getWorstCaseValueForType(type)));
-      }
-      var sink = type.sink;
-      if (sink is StorageLocation) {
-        extractor.builder.addEscape(sink);
-      }
+      // Simple case intuition:
+      // For a function object of type `(A) => B`, the return type B will
+      // get processed here.  If the function escapes, the values it returns
+      // can escape too, so process B as escaping.
+      builder.addEscape(type.source, guard: object);
     } else {
-      extractor.builder.addEscape(type.source);
+      // Simple case intuition:
+      // For a function object of type `(A) => B`, the argument type A will get
+      // processed here.  If the function escapes, unknown arguments can be
+      // passed to it, so mark A as having worst-case values.
       var sink = type.sink;
       if (sink is StorageLocation) {
         extractor.builder.addConstraint(new TypeArgumentConstraint(

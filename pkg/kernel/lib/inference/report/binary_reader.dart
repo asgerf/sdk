@@ -96,8 +96,8 @@ class BinaryReportReader {
     int tag = reader.readByte();
     switch (tag) {
       case ConstraintTag.EscapeConstraint:
-        return new EscapeConstraint(readLocationReference())
-          ..fileOffset = fileOffset;
+        return new EscapeConstraint(readLocationReference(),
+            guard: readOptionalLocationReference())..fileOffset = fileOffset;
 
       case ConstraintTag.SubtypeConstraint:
         return new SubtypeConstraint(
@@ -131,6 +131,13 @@ class BinaryReportReader {
 
   StorageLocation readLocationReference() {
     var owner = reader.readCanonicalName().getReference();
+    int index = reader.readUInt();
+    return constraintSystem.getStorageLocation(owner, index);
+  }
+
+  StorageLocation readOptionalLocationReference() {
+    var owner = reader.readOptionalCanonicalName()?.getReference();
+    if (owner == null) return null;
     int index = reader.readUInt();
     return constraintSystem.getStorageLocation(owner, index);
   }

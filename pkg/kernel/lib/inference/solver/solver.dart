@@ -109,7 +109,9 @@ class ConstraintSolver {
   }
 
   void transferEscapeConstraint(EscapeConstraint constraint) {
-    propagateEscapingLocation(constraint.escaping);
+    if (constraint.guard == null || constraint.guard.value.isEscaping) {
+      propagateEscapingLocation(constraint.escaping);
+    }
   }
 
   /// The [constraint] must be executed whenever the forward properties of
@@ -135,7 +137,11 @@ class ConstraintSolver {
 
   void registerValueConstraint(ValueConstraint constraint) {}
 
-  void registerEscapeConstraint(EscapeConstraint constraint) {}
+  void registerEscapeConstraint(EscapeConstraint constraint) {
+    if (constraint.guard != null) {
+      addForwardDependency(constraint.guard, constraint);
+    }
+  }
 
   void doTransfer(Constraint constraint) {
     report?.onBeginTransfer(constraint);

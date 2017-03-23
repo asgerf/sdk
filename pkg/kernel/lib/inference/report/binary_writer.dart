@@ -120,6 +120,14 @@ class BinaryReportWriter {
     writer.writeUInt(location.index);
   }
 
+  void writeOptionalLocationReference(StorageLocation location) {
+    if (location == null) {
+      writer.writeOptionalCanonicalName(null);
+    } else {
+      writeLocationReference(location);
+    }
+  }
+
   void writeValue(Value value) {
     writer.writeOptionalCanonicalName(value.baseClassReference?.canonicalName);
     writer.writeFixedUInt32(value.flags);
@@ -135,6 +143,7 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
   visitEscapeConstraint(EscapeConstraint constraint) {
     writer.writeByte(ConstraintTag.EscapeConstraint);
     writer.writeLocationReference(constraint.escaping);
+    writer.writeOptionalLocationReference(constraint.guard);
   }
 
   @override
