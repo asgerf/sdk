@@ -28,13 +28,27 @@
         height: 45px;
         line-height: 45px;
       }
+
       #top-bar-filler {
-        /* Prevents main content from displaying under the top bar */
+        /* Prevents main content from hiding under the top bar */
         height: 45px;
       }
-      .bottom-filler {
-        /* Makes space for type view from below without resizing page */
+
+      #bottom-filler {
+        /* Adds space at the bottom the page so when the type view opens near
+           the bottom of the code view, it does not resize the page */
         height: 300px;
+      }
+
+      #main-content {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        visibility: hidden; /* Becomes visible when kernel file is loaded. */
+        overflow-x: hidden;
       }
 
       /*  Search box  */
@@ -69,7 +83,7 @@
       }
       #backtracker-title {}
 
-      /*  Track escape checkbox */
+      /* Track escape checkbox */
       #track-escape-container {
         display: inline-block;
         height: 100%;
@@ -80,26 +94,16 @@
         vertical-align: center;
       }
       #track-escape-container label {
+        /* Fill out the whole container to make the checkbox easier to hit */
         width: 100%;
         height: 100%;
         display: block;
       }
 
-      #main-content {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        visibility: hidden;
-        overflow-x: hidden;
-      }
-
       /*  Code view  */
       #code-view-container {
-        max-width: 1250px;
         min-width: 800px;
+        max-width: 1250px;
         width: 80%;
         display: block;
         vertical-align: top;
@@ -112,7 +116,6 @@
         line-height: 19px;
         white-space: pre-wrap;
         cursor: default;
-        color: #586e75;
         background-color: #fff;
         border-top: 1px solid #ddd;
       }
@@ -131,7 +134,7 @@
         padding-left: 6px; /* Creates space between line numbers and code */
       }
       .code-line span {
-        /* Applies to all source code except comments */
+        /* "Default" source code color */
         color: black;
       }
       .code-line span.keyword {
@@ -160,13 +163,13 @@
 
       /*  Type view  */
       #type-view-container {
+        position: absolute;
         z-index: 1;
         display: inline-block;
+        padding: 4px 4px 4px 4px;
         background-color: #111;
-        position: absolute;
         opacity: 0.9;
         color: white;
-        padding: 4px 4px 4px 4px;
       }
       #type-view-table {
         border-collapse: collapse;
@@ -178,22 +181,24 @@
         color: orange;
       }
       #type-view-storage-location-name {
+        /* The storage location text following the AST node kind, shown when
+           hovering over an AST node */
         color: gray;
       }
       #type-view-warning {
+        /* Warns that the shown AST node is a dynamic call */
         background-color: #dc322f;
         color: black;
         text-align: center;
       }
-      .value-base-class-label {}
-      .value-base-class {}
-      .value-flag-label {
+      .type-view-base-class {}
+      .type-view-flag-label {
         padding-right: 6px;
       }
-      .value-flag-on {
+      .type-view-flag-on {
         color: #dc322f;
       }
-      .value-flag-off {
+      .type-view-flag-off {
         color: #268bd2;
       }
       .type-view-next-value {
@@ -322,7 +327,7 @@
       </table>
 
       <!-- Prevent type view from resizing and scrolling the page -->
-      <div class="bottom-filler"></div>
+      <div id="bottom-filler"></div>
     </div>
 
     <div id="type-view-container">

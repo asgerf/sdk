@@ -103,7 +103,7 @@ class TypeView {
       {
         row.append(new TableCellElement()
           ..text = getPrettyClassName(firstColumn.baseClass)
-          ..classes.add(CssClass.valueBaseClass)
+          ..classes.add(CssClass.typeViewBaseClass)
           ..colSpan = 2);
       }
 
@@ -143,10 +143,11 @@ class TypeView {
       var row = new TableRowElement();
       row.append(new TableCellElement()
         ..text = flagName
-        ..classes.add(CssClass.valueFlagLabel));
+        ..classes.add(CssClass.typeViewFlagLabel));
 
       bool hasFlag = firstColumn.flags & mask != 0;
-      var hasFlagCss = hasFlag ? CssClass.valueFlagOn : CssClass.valueFlagOff;
+      var hasFlagCss =
+          hasFlag ? CssClass.typeViewFlagOn : CssClass.typeViewFlagOff;
       var hasFlagText = hasFlag ? 'yes' : 'no';
 
       row.append(new TableCellElement()..text = hasFlagText);
