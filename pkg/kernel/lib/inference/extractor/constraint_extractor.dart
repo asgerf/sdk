@@ -1567,7 +1567,7 @@ class ConstraintExtractorVisitor
         if (currentAsyncMarker == AsyncMarker.Async) {
           type = unfutureType(type);
         }
-        checkAssignable(node.expression, type, returnType);
+        checkAssignable(node.expression, type, returnType, node.fileOffset);
       }
     }
     return false;
