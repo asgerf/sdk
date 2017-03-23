@@ -84,17 +84,29 @@ void testUpcastAndAddNull() {
 }
 
 void testBox() {
-  Box<int> box = new Box<int>(5);
-  int nullableInt = box.getNull();
-  int nonNullableInt = box.field;
+  {
+    Box<int> box = new Box<int>(5);
+    int nullableInt1 = box.getNull();
+    int nullableInt2 = box.getThis().getNull();
+    int nonNullableInt1 = box.field;
+    int nonNullableInt2 = box.getThis().field;
+  }
 
-  Box<int> boxWithNull = new Box<int>(null);
-  int alwaysNull1 = boxWithNull.getNull();
-  int alwaysNull2 = boxWithNull.field;
+  {
+    Box<int> boxWithNull = new Box<int>(null);
+    int alwaysNull1 = boxWithNull.getNull();
+    int alwaysNull2 = boxWithNull.field;
+    int alwaysNull3 = boxWithNull.getThis().getNull();
+    int alwaysNull4 = boxWithNull.getThis().field;
+  }
 
-  Box<int> boxWithMaybeNull = new Box<int>(5 ?? null);
-  int nullableInt2 = boxWithMaybeNull.getNull();
-  int nullableInt3 = boxWithMaybeNull.field;
+  {
+    Box<int> boxWithMaybeNull = new Box<int>(5 ?? null);
+    int nullableInt1 = boxWithMaybeNull.getNull();
+    int nullableInt2 = boxWithMaybeNull.field;
+    int nullableInt3 = boxWithMaybeNull.getThis().getNull();
+    int nullableInt4 = boxWithMaybeNull.getThis().field;
+  }
 }
 
 class Box<T> {
@@ -103,6 +115,7 @@ class Box<T> {
   Box(this.field);
 
   T getNull() => null;
+  Box<T> getThis() => this;
 }
 
 testInitializers() {
