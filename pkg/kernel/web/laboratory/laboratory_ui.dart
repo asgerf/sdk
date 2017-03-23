@@ -55,6 +55,7 @@ class UI {
 UI ui = new UI();
 
 class CssClass {
+  static const String codeLine = 'code-line';
   static const String highlightedToken = 'highlighted-token';
   static const String valueBaseClass = 'value-base-class';
   static const String valueBaseClassLabel = 'value-base-class-label';

@@ -233,7 +233,7 @@ class CodeView extends UIComponent {
       var htmlListItem = new LIElement();
       htmlListItem.dataset['lineIndex'] = '$lineIndex';
 
-      var htmlLine = new SpanElement()..classes.add('L');
+      var htmlLine = new SpanElement()..classes.add(CssClass.codeLine);
       htmlListItem.append(htmlLine);
 
       int offset = start;

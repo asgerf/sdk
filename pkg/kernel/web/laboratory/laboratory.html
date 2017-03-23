@@ -103,7 +103,7 @@
         width: 80%;
         display: block;
         vertical-align: top;
-        margin: 0 auto; /* center horizontally */
+        margin: 0 auto; /* Center horizontally */
         background-color: #eee;
         border: 1px solid #ddd;
       }
@@ -117,24 +117,27 @@
         border-top: 1px solid #ddd;
       }
       #code-view-body li {
-        font-family: arial;
+        /* Font style applies to the line numbers shown in the code view */
         color: #ddd;
-        min-height: 19px;
+        font-family: arial;
         font-size: 10px;
+        min-height: 19px; /* Ensure comfortable line spacing */
       }
-      .L {
+      .code-line {
+        /* Font style applies to all source code */
         font-family: 'Source Code Pro', monospace;
         font-size: 13px;
-        color: gray; /* color of ignored tokens */
-        padding-left: 6px;
+        color: gray; /* This is the color of source code comments */
+        padding-left: 6px; /* Creates space between line numbers and code */
       }
-      .L span {
+      .code-line span {
+        /* Applies to all source code except comments */
         color: black;
       }
-      .L span.keyword {
+      .code-line span.keyword {
         color: #6c71c4;
       }
-      .L span.typename {
+      .code-line span.typename {
         color: #b58900;
       }
       #code-view-title {
