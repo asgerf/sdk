@@ -444,15 +444,15 @@ void testEscapeNonGeneric() {
 }
 
 void testCombinators() {
-  var nonNullable = ['foo', 'bar', 'baz'];
+  List<String> nonNullable = ['foo', 'bar', 'baz'];
   nonNullable.forEach((x) {
     print(x);
   });
-  var nonNullableMapped = nonNullable.map((x) => x).first;
+  var nonNullableMapped = nonNullable.map<String>((x) => x).first;
 
-  var nullable = ['foo', 'bar', null, 'baz'];
+  List<String> nullable = ['foo', 'bar', null, 'baz'];
   nullable.forEach((x) {
     print(x);
   });
-  var nullableMapped = nullable.map((x) => x).first;
+  var nullableMapped = nullable.map<String>((x) => x).first;
 }

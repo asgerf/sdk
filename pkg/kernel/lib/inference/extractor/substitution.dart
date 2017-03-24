@@ -19,15 +19,17 @@ abstract class Substitution {
 
   AType getRawSubstitute(TypeParameter parameter);
 
-  AType substituteType(AType type) {
-    return type.substitute(this);
+  AType getInstantiation(FunctionTypeParameterAType parameter, int shift);
+
+  AType substituteType(AType type, [int shift = 0]) {
+    return type.substitute(this, shift);
   }
 
   // TODO: Determine if this needs to be changed or just removed.
-  AType substituteBound(AType type) => type.substitute(this);
+  AType substituteBound(AType type) => type.substitute(this, 0);
 
-  List<AType> substituteTypeList(List<AType> types) {
-    return types.map((t) => t.substitute(this)).toList(growable: false);
+  List<AType> substituteTypeList(List<AType> types, [int shift = 0]) {
+    return types.map((t) => t.substitute(this, shift)).toList(growable: false);
   }
 
   static const Substitution empty = EmptySubstitution.instance;
@@ -66,6 +68,10 @@ abstract class Substitution {
   static Substitution erasing(AType result) {
     return new ErasingSubstitution(result);
   }
+
+  static Substitution instantiate(List<AType> functionTypeArguments) {
+    return new FunctionInstantiator(functionTypeArguments);
+  }
 }
 
 class ErasingSubstitution extends Substitution {
@@ -75,6 +81,11 @@ class ErasingSubstitution extends Substitution {
 
   @override
   AType getRawSubstitute(TypeParameter parameter) {
+    return type;
+  }
+
+  @override
+  AType getInstantiation(FunctionTypeParameterAType parameter, int shift) {
     return type;
   }
 }
@@ -91,6 +102,11 @@ class BottomSubstitution extends Substitution {
     }
     return null;
   }
+
+  @override
+  AType getInstantiation(FunctionTypeParameterAType type, int shift) {
+    return null;
+  }
 }
 
 class EmptySubstitution extends Substitution {
@@ -99,11 +115,16 @@ class EmptySubstitution extends Substitution {
   const EmptySubstitution();
 
   @override
-  AType substituteType(AType type) {
+  AType substituteType(AType type, [int shift = 0]) {
     return type; // Do not traverse type when there is nothing to do.
   }
 
   AType getRawSubstitute(TypeParameter parameter) {
+    return null;
+  }
+
+  @override
+  AType getInstantiation(FunctionTypeParameterAType type, int shift) {
     return null;
   }
 }
@@ -129,6 +150,11 @@ class PairSubstitution extends Substitution {
     if (index == -1) return null;
     return types[index];
   }
+
+  @override
+  AType getInstantiation(FunctionTypeParameterAType type, int shift) {
+    return null;
+  }
 }
 
 class SequenceSubstitution extends Substitution {
@@ -153,6 +179,16 @@ class SequenceSubstitution extends Substitution {
       return right.getRawSubstitute(parameter);
     }
   }
+
+  @override
+  AType getInstantiation(FunctionTypeParameterAType type, int shift) {
+    var replacement = left.getInstantiation(type, shift);
+    if (replacement != null) {
+      return right.substituteType(replacement);
+    } else {
+      return right.getInstantiation(type, shift);
+    }
+  }
 }
 
 class EitherSubstitution extends Substitution {
@@ -168,6 +204,11 @@ class EitherSubstitution extends Substitution {
     return left.getRawSubstitute(parameter) ??
         right.getRawSubstitute(parameter);
   }
+
+  AType getInstantiation(FunctionTypeParameterAType type, int shift) {
+    return left.getInstantiation(type, shift) ??
+        right.getInstantiation(type, shift);
+  }
 }
 
 class ClosednessChecker extends Substitution {
@@ -179,5 +220,30 @@ class ClosednessChecker extends Substitution {
     if (typeParameters.contains(parameter)) return null;
     throw '$parameter from ${parameter.parent} ${parameter.parent.parent} '
         'is out of scope';
+  }
+
+  AType getInstantiation(FunctionTypeParameterAType type, int shift) {
+    throw '$type is referenced out of scope is out of scope';
+  }
+}
+
+class FunctionInstantiator extends Substitution {
+  final List<AType> arguments;
+
+  FunctionInstantiator(this.arguments);
+
+  AType getRawSubstitute(TypeParameter parameter) {
+    return null;
+  }
+
+  AType getInstantiation(FunctionTypeParameterAType type, int shift) {
+    int shiftedIndex = type.index - shift;
+    if (shiftedIndex >= 0) {
+      assert(shiftedIndex < arguments.length,
+          'Too few type arguments or type argument out of scope');
+      return arguments[shiftedIndex];
+    } else {
+      return null;
+    }
   }
 }

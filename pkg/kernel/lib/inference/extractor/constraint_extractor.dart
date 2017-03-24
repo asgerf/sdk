@@ -755,7 +755,7 @@ class ConstraintExtractorVisitor
         fail(arguments, 'Wrong number of type arguments');
         return BottomAType.nonNullable;
       }
-      instantiation = Substitution.fromPairs(typeParameters, typeArguments);
+      instantiation = Substitution.instantiate(typeArguments);
     } else {
       assert(typeParameters.isEmpty);
     }

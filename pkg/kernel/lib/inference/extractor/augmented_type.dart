@@ -73,7 +73,7 @@ abstract class AType implements Printable {
 
   accept(ATypeVisitor visitor);
 
-  AType substitute(Substitution substitution);
+  AType substitute(Substitution substitution, int shift);
 
   /// Returns a copy of this type with its value source replaced.
   AType withSource(ValueSource source);
@@ -121,9 +121,11 @@ abstract class AType implements Printable {
   }
 
   static List<AType> substituteList(
-      List<AType> types, Substitution substitution) {
+      List<AType> types, Substitution substitution, int shift) {
     if (types.isEmpty) return const <AType>[];
-    return types.map((t) => t.substitute(substitution)).toList(growable: false);
+    return types
+        .map((t) => t.substitute(substitution, shift))
+        .toList(growable: false);
   }
 
   String toString() => Printable.show(this);
@@ -156,9 +158,9 @@ class InterfaceAType extends AType {
   bool containsAny(bool predicate(AType type)) =>
       predicate(this) || AType.listContainsAny(typeArguments, predicate);
 
-  AType substitute(Substitution substitution) {
+  AType substitute(Substitution substitution, int shift) {
     return new InterfaceAType(source, sink, classNode,
-        AType.substituteList(typeArguments, substitution));
+        AType.substituteList(typeArguments, substitution, shift));
   }
 
   AType withSource(ValueSource source) {
@@ -246,16 +248,31 @@ class FunctionAType extends AType {
         returnType.containsAny(predicate);
   }
 
-  FunctionAType substitute(Substitution substitution) {
+  FunctionAType substitute(Substitution substitution, int shift) {
+    shift += typeParameterBounds.length;
     return new FunctionAType(
         source,
         sink,
-        AType.substituteList(typeParameterBounds, substitution),
+        AType.substituteList(typeParameterBounds, substitution, shift),
         requiredParameterCount,
-        AType.substituteList(positionalParameters, substitution),
+        AType.substituteList(positionalParameters, substitution, shift),
         namedParameterNames,
-        AType.substituteList(namedParameters, substitution),
-        returnType.substitute(substitution));
+        AType.substituteList(namedParameters, substitution, shift),
+        returnType.substitute(substitution, shift));
+  }
+
+  FunctionAType instantiate(List<AType> arguments) {
+    assert(arguments.length == typeParameterBounds.length);
+    var substitution = Substitution.instantiate(arguments);
+    return new FunctionAType(
+        source,
+        sink,
+        const [],
+        requiredParameterCount,
+        AType.substituteList(positionalParameters, substitution, 0),
+        namedParameterNames,
+        AType.substituteList(namedParameters, substitution, 0),
+        returnType.substitute(substitution, 0));
   }
 
   AType withSource(ValueSource source) {
@@ -313,7 +330,9 @@ class FunctionTypeParameterAType extends AType {
   void _generateSubtypeConstraintsForSubterms(
       AType supertype, SubtypingScope scope) {}
 
-  FunctionTypeParameterAType substitute(Substitution substitution) => this;
+  AType substitute(Substitution substitution, int shift) {
+    return substitution.getInstantiation(this, shift) ?? this;
+  }
 
   AType withSource(ValueSource source) {
     return new FunctionTypeParameterAType(source, sink, index);
@@ -334,7 +353,7 @@ class BottomAType extends AType {
   void _generateSubtypeConstraintsForSubterms(
       AType supertype, SubtypingScope scope) {}
 
-  BottomAType substitute(Substitution substitution) => this;
+  BottomAType substitute(Substitution substitution, int shift) => this;
 
   static final BottomAType nonNullable =
       new BottomAType(Value.bottom, ValueSink.nowhere);
@@ -368,7 +387,7 @@ class TypeParameterAType extends AType {
     bound.generateSubtypeConstraints(supertype, scope);
   }
 
-  AType substitute(Substitution substitution) {
+  AType substitute(Substitution substitution, int shift) {
     return substitution.getSubstitute(this);
   }
 
