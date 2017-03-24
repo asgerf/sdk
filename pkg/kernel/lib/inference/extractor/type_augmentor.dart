@@ -135,12 +135,14 @@ class AugmentorVisitor extends DartTypeVisitor<AType> implements TypeAugmentor {
   }
 
   visitTypeParameterType(TypeParameterType node) {
+    int shift = 0;
     for (int i = innerTypeParameters.length - 1; i >= 0; --i) {
       var list = innerTypeParameters[i];
       int index = list.indexOf(node.parameter);
       if (index != -1) {
-        return new FunctionTypeParameterAType(source, sink, index);
+        return new FunctionTypeParameterAType(source, sink, index + shift);
       }
+      shift += list.length;
     }
     if (isGeneratingFreshStorageLocations) {
       var parameterLocation = scope.getTypeParameterLocation(node.parameter);

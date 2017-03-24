@@ -12,13 +12,31 @@ import 'value_source.dart';
 abstract class Substitution {
   const Substitution();
 
-  AType getSubstitute(TypeParameterAType parameter) {
+  /// Returns a type to substitute for the given parameter, or `null` if it
+  /// should not be substituted.
+  ///
+  /// The substitution may generate a new value source for the returned type,
+  /// based on the [type] value source and that of the substituted type.
+  AType getSubstitute(TypeParameterAType type) {
     // Note: this is overridden in some subclasses.
-    return getRawSubstitute(parameter.parameter);
+    return getRawSubstitute(type.parameter);
   }
 
+  /// Returns a type to substitute for the given parameter, not taking into
+  /// account an existing value source and sink, or `null` if the given
+  /// parameter should not be substituted.
+  ///
+  /// Unlike [getSubstitute], this does not combine value sources.
   AType getRawSubstitute(TypeParameter parameter);
 
+  /// Returns a type to substitute for a type parameter declared on a
+  /// function type.
+  ///
+  /// Function type parameters are encoded using [De Brujin indices][1].
+  /// The [shift] indicates the number of type parameter declared between
+  /// the initial call to [substituteType] and here.
+  ///
+  /// [1]: https://en.wikipedia.org/wiki/De_Bruijn_index
   AType getInstantiation(FunctionTypeParameterAType parameter, int shift);
 
   AType substituteType(AType type, [int shift = 0]) {
@@ -69,6 +87,7 @@ abstract class Substitution {
     return new ErasingSubstitution(result);
   }
 
+  /// Replaces function type parameters with the given values.
   static Substitution instantiate(List<AType> functionTypeArguments) {
     return new FunctionInstantiator(functionTypeArguments);
   }

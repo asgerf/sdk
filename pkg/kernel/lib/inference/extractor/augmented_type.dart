@@ -318,6 +318,20 @@ class FunctionAType extends AType {
   }
 }
 
+/// Reference to a type parameter declared on an enclosing function type.
+///
+/// Note that type parameters declared on classes and functions (but not
+/// *function types*) are referenced using [TypeParameterAType].
+///
+/// Type parameters on function types are encoded using [De Brujin indices][1].
+///
+/// This example shows how a type involving nested generic function types is
+/// represented:
+///
+///     type:  <T>(T) => <G>(G, T) => G
+///     index:     0         0  1     0
+///
+/// [1]: https://en.wikipedia.org/wiki/De_Bruijn_index
 class FunctionTypeParameterAType extends AType {
   final int index;
 
