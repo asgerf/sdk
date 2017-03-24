@@ -256,7 +256,7 @@ class ConstraintExtractor {
     if (type is FunctionAType) {
       return isClean ? functionValue : nullableFunctionValue;
     }
-    if (type is TypeParameterType) {
+    if (type is TypeParameterAType) {
       return isClean ? Value.bottom : nullValue;
     }
     return new Value(coreTypes.objectClass, ValueFlags.all);
@@ -470,7 +470,7 @@ class ConstraintExtractorVisitor
         scope.typeParameterBounds[parameter] = bound;
         // TODO
         thisTypeArgs
-            .add(new TypeParameterAType(bound.source, bound.sink, parameter));
+            .add(new TypeParameterAType(Value.bottom, bound.sink, parameter));
       }
       var value = new Value(class_, valueFlagsFromBaseClass(class_));
       thisType = new InterfaceAType(
