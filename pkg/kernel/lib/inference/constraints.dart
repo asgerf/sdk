@@ -75,9 +75,18 @@ class ConstraintCluster {
 }
 
 abstract class Constraint {
+  /// The constraint cluster to which this constriant belongs.
   Reference owner;
+
+  /// The index of the constraint in its cluster.
   int index;
+
+  /// Source location of the code that gave rise to this constraint.
+  ///
+  /// This is not enough information to fully determine why a constraint was
+  /// created, though it gives a good idea where it came from.
   int fileOffset = -1;
+
   void transfer(ConstraintSolver solver);
   void register(ConstraintSolver solver);
   T accept<T>(ConstraintVisitor<T> visitor);
@@ -165,30 +174,6 @@ class ValueConstraint extends Constraint {
   }
 }
 
-/// The value in [escaping] can escape if the value in [guard] escapes.
-class EscapeConstraint extends Constraint {
-  final StorageLocation escaping;
-  final StorageLocation guard; // May be null.
-
-  EscapeConstraint(this.escaping, {this.guard});
-
-  void transfer(ConstraintSolver solver) {
-    solver.transferEscapeConstraint(this);
-  }
-
-  void register(ConstraintSolver solver) {
-    solver.registerEscapeConstraint(this);
-  }
-
-  String toString() {
-    return 'escape $escaping';
-  }
-
-  T accept<T>(ConstraintVisitor<T> visitor) {
-    return visitor.visitEscapeConstraint(this);
-  }
-}
-
 /// If [guard] is escaping, then [value] can flow into [destination].
 ///
 /// This is generated for each type argument term inside an allocation site.
@@ -227,5 +212,29 @@ class GuardedValueConstraint extends Constraint {
 
   T accept<T>(ConstraintVisitor<T> visitor) {
     return visitor.visitGuardedValueConstraint(this);
+  }
+}
+
+/// The value in [escaping] can escape if the value in [guard] escapes.
+class EscapeConstraint extends Constraint {
+  final StorageLocation escaping;
+  final StorageLocation guard; // May be null.
+
+  EscapeConstraint(this.escaping, {this.guard});
+
+  void transfer(ConstraintSolver solver) {
+    solver.transferEscapeConstraint(this);
+  }
+
+  void register(ConstraintSolver solver) {
+    solver.registerEscapeConstraint(this);
+  }
+
+  String toString() {
+    return 'escape $escaping';
+  }
+
+  T accept<T>(ConstraintVisitor<T> visitor) {
+    return visitor.visitEscapeConstraint(this);
   }
 }
