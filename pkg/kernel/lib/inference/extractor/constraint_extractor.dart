@@ -44,7 +44,6 @@ class ConstraintExtractor {
   AType typeType;
   AType topType;
 
-  Value anyValue;
   Value intValue;
   Value doubleValue;
   Value numValue;
@@ -53,6 +52,7 @@ class ConstraintExtractor {
   Value nullValue;
   Value functionValue;
 
+  Value anyValue;
   Value nullableIntValue;
   Value nullableDoubleValue;
   Value nullableNumValue;
@@ -73,7 +73,6 @@ class ConstraintExtractor {
     externalModel ??= new VmExternalModel(program, coreTypes, []);
     builder ??= new ConstraintBuilder(hierarchy, constraintSystem);
 
-    anyValue = new Value(coreTypes.objectClass, ValueFlags.all);
     intValue = new Value(coreTypes.intClass, ValueFlags.integer);
     doubleValue = new Value(coreTypes.doubleClass, ValueFlags.double_);
     numValue = new Value(coreTypes.numClass,
@@ -83,6 +82,8 @@ class ConstraintExtractor {
     nullValue = new Value(null, ValueFlags.null_);
     functionValue = new Value(coreTypes.functionClass,
         ValueFlags.other | ValueFlags.inexactBaseClass);
+
+    anyValue = new Value(coreTypes.objectClass, ValueFlags.all);
     nullableIntValue =
         new Value(coreTypes.intClass, ValueFlags.null_ | ValueFlags.integer);
     nullableDoubleValue =
@@ -270,16 +271,14 @@ class ConstraintExtractor {
     if (classNode == coreTypes.stringClass) return nullableStringValue;
     if (classNode == coreTypes.boolClass) return nullableBoolValue;
     if (classNode == coreTypes.nullClass) return nullValue;
-    var baseClass = baseHierarchy.getSubtypesOf(classNode).getCommonBaseClass();
-    if (baseClass == baseHierarchy.rootClass) {
-      return anyValue;
-    }
-    return new Value(
-        baseClass,
-        ValueFlags.null_ |
-            ValueFlags.other |
-            ValueFlags.escaping |
-            ValueFlags.inexactBaseClass);
+    if (classNode == coreTypes.objectClass) return anyValue;
+
+    ClassSet classSet = baseHierarchy.getSubtypesOf(classNode);
+    Class baseClass = classSet.getCommonBaseClass();
+    int exactness = classSet.isSingleton ? 0 : ValueFlags.inexactBaseClass;
+
+    return new Value(baseClass,
+        ValueFlags.null_ | ValueFlags.other | ValueFlags.escaping | exactness);
   }
 
   Value getCleanValue(Class classNode) {
@@ -289,11 +288,41 @@ class ConstraintExtractor {
     if (classNode == coreTypes.stringClass) return stringValue;
     if (classNode == coreTypes.boolClass) return boolValue;
     if (classNode == coreTypes.nullClass) return nullValue;
-    var baseClass = baseHierarchy.getSubtypesOf(classNode).getCommonBaseClass();
-    if (baseClass == baseHierarchy.rootClass) {
-      return anyValue.masked(ValueFlags.notNull);
-    }
-    return new Value(baseClass, ValueFlags.other | ValueFlags.inexactBaseClass);
+
+    // As a special case, a type annotation of 'Object' is treated as nullable,
+    // even for clean externals.
+    if (classNode == coreTypes.objectClass) return anyValue;
+
+    ClassSet classSet = baseHierarchy.getSubtypesOf(classNode);
+    Class baseClass = classSet.getCommonBaseClass();
+    int exactness = classSet.isSingleton ? 0 : ValueFlags.inexactBaseClass;
+
+    return new Value(baseClass, ValueFlags.other | exactness);
+  }
+
+  Value getExactClassValue(Class class_) {
+    return new Value(class_, valueFlagFromExactClass(class_));
+  }
+
+  Value getBaseClassValue(Class class_) {
+    return new Value(class_, valueFlagsFromBaseClass(class_));
+  }
+
+  int valueFlagFromExactClass(Class class_) {
+    if (class_ == coreTypes.intClass) return ValueFlags.integer;
+    if (class_ == coreTypes.doubleClass) return ValueFlags.double_;
+    if (class_ == coreTypes.stringClass) return ValueFlags.string;
+    if (class_ == coreTypes.boolClass) return ValueFlags.boolean;
+    return ValueFlags.other;
+  }
+
+  int valueFlagsFromBaseClass(Class class_) {
+    if (class_ == coreTypes.intClass) return ValueFlags.integer;
+    if (class_ == coreTypes.doubleClass) return ValueFlags.double_;
+    if (class_ == coreTypes.stringClass) return ValueFlags.string;
+    if (class_ == coreTypes.boolClass) return ValueFlags.boolean;
+    if (class_ == coreTypes.objectClass) return ValueFlags.allValueSets;
+    return ValueFlags.other;
   }
 
   final List<Function> analysisCompleteHooks = <Function>[];
@@ -472,9 +501,8 @@ class ConstraintExtractorVisitor
         thisTypeArgs
             .add(new TypeParameterAType(Value.bottom, bound.sink, parameter));
       }
-      var value = new Value(class_, valueFlagsFromBaseClass(class_));
       thisType = new InterfaceAType(
-          value,
+          extractor.getBaseClassValue(class_),
           ValueSink.unassignable("type of 'this'", class_),
           class_,
           thisTypeArgs);
@@ -910,23 +938,6 @@ class ConstraintExtractorVisitor
     return type;
   }
 
-  int valueFlagFromExactClass(Class class_) {
-    if (class_ == coreTypes.intClass) return ValueFlags.integer;
-    if (class_ == coreTypes.doubleClass) return ValueFlags.double_;
-    if (class_ == coreTypes.stringClass) return ValueFlags.string;
-    if (class_ == coreTypes.boolClass) return ValueFlags.boolean;
-    return ValueFlags.other;
-  }
-
-  int valueFlagsFromBaseClass(Class class_) {
-    if (class_ == coreTypes.intClass) return ValueFlags.integer;
-    if (class_ == coreTypes.doubleClass) return ValueFlags.double_;
-    if (class_ == coreTypes.stringClass) return ValueFlags.string;
-    if (class_ == coreTypes.boolClass) return ValueFlags.boolean;
-    if (class_ == coreTypes.objectClass) return ValueFlags.allValueSets;
-    return ValueFlags.other;
-  }
-
   void addAllocationTypeArgument(
       StorageLocation createdObject, AType typeArgument) {
     new AllocationVisitor(extractor, createdObject).visit(typeArgument);
@@ -957,7 +968,7 @@ class ConstraintExtractorVisitor
         node.fileOffset);
     handleCall(arguments, target, node.fileOffset, receiver: substitution);
     var createdObject = bank.newLocation();
-    var value = new Value(class_, valueFlagFromExactClass(class_));
+    var value = extractor.getExactClassValue(class_);
     var type = new InterfaceAType(
         createdObject,
         ValueSink.unassignable('result of an expression', node),

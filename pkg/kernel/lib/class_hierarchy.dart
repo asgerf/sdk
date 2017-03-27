@@ -240,12 +240,12 @@ class ClassHierarchy {
     return !getSubtypesOf(class_).isSingleton;
   }
 
-  /// Returns the subtypes of [class_] as an interval list.
+  /// Returns the subtypes of [class_], including itself, as a class set.
   ClassSet getSubtypesOf(Class class_) {
     return new ClassSet(this, _infoFor[class_].subtypeIntervalList);
   }
 
-  /// Returns the subclasses of [class_] as an interval list.
+  /// Returns the subclasses of [class_], including itself, as a class set.
   ClassSet getSubclassesOf(Class class_) {
     return new ClassSet(this, _infoFor[class_].subclassIntervalList);
   }
