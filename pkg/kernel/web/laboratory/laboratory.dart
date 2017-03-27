@@ -15,7 +15,6 @@ import 'package:kernel/inference/report/binary_reader.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/value.dart';
 import 'package:kernel/library_index.dart';
-import 'package:kernel/type_environment.dart';
 import 'package:kernel/util/reader.dart';
 
 import 'history_manager.dart';
