@@ -8,6 +8,12 @@ import 'storage_location.dart';
 import 'solver/solver.dart';
 import 'value.dart';
 
+/// Constraint system used by the inference engine.
+///
+/// A constraint system is divided into clusters, with each cluster owned by a
+/// class or member.  Each cluster contains a list of storage locations and a
+/// list of constraints.  Constraints can reference any storage location from
+/// any cluster.
 class ConstraintSystem {
   final Map<Reference, ConstraintCluster> clusters =
       <Reference, ConstraintCluster>{};
@@ -52,6 +58,10 @@ class ConstraintSystem {
   }
 }
 
+/// A constraint cluster is the part of a constraint system that is specific
+/// to a class or member (called its [owner]).
+///
+/// It mainly consists of storage locations and constraints.
 class ConstraintCluster {
   final Reference owner;
   List<TypeParameterStorageLocation> typeParameters =
