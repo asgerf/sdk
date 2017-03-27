@@ -46,7 +46,7 @@ class _InferenceResults extends InferenceResults {
   Report get report => _report;
 }
 
-class _MemberInferenceResults implements MemberInferenceResults {
+class _MemberInferenceResults extends MemberInferenceResults {
   final StorageLocationBank _bank;
   final Binding _binding;
   final ValueLattice _lattice;
@@ -64,22 +64,10 @@ class _MemberInferenceResults implements MemberInferenceResults {
     return value;
   }
 
-  Value _getValueAtOffset(int offset) {
+  Value getValueAtStorageLocation(int offset) {
     if (offset == null || offset == -1) return _top;
     return _getStorageLocationValue(_bank.locations[offset]);
   }
 
-  Value get value => _getValueAtOffset(0);
-
-  Value getValueOfVariable(VariableDeclaration node) {
-    return _getValueAtOffset(node.inferredValueOffset);
-  }
-
-  Value getValueOfFunctionReturn(FunctionNode node) {
-    return _getValueAtOffset(node.inferredReturnValueOffset);
-  }
-
-  Value getValueOfExpression(Expression node) {
-    return _getValueAtOffset(node.inferredValueOffset);
-  }
+  Value get value => getValueAtStorageLocation(0);
 }

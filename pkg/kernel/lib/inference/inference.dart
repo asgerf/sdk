@@ -58,7 +58,17 @@ abstract class MemberInferenceResults {
   /// constructors it describes a function value.
   Value get value;
 
-  Value getValueOfVariable(VariableDeclaration node);
-  Value getValueOfFunctionReturn(FunctionNode node);
-  Value getValueOfExpression(Expression node);
+  Value getValueAtStorageLocation(int storageLocationOffset);
+
+  Value getValueOfVariable(VariableDeclaration node) {
+    return getValueAtStorageLocation(node.inferredValueOffset);
+  }
+
+  Value getValueOfFunctionReturn(FunctionNode node) {
+    return getValueAtStorageLocation(node.inferredReturnValueOffset);
+  }
+
+  Value getValueOfExpression(Expression node) {
+    return getValueAtStorageLocation(node.inferredValueOffset);
+  }
 }
