@@ -11,7 +11,6 @@ import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
-import 'package:kernel/inference/extractor/binding.dart';
 import 'package:kernel/inference/report/binary_reader.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/value.dart';
@@ -79,7 +78,6 @@ void onProgramLoaded() {
 }
 
 void onReportFileLoaded() {
-  binding = new Binding(constraintSystem, coreTypes);
   ui.backtracker.reset();
   if (report != null && program != null) {
     startMainUI();

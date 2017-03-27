@@ -1,7 +1,6 @@
 import 'package:kernel/ast.dart';
 import 'package:kernel/inference/extractor/augmented_type.dart';
 import 'package:kernel/inference/extractor/value_sink.dart';
-import 'package:kernel/inference/extractor/value_source.dart';
 import 'package:kernel/inference/value.dart';
 import 'package:test/test.dart';
 
