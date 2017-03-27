@@ -87,7 +87,7 @@ abstract class ConstraintVisitor<T> {
   T visitAssignConstraint(AssignConstraint constraint);
   T visitValueConstraint(ValueConstraint constraint);
   T visitEscapeConstraint(EscapeConstraint constraint);
-  T visitTypeArgumentConstraint(TypeArgumentConstraint constraint);
+  T visitGuardedValueConstraint(GuardedValueConstraint constraint);
 }
 
 /// Any value in [source] matching [mask] can flow into [destination].
@@ -188,7 +188,7 @@ class EscapeConstraint extends Constraint {
   }
 }
 
-/// If [createdObject] is escaping, then [value] can flow into [typeArgument].
+/// If [guard] is escaping, then [value] can flow into [destination].
 ///
 /// This is generated for each type argument term inside an allocation site.
 /// For instance, for the allocation
@@ -200,31 +200,31 @@ class EscapeConstraint extends Constraint {
 ///
 ///     Map<String+?, List+?<Uri+?>>
 ///
-class TypeArgumentConstraint extends Constraint {
-  final StorageLocation createdObject;
-  final StorageLocation typeArgument;
-
-  /// The value to assign to [typeArgument] if [createdObject] escapes.
+class GuardedValueConstraint extends Constraint {
+  final StorageLocation destination;
   final Value value;
 
-  TypeArgumentConstraint(this.createdObject, this.typeArgument, this.value) {
-    assert(createdObject != null);
-    assert(typeArgument != null);
+  /// The constraint is triggers if the value in [guard] escapes.
+  final StorageLocation guard;
+
+  GuardedValueConstraint(this.guard, this.destination, this.value) {
+    assert(guard != null);
+    assert(destination != null);
   }
 
   void transfer(ConstraintSolver solver) {
-    solver.transferTypeArgumentConstraint(this);
+    solver.transferGuardedValueConstraint(this);
   }
 
   void register(ConstraintSolver solver) {
-    solver.registerTypeArgumentConstraint(this);
+    solver.registerGuardedValueConstraint(this);
   }
 
   String toString() {
-    return '$createdObject<$typeArgument>';
+    return '$value -> $destination (if $guard escapes)';
   }
 
   T accept<T>(ConstraintVisitor<T> visitor) {
-    return visitor.visitTypeArgumentConstraint(this);
+    return visitor.visitGuardedValueConstraint(this);
   }
 }

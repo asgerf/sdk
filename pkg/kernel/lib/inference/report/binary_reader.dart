@@ -105,8 +105,8 @@ class BinaryReportReader {
             readLocationReference(),
             reader.readFixedUInt32())..fileOffset = fileOffset;
 
-      case ConstraintTag.TypeArgumentConstraint:
-        return new TypeArgumentConstraint(
+      case ConstraintTag.GuardedValueConstraint:
+        return new GuardedValueConstraint(
             readLocationReference(), readLocationReference(), readValue())
           ..fileOffset = fileOffset;
 

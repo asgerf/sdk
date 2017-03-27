@@ -86,9 +86,9 @@ class ConstraintSolver {
     }
   }
 
-  void transferTypeArgumentConstraint(TypeArgumentConstraint constraint) {
-    if (constraint.createdObject.leadsToEscape) {
-      propagateValue(constraint.typeArgument, constraint.value);
+  void transferGuardedValueConstraint(GuardedValueConstraint constraint) {
+    if (constraint.guard.leadsToEscape) {
+      propagateValue(constraint.destination, constraint.value);
     }
   }
 
@@ -126,8 +126,8 @@ class ConstraintSolver {
     key.backward.dependencies.add(constraint);
   }
 
-  void registerTypeArgumentConstraint(TypeArgumentConstraint constraint) {
-    addBackwardDependency(constraint.createdObject, constraint);
+  void registerGuardedValueConstraint(GuardedValueConstraint constraint) {
+    addBackwardDependency(constraint.guard, constraint);
   }
 
   void registerAssignConstraint(AssignConstraint constraint) {

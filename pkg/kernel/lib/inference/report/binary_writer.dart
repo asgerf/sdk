@@ -155,10 +155,10 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
   }
 
   @override
-  visitTypeArgumentConstraint(TypeArgumentConstraint constraint) {
-    writer.writeByte(ConstraintTag.TypeArgumentConstraint);
-    writer.writeLocationReference(constraint.createdObject);
-    writer.writeLocationReference(constraint.typeArgument);
+  visitGuardedValueConstraint(GuardedValueConstraint constraint) {
+    writer.writeByte(ConstraintTag.GuardedValueConstraint);
+    writer.writeLocationReference(constraint.guard);
+    writer.writeLocationReference(constraint.destination);
     writer.writeValue(constraint.value);
   }
 

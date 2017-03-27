@@ -1822,7 +1822,7 @@ class AllocationVisitor extends ATypeVisitor {
       // passed to it, so mark A as having worst-case values.
       var sink = type.sink;
       if (sink is StorageLocation) {
-        extractor.builder.addConstraint(new TypeArgumentConstraint(
+        extractor.builder.addConstraint(new GuardedValueConstraint(
             object, sink, extractor.getWorstCaseValueForType(type)));
       }
     }

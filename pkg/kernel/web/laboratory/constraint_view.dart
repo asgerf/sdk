@@ -208,21 +208,21 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
   }
 
   @override
-  visitTypeArgumentConstraint(TypeArgumentConstraint constraint) {
+  visitGuardedValueConstraint(GuardedValueConstraint constraint) {
     buffer
       ..appendPush(rightAlignedCell())
-      ..appendLocation(constraint.typeArgument)
+      ..appendLocation(constraint.destination)
       ..pop()
       ..append(separator())
       ..appendPush(new TableCellElement())
       ..appendValue(constraint.value)
       ..appendPush(new SpanElement()..classes.add(CssClass.constraintGuard))
       ..appendText(' if ')
-      ..appendLocation(constraint.createdObject)
+      ..appendLocation(constraint.guard)
       ..appendText(' escapes')
       ..pop()
       ..pop()
-      ..append(titleCell('TypeArgument'));
+      ..append(titleCell('GuardedValue'));
   }
 
   @override
