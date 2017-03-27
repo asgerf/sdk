@@ -165,6 +165,7 @@ class ValueConstraint extends Constraint {
   }
 }
 
+/// The value in [escaping] can escape if the value in [guard] escapes.
 class EscapeConstraint extends Constraint {
   final StorageLocation escaping;
   final StorageLocation guard; // May be null.
