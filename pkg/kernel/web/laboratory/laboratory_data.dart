@@ -11,10 +11,13 @@ import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/value.dart';
 import 'package:kernel/library_index.dart';
 
+// Extracted from dill file
 Program program;
 LibraryIndex libraryIndex;
-ConstraintSystem constraintSystem;
 CoreTypes coreTypes;
 ClassHierarchy classHierarchy;
-Report report;
 ValueLattice valueLattice;
+
+// Extracted from report file
+ConstraintSystem constraintSystem;
+Report report;
