@@ -1,6 +1,6 @@
 class ConstraintTag {
   static const int EscapeConstraint = 0;
-  static const int SubtypeConstraint = 1;
+  static const int AssignConstraint = 1;
   static const int TypeArgumentConstraint = 2;
   static const int ValueConstraint = 3;
 }

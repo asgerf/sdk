@@ -188,7 +188,7 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
   }
 
   @override
-  visitSubtypeConstraint(SubtypeConstraint constraint) {
+  visitAssignConstraint(AssignConstraint constraint) {
     buffer
       ..appendPush(rightAlignedCell())
       ..appendLocation(constraint.destination)
@@ -204,7 +204,7 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
     }
     buffer
       ..pop()
-      ..append(titleCell('Subtype'));
+      ..append(titleCell('Assign'));
   }
 
   @override

@@ -84,7 +84,7 @@ abstract class Constraint {
 }
 
 abstract class ConstraintVisitor<T> {
-  T visitSubtypeConstraint(SubtypeConstraint constraint);
+  T visitAssignConstraint(AssignConstraint constraint);
   T visitValueConstraint(ValueConstraint constraint);
   T visitEscapeConstraint(EscapeConstraint constraint);
   T visitTypeArgumentConstraint(TypeArgumentConstraint constraint);
@@ -97,12 +97,12 @@ abstract class ConstraintVisitor<T> {
 ///
 /// In most cases, the [mask] contains all the flags in [ValueFlags.all], but in
 /// some cases it is used to specifically propagate nullability.
-class SubtypeConstraint extends Constraint {
+class AssignConstraint extends Constraint {
   final StorageLocation source;
   final StorageLocation destination;
   final int mask;
 
-  SubtypeConstraint(this.source, this.destination,
+  AssignConstraint(this.source, this.destination,
       [this.mask = ValueFlags.all]) {
     assert(source != null);
     assert(destination != null);
@@ -113,11 +113,11 @@ class SubtypeConstraint extends Constraint {
   bool get canEscape => mask & ValueFlags.escaping != 0;
 
   void transfer(ConstraintSolver solver) {
-    solver.transferSubtypeConstraint(this);
+    solver.transferAssignConstraint(this);
   }
 
   void register(ConstraintSolver solver) {
-    solver.registerSubtypeConstraint(this);
+    solver.registerAssignConstraint(this);
   }
 
   String toString() {
@@ -127,7 +127,7 @@ class SubtypeConstraint extends Constraint {
   }
 
   T accept<T>(ConstraintVisitor<T> visitor) {
-    return visitor.visitSubtypeConstraint(this);
+    return visitor.visitAssignConstraint(this);
   }
 }
 

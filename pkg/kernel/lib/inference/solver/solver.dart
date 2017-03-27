@@ -92,7 +92,7 @@ class ConstraintSolver {
     }
   }
 
-  void transferSubtypeConstraint(SubtypeConstraint constraint) {
+  void transferAssignConstraint(AssignConstraint constraint) {
     var source = constraint.source;
     var destination = constraint.destination;
     propagateValue(destination, source.value.masked(constraint.mask));
@@ -130,7 +130,7 @@ class ConstraintSolver {
     addBackwardDependency(constraint.createdObject, constraint);
   }
 
-  void registerSubtypeConstraint(SubtypeConstraint constraint) {
+  void registerAssignConstraint(AssignConstraint constraint) {
     addForwardDependency(constraint.source, constraint);
     addBackwardDependency(constraint.destination, constraint);
   }

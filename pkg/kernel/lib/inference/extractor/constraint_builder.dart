@@ -91,7 +91,7 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
 
   @override
   visitStorageLocation(StorageLocation key) {
-    builder.addConstraint(new SubtypeConstraint(key, sink, mask));
+    builder.addConstraint(new AssignConstraint(key, sink, mask));
   }
 
   @override

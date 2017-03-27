@@ -147,8 +147,8 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
   }
 
   @override
-  visitSubtypeConstraint(SubtypeConstraint constraint) {
-    writer.writeByte(ConstraintTag.SubtypeConstraint);
+  visitAssignConstraint(AssignConstraint constraint) {
+    writer.writeByte(ConstraintTag.AssignConstraint);
     writer.writeLocationReference(constraint.source);
     writer.writeLocationReference(constraint.destination);
     writer.writer.writeFixedUInt32(constraint.mask);

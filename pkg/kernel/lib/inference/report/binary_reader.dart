@@ -99,8 +99,8 @@ class BinaryReportReader {
         return new EscapeConstraint(readLocationReference(),
             guard: readOptionalLocationReference())..fileOffset = fileOffset;
 
-      case ConstraintTag.SubtypeConstraint:
-        return new SubtypeConstraint(
+      case ConstraintTag.AssignConstraint:
+        return new AssignConstraint(
             readLocationReference(),
             readLocationReference(),
             reader.readFixedUInt32())..fileOffset = fileOffset;

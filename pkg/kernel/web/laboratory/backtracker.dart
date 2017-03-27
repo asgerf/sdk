@@ -92,7 +92,7 @@ class Backtracker extends UIComponent {
         report.getTransferEventFromTimestamp(changeEvent.timestamp);
     currentTimestamp = changeEvent.timestamp;
     var constraint = transferEvent.constraint;
-    if (constraint.fileOffset == -1 && constraint is SubtypeConstraint) {
+    if (constraint.fileOffset == -1 && constraint is AssignConstraint) {
       // This happens for synthetic forwarding constructors in mixin classes.
       // Skip over the forwarding constraint.
       return investigateStorageLocation(
