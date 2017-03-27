@@ -5,7 +5,7 @@ library kernel.inference.report.binary_reader;
 
 import 'package:kernel/ast.dart';
 import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/report/report.dart';
+import 'package:kernel/inference/report/events.dart';
 import 'package:kernel/inference/report/tags.dart';
 import 'package:kernel/inference/storage_location.dart';
 import 'package:kernel/inference/value.dart';

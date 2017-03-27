@@ -7,6 +7,7 @@ import '../constraints.dart';
 import '../storage_location.dart';
 import '../value.dart';
 import '../solver/solver.dart' show SolverListener;
+import 'package:kernel/inference/report/events.dart';
 
 class Report implements SolverListener {
   static const int beginningOfTime = -1;
@@ -66,14 +67,20 @@ class Report implements SolverListener {
   }
 
   List<ChangeEvent> _makeInitialEventList(StorageLocation location) {
-    return <ChangeEvent>[ChangeEvent.beginning(location)];
+    return <ChangeEvent>[_makeInitialChangeEvent(location)];
+  }
+
+  /// Returns a synthetic change event at the beginning of time, which sets the
+  /// value of [location] to bottom.
+  ChangeEvent _makeInitialChangeEvent(StorageLocation location) {
+    return new ChangeEvent(location, Value.bottom, false, beginningOfTime);
   }
 
   /// Returns the latest change to [location] no later than [timestamp].
   ChangeEvent getMostRecentChange(StorageLocation location, int timestamp,
       {bool ignoreValueChanges: false, bool ignoreEscapeChanges: false}) {
     List<ChangeEvent> list = locationChanges[location];
-    if (list == null) return ChangeEvent.beginning(location);
+    if (list == null) return _makeInitialChangeEvent(location);
     int first = 0, last = list.length - 1;
     while (first < last) {
       int mid = last - ((last - first) >> 1); // Get middle, rounding up.
@@ -117,31 +124,4 @@ class Report implements SolverListener {
     assert(timestamp != beginningOfTime);
     return transferEvents[timestamp];
   }
-}
-
-class ChangeEvent {
-  final StorageLocation location;
-  final Value value;
-  final bool leadsToEscape;
-  final int timestamp;
-
-  ChangeEvent(this.location, this.value, this.leadsToEscape, this.timestamp);
-
-  static ChangeEvent beginning(StorageLocation location) {
-    return new ChangeEvent(
-        location, Value.bottom, false, Report.beginningOfTime);
-  }
-
-  bool get isAtBeginningOfTime => timestamp == Report.beginningOfTime;
-}
-
-class TransferEvent {
-  final Constraint constraint;
-  final int timestamp;
-
-  /// Changes that occurred during this transfer.
-  final List<ChangeEvent> changes;
-
-  TransferEvent(this.constraint, this.timestamp, [List<ChangeEvent> changes])
-      : this.changes = changes ?? <ChangeEvent>[];
 }
