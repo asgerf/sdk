@@ -70,7 +70,6 @@ void onProgramLoaded() {
   libraryIndex = new LibraryIndex.all(program);
   coreTypes = new CoreTypes(program);
   classHierarchy = new ClassHierarchy(program);
-  typeEnvironment = new TypeEnvironment(coreTypes, classHierarchy);
   valueLattice = new ValueLattice(classHierarchy);
   if (report != null && program != null) {
     startMainUI();

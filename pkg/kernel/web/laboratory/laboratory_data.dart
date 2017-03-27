@@ -10,13 +10,11 @@ import 'package:kernel/inference/constraints.dart';
 import 'package:kernel/inference/report/report.dart';
 import 'package:kernel/inference/value.dart';
 import 'package:kernel/library_index.dart';
-import 'package:kernel/type_environment.dart';
 
 Program program;
 LibraryIndex libraryIndex;
 ConstraintSystem constraintSystem;
 CoreTypes coreTypes;
 ClassHierarchy classHierarchy;
-TypeEnvironment typeEnvironment;
 Report report;
 ValueLattice valueLattice;
