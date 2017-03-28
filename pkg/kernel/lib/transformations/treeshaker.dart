@@ -188,7 +188,7 @@ class TreeShaker {
     for (var library in program.libraries) {
       for (var class_ in library.classes) {
         for (var member in class_.members) {
-          if (member.isEntryPoint) {
+          if (member.isForeignEntryPoint) {
             if (member.isInstanceMember) {
               _addUsedMember(class_, member);
             } else if (member is Constructor) {
@@ -201,7 +201,7 @@ class TreeShaker {
         }
       }
       for (var member in library.members) {
-        if (member.isEntryPoint) {
+        if (member.isForeignEntryPoint) {
           _addUsedMember(null, member);
         }
       }

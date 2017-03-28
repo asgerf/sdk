@@ -383,7 +383,7 @@ Future<CompilerOutcome> batchMain(
     }
   }
 
-  markEntryPoints(program, programRoots);
+  markForeignEntryPoints(program, programRoots);
 
   bool canContinueCompilation = errors.isEmpty || options['tolerant'];
 

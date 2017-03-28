@@ -61,10 +61,10 @@ class ProgramRoot {
   }
 }
 
-void markEntryPoints(Program program, List<ProgramRoot> roots) {
+void markForeignEntryPoints(Program program, List<ProgramRoot> roots) {
   var index = new LibraryIndex(program, roots.map((r) => r.library));
   for (var root in roots) {
     if (root.member == null) continue;
-    root.getMember(index)?.isEntryPoint = true;
+    root.getMember(index)?.isForeignEntryPoint = true;
   }
 }
