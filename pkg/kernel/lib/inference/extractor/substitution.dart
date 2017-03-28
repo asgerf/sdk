@@ -89,7 +89,15 @@ abstract class Substitution {
 
   /// Replaces function type parameters with the given values.
   static Substitution instantiate(List<AType> functionTypeArguments) {
+    if (functionTypeArguments.isEmpty) return empty;
     return new FunctionInstantiator(functionTypeArguments);
+  }
+
+  int get _precedence => _Precedence.primary;
+
+  static String _stringify(Substitution substitution, int minPrecedence) {
+    var string = '$substitution';
+    return substitution._precedence < minPrecedence ? '($string)' : string;
   }
 }
 
@@ -107,6 +115,9 @@ class ErasingSubstitution extends Substitution {
   AType getInstantiation(FunctionTypeParameterAType parameter, int shift) {
     return type;
   }
+
+  @override
+  String toString() => 'Erase($type)';
 }
 
 class BottomSubstitution extends Substitution {
@@ -126,6 +137,9 @@ class BottomSubstitution extends Substitution {
   AType getInstantiation(FunctionTypeParameterAType type, int shift) {
     return null;
   }
+
+  @override
+  String toString() => 'Bottom($class_)';
 }
 
 class EmptySubstitution extends Substitution {
@@ -146,6 +160,9 @@ class EmptySubstitution extends Substitution {
   AType getInstantiation(FunctionTypeParameterAType type, int shift) {
     return null;
   }
+
+  @override
+  String toString() => 'EmptySubstitution';
 }
 
 class PairSubstitution extends Substitution {
@@ -174,6 +191,13 @@ class PairSubstitution extends Substitution {
   AType getInstantiation(FunctionTypeParameterAType type, int shift) {
     return null;
   }
+
+  @override
+  String toString() {
+    return '${parameters.join(',')} => ${types.join(',')}';
+  }
+
+  int get _precedence => _Precedence.arrow;
 }
 
 class SequenceSubstitution extends Substitution {
@@ -208,6 +232,15 @@ class SequenceSubstitution extends Substitution {
       return right.getInstantiation(type, shift);
     }
   }
+
+  @override
+  String toString() {
+    var leftString = Substitution._stringify(left, _Precedence.sequence);
+    var rightString = Substitution._stringify(right, _Precedence.sequence);
+    return '$leftString; $rightString';
+  }
+
+  int get _precedence => _Precedence.sequence;
 }
 
 class EitherSubstitution extends Substitution {
@@ -228,6 +261,15 @@ class EitherSubstitution extends Substitution {
     return left.getInstantiation(type, shift) ??
         right.getInstantiation(type, shift);
   }
+
+  @override
+  String toString() {
+    var leftString = Substitution._stringify(left, _Precedence.either);
+    var rightString = Substitution._stringify(right, _Precedence.either);
+    return '$leftString | $rightString';
+  }
+
+  int get _precedence => _Precedence.either;
 }
 
 class ClosednessChecker extends Substitution {
@@ -265,4 +307,17 @@ class FunctionInstantiator extends Substitution {
       return null;
     }
   }
+
+  @override
+  String toString() {
+    return 'Instantiate(${arguments.join(', ')})';
+  }
+}
+
+/// Only used for stringfying a substitution object.
+class _Precedence {
+  static const int primary = 100;
+  static const int arrow = 90;
+  static const int sequence = 80;
+  static const int either = 70;
 }
