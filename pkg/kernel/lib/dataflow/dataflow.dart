@@ -25,16 +25,12 @@ class DataflowEngine {
   ///
   /// This invalidates any existing dataflow results for that program, since
   /// some of the information is stored directly on AST nodes.
-  static DataflowResults analyzeWholeProgram(
-      Program program, List<ProgramRoot> programRoots,
+  static DataflowResults analyzeWholeProgram(Program program,
       {CoreTypes coreTypes,
       ClassHierarchy hierarchy,
       bool buildReport: false}) {
     return new _DataflowResults(program,
-        coreTypes: coreTypes,
-        hierarchy: hierarchy,
-        programRoots: programRoots,
-        buildReport: buildReport);
+        coreTypes: coreTypes, hierarchy: hierarchy, buildReport: buildReport);
   }
 }
 

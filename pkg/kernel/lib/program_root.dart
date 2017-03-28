@@ -1,7 +1,10 @@
+// Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
+// for details. All rights reserved. Use of this source code is governed by a
+// BSD-style license that can be found in the LICENSE file.
 library kernel.program_root;
 
+import 'ast.dart';
 import 'library_index.dart';
-import 'package:kernel/ast.dart';
 
 enum ProgramRootKind {
   /// The root is a class which will be instantiated by
@@ -55,5 +58,13 @@ class ProgramRoot {
   Class getClass(LibraryIndex table) {
     assert(klass != null);
     return table.tryGetClass(library, klass);
+  }
+}
+
+void markForeignEntryPoints(Program program, List<ProgramRoot> roots) {
+  var index = new LibraryIndex(program, roots.map((r) => r.library));
+  for (var root in roots) {
+    if (root.member == null) continue;
+    root.getMember(index)?.isForeignEntryPoint = true;
   }
 }

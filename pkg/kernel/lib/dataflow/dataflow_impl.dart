@@ -17,16 +17,13 @@ class _DataflowResults extends DataflowResults {
   Report _report;
 
   _DataflowResults(this.program,
-      {this.coreTypes,
-      this.hierarchy,
-      List<ProgramRoot> programRoots,
-      bool buildReport: false}) {
+      {this.coreTypes, this.hierarchy, bool buildReport: false}) {
     coreTypes ??= new CoreTypes(program);
     hierarchy ??= new ClassHierarchy(program);
 
     _top = new Value(coreTypes.objectClass, ValueFlags.all);
 
-    var externalModel = new VmExternalModel(program, coreTypes, programRoots);
+    var externalModel = new VmExternalModel(program, coreTypes);
     _extractor = new ConstraintExtractor(externalModel)
       ..extractFromProgram(program);
     _binding = _extractor.binding;

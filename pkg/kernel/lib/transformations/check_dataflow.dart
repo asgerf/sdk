@@ -12,10 +12,6 @@ import 'package:kernel/program_root.dart';
 ///
 /// This is for debugging the dataflow analysis, not intended for production.
 class CheckDataflow {
-  final List<ProgramRoot> programRoots;
-
-  CheckDataflow(this.programRoots);
-
   DataflowResults dataflowResults;
 
   /// A synthetic field that keeps track of whether an error has been found
@@ -27,7 +23,7 @@ class CheckDataflow {
   Field stopField;
 
   void transformProgram(Program program) {
-    dataflowResults = DataflowEngine.analyzeWholeProgram(program, programRoots);
+    dataflowResults = DataflowEngine.analyzeWholeProgram(program);
     addStopField(program);
     for (var library in program.libraries) {
       library.members.forEach(instrumentMember);

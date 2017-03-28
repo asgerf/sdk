@@ -12,12 +12,17 @@ import 'package:kernel/program_root_parser.dart';
 
 import 'package:args/args.dart';
 import 'package:analyzer/src/kernel/loader.dart';
+import 'package:args/args.dart';
 import 'package:kernel/application_root.dart';
-import 'package:kernel/verifier.dart';
 import 'package:kernel/kernel.dart';
 import 'package:kernel/log.dart';
+import 'package:kernel/program_root.dart';
+import 'package:kernel/program_root_parser.dart';
 import 'package:kernel/target/targets.dart';
+import 'package:kernel/verifier.dart';
 import 'package:path/path.dart' as path;
+
+import 'batch_util.dart';
 
 // Returns the path to the current sdk based on `Platform.resolvedExecutable`.
 String currentSdk() {
@@ -86,6 +91,7 @@ ArgParser parser = new ArgParser(allowTrailingOptions: true)
       help: 'Include the SDK in the output. Implied by --link.')
   ..addFlag('tree-shake',
       defaultsTo: false, help: 'Enable tree-shaking if the target supports it')
+  ..addFlag('force-tree-shake', help: 'Ignore dart:mirrors when tree-shaking.')
   ..addFlag('check-dataflow',
       negatable: false,
       help: 'Insert runtime checks to verify the results of type dataflow.\n'
@@ -336,9 +342,9 @@ Future<CompilerOutcome> batchMain(
   TargetFlags targetFlags = new TargetFlags(
       strongMode: options['strong'],
       treeShake: options['tree-shake'],
+      forceTreeShake: options['force-tree-shake'],
       checkDataflow: options['check-dataflow'],
-      kernelRuntime: Platform.script.resolve('../runtime/'),
-      programRoots: programRoots);
+      kernelRuntime: Platform.script.resolve('../runtime/'));
   Target target = getTarget(options['target'], targetFlags);
 
   var declaredVariables = <String, String>{};
@@ -402,6 +408,8 @@ Future<CompilerOutcome> batchMain(
       }
     }
   }
+
+  markForeignEntryPoints(program, programRoots);
 
   bool canContinueCompilation = errors.isEmpty || options['tolerant'];
 

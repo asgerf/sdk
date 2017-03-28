@@ -700,6 +700,14 @@ abstract class Member extends NamedNode {
   bool get isExternal;
   void set isExternal(bool value);
 
+  /// True if the member can be invoked from outside the Dart program, such as
+  /// through a VM embedder or JS interop.
+  ///
+  /// Note that the program's main method is not considered a foreign entry
+  /// point.
+  bool get isForeignEntryPoint;
+  void set isForeignEntryPoint(bool value);
+
   /// The body of the procedure or constructor, or `null` if this is a field.
   FunctionNode get function => null;
 
@@ -766,10 +774,12 @@ class Field extends Member {
   static const int FlagStatic = 1 << 2;
   static const int FlagHasImplicitGetter = 1 << 3;
   static const int FlagHasImplicitSetter = 1 << 4;
+  static const int FlagEntryPoint = 1 << 5;
 
   bool get isFinal => flags & FlagFinal != 0;
   bool get isConst => flags & FlagConst != 0;
   bool get isStatic => flags & FlagStatic != 0;
+  bool get isForeignEntryPoint => flags & FlagEntryPoint != 0;
 
   /// If true, a getter should be generated for this field.
   ///
@@ -813,6 +823,10 @@ class Field extends Member {
     flags = value
         ? (flags | FlagHasImplicitSetter)
         : (flags & ~FlagHasImplicitSetter);
+  }
+
+  void set isForeignEntryPoint(bool value) {
+    flags = value ? (flags | FlagEntryPoint) : (flags & ~FlagEntryPoint);
   }
 
   /// True if the field is neither final nor const.
@@ -885,9 +899,11 @@ class Constructor extends Member {
 
   static const int FlagConst = 1 << 0; // Must match serialized bit positions.
   static const int FlagExternal = 1 << 1;
+  static const int FlagEntryPoint = 1 << 2;
 
   bool get isConst => flags & FlagConst != 0;
   bool get isExternal => flags & FlagExternal != 0;
+  bool get isForeignEntryPoint => flags & FlagEntryPoint != 0;
 
   void set isConst(bool value) {
     flags = value ? (flags | FlagConst) : (flags & ~FlagConst);
@@ -895,6 +911,10 @@ class Constructor extends Member {
 
   void set isExternal(bool value) {
     flags = value ? (flags | FlagExternal) : (flags & ~FlagExternal);
+  }
+
+  void set isForeignEntryPoint(bool value) {
+    flags = value ? (flags | FlagEntryPoint) : (flags & ~FlagEntryPoint);
   }
 
   bool get isInstanceMember => false;
@@ -972,10 +992,12 @@ class Procedure extends Member {
   static const int FlagAbstract = 1 << 1;
   static const int FlagExternal = 1 << 2;
   static const int FlagConst = 1 << 3; // Only for external const factories.
+  static const int FlagEntryPoint = 1 << 4;
 
   bool get isStatic => flags & FlagStatic != 0;
   bool get isAbstract => flags & FlagAbstract != 0;
   bool get isExternal => flags & FlagExternal != 0;
+  bool get isForeignEntryPoint => flags & FlagEntryPoint != 0;
 
   /// True if this has the `const` modifier.  This is only possible for external
   /// constant factories, such as `String.fromEnvironment`.
@@ -995,6 +1017,10 @@ class Procedure extends Member {
 
   void set isConst(bool value) {
     flags = value ? (flags | FlagConst) : (flags & ~FlagConst);
+  }
+
+  void set isForeignEntryPoint(bool value) {
+    flags = value ? (flags | FlagEntryPoint) : (flags & ~FlagEntryPoint);
   }
 
   bool get isInstanceMember => !isStatic;

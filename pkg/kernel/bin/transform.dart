@@ -32,14 +32,11 @@ ArgParser parser = new ArgParser()
       negatable: false,
       help: 'Be verbose (e.g. prints transformed main library).',
       defaultsTo: false)
-  ..addOption('embedder-entry-points-manifest',
-      allowMultiple: true,
-      help: 'A path to a file describing entrypoints '
-          '(lines of the form `<library>,<class>,<member>`).')
   ..addOption('transformation',
       abbr: 't',
       help: 'The transformation to apply.',
-      defaultsTo: 'continuation');
+      defaultsTo: 'continuation')
+  ..addFlag('force-shaking');
 
 main(List<String> arguments) async {
   if (arguments.isNotEmpty && arguments[0] == '--batch') {
@@ -69,11 +66,6 @@ Future<CompilerOutcome> runTransformation(List<String> arguments) async {
     output = '${input.substring(0, input.lastIndexOf('.'))}.transformed.dill';
   }
 
-  List<String> embedderEntryPointManifests =
-      options['embedder-entry-points-manifest'] as List<String>;
-  List<ProgramRoot> programRoots =
-      parseProgramRoots(embedderEntryPointManifests);
-
   var program = loadProgramFromBinary(input);
   switch (options['transformation']) {
     case 'continuation':
@@ -86,8 +78,8 @@ Future<CompilerOutcome> runTransformation(List<String> arguments) async {
       program = closures.transformProgram(program);
       break;
     case 'treeshake':
-      program =
-          treeshaker.transformProgram(program, programRoots: programRoots);
+      program = treeshaker.transformProgram(program,
+          forceShaking: options['force-shaking']);
       break;
     case 'methodcall':
       program = method_call.transformProgram(program);

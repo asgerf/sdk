@@ -78,7 +78,7 @@ class VmTarget extends Target {
     }
 
     if (flags.checkDataflow) {
-      new CheckDataflow(flags.programRoots).transformProgram(program);
+      new CheckDataflow().transformProgram(program);
     }
 
     cont.transformProgram(program);
@@ -99,7 +99,7 @@ class VmTarget extends Target {
             hierarchy: _hierarchy,
             coreTypes: coreTypes,
             strongMode: strongMode,
-            programRoots: flags.programRoots)
+            forceShaking: flags.forceTreeShake)
         .transform(program);
     _hierarchy = null; // Hierarchy must be recomputed.
   }

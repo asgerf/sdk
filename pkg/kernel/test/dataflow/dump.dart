@@ -11,26 +11,17 @@ import 'package:kernel/dataflow/report/binary_writer.dart';
 import 'package:kernel/dataflow/report/report.dart';
 import 'package:kernel/dataflow/solver/solver.dart';
 import 'package:kernel/kernel.dart';
-import 'package:kernel/program_root_parser.dart';
 import 'package:kernel/util/reader.dart';
 import 'package:kernel/util/writer.dart';
 
 Uri sdkCheckout = Platform.script.resolve('../../../../');
 Uri runtimeBinDir = sdkCheckout.resolve('runtime/bin/');
 
-List<Uri> entryPoints = <Uri>[
-  runtimeBinDir.resolve('dart_entries.txt'),
-  runtimeBinDir.resolve('dart_product_entries.txt'),
-  runtimeBinDir.resolve('dart_io_entries.txt'),
-];
-
 main(List<String> args) async {
   if (args.isEmpty) args = ['micro.dill'];
   var program = loadProgramFromBinary(args[0]);
-  var roots =
-      parseProgramRoots(entryPoints.map((uri) => uri.toFilePath()).toList());
   var extractor = new ConstraintExtractor(
-      new VmExternalModel(program, new CoreTypes(program), roots))
+      new VmExternalModel(program, new CoreTypes(program)))
     ..extractFromProgram(program);
   var constraints = extractor.constraintSystem;
   print('Extracted ${constraints.numberOfConstraints} constraints');

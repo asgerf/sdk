@@ -5,7 +5,6 @@ library kernel.target.targets;
 
 import '../ast.dart';
 import '../core_types.dart';
-import '../program_root.dart';
 import 'flutter.dart';
 import 'vm.dart';
 import 'vmcc.dart';
@@ -17,14 +16,14 @@ class TargetFlags {
   bool strongMode;
   bool treeShake;
   bool checkDataflow;
-  List<ProgramRoot> programRoots;
+  bool forceTreeShake;
   Uri kernelRuntime;
 
   TargetFlags(
       {this.strongMode: false,
       this.treeShake: false,
+      this.forceTreeShake: false,
       this.checkDataflow,
-      this.programRoots: const <ProgramRoot>[],
       this.kernelRuntime});
 }
 

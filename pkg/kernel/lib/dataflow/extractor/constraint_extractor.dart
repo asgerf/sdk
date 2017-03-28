@@ -70,7 +70,7 @@ class ConstraintExtractor {
     constraintSystem ??= new ConstraintSystem();
     binding ??= new Binding(constraintSystem, coreTypes);
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
-    externalModel ??= new VmExternalModel(program, coreTypes, []);
+    externalModel ??= new VmExternalModel(program, coreTypes);
     builder ??= new ConstraintBuilder(hierarchy, constraintSystem);
 
     intValue = new Value(coreTypes.intClass, ValueFlags.integer);

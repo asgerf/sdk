@@ -33,24 +33,13 @@ abstract class ExternalModel {
 
 class VmExternalModel extends ExternalModel {
   final CoreTypes coreTypes;
-  final List<ProgramRoot> programRoots;
   final Set<Member> entryPointMembers = new Set<Member>();
   Class externalNameAnnotation;
   final Set<Member> forceExternals = new Set<Member>();
 
-  VmExternalModel(Program program, this.coreTypes, this.programRoots) {
+  VmExternalModel(Program program, this.coreTypes) {
     externalNameAnnotation =
         coreTypes.getClass('dart:_internal', 'ExternalName');
-    var rootIndex =
-        new LibraryIndex(program, programRoots.map((r) => r.library));
-    for (var root in programRoots) {
-      if (root.member != null) {
-        var member = root.getMember(rootIndex);
-        if (member != null) {
-          entryPointMembers.add(member);
-        }
-      }
-    }
     forceExternals.addAll(coreTypes.numClass.members);
     forceExternals.addAll(coreTypes.intClass.members);
     forceExternals.addAll(coreTypes.doubleClass.members);
@@ -92,7 +81,7 @@ class VmExternalModel extends ExternalModel {
   }
 
   bool isEntryPoint(Member member) {
-    return entryPointMembers.contains(member);
+    return member.isForeignEntryPoint;
   }
 
   bool forceExternal(Member member) {
