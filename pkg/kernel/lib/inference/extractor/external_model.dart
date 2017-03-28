@@ -27,7 +27,7 @@ abstract class ExternalModel {
   /// This is not called for `main`, that is treated separately.
   ///
   /// The arguments will be based on worst-case assumptions based on the static
-  /// types of its parameters.  The return value is assumed escape.
+  /// types of its parameters.  The return value is considered escaping.
   bool isEntryPoint(Member member);
 }
 
