@@ -14,10 +14,8 @@ class _DataflowResults extends DataflowResults {
 
   Value _top;
 
-  Report _report;
-
   _DataflowResults(this.program,
-      {this.coreTypes, this.hierarchy, bool buildReport: false}) {
+      {this.coreTypes, this.hierarchy, DataflowDiagnosticListener diagnostic}) {
     coreTypes ??= new CoreTypes(program);
     hierarchy ??= new ClassHierarchy(program);
 
@@ -26,21 +24,25 @@ class _DataflowResults extends DataflowResults {
     var externalModel = new VmExternalModel(program, coreTypes);
     _extractor = new ConstraintExtractor(externalModel)
       ..extractFromProgram(program);
-    _binding = _extractor.binding;
-    if (buildReport) {
-      _report = new Report();
-    }
-    _solver =
-        new ConstraintSolver(hierarchy, _extractor.constraintSystem, _report);
+    diagnostic?._constraintSystem = _extractor.constraintSystem;
+    diagnostic?._binding = _extractor.binding;
+    _solver = new ConstraintSolver(
+        hierarchy, _extractor.constraintSystem, diagnostic?._solverListener);
+    diagnostic?._onBeginSolve();
     _solver.solve();
+    diagnostic?._onEndSolve();
+    // Run debugging hooks after solving.  These are exclusively for debugging
+    // convenience in the extractor, and there should never be any hooks
+    // registered in production.
+    for (var hook in _extractor.analysisCompleteHooks) {
+      hook();
+    }
   }
 
   MemberDataflowResults getResultsForMember(Member member) {
     return new _MemberDataflowResults(
         _binding.getMemberBank(member), _binding, _solver.lattice, _top);
   }
-
-  Report get report => _report;
 }
 
 class _MemberDataflowResults extends MemberDataflowResults {
@@ -67,4 +69,30 @@ class _MemberDataflowResults extends MemberDataflowResults {
   }
 
   Value get value => getValueAtStorageLocation(0);
+}
+
+class _DataflowReporter extends DataflowReporter {
+  final Report report = new Report();
+  ConstraintSystem _constraintSystem;
+  Stopwatch _stopwatch;
+  Duration _solvingTime;
+  Binding _binding;
+
+  _DataflowReporter() : super._();
+
+  ConstraintSystem get constraintSystem => _constraintSystem;
+  SolverListener get _solverListener => report;
+  Duration get solvingTime => _solvingTime;
+  Binding get binding => _binding;
+
+  @override
+  void _onBeginSolve() {
+    _stopwatch = new Stopwatch()..start();
+  }
+
+  @override
+  void _onEndSolve() {
+    _solvingTime = _stopwatch.elapsed;
+    _stopwatch.stop();
+  }
 }

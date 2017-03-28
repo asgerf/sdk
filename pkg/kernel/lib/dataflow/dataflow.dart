@@ -8,6 +8,7 @@ import '../class_hierarchy.dart';
 import '../core_types.dart';
 import 'extractor/binding.dart';
 import 'extractor/constraint_extractor.dart';
+import 'package:kernel/dataflow/constraints.dart';
 import 'package:kernel/dataflow/extractor/external_model.dart';
 import 'package:kernel/dataflow/report/report.dart';
 import 'solver/solver.dart';
@@ -27,9 +28,9 @@ class DataflowEngine {
   static DataflowResults analyzeWholeProgram(Program program,
       {CoreTypes coreTypes,
       ClassHierarchy hierarchy,
-      bool buildReport: false}) {
+      DataflowDiagnosticListener diagnostic}) {
     return new _DataflowResults(program,
-        coreTypes: coreTypes, hierarchy: hierarchy, buildReport: buildReport);
+        coreTypes: coreTypes, hierarchy: hierarchy, diagnostic: diagnostic);
   }
 }
 
@@ -41,8 +42,6 @@ class DataflowEngine {
 abstract class DataflowResults {
   /// Returns the values inferred for the given member.
   MemberDataflowResults getResultsForMember(Member member);
-
-  Report get report;
 }
 
 /// Inferred type information for the body of a member.
@@ -66,4 +65,47 @@ abstract class MemberDataflowResults {
   Value getValueOfExpression(Expression node) {
     return getValueAtStorageLocation(node.inferredValueOffset);
   }
+}
+
+/// An object given to the dataflow analysis, which will collect information
+/// for diagnstic purposes but which is too expensive to retain in production.
+///
+/// Clients should not instantiate or implement this but instead create a
+/// [DataflowReporter].
+///
+/// This interface exists to enable a (yet unimplemented) diagnostic listener
+/// that streams the data directly to a file without exposing analysis internals
+/// to clients (hence all its members are private).
+abstract class DataflowDiagnosticListener {
+  SolverListener get _solverListener;
+  void set _constraintSystem(ConstraintSystem constraintSystem);
+  void set _binding(Binding binding);
+  void _onBeginSolve();
+  void _onEndSolve();
+}
+
+/// Dataflow diagnostic listener that builds an indexed report in memory.
+///
+/// Example usage:
+///
+///     var reporter = new DataflowReporter();
+///     var results = DataflowEngine.analyzeWholeProgram(
+///         program,
+///         diagnostic: reporter);
+///     var report = reporter.report;
+///     print('Number of transfers: ${report.numberOfTransferEvents}');
+///
+/// The memory overhead is quite significant and this should absolutely not be
+/// used in production.
+///
+/// The report contains analysis internal details and breaking changes are
+/// to be expected.
+abstract class DataflowReporter implements DataflowDiagnosticListener {
+  Binding get binding;
+  ConstraintSystem get constraintSystem;
+  Report get report;
+  Duration get solvingTime;
+
+  factory DataflowReporter() = _DataflowReporter;
+  DataflowReporter._();
 }
