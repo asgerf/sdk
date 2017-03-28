@@ -277,6 +277,12 @@ class Driver implements ServerStarter {
   static const String NEW_ANALYSIS_DRIVER_LOG = 'new-analysis-driver-log';
 
   /**
+   * The name of the option used to enable verbose Flutter completion code generation.
+   */
+  static const String VERBOSE_FLUTTER_COMPLETIONS =
+      'verbose-flutter-completions';
+
+  /**
    * The name of the flag used to disable the index.
    */
   static const String NO_INDEX = "no-index";
@@ -348,13 +354,17 @@ class Driver implements ServerStarter {
 
   /**
    * Use the given command-line [arguments] to start this server.
+   *
+   * At least temporarily returns AnalysisServer so that consumers of the
+   * starter API can then use the server, this is done as a stopgap for the
+   * angular plugin until the official plugin API is finished.
    */
-  void start(List<String> arguments) {
+  AnalysisServer start(List<String> arguments) {
     CommandLineParser parser = _createArgParser();
     ArgResults results = parser.parse(arguments, <String, String>{});
     if (results[HELP_OPTION]) {
       _printUsage(parser.parser);
-      return;
+      return null;
     }
 
     // TODO (danrubel) Remove this workaround
@@ -375,7 +385,7 @@ class Driver implements ServerStarter {
         print('');
         _printUsage(parser.parser);
         exitCode = 1;
-        return;
+        return null;
       }
     }
 
@@ -394,6 +404,8 @@ class Driver implements ServerStarter {
     analysisServerOptions.fileReadMode = results[FILE_READ_MODE];
     analysisServerOptions.newAnalysisDriverLog =
         results[NEW_ANALYSIS_DRIVER_LOG];
+    analysisServerOptions.enableVerboseFlutterCompletions =
+        results[VERBOSE_FLUTTER_COMPLETIONS];
 
     _initIncrementalLogger(results[INCREMENTAL_RESOLUTION_LOG]);
 
@@ -484,6 +496,8 @@ class Driver implements ServerStarter {
     },
         print:
             results[INTERNAL_PRINT_TO_CONSOLE] ? null : httpServer.recordPrint);
+
+    return socketServer.analysisServer;
   }
 
   /**
@@ -558,6 +572,8 @@ class Driver implements ServerStarter {
         negatable: false);
     parser.addOption(NEW_ANALYSIS_DRIVER_LOG,
         help: "set a destination for the new analysis driver's log");
+    parser.addOption(VERBOSE_FLUTTER_COMPLETIONS,
+        help: "enable verbose code completion for Flutter (experimental)");
     parser.addOption(PORT_OPTION,
         help: "the http diagnostic port on which the server provides"
             " status and performance information");
@@ -660,10 +676,10 @@ class _DiagnosticServerImpl extends DiagnosticServer {
 
   _DiagnosticServerImpl();
 
+  @override
+  Future<int> getServerPort() => httpServer.serveHttp();
+
   Future startOnPort(int port) {
     return httpServer.serveHttp(port);
   }
-
-  @override
-  Future<int> getServerPort() => httpServer.serveHttp();
 }

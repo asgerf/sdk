@@ -92,28 +92,7 @@ Language/Expressions/Constants/identifier_denotes_a_constant_t07: MissingCompile
 Language/Expressions/Function_Invocation/async_generator_invokation_t08: Timeout, Skip # Issue 25967
 Language/Expressions/Function_Invocation/async_generator_invokation_t10: Timeout, Skip # Issue 25967
 Language/Expressions/Function_Invocation/async_invokation_t04: RuntimeError, Pass # co19 issue 57
-Language/Expressions/Identifier_Reference/built_in_identifier_t35: MissingCompileTimeError # Issue 25732
-Language/Expressions/Identifier_Reference/built_in_identifier_t36: MissingCompileTimeError # Issue 25732
-Language/Expressions/Identifier_Reference/built_in_identifier_t37: MissingCompileTimeError # Issue 25732
-Language/Expressions/Identifier_Reference/built_in_identifier_t53: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t54: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t55: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t56: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t57: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t58: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t59: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t60: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t61: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t62: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t63: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t64: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t65: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t66: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t67: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_identifier_t68: MissingCompileTimeError # Issue 25733
-Language/Expressions/Identifier_Reference/built_in_not_dynamic_t14: MissingCompileTimeError # Issue 25732
 Language/Expressions/Identifier_Reference/built_in_not_dynamic_t15: MissingCompileTimeError # Issue 26581
-Language/Expressions/Identifier_Reference/built_in_not_dynamic_t19: MissingCompileTimeError # Issue 25732
 Language/Expressions/Identifier_Reference/syntax_built_in_t01: fail # Issue 21154
 Language/Expressions/Instance_Creation/New/evaluation_t19: RuntimeError # Please triage this failure
 Language/Expressions/Instance_Creation/New/evaluation_t20: RuntimeError # Please triage this failure
@@ -141,7 +120,6 @@ Language/Expressions/Property_Extraction/Getter_Access_and_Method_Extraction/no_
 Language/Expressions/Property_Extraction/Super_Getter_Access_and_Method_Closurization/no_such_method_t01: RuntimeError # co19 issue 87
 Language/Expressions/Shift/syntax_t01/14: MissingRuntimeError # Please triage this failure
 Language/Functions/External_Functions/not_connected_to_a_body_t01: CompileTimeError, OK # Issue 5021
-Language/Generics/syntax_t17: fail # Issue 21203
 Language/Interfaces/Superinterfaces/Inheritance_and_Overriding/same_name_method_and_getter_t01: CompileTimeError # Please triage this failure
 Language/Interfaces/Superinterfaces/Inheritance_and_Overriding/same_name_method_and_getter_t02: CompileTimeError # Please triage this failure
 Language/Libraries_and_Scripts/Imports/invalid_uri_deferred_t01/01: CompileTimeError # Please triage this failure
@@ -151,7 +129,7 @@ Language/Metadata/before_export_t01: RuntimeError # Please triage this failure
 Language/Metadata/before_import_t01: RuntimeError # Please triage this failure
 Language/Metadata/before_library_t01: RuntimeError # Please triage this failure
 Language/Metadata/before_param_t09: RuntimeError # Please triage this failure
-Language/Metadata/before_type_param_t01: CompileTimeError # Please triage this failure
+Language/Metadata/before_type_param_t01: RuntimeError # Please triage this failure
 Language/Metadata/before_typedef_t01: RuntimeError # Please triage this failure
 Language/Metadata/before_variable_t01: RuntimeError # Please triage this failure
 Language/Mixins/Mixin_Application/static_warning_t01: CompileTimeError # Please triage this failure
@@ -1793,6 +1771,7 @@ WebPlatformTest/shadow-dom/events/retargeting-focus-events/test-002_t01: Skip # 
 [ $compiler == dart2js && $runtime == chrome && $system == windows ]
 Language/Classes/Constructors/Generative_Constructors/execution_of_an_initializer_t04: Pass, Slow # Issue 25940
 Language/Expressions/Bitwise_Expressions/method_invocation_super_t01: Pass, Slow # Issue 25940
+LayoutTests/fast/css-grid-layout/grid-element-shrink-to-fit_t01: RuntimeError # Please triage this failure
 
 [ $compiler == dart2js && $runtime == chrome && $system != macos ]
 LayoutTests/fast/canvas/webgl/WebGLContextEvent_t01: RuntimeError # Please triage this failure

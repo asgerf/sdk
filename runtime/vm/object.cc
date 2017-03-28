@@ -30,6 +30,7 @@
 #include "vm/intrinsifier.h"
 #include "vm/isolate_reload.h"
 #include "vm/kernel_to_il.h"
+#include "vm/native_symbol.h"
 #include "vm/object_store.h"
 #include "vm/parser.h"
 #include "vm/precompiler.h"
@@ -1996,8 +1997,7 @@ bool Class::IsInFullSnapshot() const {
 RawAbstractType* Class::RareType() const {
   const Type& type = Type::Handle(Type::New(
       *this, Object::null_type_arguments(), TokenPosition::kNoSource));
-  return ClassFinalizer::FinalizeType(*this, type,
-                                      ClassFinalizer::kCanonicalize);
+  return ClassFinalizer::FinalizeType(*this, type);
 }
 
 
@@ -2005,8 +2005,7 @@ RawAbstractType* Class::DeclarationType() const {
   const TypeArguments& args = TypeArguments::Handle(type_parameters());
   const Type& type =
       Type::Handle(Type::New(*this, args, TokenPosition::kNoSource));
-  return ClassFinalizer::FinalizeType(*this, type,
-                                      ClassFinalizer::kCanonicalize);
+  return ClassFinalizer::FinalizeType(*this, type);
 }
 
 
@@ -3834,17 +3833,9 @@ bool Class::TypeTestNonRecursive(const Class& cls,
     }
     if (other.IsDartFunctionClass()) {
       // Check if type S has a call() method.
-      Function& function = Function::Handle(
-          zone, thsi.LookupDynamicFunctionAllowAbstract(Symbols::Call()));
-      if (function.IsNull()) {
-        // Walk up the super_class chain.
-        Class& cls = Class::Handle(zone, thsi.SuperClass());
-        while (!cls.IsNull() && function.IsNull()) {
-          function = cls.LookupDynamicFunctionAllowAbstract(Symbols::Call());
-          cls = cls.SuperClass();
-        }
-      }
-      if (!function.IsNull()) {
+      const Function& call_function =
+          Function::Handle(zone, thsi.LookupCallFunctionForTypeTest());
+      if (!call_function.IsNull()) {
         return true;
       }
     }
@@ -3866,8 +3857,7 @@ bool Class::TypeTestNonRecursive(const Class& cls,
           // runtime if this type test returns false at compile time.
           continue;
         }
-        ClassFinalizer::FinalizeType(thsi, interface,
-                                     ClassFinalizer::kCanonicalize);
+        ClassFinalizer::FinalizeType(thsi, interface);
         interfaces.SetAt(i, interface);
       }
       if (interface.IsMalbounded()) {
@@ -3999,6 +3989,32 @@ RawFunction* Class::LookupFunction(const String& name) const {
 
 RawFunction* Class::LookupFunctionAllowPrivate(const String& name) const {
   return LookupFunctionAllowPrivate(name, kAny);
+}
+
+
+RawFunction* Class::LookupCallFunctionForTypeTest() const {
+  // If this class is not compiled yet, it is too early to lookup a call
+  // function. This case should only occur during bounds checking at compile
+  // time. Return null as if the call method did not exist, so the type test
+  // may return false, but without a bound error, and the bound check will get
+  // postponed to runtime.
+  if (!is_finalized()) {
+    return Function::null();
+  }
+  Zone* zone = Thread::Current()->zone();
+  Class& cls = Class::Handle(zone, raw());
+  Function& call_function = Function::Handle(zone);
+  do {
+    ASSERT(cls.is_finalized());
+    call_function = cls.LookupDynamicFunctionAllowAbstract(Symbols::Call());
+    cls = cls.SuperClass();
+  } while (call_function.IsNull() && !cls.IsNull());
+  if (!call_function.IsNull()) {
+    // Make sure the signature is finalized before using it in a type test.
+    ClassFinalizer::FinalizeSignature(
+        cls, call_function, ClassFinalizer::kFinalize);  // No bounds checking.
+  }
+  return call_function.raw();
 }
 
 
@@ -4784,6 +4800,7 @@ bool TypeArguments::IsResolved() const {
 
 bool TypeArguments::IsSubvectorInstantiated(intptr_t from_index,
                                             intptr_t len,
+                                            Genericity genericity,
                                             TrailPtr trail) const {
   ASSERT(!IsNull());
   AbstractType& type = AbstractType::Handle();
@@ -4791,7 +4808,7 @@ bool TypeArguments::IsSubvectorInstantiated(intptr_t from_index,
     type = TypeAt(from_index + i);
     // If the type argument is null, the type parameterized with this type
     // argument is still being finalized. Skip this null type argument.
-    if (!type.IsNull() && !type.IsInstantiated(trail)) {
+    if (!type.IsNull() && !type.IsInstantiated(genericity, trail)) {
       return false;
     }
   }
@@ -4810,7 +4827,7 @@ bool TypeArguments::IsUninstantiatedIdentity() const {
     }
     const TypeParameter& type_param = TypeParameter::Cast(type);
     ASSERT(type_param.IsFinalized());
-    if ((type_param.index() != i)) {
+    if ((type_param.index() != i) || type_param.IsFunctionTypeParameter()) {
       return false;
     }
     // If this type parameter specifies an upper bound, then the type argument
@@ -4869,7 +4886,7 @@ bool TypeArguments::CanShareInstantiatorTypeArguments(
     }
     const TypeParameter& type_param = TypeParameter::Cast(type_arg);
     ASSERT(type_param.IsFinalized());
-    if ((type_param.index() != i)) {
+    if ((type_param.index() != i) || type_param.IsFunctionTypeParameter()) {
       return false;
     }
   }
@@ -5531,6 +5548,18 @@ void Function::set_parent_function(const Function& value) const {
     ASSERT(IsSignatureFunction());
     SignatureData::Cast(obj).set_parent_function(value);
   }
+}
+
+
+bool Function::HasGenericParent() const {
+  Function& parent = Function::Handle(parent_function());
+  while (!parent.IsNull()) {
+    if (parent.IsGeneric()) {
+      return true;
+    }
+    parent = parent.parent_function();
+  }
+  return false;
 }
 
 
@@ -6797,8 +6826,7 @@ RawFunction* Function::ImplicitClosureFunction() const {
 
   const Type& signature_type = Type::Handle(closure_function.SignatureType());
   if (!signature_type.IsFinalized()) {
-    ClassFinalizer::FinalizeType(Class::Handle(Owner()), signature_type,
-                                 ClassFinalizer::kCanonicalize);
+    ClassFinalizer::FinalizeType(Class::Handle(Owner()), signature_type);
   }
   set_implicit_closure_function(closure_function);
   ASSERT(closure_function.IsImplicitClosureFunction());
@@ -9135,6 +9163,9 @@ void Script::SetLocationOffset(intptr_t line_offset,
 // position that could be part of a stack trace.
 intptr_t Script::GetTokenLineUsingLineStarts(
     TokenPosition target_token_pos) const {
+  if (target_token_pos.IsNoSource()) {
+    return 0;
+  }
   Zone* zone = Thread::Current()->zone();
   Array& line_starts_array = Array::Handle(zone, line_starts());
   Smi& token_pos = Smi::Handle(zone);
@@ -9161,7 +9192,7 @@ intptr_t Script::GetTokenLineUsingLineStarts(
   }
 
   ASSERT(line_starts_array.Length() > 0);
-  intptr_t offset = target_token_pos.value();
+  intptr_t offset = target_token_pos.Pos();
   intptr_t min = 0;
   intptr_t max = line_starts_array.Length() - 1;
 
@@ -15392,7 +15423,6 @@ RawUnwindError* UnwindError::New(const String& message, Heap::Space space) {
   }
   result.set_message(message);
   result.set_is_user_initiated(false);
-  result.set_is_vm_restart(false);
   return result.raw();
 }
 
@@ -15404,11 +15434,6 @@ void UnwindError::set_message(const String& message) const {
 
 void UnwindError::set_is_user_initiated(bool value) const {
   StoreNonPointer(&raw_ptr()->is_user_initiated_, value);
-}
-
-
-void UnwindError::set_is_vm_restart(bool value) const {
-  StoreNonPointer(&raw_ptr()->is_vm_restart_, value);
 }
 
 
@@ -15762,24 +15787,17 @@ bool Instance::IsInstanceOf(const AbstractType& other,
   const bool other_is_dart_function = instantiated_other.IsDartFunctionType();
   if (other_is_dart_function || instantiated_other.IsFunctionType()) {
     // Check if this instance understands a call() method of a compatible type.
-    Function& call = Function::Handle(
-        zone, cls.LookupDynamicFunctionAllowAbstract(Symbols::Call()));
-    if (call.IsNull()) {
-      // Walk up the super_class chain.
-      Class& super_cls = Class::Handle(zone, cls.SuperClass());
-      while (!super_cls.IsNull() && call.IsNull()) {
-        call = super_cls.LookupDynamicFunctionAllowAbstract(Symbols::Call());
-        super_cls = super_cls.SuperClass();
-      }
-    }
-    if (!call.IsNull()) {
+    const Function& call_function =
+        Function::Handle(zone, cls.LookupCallFunctionForTypeTest());
+    if (!call_function.IsNull()) {
       if (other_is_dart_function) {
         return true;
       }
       const Function& other_signature =
           Function::Handle(zone, Type::Cast(instantiated_other).signature());
-      if (call.IsSubtypeOf(type_arguments, other_signature,
-                           other_type_arguments, bound_error, Heap::kOld)) {
+      if (call_function.IsSubtypeOf(type_arguments, other_signature,
+                                    other_type_arguments, bound_error,
+                                    Heap::kOld)) {
         return true;
       }
     }
@@ -16047,7 +16065,7 @@ TokenPosition AbstractType::token_pos() const {
 }
 
 
-bool AbstractType::IsInstantiated(TrailPtr trail) const {
+bool AbstractType::IsInstantiated(Genericity genericity, TrailPtr trail) const {
   // AbstractType is an abstract class.
   UNREACHABLE();
   return false;
@@ -16581,19 +16599,11 @@ bool AbstractType::TypeTest(TypeTestKind test_kind,
           TypeArguments::Handle(zone, other.arguments()), bound_error, space);
     }
     // Check if type S has a call() method of function type T.
-    Function& function = Function::Handle(
-        zone, type_cls.LookupDynamicFunctionAllowAbstract(Symbols::Call()));
-    if (function.IsNull()) {
-      // Walk up the super_class chain.
-      Class& cls = Class::Handle(zone, type_cls.SuperClass());
-      while (!cls.IsNull() && function.IsNull()) {
-        function = cls.LookupDynamicFunctionAllowAbstract(Symbols::Call());
-        cls = cls.SuperClass();
-      }
-    }
-    if (!function.IsNull()) {
+    const Function& call_function =
+        Function::Handle(zone, type_cls.LookupCallFunctionForTypeTest());
+    if (!call_function.IsNull()) {
       if (other_is_dart_function_type ||
-          function.TypeTest(
+          call_function.TypeTest(
               test_kind, TypeArguments::Handle(zone, arguments()),
               Function::Handle(zone, Type::Cast(other).signature()),
               TypeArguments::Handle(zone, other.arguments()), bound_error,
@@ -16713,9 +16723,8 @@ RawType* Type::NewNonParameterizedType(const Class& type_class) {
   ASSERT(type_class.NumTypeArguments() == 0);
   Type& type = Type::Handle(type_class.CanonicalType());
   if (type.IsNull()) {
-    const TypeArguments& no_type_arguments = TypeArguments::Handle();
-    type ^= Type::New(Object::Handle(type_class.raw()), no_type_arguments,
-                      TokenPosition::kNoSource);
+    type ^= Type::New(Object::Handle(type_class.raw()),
+                      Object::null_type_arguments(), TokenPosition::kNoSource);
     type.SetIsFinalized();
     type ^= type.Canonicalize();
   }
@@ -16861,11 +16870,12 @@ RawUnresolvedClass* Type::unresolved_class() const {
 }
 
 
-bool Type::IsInstantiated(TrailPtr trail) const {
+bool Type::IsInstantiated(Genericity genericity, TrailPtr trail) const {
   if (raw_ptr()->type_state_ == RawType::kFinalizedInstantiated) {
     return true;
   }
-  if (raw_ptr()->type_state_ == RawType::kFinalizedUninstantiated) {
+  if ((genericity == kAny) &&
+      (raw_ptr()->type_state_ == RawType::kFinalizedUninstantiated)) {
     return false;
   }
   if (arguments() == TypeArguments::null()) {
@@ -16884,7 +16894,9 @@ bool Type::IsInstantiated(TrailPtr trail) const {
     const Class& cls = Class::Handle(type_class());
     len = cls.NumTypeParameters();  // Check the type parameters only.
   }
-  return (len == 0) || args.IsSubvectorInstantiated(num_type_args - len, len);
+  return (len == 0) ||
+         args.IsSubvectorInstantiated(num_type_args - len, len, genericity,
+                                      trail);
 }
 
 
@@ -17004,7 +17016,8 @@ bool Type::IsEquivalent(const Instance& other, TrailPtr trail) const {
         return false;
       }
 #ifdef DEBUG
-      if (from_index > 0) {
+      if ((from_index > 0) && !type_args.IsNull() &&
+          !other_type_args.IsNull()) {
         // Verify that the type arguments of the super class match, since they
         // depend solely on the type parameters that were just verified to
         // match.
@@ -17572,11 +17585,11 @@ const char* Type::ToCString() const {
 }
 
 
-bool TypeRef::IsInstantiated(TrailPtr trail) const {
+bool TypeRef::IsInstantiated(Genericity genericity, TrailPtr trail) const {
   if (TestAndAddToTrail(&trail)) {
     return true;
   }
-  return AbstractType::Handle(type()).IsInstantiated(trail);
+  return AbstractType::Handle(type()).IsInstantiated(genericity, trail);
 }
 
 
@@ -17737,6 +17750,26 @@ void TypeParameter::SetIsFinalized() const {
 }
 
 
+bool TypeParameter::IsInstantiated(Genericity genericity,
+                                   TrailPtr trail) const {
+  switch (genericity) {
+    case kAny:
+      return false;
+    case kClass:
+      return IsFunctionTypeParameter();
+    case kFunctions:
+      return IsClassTypeParameter();
+    case kCurrentFunction:
+      return IsClassTypeParameter() || (parent_level() > 0);
+    case kParentFunctions:
+      return IsClassTypeParameter() || (parent_level() == 0);
+    default:
+      UNREACHABLE();
+  }
+  return false;
+}
+
+
 bool TypeParameter::IsEquivalent(const Instance& other, TrailPtr trail) const {
   if (raw() == other.raw()) {
     return true;
@@ -17864,6 +17897,15 @@ bool TypeParameter::CheckBound(const AbstractType& bounded_type,
     // Report the bound error only if both the bounded type and the upper bound
     // are instantiated. Otherwise, we cannot tell yet it is a bound error.
     if (bounded_type.IsInstantiated() && upper_bound.IsInstantiated()) {
+      // There is another special case where we do not want to report a bound
+      // error yet: if the upper bound is a function type, but the bounded type
+      // is not and its class is not compiled yet, i.e. we cannot look for
+      // a call method yet.
+      if (!bounded_type.IsFunctionType() && upper_bound.IsFunctionType() &&
+          bounded_type.HasResolvedTypeClass() &&
+          !Class::Handle(bounded_type.type_class()).is_finalized()) {
+        return false;  // Not a subtype yet, but no bound error yet.
+      }
       const String& bounded_type_name =
           String::Handle(bounded_type.UserVisibleName());
       const String& upper_bound_name =
@@ -22545,12 +22587,6 @@ RawStackTrace* StackTrace::New(const Array& code_array,
 }
 
 
-const char* StackTrace::ToCString() const {
-  intptr_t idx = 0;
-  return ToCStringInternal(*this, &idx);
-}
-
-
 static void PrintStackTraceFrame(Zone* zone,
                                  ZoneTextBuffer* buffer,
                                  const Function& function,
@@ -22587,22 +22623,21 @@ static void PrintStackTraceFrame(Zone* zone,
 }
 
 
-const char* StackTrace::ToCStringInternal(const StackTrace& stack_trace_in,
-                                          intptr_t* frame_index,
-                                          intptr_t max_frames) {
+const char* StackTrace::ToDartCString(const StackTrace& stack_trace_in) {
   Zone* zone = Thread::Current()->zone();
   StackTrace& stack_trace = StackTrace::Handle(zone, stack_trace_in.raw());
   Function& function = Function::Handle(zone);
   Code& code = Code::Handle(zone);
+
   GrowableArray<const Function*> inlined_functions;
   GrowableArray<TokenPosition> inlined_token_positions;
   ZoneTextBuffer buffer(zone, 1024);
 
   // Iterate through the stack frames and create C string description
   // for each frame.
+  intptr_t frame_index = 0;
   do {
-    for (intptr_t i = 0;
-         (i < stack_trace.Length()) && (*frame_index < max_frames); i++) {
+    for (intptr_t i = 0; i < stack_trace.Length(); i++) {
       code = stack_trace.CodeAtFrame(i);
       if (code.IsNull()) {
         // Check for a null function, which indicates a gap in a StackOverflow
@@ -22612,7 +22647,7 @@ const char* StackTrace::ToCStringInternal(const StackTrace& stack_trace_in,
           buffer.AddString("...\n...\n");
           ASSERT(stack_trace.PcOffsetAtFrame(i) != Smi::null());
           // To account for gap frames.
-          (*frame_index) += Smi::Value(stack_trace.PcOffsetAtFrame(i));
+          frame_index += Smi::Value(stack_trace.PcOffsetAtFrame(i));
         }
       } else if (code.raw() ==
                  StubCode::AsynchronousGapMarker_entry()->code()) {
@@ -22632,8 +22667,8 @@ const char* StackTrace::ToCStringInternal(const StackTrace& stack_trace_in,
             if (inlined_functions[j]->is_visible() ||
                 FLAG_show_invisible_frames) {
               PrintStackTraceFrame(zone, &buffer, *inlined_functions[j],
-                                   inlined_token_positions[j], *frame_index);
-              (*frame_index)++;
+                                   inlined_token_positions[j], frame_index);
+              frame_index++;
             }
           }
         } else {
@@ -22642,8 +22677,8 @@ const char* StackTrace::ToCStringInternal(const StackTrace& stack_trace_in,
             uword pc = code.PayloadStart() + pc_offset;
             const TokenPosition token_pos = code.GetTokenIndexOfPC(pc);
             PrintStackTraceFrame(zone, &buffer, function, token_pos,
-                                 *frame_index);
-            (*frame_index)++;
+                                 frame_index);
+            frame_index++;
           }
         }
       }
@@ -22653,6 +22688,90 @@ const char* StackTrace::ToCStringInternal(const StackTrace& stack_trace_in,
   } while (!stack_trace.IsNull());
 
   return buffer.buffer();
+}
+
+
+const char* StackTrace::ToDwarfCString(const StackTrace& stack_trace_in) {
+#if defined(DART_PRECOMPILER) || defined(DART_PRECOMPILED_RUNTIME)
+  Zone* zone = Thread::Current()->zone();
+  StackTrace& stack_trace = StackTrace::Handle(zone, stack_trace_in.raw());
+  Code& code = Code::Handle(zone);
+  ZoneTextBuffer buffer(zone, 1024);
+
+  // The Dart standard requires the output of StackTrace.toString to include
+  // all pending activations with precise source locations (i.e., to expand
+  // inlined frames and provide line and column numbers).
+  buffer.Printf(
+      "Warning: This VM has been configured to produce stack traces "
+      "that violate the Dart standard.\n");
+  // This prologue imitates Android's debuggerd to make it possible to paste
+  // the stack trace into ndk-stack.
+  buffer.Printf(
+      "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\n");
+  OSThread* thread = OSThread::Current();
+  buffer.Printf("pid: %" Pd ", tid: %" Pd ", name %s\n", OS::ProcessId(),
+                OSThread::ThreadIdToIntPtr(thread->id()), thread->name());
+  intptr_t frame_index = 0;
+  do {
+    for (intptr_t i = 0; i < stack_trace.Length(); i++) {
+      code = stack_trace.CodeAtFrame(i);
+      if (code.IsNull()) {
+        // Check for a null function, which indicates a gap in a StackOverflow
+        // or OutOfMemory trace.
+        if ((i < (stack_trace.Length() - 1)) &&
+            (stack_trace.CodeAtFrame(i + 1) != Code::null())) {
+          buffer.AddString("...\n...\n");
+          ASSERT(stack_trace.PcOffsetAtFrame(i) != Smi::null());
+          // To account for gap frames.
+          frame_index += Smi::Value(stack_trace.PcOffsetAtFrame(i));
+        }
+      } else if (code.raw() ==
+                 StubCode::AsynchronousGapMarker_entry()->code()) {
+        buffer.AddString("<asynchronous suspension>\n");
+        // The frame immediately after the asynchronous gap marker is the
+        // identical to the frame above the marker. Skip the frame to enhance
+        // the readability of the trace.
+        i++;
+      } else {
+        intptr_t pc_offset = Smi::Value(stack_trace.PcOffsetAtFrame(i));
+        // This output is formatted like Android's debuggerd. Note debuggerd
+        // prints call addresses instead of return addresses.
+        uword return_addr = code.PayloadStart() + pc_offset;
+        uword call_addr = return_addr - 1;
+        uword dso_base;
+        char* dso_name;
+        if (NativeSymbolResolver::LookupSharedObject(call_addr, &dso_base,
+                                                     &dso_name)) {
+          uword dso_offset = call_addr - dso_base;
+          buffer.Printf("    #%02" Pd " pc %" Pp "  %s\n", frame_index,
+                        dso_offset, dso_name);
+          NativeSymbolResolver::FreeSymbolName(dso_name);
+        } else {
+          buffer.Printf("    #%02" Pd " pc %" Pp "  <unknown>\n", frame_index,
+                        call_addr);
+        }
+        frame_index++;
+      }
+    }
+    // Follow the link.
+    stack_trace ^= stack_trace.async_link();
+  } while (!stack_trace.IsNull());
+
+  return buffer.buffer();
+#else
+  UNREACHABLE();
+  return NULL;
+#endif  // defined(DART_PRECOMPILER) || defined(DART_PRECOMPILED_RUNTIME)
+}
+
+
+const char* StackTrace::ToCString() const {
+#if defined(DART_PRECOMPILER) || defined(DART_PRECOMPILED_RUNTIME)
+  if (FLAG_dwarf_stack_traces) {
+    return ToDwarfCString(*this);
+  }
+#endif
+  return ToDartCString(*this);
 }
 
 

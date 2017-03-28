@@ -5,7 +5,7 @@
 #include "platform/globals.h"
 
 #if !defined(DART_USE_TCMALLOC) || defined(PRODUCT) ||                         \
-    defined(TARGET_ARCH_DBC) || defined(TARGET_OS_FUCHSIA)
+    defined(TARGET_ARCH_DBC) || defined(HOST_OS_FUCHSIA)
 
 #include "vm/malloc_hooks.h"
 
@@ -51,6 +51,11 @@ void MallocHooks::PrintToJSONObject(JSONObject* jsobj) {
 }
 
 
+Sample* MallocHooks::GetSample(const void* ptr) {
+  return NULL;
+}
+
+
 intptr_t MallocHooks::allocation_count() {
   return 0;
 }
@@ -63,4 +68,4 @@ intptr_t MallocHooks::heap_allocated_memory_in_bytes() {
 }  // namespace dart
 
 #endif  // !defined(DART_USE_TCMALLOC) || defined(PRODUCT) ||
-        // defined(TARGET_ARCH_DBC) || defined(TARGET_OS_FUCHSIA)
+        // defined(TARGET_ARCH_DBC) || defined(HOST_OS_FUCHSIA)

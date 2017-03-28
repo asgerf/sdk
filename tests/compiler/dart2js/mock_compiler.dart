@@ -17,10 +17,11 @@ import 'package:compiler/src/diagnostics/source_span.dart';
 import 'package:compiler/src/diagnostics/spannable.dart';
 import 'package:compiler/src/elements/elements.dart';
 import 'package:compiler/src/elements/visitor.dart';
+import 'package:compiler/src/library_loader.dart' show LoadedLibraries;
 import 'package:compiler/src/js_backend/backend_helpers.dart'
     show BackendHelpers;
 import 'package:compiler/src/js_backend/lookup_map_analysis.dart'
-    show LookupMapAnalysis;
+    show LookupMapResolutionAnalysis;
 import 'package:compiler/src/io/source_file.dart';
 import 'package:compiler/src/options.dart' show CompilerOptions;
 import 'package:compiler/src/resolution/members.dart';
@@ -131,7 +132,7 @@ class MockCompiler extends Compiler {
       asyncLibrarySource.addAll(ASYNC_AWAIT_LIBRARY);
     }
     registerSource(Uris.dart_async, buildLibrarySource(asyncLibrarySource));
-    registerSource(LookupMapAnalysis.PACKAGE_LOOKUP_MAP,
+    registerSource(LookupMapResolutionAnalysis.PACKAGE_LOOKUP_MAP,
         buildLibrarySource(DEFAULT_LOOKUP_MAP_LIBRARY));
   }
 
@@ -143,8 +144,12 @@ class MockCompiler extends Compiler {
   Future<Uri> init([String mainSource = ""]) {
     Uri uri = new Uri(scheme: "mock");
     registerSource(uri, mainSource);
-    return libraryLoader.loadLibrary(uri).then((LibraryElement library) {
-      mainApp = library;
+    return libraryLoader
+        .loadLibrary(uri)
+        .then((LoadedLibraries loadedLibraries) {
+      processLoadedLibraries(loadedLibraries);
+      mainApp = loadedLibraries.rootLibrary;
+      startResolution();
       // We need to make sure the Object class is resolved. When registering a
       // dynamic invocation the ArgumentTypesRegistry eventually iterates over
       // the interfaces of the Object class which would be 'null' if the class
@@ -221,7 +226,7 @@ class MockCompiler extends Compiler {
         this.resolution,
         element,
         new ResolutionRegistry(
-            this.backend, new CollectingTreeElements(element)),
+            this.backend.target, new CollectingTreeElements(element)),
         scope:
             new MockTypeVariablesScope(element.enclosingElement.buildScope()));
     if (visitor.scope is LibraryScope ||
@@ -239,7 +244,7 @@ class MockCompiler extends Compiler {
         this.resolution,
         mockElement,
         new ResolutionRegistry(
-            this.backend, new CollectingTreeElements(mockElement)),
+            this.backend.target, new CollectingTreeElements(mockElement)),
         scope: mockElement.enclosingElement.buildScope());
     visitor.scope = new MethodScope(visitor.scope, mockElement);
     return visitor;

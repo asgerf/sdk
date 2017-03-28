@@ -430,17 +430,13 @@ class ApiElementBuilder extends _BaseElementBuilder {
   Object visitGenericFunctionType(GenericFunctionType node) {
     ElementHolder holder = new ElementHolder();
     _visitChildren(holder, node);
-    FunctionElementImpl element =
-        new FunctionElementImpl.forOffset(node.beginToken.offset);
+    GenericFunctionTypeElementImpl element =
+        new GenericFunctionTypeElementImpl.forOffset(node.beginToken.offset);
     _setCodeRange(element, node);
     element.parameters = holder.parameters;
     element.typeParameters = holder.typeParameters;
     FunctionType type = new FunctionTypeImpl(element);
     element.type = type;
-    if (node.returnType == null) {
-      element.hasImplicitReturnType = true;
-    }
-    _currentHolder.addFunction(element);
     (node as GenericFunctionTypeImpl).type = type;
     holder.validate();
     return null;
@@ -460,7 +456,7 @@ class ApiElementBuilder extends _BaseElementBuilder {
     element.typeParameters = typeParameters;
     _createTypeParameterTypes(typeParameters);
     element.type = new FunctionTypeImpl.forTypedef(element);
-    element.function = holder.functions[0];
+    element.function = node.functionType?.type?.element;
     _currentHolder.addTypeAlias(element);
     aliasName.staticElement = element;
     holder.validate();
@@ -1450,7 +1446,7 @@ abstract class _BaseElementBuilder extends RecursiveAstVisitor<Object> {
     if (normalParameter is SimpleFormalParameterImpl) {
       normalParameter.element = parameter;
     }
-    parameterName.staticElement = parameter;
+    parameterName?.staticElement = parameter;
     normalParameter.accept(this);
     return null;
   }

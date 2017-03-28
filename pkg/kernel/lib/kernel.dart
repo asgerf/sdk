@@ -55,7 +55,7 @@ void writeProgramToText(Program program,
     Binding binding,
     bool showExternal: false,
     bool showOffsets: false,
-    Annotator annotator: const InferredValueAnnotator()}) {
+    Annotator annotator}) {
   StringBuffer buffer = new StringBuffer();
   new Printer(buffer,
           binding: binding,

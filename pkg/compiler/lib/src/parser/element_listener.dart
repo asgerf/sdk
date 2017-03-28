@@ -76,6 +76,9 @@ class ElementListener extends Listener {
   LinkBuilder<MetadataAnnotation> metadata =
       new LinkBuilder<MetadataAnnotation>();
 
+  /// Indicates whether the parser is currently accepting a type variable.
+  bool inTypeVariable = false;
+
   /// Records a stack of booleans for each member parsed (a stack is used to
   /// support nested members which isn't currently possible, but it also serves
   /// as a simple way to tell we're currently parsing a member). In this case,
@@ -235,7 +238,7 @@ class ElementListener extends Listener {
   }
 
   @override
-  void endPartOf(Token partKeyword, Token semicolon) {
+  void endPartOf(Token partKeyword, Token semicolon, bool hasName) {
     Expression name = popNode();
     addPartOfTag(
         new PartOf(partKeyword, name, popMetadata(compilationUnitElement)));
@@ -250,8 +253,13 @@ class ElementListener extends Listener {
     if (periodBeforeName != null) {
       popNode(); // Discard name.
     }
-    popNode(); // Discard node (Send or Identifier).
-    pushMetadata(new PartialMetadataAnnotation(beginToken, endToken));
+    popNode(); // Discard type parameters
+    popNode(); // Discard identifier
+    // TODO(paulberry,ahe): type variable metadata should not be ignored.  See
+    // dartbug.com/5841.
+    if (!inTypeVariable) {
+      pushMetadata(new PartialMetadataAnnotation(beginToken, endToken));
+    }
   }
 
   @override
@@ -301,8 +309,8 @@ class ElementListener extends Listener {
       name = popNode();
       popNode(); // returnType
     } else {
-      popNode();  // Function type.
-      popNode();  // TODO(karlklose): do not throw away typeVariables.
+      popNode(); // Function type.
+      popNode(); // TODO(karlklose): do not throw away typeVariables.
       name = popNode();
     }
     pushElement(new PartialTypedefElement(
@@ -410,8 +418,8 @@ class ElementListener extends Listener {
   }
 
   @override
-  void handleNoConstructorReferenceContinuationAfterTypeArguments(Token token) {
-  }
+  void handleNoConstructorReferenceContinuationAfterTypeArguments(
+      Token token) {}
 
   @override
   void handleNoType(Token token) {
@@ -419,7 +427,13 @@ class ElementListener extends Listener {
   }
 
   @override
+  void beginTypeVariable(Token token) {
+    inTypeVariable = true;
+  }
+
+  @override
   void endTypeVariable(Token token, Token extendsOrSuper) {
+    inTypeVariable = false;
     NominalTypeAnnotation bound = popNode();
     Identifier name = popNode();
     pushNode(new TypeVariable(name, extendsOrSuper, bound));
@@ -459,8 +473,8 @@ class ElementListener extends Listener {
 
   @override
   void handleFunctionType(Token functionToken, Token endToken) {
-    popNode();  // Type parameters.
-    popNode();  // Return type.
+    popNode(); // Type parameters.
+    popNode(); // Return type.
     pushNode(null);
   }
 
@@ -717,9 +731,40 @@ class ElementListener extends Listener {
       case ErrorKind.Unspecified:
         errorCode = MessageKind.GENERIC;
         break;
+
+      case ErrorKind.BuiltInIdentifierAsType:
+        errorCode = MessageKind.GENERIC;
+        arguments = {"text": "Can't use '${token.lexeme}' as a type."};
+        break;
+
+      case ErrorKind.BuiltInIdentifierInDeclaration:
+        errorCode = MessageKind.GENERIC;
+        arguments = {"text": "Can't use '${token.lexeme}' as a name here."};
+        break;
+
+      case ErrorKind.AsyncAsIdentifier:
+        errorCode = MessageKind.GENERIC;
+        arguments = {
+          "text": "'async' can't be used as an identifier in "
+              "'async', 'async*', or 'sync*' methods."
+        };
+        break;
+
+      case ErrorKind.AbstractNotSync:
+      case ErrorKind.AwaitAsIdentifier:
+      case ErrorKind.AwaitForNotAsync:
+      case ErrorKind.AwaitNotAsync:
+      case ErrorKind.FactoryNotSync:
+      case ErrorKind.GeneratorReturnsValue:
+      case ErrorKind.OnlyTry:
+      case ErrorKind.SetterNotSync:
+      case ErrorKind.YieldAsIdentifier:
+      case ErrorKind.YieldNotGenerator:
+        return null; // Ignored. This error is already implemented elsewhere.
     }
     SourceSpan span = reporter.spanFromToken(token);
     reportError(span, errorCode, arguments);
+    return null;
   }
 
   /// Finds the preceding token via the begin token of the last AST node pushed

@@ -486,6 +486,9 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
           _checkImplementsSuperClass(node);
           _checkImplementsFunctionWithoutCall(node);
           _checkForMixinHasNoConstructors(node);
+          if (_options.strongMode) {
+            _checkForMixinWithConflictingPrivateMember(node);
+          }
         }
       }
       visitClassDeclarationIncrementally(node);
@@ -869,20 +872,6 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
     } finally {
       _isInFunctionTypedFormalParameter = old;
     }
-  }
-
-  @override
-  Object visitGenericFunctionType(GenericFunctionType node) {
-    throw new StateError(
-        'Support for generic function types is not yet implemented');
-//    return super.visitGenericFunctionType(node);
-  }
-
-  @override
-  Object visitGenericTypeAlias(GenericTypeAlias node) {
-    throw new StateError(
-        'Support for generic type aliases is not yet implemented');
-//    return super.visitGenericTypeAlias(node);
   }
 
   @override
@@ -2317,7 +2306,11 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
         }
       } else if (expectedReturnType.isDynamic ||
           expectedReturnType.isVoid ||
-          expectedReturnType.isDartCoreNull) {
+          (expectedReturnType.isDartCoreNull && _options.strongMode)) {
+        // TODO(leafp): Empty returns shouldn't be allowed for Null in strong
+        // mode either once we allow void as a type argument.  But for now, the
+        // only type we can validly infer for f.then((_) {print("hello");}) is
+        // Future<Null>, so we allow this.
         return;
       }
       _hasReturnWithoutValue = true;
@@ -4899,6 +4892,80 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
   }
 
   /**
+   * Check for the declaration of a mixin from a library other than the current
+   * library that defines a private member that conflicts with a private name
+   * from the same library but from a superclass or a different mixin.
+   */
+  void _checkForMixinWithConflictingPrivateMember(ClassDeclaration node) {
+    WithClause withClause = node.withClause;
+    if (withClause == null) {
+      return;
+    }
+    DartType declaredSupertype = node.extendsClause?.superclass?.type;
+    if (declaredSupertype is! InterfaceType) {
+      return;
+    }
+    InterfaceType superclass = declaredSupertype;
+    Map<LibraryElement, Map<String, String>> mixedInNames =
+        <LibraryElement, Map<String, String>>{};
+
+    /**
+     * Report an error and return `true` if the given [name] is a private name
+     * (which is defined in the given [library]) and it conflicts with another
+     * definition of that name inherited from the superclass.
+     */
+    bool isConflictingName(
+        String name, LibraryElement library, TypeName typeName) {
+      if (Identifier.isPrivateName(name)) {
+        Map<String, String> names =
+            mixedInNames.putIfAbsent(library, () => <String, String>{});
+        if (names.containsKey(name)) {
+          _errorReporter.reportErrorForNode(
+              CompileTimeErrorCode.PRIVATE_COLLISION_IN_MIXIN_APPLICATION,
+              typeName,
+              [name, typeName.name.name, names[name]]);
+          return true;
+        }
+        names[name] = typeName.name.name;
+        ExecutableElement inheritedMember =
+            superclass.lookUpMethod(name, library) ??
+                superclass.lookUpGetter(name, library) ??
+                superclass.lookUpSetter(name, library);
+        if (inheritedMember != null) {
+          _errorReporter.reportErrorForNode(
+              CompileTimeErrorCode.PRIVATE_COLLISION_IN_MIXIN_APPLICATION,
+              typeName, [
+            name,
+            typeName.name.name,
+            inheritedMember.enclosingElement.name
+          ]);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    for (TypeName mixinType in withClause.mixinTypes) {
+      DartType type = mixinType.type;
+      if (type is InterfaceType) {
+        LibraryElement library = type.element.library;
+        if (library != _currentLibrary) {
+          for (PropertyAccessorElement accessor in type.accessors) {
+            if (isConflictingName(accessor.name, library, mixinType)) {
+              return;
+            }
+          }
+          for (MethodElement method in type.methods) {
+            if (isConflictingName(method.name, library, mixinType)) {
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * Verify that the given [constructor] has at most one 'super' initializer.
    *
    * See [CompileTimeErrorCode.MULTIPLE_SUPER_INITIALIZERS].
@@ -5312,7 +5379,9 @@ class ErrorVerifier extends RecursiveAstVisitor<Object> {
     }
     // name should start with '_'
     SimpleIdentifier name = parameter.identifier;
-    if (name.isSynthetic || !StringUtilities.startsWithChar(name.name, 0x5F)) {
+    if (name == null ||
+        name.isSynthetic ||
+        !StringUtilities.startsWithChar(name.name, 0x5F)) {
       return;
     }
 

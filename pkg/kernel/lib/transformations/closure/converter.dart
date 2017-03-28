@@ -52,6 +52,7 @@ import '../../ast.dart'
         VariableDeclaration,
         VariableGet,
         VariableSet,
+        VectorType,
         transformList;
 
 import '../../frontend/accessors.dart' show VariableAccessor;
@@ -263,10 +264,11 @@ class ClosureConverter extends Transformer {
 
     VariableDeclaration contextVariable = new VariableDeclaration(
         "#contextParameter",
-        type: contextClass.rawType,
+        type: const VectorType(),
         isFinal: true);
     Context parent = context;
-    context = context.toNestedContext(new VariableAccessor(contextVariable));
+    context = context.toNestedContext(
+        new VariableAccessor(contextVariable, null, TreeNode.noOffset));
 
     Set<TypeParameter> captured = capturedTypeVariables[currentFunction];
     if (captured != null) {
@@ -314,13 +316,13 @@ class ClosureConverter extends Transformer {
   /// Add a new class to the current library that looks like this:
   ///
   ///     class Closure#0 extends core::Object implements core::Function {
-  ///       field _in::Context context;
-  ///       constructor •(final _in::Context #t1) → dynamic
-  ///         : self::Closure 0::context = #t1
+  ///       field Vector context;
+  ///       constructor •(final Vector #t1) → dynamic
+  ///         : self::Closure#0::context = #t1
   ///         ;
   ///       method call(/* The parameters of [function] */) → dynamic {
   ///         /// #t2 is [contextVariable].
-  ///         final _in::Context #t2 = this.{self::Closure#0::context};
+  ///         final Vector #t2 = this.{self::Closure#0::context};
   ///         /* The body of [function]. */
   ///       }
   ///     }
@@ -339,7 +341,7 @@ class ClosureConverter extends Transformer {
     Field contextField = new Field(
         // TODO(ahe): Rename to #context.
         new Name("context"),
-        type: contextClass.rawType,
+        type: const VectorType(),
         fileUri: currentFileUri);
     Class closureClass = createClosureClass(function,
         fields: [contextField], substitution: substitution);
@@ -671,12 +673,26 @@ class ClosureConverter extends Transformer {
       fields = <Field>[self];
       receiver = new PropertyGet(new ThisExpression(), self.name, self);
     }
-    Class closureClass = createClosureClass(procedure.function,
-        fields: fields, substitution: substitution);
-    closureClass.addMember(new Procedure(new Name("call"), ProcedureKind.Method,
-        forwardFunction(procedure, receiver, substitution),
-        fileUri: currentFileUri));
-    newLibraryMembers.add(closureClass);
+
+    // Find the closure class for the function. If there isn't one, create it.
+    String closureClassName = createNameForClosureClass(procedure.function);
+    Class closureClass = null;
+    for (TreeNode node in newLibraryMembers) {
+      if (node is Class && node.name == closureClassName) {
+        closureClass = node;
+      }
+    }
+    if (closureClass == null) {
+      closureClass = createClosureClass(procedure.function,
+          fields: fields, substitution: substitution);
+      closureClass.addMember(new Procedure(
+          new Name("call"),
+          ProcedureKind.Method,
+          forwardFunction(procedure, receiver, substitution),
+          fileUri: currentFileUri));
+      newLibraryMembers.add(closureClass);
+    }
+
     Arguments constructorArguments = procedure.isInstanceMember
         ? new Arguments(<Expression>[new ThisExpression()])
         : new Arguments.empty();
@@ -702,8 +718,6 @@ class ClosureConverter extends Transformer {
         function.positionalParameters.map(cloner.clone).toList();
     List<VariableDeclaration> namedParameters =
         function.namedParameters.map(cloner.clone).toList();
-    // TODO(ahe): Clone or copy inferredReturnValue?
-    InferredValue inferredReturnValue = null;
 
     List<DartType> types = typeParameters
         .map((TypeParameter parameter) => new TypeParameterType(parameter))
@@ -725,8 +739,7 @@ class ClosureConverter extends Transformer {
         positionalParameters: positionalParameters,
         namedParameters: namedParameters,
         requiredParameterCount: function.requiredParameterCount,
-        returnType: substitute(function.returnType, substitution),
-        inferredReturnValue: inferredReturnValue);
+        returnType: substitute(function.returnType, cloner.typeSubstitution));
   }
 
   /// Creates copies of the type variables in [original] and returns a
@@ -747,13 +760,17 @@ class ClosureConverter extends Transformer {
     return substitution;
   }
 
+  String createNameForClosureClass(FunctionNode function) {
+    return 'Closure#${localNames[function]}';
+  }
+
   Class createClosureClass(FunctionNode function,
       {List<Field> fields, Map<TypeParameter, DartType> substitution}) {
     List<TypeParameter> typeParameters = new List<TypeParameter>.from(
         substitution.values
             .map((DartType t) => (t as TypeParameterType).parameter));
     Class closureClass = new Class(
-        name: 'Closure#${localNames[function]}',
+        name: createNameForClosureClass(function),
         supertype: new Supertype(coreTypes.objectClass, const <DartType>[]),
         typeParameters: typeParameters,
         implementedTypes: <Supertype>[

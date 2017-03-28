@@ -1068,8 +1068,7 @@ dart::String& TranslationHelper::DartSymbol(String* content) const {
 
 
 const dart::String& TranslationHelper::DartClassName(
-    kernel::Class* kernel_klass) {
-  ASSERT(kernel_klass->IsNormalClass());
+    CanonicalName* kernel_klass) {
   dart::String& name = DartString(kernel_klass->name());
   return ManglePrivateName(kernel_klass->parent(), &name);
 }
@@ -1112,7 +1111,7 @@ const dart::String& TranslationHelper::DartSetterName(Name* kernel_name) {
   dart::String& name = dart::String::ZoneHandle(
       Z, dart::String::FromUTF8(content->buffer(), content->size() - skip,
                                 allocation_space_));
-  ManglePrivateName(kernel_name->library(), &name, false);
+  ManglePrivateName(kernel_name->library_reference(), &name, false);
   name = dart::Field::SetterSymbol(name);
   return name;
 }
@@ -1120,7 +1119,7 @@ const dart::String& TranslationHelper::DartSetterName(Name* kernel_name) {
 
 const dart::String& TranslationHelper::DartGetterName(Name* kernel_name) {
   dart::String& name = DartString(kernel_name->string());
-  ManglePrivateName(kernel_name->library(), &name, false);
+  ManglePrivateName(kernel_name->library_reference(), &name, false);
   name = dart::Field::GetterSymbol(name);
   return name;
 }
@@ -1128,7 +1127,7 @@ const dart::String& TranslationHelper::DartGetterName(Name* kernel_name) {
 
 const dart::String& TranslationHelper::DartFieldName(Name* kernel_name) {
   dart::String& name = DartString(kernel_name->string());
-  return ManglePrivateName(kernel_name->library(), &name);
+  return ManglePrivateName(kernel_name->library_reference(), &name);
 }
 
 
@@ -1143,7 +1142,7 @@ const dart::String& TranslationHelper::DartInitializerName(Name* kernel_name) {
 
 const dart::String& TranslationHelper::DartMethodName(Name* kernel_name) {
   dart::String& name = DartString(kernel_name->string());
-  return ManglePrivateName(kernel_name->library(), &name);
+  return ManglePrivateName(kernel_name->library_reference(), &name);
 }
 
 
@@ -1151,7 +1150,7 @@ const dart::String& TranslationHelper::DartFactoryName(Class* klass,
                                                        Name* method_name) {
   // [DartMethodName] will mangle the name.
   GrowableHandlePtrArray<const dart::String> pieces(Z, 3);
-  pieces.Add(DartClassName(klass));
+  pieces.Add(DartClassName(klass->canonical_name()));
   pieces.Add(Symbols::Dot());
   pieces.Add(DartMethodName(method_name));
   return dart::String::ZoneHandle(
@@ -1160,8 +1159,8 @@ const dart::String& TranslationHelper::DartFactoryName(Class* klass,
 
 
 dart::RawLibrary* TranslationHelper::LookupLibraryByKernelLibrary(
-    Library* kernel_library) {
-  const dart::String& library_name = DartSymbol(kernel_library->import_uri());
+    CanonicalName* kernel_library) {
+  const dart::String& library_name = DartSymbol(kernel_library->name());
   ASSERT(!library_name.IsNull());
   dart::RawLibrary* library =
       dart::Library::LookupLibrary(thread_, library_name);
@@ -1171,11 +1170,11 @@ dart::RawLibrary* TranslationHelper::LookupLibraryByKernelLibrary(
 
 
 dart::RawClass* TranslationHelper::LookupClassByKernelClass(
-    Class* kernel_klass) {
+    CanonicalName* kernel_klass) {
   dart::RawClass* klass = NULL;
 
   const dart::String& class_name = DartClassName(kernel_klass);
-  Library* kernel_library = Library::Cast(kernel_klass->parent());
+  CanonicalName* kernel_library = kernel_klass->parent();
   dart::Library& library =
       dart::Library::Handle(Z, LookupLibraryByKernelLibrary(kernel_library));
   klass = library.LookupClassAllowPrivate(class_name);
@@ -1185,32 +1184,17 @@ dart::RawClass* TranslationHelper::LookupClassByKernelClass(
 }
 
 
-dart::RawUnresolvedClass* TranslationHelper::ToUnresolvedClass(
-    Class* kernel_klass) {
-  dart::RawClass* klass = NULL;
-
-  const dart::String& class_name = DartClassName(kernel_klass);
-  Library* kernel_library = Library::Cast(kernel_klass->parent());
-  dart::Library& library =
-      dart::Library::Handle(Z, LookupLibraryByKernelLibrary(kernel_library));
-
-  ASSERT(klass != Object::null());
-  return dart::UnresolvedClass::New(library, class_name,
-                                    TokenPosition::kNoSource);
-}
-
-
 dart::RawField* TranslationHelper::LookupFieldByKernelField(
     Field* kernel_field) {
   TreeNode* node = kernel_field->parent();
 
   dart::Class& klass = dart::Class::Handle(Z);
   if (node->IsClass()) {
-    klass = LookupClassByKernelClass(Class::Cast(node));
+    klass = LookupClassByKernelClass(Class::Cast(node)->canonical_name());
   } else {
     ASSERT(node->IsLibrary());
     dart::Library& library = dart::Library::Handle(
-        Z, LookupLibraryByKernelLibrary(Library::Cast(node)));
+        Z, LookupLibraryByKernelLibrary(Library::Cast(node)->canonical_name()));
     klass = library.toplevel_class();
   }
   dart::RawField* field =
@@ -1229,8 +1213,8 @@ dart::RawFunction* TranslationHelper::LookupStaticMethodByKernelProcedure(
   // static method).
   TreeNode* parent = procedure->parent();
   if (parent->IsClass()) {
-    dart::Class& klass =
-        dart::Class::Handle(Z, LookupClassByKernelClass(Class::Cast(parent)));
+    dart::Class& klass = dart::Class::Handle(
+        Z, LookupClassByKernelClass(Class::Cast(parent)->canonical_name()));
     dart::RawFunction* raw_function =
         klass.LookupFunctionAllowPrivate(procedure_name);
     ASSERT(raw_function != Object::null());
@@ -1246,7 +1230,8 @@ dart::RawFunction* TranslationHelper::LookupStaticMethodByKernelProcedure(
   } else {
     ASSERT(parent->IsLibrary());
     dart::Library& library = dart::Library::Handle(
-        Z, LookupLibraryByKernelLibrary(Library::Cast(parent)));
+        Z,
+        LookupLibraryByKernelLibrary(Library::Cast(parent)->canonical_name()));
     dart::RawFunction* function =
         library.LookupFunctionAllowPrivate(procedure_name);
     ASSERT(function != Object::null());
@@ -1258,8 +1243,8 @@ dart::RawFunction* TranslationHelper::LookupStaticMethodByKernelProcedure(
 dart::RawFunction* TranslationHelper::LookupConstructorByKernelConstructor(
     Constructor* constructor) {
   Class* kernel_klass = Class::Cast(constructor->parent());
-  dart::Class& klass =
-      dart::Class::Handle(Z, LookupClassByKernelClass(kernel_klass));
+  dart::Class& klass = dart::Class::Handle(
+      Z, LookupClassByKernelClass(kernel_klass->canonical_name()));
   return LookupConstructorByKernelConstructor(klass, constructor);
 }
 
@@ -1285,8 +1270,7 @@ dart::Type& TranslationHelper::GetCanonicalType(const dart::Class& klass) {
   type = Type::New(klass, TypeArguments::Handle(Z, klass.type_parameters()),
                    klass.token_pos());
   if (klass.is_type_finalized()) {
-    type ^= ClassFinalizer::FinalizeType(
-        klass, type, ClassFinalizer::kCanonicalizeWellFormed);
+    type ^= ClassFinalizer::FinalizeType(klass, type);
     // Note that the receiver type may now be a malbounded type.
     klass.SetCanonicalType(type);
   }
@@ -1320,9 +1304,10 @@ void TranslationHelper::ReportError(const Error& prev_error,
 }
 
 
-dart::String& TranslationHelper::ManglePrivateName(Library* kernel_library,
-                                                   dart::String* name_to_modify,
-                                                   bool symbolize) {
+dart::String& TranslationHelper::ManglePrivateName(
+    CanonicalName* kernel_library,
+    dart::String* name_to_modify,
+    bool symbolize) {
   if (name_to_modify->Length() >= 1 && name_to_modify->CharAt(0) == '_') {
     const dart::Library& library =
         dart::Library::Handle(Z, LookupLibraryByKernelLibrary(kernel_library));
@@ -2128,8 +2113,9 @@ Fragment FlowGraphBuilder::LoadInstantiatorTypeArguments() {
 
 
 Fragment FlowGraphBuilder::InstantiateType(const AbstractType& type) {
-  InstantiateTypeInstr* instr = new (Z) InstantiateTypeInstr(
-      TokenPosition::kNoSource, type, *active_class_.klass, Pop());
+  InstantiateTypeInstr* instr = new (Z)
+      InstantiateTypeInstr(TokenPosition::kNoSource, type, Pop(),
+                           NULL);  // TODO(regis): Pop function type arguments.
   Push(instr);
   return Fragment(instr);
 }
@@ -2138,7 +2124,8 @@ Fragment FlowGraphBuilder::InstantiateType(const AbstractType& type) {
 Fragment FlowGraphBuilder::InstantiateTypeArguments(
     const TypeArguments& type_arguments) {
   InstantiateTypeArgumentsInstr* instr = new (Z) InstantiateTypeArgumentsInstr(
-      TokenPosition::kNoSource, type_arguments, *active_class_.klass, Pop());
+      TokenPosition::kNoSource, type_arguments, *active_class_.klass, Pop(),
+      NULL);  // TODO(regis): Pop function type arguments.
   Push(instr);
   return Fragment(instr);
 }
@@ -2749,6 +2736,23 @@ Fragment FlowGraphBuilder::StringInterpolate(TokenPosition position) {
 }
 
 
+Fragment FlowGraphBuilder::StringInterpolateSingle(TokenPosition position) {
+  const int kNumberOfArguments = 1;
+  const Array& kNoArgumentNames = Object::null_array();
+  const dart::Class& cls = dart::Class::Handle(
+      dart::Library::LookupCoreClass(Symbols::StringBase()));
+  ASSERT(!cls.IsNull());
+  const Function& function = dart::Function::ZoneHandle(
+      Z, dart::Resolver::ResolveStatic(cls, dart::Library::PrivateCoreLibName(
+                                                Symbols::InterpolateSingle()),
+                                       kNumberOfArguments, kNoArgumentNames));
+  Fragment instructions;
+  instructions += PushArgument();
+  instructions += StaticCall(position, function, 1);
+  return instructions;
+}
+
+
 Fragment FlowGraphBuilder::ThrowTypeError() {
   const dart::Class& klass = dart::Class::ZoneHandle(
       Z, dart::Library::LookupCoreClass(Symbols::TypeError()));
@@ -2836,8 +2840,8 @@ dart::RawFunction* FlowGraphBuilder::LookupMethodByMember(
     Member* target,
     const dart::String& method_name) {
   Class* kernel_klass = Class::Cast(target->parent());
-  dart::Class& klass =
-      dart::Class::Handle(Z, H.LookupClassByKernelClass(kernel_klass));
+  dart::Class& klass = dart::Class::Handle(
+      Z, H.LookupClassByKernelClass(kernel_klass->canonical_name()));
 
   dart::RawFunction* function = klass.LookupFunctionAllowPrivate(method_name);
   ASSERT(function != Object::null());
@@ -3180,7 +3184,7 @@ FlowGraph* FlowGraphBuilder::BuildGraphOfFunction(FunctionNode* function,
   if (FLAG_causal_async_stacks &&
       (dart_function.IsAsyncFunction() || dart_function.IsAsyncGenerator())) {
     LocalScope* scope = parsed_function_->node_sequence()->scope();
-    // :async_stack_trace = _asyncStackTraceHelper();
+    // :async_stack_trace = _asyncStackTraceHelper(:async_op);
     const dart::Library& async_lib =
         dart::Library::Handle(dart::Library::AsyncLibrary());
     const Function& target = Function::ZoneHandle(
@@ -3188,7 +3192,14 @@ FlowGraph* FlowGraphBuilder::BuildGraphOfFunction(FunctionNode* function,
         async_lib.LookupFunctionAllowPrivate(Symbols::AsyncStackTraceHelper()));
     ASSERT(!target.IsNull());
 
-    body += StaticCall(TokenPosition::kNoSource, target, 0);
+    // TODO(johnmccutchan): Why does this have the null value?
+    LocalVariable* async_op =
+        scope->child()->LookupVariable(Symbols::AsyncOperation(), false);
+    ASSERT(async_op != NULL);
+    ASSERT(async_op->is_captured());
+    body += LoadLocal(async_op);
+    body += PushArgument();
+    body += StaticCall(TokenPosition::kNoSource, target, 1);
     LocalVariable* async_stack_trace_var =
         scope->LookupVariable(Symbols::AsyncStackTraceVar(), false);
     ASSERT(async_stack_trace_var != NULL);
@@ -3736,6 +3747,7 @@ Fragment FlowGraphBuilder::AssertAssignable(const dart::AbstractType& dst_type,
 
   AssertAssignableInstr* instr = new (Z)
       AssertAssignableInstr(TokenPosition::kNoSource, value, type_args,
+                            NULL,  // TODO(regis): Pop function type arguments.
                             dst_type, dst_name, H.thread()->GetNextDeoptId());
   Push(instr);
 
@@ -4371,8 +4383,8 @@ void DartTypeTranslator::VisitFunctionType(FunctionType* node) {
       Type::ZoneHandle(Z, signature_function.SignatureType());
 
   if (finalize_) {
-    signature_type ^= ClassFinalizer::FinalizeType(
-        *active_class_->klass, signature_type, ClassFinalizer::kCanonicalize);
+    signature_type ^=
+        ClassFinalizer::FinalizeType(*active_class_->klass, signature_type);
     // Do not refer to signature_function anymore, since it may have been
     // replaced during canonicalization.
     signature_function = Function::null();
@@ -4468,13 +4480,12 @@ void DartTypeTranslator::VisitInterfaceType(InterfaceType* node) {
       node->type_arguments().raw_array(), node->type_arguments().length());
 
 
-  dart::Object& klass =
-      dart::Object::Handle(Z, H.ToUnresolvedClass(node->klass()));
+  dart::Object& klass = dart::Object::Handle(
+      Z, H.LookupClassByKernelClass(node->class_reference()));
   result_ = Type::New(klass, type_arguments, TokenPosition::kNoSource);
   if (finalize_) {
     ASSERT(active_class_->klass != NULL);
-    result_ = ClassFinalizer::FinalizeType(*active_class_->klass, result_,
-                                           ClassFinalizer::kCanonicalize);
+    result_ = ClassFinalizer::FinalizeType(*active_class_->klass, result_);
   }
 }
 
@@ -4532,8 +4543,7 @@ const TypeArguments& DartTypeTranslator::TranslateInstantiatedTypeArguments(
   Type& type = Type::Handle(
       Z, Type::New(receiver_class, type_arguments, TokenPosition::kNoSource));
   if (finalize_) {
-    type ^= ClassFinalizer::FinalizeType(
-        *active_class_->klass, type, ClassFinalizer::kCanonicalizeWellFormed);
+    type ^= ClassFinalizer::FinalizeType(*active_class_->klass, type);
   }
 
   const TypeArguments& instantiated_type_arguments =
@@ -4554,8 +4564,7 @@ const Type& DartTypeTranslator::ReceiverType(const dart::Class& klass) {
   type = Type::New(klass, TypeArguments::Handle(Z, klass.type_parameters()),
                    klass.token_pos());
   if (klass.is_type_finalized()) {
-    type ^= ClassFinalizer::FinalizeType(
-        klass, type, ClassFinalizer::kCanonicalizeWellFormed);
+    type ^= ClassFinalizer::FinalizeType(klass, type);
     klass.SetCanonicalType(type);
   }
   return type;
@@ -4880,6 +4889,14 @@ void FlowGraphBuilder::VisitMethodInvocation(MethodInvocation* node) {
   fragment_ = instructions + InstanceCall(node->position(), name, token_kind,
                                           argument_count, argument_names,
                                           num_args_checked);
+  // Later optimization passes assume that result of a x.[]=(...) call is not
+  // used. We must guarantee this invariant because violation will lead to an
+  // illegal IL once we replace x.[]=(...) with a sequence that does not
+  // actually produce any value. See http://dartbug.com/29135 for more details.
+  if (name.raw() == Symbols::AssignIndexToken().raw()) {
+    fragment_ += Drop();
+    fragment_ += NullConstant();
+  }
 }
 
 
@@ -4910,8 +4927,8 @@ void FlowGraphBuilder::VisitConstructorInvocation(ConstructorInvocation* node) {
 
   Class* kernel_class = Class::Cast(node->target()->parent());
 
-  dart::Class& klass =
-      dart::Class::ZoneHandle(Z, H.LookupClassByKernelClass(kernel_class));
+  dart::Class& klass = dart::Class::ZoneHandle(
+      Z, H.LookupClassByKernelClass(kernel_class->canonical_name()));
 
   Fragment instructions;
 
@@ -4924,8 +4941,7 @@ void FlowGraphBuilder::VisitConstructorInvocation(ConstructorInvocation* node) {
 
     AbstractType& type = AbstractType::Handle(
         Z, Type::New(klass, type_arguments, TokenPosition::kNoSource));
-    type = ClassFinalizer::FinalizeType(klass, type,
-                                        ClassFinalizer::kCanonicalize);
+    type = ClassFinalizer::FinalizeType(klass, type);
 
     if (type.IsMalbounded()) {
       // Evaluate expressions for correctness.
@@ -5027,13 +5043,10 @@ void FlowGraphBuilder::VisitIsExpression(IsExpression* node) {
     instructions += Constant(type);
     instructions += PushArgument();  // Type.
 
-    instructions += Constant(Bool::False());
-    instructions += PushArgument();  // Negate?.
-
     instructions +=
         InstanceCall(node->position(),
                      dart::Library::PrivateCoreLibName(Symbols::_instanceOf()),
-                     Token::kIS, 4);
+                     Token::kIS, 3);
   }
 
   fragment_ = instructions;
@@ -5169,22 +5182,26 @@ void FlowGraphBuilder::VisitStringConcatenation(StringConcatenation* node) {
 
   Fragment instructions;
 
-  // The type arguments for CreateArray.
-  instructions += Constant(TypeArguments::ZoneHandle(Z));
-  instructions += IntConstant(expressions.length());
-  instructions += CreateArray();
-  LocalVariable* array = MakeTemporary();
+  if (node->expressions().length() == 1) {
+    instructions += TranslateExpression(node->expressions()[0]);
+    instructions += StringInterpolateSingle(node->position());
+  } else {
+    // The type arguments for CreateArray.
+    instructions += Constant(TypeArguments::ZoneHandle(Z));
+    instructions += IntConstant(expressions.length());
+    instructions += CreateArray();
+    LocalVariable* array = MakeTemporary();
 
-  for (intptr_t i = 0; i < node->expressions().length(); i++) {
-    instructions += LoadLocal(array);
-    instructions += IntConstant(i);
-    instructions += TranslateExpression(node->expressions()[i]);
-    instructions += StoreIndexed(kArrayCid);
-    instructions += Drop();
+    for (intptr_t i = 0; i < node->expressions().length(); i++) {
+      instructions += LoadLocal(array);
+      instructions += IntConstant(i);
+      instructions += TranslateExpression(node->expressions()[i]);
+      instructions += StoreIndexed(kArrayCid);
+      instructions += Drop();
+    }
+
+    instructions += StringInterpolate(node->position());
   }
-
-  instructions += StringInterpolate(node->position());
-
   fragment_ = instructions;
 }
 
@@ -5600,8 +5617,8 @@ void FlowGraphBuilder::VisitForInStatement(ForInStatement* node) {
 
   const dart::String& iterator_getter = dart::String::ZoneHandle(
       Z, dart::Field::GetterSymbol(Symbols::Iterator()));
-  instructions +=
-      InstanceCall(TokenPosition::kNoSource, iterator_getter, Token::kGET, 1);
+  instructions += InstanceCall(node->iterable()->position(), iterator_getter,
+                               Token::kGET, 1);
   LocalVariable* iterator = scopes_->iterator_variables[for_in_depth_];
   instructions += StoreLocal(TokenPosition::kNoSource, iterator);
   instructions += Drop();
@@ -5610,7 +5627,7 @@ void FlowGraphBuilder::VisitForInStatement(ForInStatement* node) {
   ++loop_depth_;
   Fragment condition = LoadLocal(iterator);
   condition += PushArgument();
-  condition += InstanceCall(TokenPosition::kNoSource, Symbols::MoveNext(),
+  condition += InstanceCall(node->iterable()->position(), Symbols::MoveNext(),
                             Token::kILLEGAL, 1);
   TargetEntryInstr* body_entry;
   TargetEntryInstr* loop_exit;
@@ -5622,8 +5639,7 @@ void FlowGraphBuilder::VisitForInStatement(ForInStatement* node) {
   body += PushArgument();
   const dart::String& current_getter = dart::String::ZoneHandle(
       Z, dart::Field::GetterSymbol(Symbols::Current()));
-  body +=
-      InstanceCall(TokenPosition::kNoSource, current_getter, Token::kGET, 1);
+  body += InstanceCall(node->position(), current_getter, Token::kGET, 1);
   body +=
       StoreLocal(TokenPosition::kNoSource, LookupVariable(node->variable()));
   body += Drop();
@@ -5813,13 +5829,14 @@ void FlowGraphBuilder::VisitSwitchStatement(SwitchStatement* node) {
         TargetEntryInstr* then;
         TargetEntryInstr* otherwise;
 
-        current_instructions += Constant(constant_evaluator_.EvaluateExpression(
-            switch_case->expressions()[j]));
+        Expression* expression = switch_case->expressions()[j];
+        current_instructions +=
+            Constant(constant_evaluator_.EvaluateExpression(expression));
         current_instructions += PushArgument();
         current_instructions += LoadLocal(scopes_->switch_variable);
         current_instructions += PushArgument();
         current_instructions += InstanceCall(
-            TokenPosition::kNoSource, Symbols::EqualOperator(), Token::kEQ,
+            expression->position(), Symbols::EqualOperator(), Token::kEQ,
             /*argument_count=*/2,
             /*num_args_checked=*/2);
         current_instructions += BranchIfTrue(&then, &otherwise);
@@ -6123,12 +6140,10 @@ void FlowGraphBuilder::VisitTryCatch(class TryCatch* node) {
         catch_body += PushArgument();  // type arguments
         catch_body += Constant(*type_guard);
         catch_body += PushArgument();  // guard type
-        catch_body += Constant(Object::bool_false());
-        catch_body += PushArgument();  // negate
         catch_body += InstanceCall(
             TokenPosition::kNoSource,
             dart::Library::PrivateCoreLibName(Symbols::_instanceOf()),
-            Token::kIS, 4);
+            Token::kIS, 3);
 
         TargetEntryInstr* catch_entry;
         TargetEntryInstr* next_catch_entry;
@@ -6306,8 +6321,8 @@ Fragment FlowGraphBuilder::TranslateFunctionNode(FunctionNode* node,
                                             true);  // is_closure
       // Finalize function type.
       Type& signature_type = Type::Handle(Z, function.SignatureType());
-      signature_type ^= ClassFinalizer::FinalizeType(
-          *active_class_.klass, signature_type, ClassFinalizer::kCanonicalize);
+      signature_type ^=
+          ClassFinalizer::FinalizeType(*active_class_.klass, signature_type);
       function.SetSignatureType(signature_type);
 
       I->AddClosureFunction(function);

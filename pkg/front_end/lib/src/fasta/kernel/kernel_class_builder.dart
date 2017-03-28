@@ -7,22 +7,31 @@ library fasta.kernel_class_builder;
 import 'package:kernel/ast.dart'
     show
         Class,
+        Constructor,
         DartType,
         Expression,
         ExpressionStatement,
         Field,
+        FunctionNode,
         InterfaceType,
         ListLiteral,
         Member,
         Name,
+        Procedure,
+        ProcedureKind,
         StaticGet,
         StringLiteral,
         Supertype,
-        Throw;
+        Throw,
+        VariableDeclaration;
+
+import 'package:kernel/class_hierarchy.dart' show ClassHierarchy;
 
 import '../errors.dart' show internalError;
 
 import '../messages.dart' show warning;
+
+import '../dill/dill_member_builder.dart' show DillMemberBuilder;
 
 import 'kernel_builder.dart'
     show
@@ -37,8 +46,6 @@ import 'kernel_builder.dart'
         ProcedureBuilder,
         TypeVariableBuilder,
         computeDefaultTypeArguments;
-
-import '../dill/dill_member_builder.dart' show DillMemberBuilder;
 
 import 'redirecting_factory_body.dart' show RedirectingFactoryBody;
 
@@ -64,44 +71,37 @@ abstract class KernelClassBuilder
   /// [arguments] have already been built.
   InterfaceType buildTypesWithBuiltArguments(
       LibraryBuilder library, List<DartType> arguments) {
-    return arguments == null
-        ? cls.rawType
-        : new InterfaceType(
-            cls,
-            // TODO(ahe): Not sure what to do if `arguments.length !=
-            // cls.typeParameters.length`.
-            computeDefaultTypeArguments(cls.typeParameters, arguments));
+    assert(arguments == null || cls.typeParameters.length == arguments.length);
+    return arguments == null ? cls.rawType : new InterfaceType(cls, arguments);
+  }
+
+  List<DartType> buildTypeArguments(
+      LibraryBuilder library, List<KernelTypeBuilder> arguments) {
+    List<DartType> typeArguments = <DartType>[];
+    for (KernelTypeBuilder builder in arguments) {
+      DartType type = builder.build(library);
+      if (type == null) {
+        internalError("Bad type: ${builder.runtimeType}");
+      }
+      typeArguments.add(type);
+    }
+    return computeDefaultTypeArguments(
+        library, cls.typeParameters, typeArguments);
   }
 
   InterfaceType buildType(
       LibraryBuilder library, List<KernelTypeBuilder> arguments) {
     List<DartType> typeArguments;
     if (arguments != null) {
-      typeArguments = <DartType>[];
-      for (KernelTypeBuilder builder in arguments) {
-        DartType type = builder.build(library);
-        if (type == null) {
-          internalError("Bad type: ${builder.runtimeType}");
-        }
-        typeArguments.add(type);
-      }
+      typeArguments = buildTypeArguments(library, arguments);
     }
     return buildTypesWithBuiltArguments(library, typeArguments);
   }
 
   Supertype buildSupertype(
       LibraryBuilder library, List<KernelTypeBuilder> arguments) {
-    List<DartType> typeArguments;
     if (arguments != null) {
-      typeArguments = <DartType>[];
-      for (KernelTypeBuilder builder in arguments) {
-        DartType type = builder.build(library);
-        if (type == null) {
-          internalError("Bad type: ${builder.runtimeType}");
-        }
-        typeArguments.add(type);
-      }
-      return new Supertype(cls, typeArguments);
+      return new Supertype(cls, buildTypeArguments(library, arguments));
     } else {
       return cls.asRawSupertype;
     }
@@ -172,5 +172,100 @@ abstract class KernelClassBuilder
     ListLiteral literal = field.initializer;
     literal.expressions
         .add(new StaticGet(constructor.target)..parent = literal);
+  }
+
+  void checkOverrides(ClassHierarchy hierarchy) {
+    hierarchy.forEachOverridePair(cls, checkOverride);
+  }
+
+  void checkOverride(
+      Member declaredMember, Member interfaceMember, bool isSetter) {
+    if (declaredMember is Constructor || interfaceMember is Constructor) {
+      internalError(
+          "Constructor in override check.", fileUri, declaredMember.fileOffset);
+    }
+    if (declaredMember is Procedure && interfaceMember is Procedure) {
+      if (declaredMember.kind == ProcedureKind.Method &&
+          interfaceMember.kind == ProcedureKind.Method) {
+        checkMethodOverride(declaredMember, interfaceMember);
+        return;
+      }
+    }
+    // TODO(ahe): Handle other cases: accessors, operators, and fields.
+  }
+
+  void checkMethodOverride(
+      Procedure declaredMember, Procedure interfaceMember) {
+    if (declaredMember.enclosingClass != cls) {
+      // TODO(ahe): Include these checks as well, but the message needs to
+      // explain that [declaredMember] is inherited.
+      return;
+    }
+    assert(declaredMember.kind == ProcedureKind.Method);
+    assert(interfaceMember.kind == ProcedureKind.Method);
+    FunctionNode declaredFunction = declaredMember.function;
+    FunctionNode interfaceFunction = interfaceMember.function;
+    if (declaredFunction.typeParameters?.length !=
+        interfaceFunction.typeParameters?.length) {
+      addWarning(
+          declaredMember.fileOffset,
+          "Declared type variables of '$name::${declaredMember.name.name}' "
+          "doesn't match those on overridden method "
+          "'${interfaceMember.enclosingClass.name}::"
+          "${interfaceMember.name.name}'.");
+    }
+    if (declaredFunction.positionalParameters.length <
+            interfaceFunction.requiredParameterCount ||
+        declaredFunction.positionalParameters.length <
+            interfaceFunction.positionalParameters.length) {
+      addWarning(
+          declaredMember.fileOffset,
+          "The method '$name::${declaredMember.name.name}' has fewer "
+          "positional arguments than those of overridden method "
+          "'${interfaceMember.enclosingClass.name}::"
+          "${interfaceMember.name.name}'.");
+    }
+    if (interfaceFunction.requiredParameterCount <
+        declaredFunction.requiredParameterCount) {
+      addWarning(
+          declaredMember.fileOffset,
+          "The method '$name::${declaredMember.name.name}' has more "
+          "required arguments than those of overridden method "
+          "'${interfaceMember.enclosingClass.name}::"
+          "${interfaceMember.name.name}'.");
+    }
+    if (declaredFunction.namedParameters.isEmpty &&
+        interfaceFunction.namedParameters.isEmpty) {
+      return;
+    }
+    if (declaredFunction.namedParameters.length <
+        interfaceFunction.namedParameters.length) {
+      addWarning(
+          declaredMember.fileOffset,
+          "The method '$name::${declaredMember.name.name}' has fewer named "
+          "arguments than those of overridden method "
+          "'${interfaceMember.enclosingClass.name}::"
+          "${interfaceMember.name.name}'.");
+    }
+    Iterator<VariableDeclaration> declaredNamedParameters =
+        declaredFunction.namedParameters.iterator;
+    Iterator<VariableDeclaration> interfaceNamedParameters =
+        interfaceFunction.namedParameters.iterator;
+    outer:
+    while (declaredNamedParameters.moveNext() &&
+        interfaceNamedParameters.moveNext()) {
+      while (declaredNamedParameters.current.name !=
+          interfaceNamedParameters.current.name) {
+        if (!declaredNamedParameters.moveNext()) {
+          addWarning(
+              declaredMember.fileOffset,
+              "The method '$name::${declaredMember.name.name}' doesn't have "
+              "the named parameter '${interfaceNamedParameters.current.name}' "
+              "of overriden method '${interfaceMember.enclosingClass.name}::"
+              "${interfaceMember.name.name}'.");
+          break outer;
+        }
+      }
+    }
   }
 }

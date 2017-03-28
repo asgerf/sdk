@@ -8,13 +8,24 @@ import 'error_token.dart' show ErrorToken;
 
 import 'keyword.dart' show Keyword;
 
-import 'precedence.dart' show COMMENT_INFO, EOF_INFO, PrecedenceInfo;
+import 'precedence.dart' show EOF_INFO, PrecedenceInfo;
 
 import 'token.dart'
-    show BeginGroupToken, KeywordToken, StringToken, SymbolToken, Token;
+    show
+        BeginGroupToken,
+        CommentToken,
+        DartDocToken,
+        KeywordToken,
+        StringToken,
+        SymbolToken,
+        Token;
 
 import 'token_constants.dart'
-    show LT_TOKEN, OPEN_CURLY_BRACKET_TOKEN, STRING_INTERPOLATION_TOKEN;
+    show
+        LT_TOKEN,
+        OPEN_CURLY_BRACKET_TOKEN,
+        OPEN_PAREN_TOKEN,
+        STRING_INTERPOLATION_TOKEN;
 
 import 'characters.dart' show $LF, $STX;
 
@@ -43,7 +54,7 @@ abstract class ArrayBasedScanner extends AbstractScanner {
     tail.next.previousToken = tail;
     tail = tail.next;
     if (comments != null) {
-      tail.precedingComments = comments;
+      tail.precedingCommentTokens = comments;
       comments = null;
       commentsTail = null;
     }
@@ -96,9 +107,7 @@ abstract class ArrayBasedScanner extends AbstractScanner {
       unmatchedBeginGroup(groupingStack.head);
       groupingStack = groupingStack.tail;
     }
-    appendToken(new SymbolToken(EOF_INFO, tokenStart));
-    // EOF points to itself so there's always infinite look-ahead.
-    tail.next = tail;
+    appendToken(new SymbolToken.eof(tokenStart));
   }
 
   /**
@@ -132,8 +141,11 @@ abstract class ArrayBasedScanner extends AbstractScanner {
     Token token = new BeginGroupToken(info, tokenStart);
     appendToken(token);
 
-    // { (  [ ${ cannot appear inside a type parameters / arguments.
-    if (!identical(info.kind, LT_TOKEN)) discardOpenLt();
+    // { [ ${ cannot appear inside a type parameters / arguments.
+    if (!identical(info.kind, LT_TOKEN) &&
+        !identical(info.kind, OPEN_PAREN_TOKEN)) {
+      discardOpenLt();
+    }
     groupingStack = groupingStack.prepend(token);
   }
 
@@ -218,9 +230,19 @@ abstract class ArrayBasedScanner extends AbstractScanner {
     }
   }
 
-  void appendComment(start, bool asciiOnly) {
+  void appendComment(start, PrecedenceInfo info, bool asciiOnly) {
     if (!includeComments) return;
-    Token newComment = createSubstringToken(COMMENT_INFO, start, asciiOnly);
+    Token newComment = createCommentToken(info, start, asciiOnly);
+    _appendToCommentStream(newComment);
+  }
+
+  void appendDartDoc(start, PrecedenceInfo info, bool asciiOnly) {
+    if (!includeComments) return;
+    Token newComment = createDartDocToken(info, start, asciiOnly);
+    _appendToCommentStream(newComment);
+  }
+
+  void _appendToCommentStream(Token newComment) {
     if (comments == null) {
       comments = newComment;
       commentsTail = comments;
@@ -251,6 +273,32 @@ abstract class ArrayBasedScanner extends AbstractScanner {
    * known to be ASCII.
    */
   StringToken createSubstringToken(
+      PrecedenceInfo info, int start, bool asciiOnly,
+      [int extraOffset = 0]);
+
+  /**
+   * Returns a new comment from the scan offset [start] to the current
+   * [scanOffset] plus the [extraOffset]. For example, if the current
+   * scanOffset is 10, then [appendSubstringToken(5, -1)] will append the
+   * substring string [5,9).
+   *
+   * Note that [extraOffset] can only be used if the covered character(s) are
+   * known to be ASCII.
+   */
+  CommentToken createCommentToken(
+      PrecedenceInfo info, int start, bool asciiOnly,
+      [int extraOffset = 0]);
+
+  /**
+   * Returns a new dartdoc from the scan offset [start] to the current
+   * [scanOffset] plus the [extraOffset]. For example, if the current
+   * scanOffset is 10, then [appendSubstringToken(5, -1)] will append the
+   * substring string [5,9).
+   *
+   * Note that [extraOffset] can only be used if the covered character(s) are
+   * known to be ASCII.
+   */
+  DartDocToken createDartDocToken(
       PrecedenceInfo info, int start, bool asciiOnly,
       [int extraOffset = 0]);
 

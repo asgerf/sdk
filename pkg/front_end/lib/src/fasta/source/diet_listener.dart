@@ -78,9 +78,9 @@ class DietListener extends StackListener {
   }
 
   @override
-  void endPartOf(Token partKeyword, Token semicolon) {
+  void endPartOf(Token partKeyword, Token semicolon, bool hasName) {
     debugEvent("PartOf");
-    discard(1);
+    if (hasName) discard(1);
   }
 
   @override
@@ -495,6 +495,9 @@ class DietListener extends StackListener {
       bool allowAbstract = asyncModifier == AsyncMarker.Sync;
       parser.parseFunctionBody(token, isExpression, allowAbstract);
       var body = listener.pop();
+      if (listener.stack.length == 1) {
+        listener.pop(); // constructor initializers
+      }
       listener.checkEmpty(token.charOffset);
       listener.finishFunction(formals, asyncModifier, body);
     } on InputError {

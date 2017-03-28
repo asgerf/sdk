@@ -10,7 +10,7 @@ import '../scanner.dart' show unicodeReplacementCharacter;
 
 import 'precedence.dart' show PrecedenceInfo;
 
-import 'token.dart' show StringToken, Token;
+import 'token.dart' show CommentToken, DartDocToken, StringToken;
 
 import 'array_based_scanner.dart' show ArrayBasedScanner;
 
@@ -195,14 +195,27 @@ class Utf8BytesScanner extends ArrayBasedScanner {
     }
   }
 
-  Token firstToken() => tokens.next;
-  Token previousToken() => tail;
-
   @override
   StringToken createSubstringToken(
       PrecedenceInfo info, int start, bool asciiOnly,
       [int extraOffset = 0]) {
     return new StringToken.fromUtf8Bytes(
+        info, bytes, start, byteOffset + extraOffset, asciiOnly, tokenStart);
+  }
+
+  @override
+  CommentToken createCommentToken(
+      PrecedenceInfo info, int start, bool asciiOnly,
+      [int extraOffset = 0]) {
+    return new CommentToken.fromUtf8Bytes(
+        info, bytes, start, byteOffset + extraOffset, asciiOnly, tokenStart);
+  }
+
+  @override
+  DartDocToken createDartDocToken(
+      PrecedenceInfo info, int start, bool asciiOnly,
+      [int extraOffset = 0]) {
+    return new DartDocToken.fromUtf8Bytes(
         info, bytes, start, byteOffset + extraOffset, asciiOnly, tokenStart);
   }
 

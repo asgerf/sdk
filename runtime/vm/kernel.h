@@ -15,7 +15,6 @@
 
 #define KERNEL_NODES_DO(M)                                                     \
   M(Name)                                                                      \
-  M(InferredValue)                                                             \
   M(DartType)                                                                  \
   M(InvalidType)                                                               \
   M(DynamicType)                                                               \
@@ -701,7 +700,6 @@ class Field : public Member {
   intptr_t source_uri_index() { return source_uri_index_; }
 
   DartType* type() { return type_; }
-  InferredValue* inferred_value() { return inferred_value_; }
   Expression* initializer() { return initializer_; }
 
  private:
@@ -713,7 +711,6 @@ class Field : public Member {
   word flags_;
   intptr_t source_uri_index_;
   Child<DartType> type_;
-  Child<InferredValue> inferred_value_;
   Child<Expression> initializer_;
 
   DISALLOW_COPY_AND_ASSIGN(Field);
@@ -969,7 +966,6 @@ class FunctionNode : public TreeNode {
   }
   List<VariableDeclaration>& named_parameters() { return named_parameters_; }
   DartType* return_type() { return return_type_; }
-  InferredValue* inferred_return_value() { return inferred_return_value_; }
   Statement* body() { return body_; }
   TokenPosition position() { return position_; }
   TokenPosition end_position() { return end_position_; }
@@ -986,7 +982,6 @@ class FunctionNode : public TreeNode {
   List<VariableDeclaration> positional_parameters_;
   List<VariableDeclaration> named_parameters_;
   Child<DartType> return_type_;
-  Child<InferredValue> inferred_return_value_;
   Child<Statement> body_;
   TokenPosition position_;
   TokenPosition end_position_;
@@ -1006,6 +1001,7 @@ class Expression : public TreeNode {
   virtual void AcceptTreeVisitor(TreeVisitor* visitor);
   virtual void AcceptExpressionVisitor(ExpressionVisitor* visitor) = 0;
   TokenPosition position() { return position_; }
+  void set_position(TokenPosition position) { position_ = position; }
 
  protected:
   Expression() : position_(TokenPosition::kNoSource) {}
@@ -2468,10 +2464,10 @@ class VariableDeclaration : public Statement {
 
   String* name() { return name_; }
   DartType* type() { return type_; }
-  InferredValue* inferred_value() { return inferred_value_; }
   Expression* initializer() { return initializer_; }
   TokenPosition equals_position() { return equals_position_; }
   TokenPosition end_position() { return end_position_; }
+  void set_end_position(TokenPosition position) { end_position_ = position; }
 
  private:
   VariableDeclaration()
@@ -2484,7 +2480,6 @@ class VariableDeclaration : public Statement {
   word flags_;
   Ref<String> name_;
   Child<DartType> type_;
-  Child<InferredValue> inferred_value_;
   Child<Expression> initializer_;
   TokenPosition equals_position_;
   TokenPosition end_position_;
@@ -2533,6 +2528,7 @@ class Name : public Node {
     if (library_reference_ == NULL) return NULL;
     return library_reference_->AsLibrary();
   }
+  CanonicalName* library_reference() { return library_reference_; }
 
  private:
   Name(String* string, CanonicalName* library_reference)
@@ -2542,59 +2538,6 @@ class Name : public Node {
   Ref<CanonicalName> library_reference_;
 
   DISALLOW_COPY_AND_ASSIGN(Name);
-};
-
-
-class InferredValue : public Node {
- public:
-  static const uint8_t kNull = 1 << 0;
-  static const uint8_t kInteger = 1 << 1;
-  static const uint8_t kDouble = 1 << 2;
-  static const uint8_t kString = 1 << 3;
-  static const uint8_t kOther = 1 << 4;
-
-  enum BaseClassKind {
-    kNone,
-    kExact,
-    kSubclass,
-    kSubtype,
-  };
-
-  static InferredValue* ReadFrom(Reader* reader);
-
-  virtual ~InferredValue();
-
-  DEFINE_CASTING_OPERATIONS(InferredValue);
-
-  virtual void AcceptVisitor(Visitor* visitor);
-  virtual void VisitChildren(Visitor* visitor);
-
-  bool IsInterfaceType() { return kind_ == kSubtype; }
-  bool IsExactClass() { return kind_ == kExact; }
-  bool IsSubclass() { return kind_ == kSubclass; }
-
-  bool CanBeNull() { return (value_bits_ & kNull) != 0; }
-  bool CanBeInteger() { return (value_bits_ & kInteger) != 0; }
-  bool CanBeDouble() { return (value_bits_ & kDouble) != 0; }
-  bool CanBeString() { return (value_bits_ & kString) != 0; }
-
-  bool IsAlwaysNull() { return value_bits_ == kNull; }
-  bool IsAlwaysInteger() { return value_bits_ == kInteger; }
-  bool IsAlwaysDouble() { return value_bits_ == kDouble; }
-  bool IsAlwaysString() { return value_bits_ == kString; }
-
-  Class* klass() { return klass_reference_->AsClass(); }
-  BaseClassKind kind() { return kind_; }
-  uint8_t value_bits() { return value_bits_; }
-
- private:
-  InferredValue() {}
-
-  Ref<CanonicalName> klass_reference_;
-  BaseClassKind kind_;
-  uint8_t value_bits_;
-
-  DISALLOW_COPY_AND_ASSIGN(InferredValue);
 };
 
 
@@ -2676,8 +2619,8 @@ class InterfaceType : public DartType {
   static InterfaceType* ReadFrom(Reader* reader);
   static InterfaceType* ReadFrom(Reader* reader, bool _without_type_arguments_);
 
-  explicit InterfaceType(CanonicalName* klass_reference)
-      : klass_reference_(klass_reference) {}
+  explicit InterfaceType(CanonicalName* class_reference)
+      : class_reference_(class_reference) {}
   virtual ~InterfaceType();
 
   DEFINE_CASTING_OPERATIONS(InterfaceType);
@@ -2685,13 +2628,14 @@ class InterfaceType : public DartType {
   virtual void AcceptDartTypeVisitor(DartTypeVisitor* visitor);
   virtual void VisitChildren(Visitor* visitor);
 
-  Class* klass() { return klass_reference_->AsClass(); }
+  Class* klass() { return class_reference_->AsClass(); }
+  CanonicalName* class_reference() { return class_reference_; }
   List<DartType>& type_arguments() { return type_arguments_; }
 
  private:
   InterfaceType() {}
 
-  Ref<CanonicalName> klass_reference_;
+  Ref<CanonicalName> class_reference_;
   List<DartType> type_arguments_;
 
   DISALLOW_COPY_AND_ASSIGN(InterfaceType);
@@ -3142,9 +3086,6 @@ class Visitor : public TreeVisitor,
   virtual ~Visitor() {}
 
   virtual void VisitDefaultNode(Node* node) = 0;
-  virtual void VisitInferredValue(InferredValue* node) {
-    VisitDefaultNode(node);
-  }
   virtual void VisitDefaultTreeNode(TreeNode* node) { VisitDefaultNode(node); }
   virtual void VisitDefaultDartType(DartType* node) { VisitDefaultNode(node); }
   virtual void VisitName(Name* node) { VisitDefaultNode(node); }

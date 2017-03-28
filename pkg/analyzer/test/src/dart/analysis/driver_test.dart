@@ -418,9 +418,9 @@ part of lib;
       // TODO(28522): Should cause an error for wrong library name.
       expect(errors, hasLength(0));
     } else {
-        expect(errors, hasLength(1));
-        expect(errors[0].errorCode,
-            ResolverErrorCode.MISSING_LIBRARY_DIRECTIVE_WITH_PART);
+      expect(errors, hasLength(1));
+      expect(errors[0].errorCode,
+          ResolverErrorCode.MISSING_LIBRARY_DIRECTIVE_WITH_PART);
     }
   }
 
@@ -716,7 +716,7 @@ var A2 = B1;
 
     // Update the file, but don't notify the driver.
     allResults.clear();
-    provider.updateFile(testFile, 'var V = 1.2');
+    provider.updateFile(testFile, 'var V = 1.2;');
 
     // No new results.
     await pumpEventQueue();
@@ -1331,6 +1331,16 @@ var V;
     expect(result.unit.element.types.map((e) => e.name), ['A']);
   }
 
+  test_getResult_recursiveFlatten() async {
+    String content = r'''
+import 'dart:async';
+class C<T> implements Future<C<T>> {}
+''';
+    addTestFile(content);
+    // Should not throw exceptions.
+    await driver.getResult(testFile);
+  }
+
   test_getResult_sameFile_twoUris() async {
     var a = _p('/test/lib/a.dart');
     var b = _p('/test/lib/b.dart');
@@ -1470,7 +1480,7 @@ var A2 = B1;
     var d = _p('/test/lib/d.dart');
 
     provider.newFile(a, 'class A {}');
-    provider.newFile(b, 'export "a.dart", class B {}');
+    provider.newFile(b, 'export "a.dart"; class B {}');
     provider.newFile(c, 'import "d.dart"; class C {}');
     provider.newFile(d, 'class D {}');
 

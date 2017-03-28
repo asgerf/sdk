@@ -172,8 +172,8 @@ class Listener {
 
   void beginFormalParameter(Token token) {}
 
-  void endFormalParameter(
-      Token covariantKeyword, Token thisKeyword, FormalParameterType kind) {
+  void endFormalParameter(Token covariantKeyword, Token thisKeyword,
+      Token nameToken, FormalParameterType kind) {
     logEvent("FormalParameter");
   }
 
@@ -201,8 +201,8 @@ class Listener {
 
   void beginForStatement(Token token) {}
 
-  void endForStatement(
-      int updateExpressionCount, Token beginToken, Token endToken) {
+  void endForStatement(Token forKeyword, Token leftSeparator,
+      int updateExpressionCount, Token endToken) {
     logEvent("ForStatement");
   }
 
@@ -212,8 +212,8 @@ class Listener {
     logEvent("ForStatementBody");
   }
 
-  void endForIn(
-      Token awaitToken, Token forToken, Token inKeyword, Token endToken) {
+  void endForIn(Token awaitToken, Token forToken, Token leftParenthesis,
+      Token inKeyword, Token rightParenthesis, Token endToken) {
     logEvent("ForIn");
   }
 
@@ -241,10 +241,20 @@ class Listener {
     logEvent("FunctionDeclaration");
   }
 
-  void beginFunctionBody(Token token) {}
+  /// This method is invoked when the parser sees that a function has a
+  /// block function body.  This method is not invoked for empty or expression
+  /// function bodies, see the corresponding methods [handleEmptyFunctionBody]
+  /// and [handleExpressionFunctionBody].
+  void beginBlockFunctionBody(Token token) {}
 
-  void endFunctionBody(int count, Token beginToken, Token endToken) {
-    logEvent("FunctionBody");
+  /// This method is invoked by the parser after it finished parsing a block
+  /// function body.  This method is not invoked for empty or expression
+  /// function bodies, see the corresponding methods [handleEmptyFunctionBody]
+  /// and [handleExpressionFunctionBody].  The [beginToken] is the '{' token,
+  /// and the [endToken] is the '}' token of the block.  The number of
+  /// statements is given as the [count] parameter.
+  void endBlockFunctionBody(int count, Token beginToken, Token endToken) {
+    logEvent("BlockFunctionBody");
   }
 
   void handleNoFunctionBody(Token token) {
@@ -259,7 +269,7 @@ class Listener {
 
   void beginFunctionName(Token token) {}
 
-  void endFunctionName(Token token) {
+  void endFunctionName(Token beginToken, Token token) {
     logEvent("FunctionName");
   }
 
@@ -468,6 +478,7 @@ class Listener {
   void beginLibraryName(Token token) {}
 
   /// Handle the end of a library directive.  Substructures:
+  /// - Metadata
   /// - Library name (a qualified identifier)
   void endLibraryName(Token libraryKeyword, Token semicolon) {
     logEvent("LibraryName");
@@ -526,6 +537,11 @@ class Listener {
 
   void beginMetadata(Token token) {}
 
+  /// Handle the end of a metadata annotation.  Substructures:
+  /// - Identifier
+  /// - Type arguments
+  /// - Constructor name (only if [periodBeforeName] is not `null`)
+  /// - Arguments
   void endMetadata(Token beginToken, Token periodBeforeName, Token endToken) {
     logEvent("Metadata");
   }
@@ -551,7 +567,10 @@ class Listener {
   /// Handle the end of a "part of" directive.  Substructures:
   /// - Metadata
   /// - Library name (a qualified identifier)
-  void endPartOf(Token partKeyword, Token semicolon) {
+  ///
+  /// If [hasName] is true, this part refers to its library by name, otherwise,
+  /// by URI.
+  void endPartOf(Token partKeyword, Token semicolon, bool hasName) {
     logEvent("PartOf");
   }
 
@@ -563,11 +582,14 @@ class Listener {
 
   void beginReturnStatement(Token token) {}
 
-  void endEmptyFunctionBody(Token semicolon) {
+  /// This method is invoked when a function has the empty body.
+  void handleEmptyFunctionBody(Token semicolon) {
     logEvent("EmptyFunctionBody");
   }
 
-  void endExpressionFunctionBody(Token arrowToken, Token endToken) {
+  /// This method is invoked when parser finishes parsing the corresponding
+  /// expression of the expression function body.
+  void handleExpressionFunctionBody(Token arrowToken, Token endToken) {
     logEvent("ExpressionFunctionBody");
   }
 
@@ -714,6 +736,7 @@ class Listener {
 
   /// Handle the end of a type formal parameter (e.g. "X extends Y").
   /// Substructures:
+  /// - Metadata
   /// - Name (identifier)
   /// - Type bound
   void endTypeVariable(Token token, Token extendsOrSuper) {
@@ -734,7 +757,7 @@ class Listener {
   /// - Formal parameters
   /// - Async marker
   /// - Body
-  void endUnnamedFunction(Token token) {
+  void endUnnamedFunction(Token beginToken, Token token) {
     logEvent("UnnamedFunction");
   }
 
@@ -766,7 +789,9 @@ class Listener {
     logEvent("ConditionalExpression");
   }
 
-  void handleConstExpression(Token token) {
+  void beginConstExpression(Token constKeyword) {}
+
+  void endConstExpression(Token token) {
     logEvent("ConstExpression");
   }
 
@@ -818,8 +843,8 @@ class Listener {
     logEvent("EmptyStatement");
   }
 
-  void handleAssertStatement(
-      Token assertKeyword, Token commaToken, Token semicolonToken) {
+  void handleAssertStatement(Token assertKeyword, Token leftParenthesis,
+      Token commaToken, Token rightParenthesis, Token semicolonToken) {
     logEvent("AssertStatement");
   }
 
@@ -863,7 +888,9 @@ class Listener {
     logEvent("NamedArgument");
   }
 
-  void handleNewExpression(Token token) {
+  void beginNewExpression(Token token) {}
+
+  void endNewExpression(Token token) {
     logEvent("NewExpression");
   }
 
@@ -917,7 +944,7 @@ class Listener {
     logEvent("StringPart");
   }
 
-  void handleSuperExpression(Token token) {
+  void handleSuperExpression(Token token, IdentifierContext context) {
     logEvent("SuperExpression");
   }
 
@@ -933,7 +960,7 @@ class Listener {
     logEvent("SwitchCase");
   }
 
-  void handleThisExpression(Token token) {
+  void handleThisExpression(Token token, IdentifierContext context) {
     logEvent("ThisExpression");
   }
 

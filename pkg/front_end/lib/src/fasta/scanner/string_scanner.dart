@@ -8,7 +8,7 @@ import 'array_based_scanner.dart' show ArrayBasedScanner;
 
 import 'precedence.dart' show PrecedenceInfo;
 
-import 'token.dart' show StringToken, Token;
+import 'token.dart' show CommentToken, DartDocToken, StringToken;
 
 /**
  * Scanner that reads from a String and creates tokens that points to
@@ -41,14 +41,29 @@ class StringScanner extends ArrayBasedScanner {
 
   void handleUnicode(int startScanOffset) {}
 
-  Token firstToken() => tokens.next;
-  Token previousToken() => tail;
-
   @override
   StringToken createSubstringToken(
       PrecedenceInfo info, int start, bool asciiOnly,
       [int extraOffset = 0]) {
     return new StringToken.fromSubstring(
+        info, string, start, scanOffset + extraOffset, tokenStart,
+        canonicalize: true);
+  }
+
+  @override
+  CommentToken createCommentToken(
+      PrecedenceInfo info, int start, bool asciiOnly,
+      [int extraOffset = 0]) {
+    return new CommentToken.fromSubstring(
+        info, string, start, scanOffset + extraOffset, tokenStart,
+        canonicalize: true);
+  }
+
+  @override
+  DartDocToken createDartDocToken(
+      PrecedenceInfo info, int start, bool asciiOnly,
+      [int extraOffset = 0]) {
+    return new DartDocToken.fromSubstring(
         info, string, start, scanOffset + extraOffset, tokenStart,
         canonicalize: true);
   }

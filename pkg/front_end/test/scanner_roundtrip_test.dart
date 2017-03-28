@@ -2,8 +2,12 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'package:front_end/src/fasta/analyzer/token_utils.dart';
+import 'package:analyzer/src/fasta/token_utils.dart';
+import 'package:front_end/src/scanner/errors.dart' as analyzer;
+import 'package:front_end/src/scanner/reader.dart' as analyzer;
+import 'package:front_end/src/scanner/scanner.dart' as analyzer;
 import 'package:front_end/src/scanner/token.dart';
+import 'package:test/test.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 
 import 'scanner_fasta_test.dart';
@@ -69,25 +73,15 @@ class ScannerTest_RoundTrip extends ScannerTest {
     // syntax.
     super.test_comment_generic_method_type_list();
   }
+}
+
+class TestScanner extends analyzer.Scanner {
+  TestScanner(analyzer.CharacterReader reader) : super(reader);
 
   @override
-  @failingTest
-  void test_scriptTag_withArgs() {
-    // TODO(paulberry,ahe): Fasta scanner doesn't support script tag
-    super.test_scriptTag_withArgs();
-  }
-
-  @override
-  @failingTest
-  void test_scriptTag_withoutSpace() {
-    // TODO(paulberry,ahe): Fasta scanner doesn't support script tag
-    super.test_scriptTag_withoutSpace();
-  }
-
-  @override
-  @failingTest
-  void test_scriptTag_withSpace() {
-    // TODO(paulberry,ahe): Fasta scanner doesn't support script tag
-    super.test_scriptTag_withSpace();
+  void reportError(
+      analyzer.ScannerErrorCode errorCode, int offset, List<Object> arguments) {
+    fail('Unexpected error $errorCode while scanning offset $offset\n'
+        '   arguments: $arguments');
   }
 }

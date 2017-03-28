@@ -153,28 +153,9 @@ class KernelSsaBuilder extends ir.Visitor with GraphBuilder {
     this.localsHandler = new LocalsHandler(this, targetElement, null, compiler);
     this.astAdapter = new KernelAstAdapter(kernel, compiler.backend,
         resolvedAst, kernel.nodeToAst, kernel.nodeToElement);
-    Element originTarget = targetElement;
-    if (originTarget.isPatch) {
-      originTarget = originTarget.origin;
-    }
-    if (originTarget is FunctionElement) {
-      if (originTarget is ConstructorBodyElement) {
-        ConstructorBodyElement body = originTarget;
-        _targetIsConstructorBody = true;
-        originTarget = body.constructor;
-      }
-      target = kernel.functions[originTarget];
-      // Closures require a lookup one level deeper in the closure class mapper.
-      if (target == null) {
-        FunctionElement originTargetFunction = originTarget;
-        ClosureClassMap classMap = compiler.closureToClassMapper
-            .getClosureToClassMapping(originTargetFunction.resolvedAst);
-        if (classMap.closureElement != null) {
-          target = kernel.localFunctions[classMap.closureElement];
-        }
-      }
-    } else if (originTarget is FieldElement) {
-      target = kernel.fields[originTarget];
+    target = astAdapter.getInitialKernelNode(targetElement);
+    if (targetElement is ConstructorBodyElement) {
+      _targetIsConstructorBody = true;
     }
   }
 
@@ -866,7 +847,7 @@ class KernelSsaBuilder extends ir.Visitor with GraphBuilder {
     // Generate a structure equivalent to:
     //   Iterator<E> $iter = <iterable>.iterator;
     //   while ($iter.moveNext()) {
-    //     <declaredIdentifier> = $iter.current;
+    //     <variable> = $iter.current;
     //     <body>
     //   }
 
@@ -2287,14 +2268,13 @@ class KernelSsaBuilder extends ir.Visitor with GraphBuilder {
               function.requiredParameterCount ==
                   function.positionalParameters.length &&
               function.namedParameters.isEmpty) {
-            registry?.registerStaticUse(
-                new StaticUse.foreignUse(astAdapter.getMethod(staticTarget)));
             push(new HForeignCode(
                 js.js.expressionTemplateYielding(backend.emitter
                     .staticFunctionAccess(astAdapter.getMethod(staticTarget))),
                 commonMasks.dynamicType,
                 <HInstruction>[],
-                nativeBehavior: native.NativeBehavior.PURE));
+                nativeBehavior: native.NativeBehavior.PURE,
+                foreignFunction: astAdapter.getMethod(staticTarget)));
             return;
           }
           problem = 'does not handle a closure with optional parameters';
@@ -2588,10 +2568,6 @@ class KernelSsaBuilder extends ir.Visitor with GraphBuilder {
     ClosureClassElement closureClassElement =
         nestedClosureData.closureClassElement;
     MethodElement callElement = nestedClosureData.callElement;
-    // TODO(ahe): This should be registered in codegen, not here.
-    // TODO(johnniwinther): Is [registerStaticUse] equivalent to
-    // [addToWorkList]?
-    registry?.registerStaticUse(new StaticUse.foreignUse(callElement));
 
     List<HInstruction> capturedVariables = <HInstruction>[];
     closureClassElement.closureFields.forEach((ClosureFieldElement field) {
@@ -2603,9 +2579,8 @@ class KernelSsaBuilder extends ir.Visitor with GraphBuilder {
 
     TypeMask type = new TypeMask.nonNullExact(closureClassElement, closedWorld);
     // TODO(efortuna): Add source information here.
-    push(new HCreate(closureClassElement, capturedVariables, type));
-
-    registry?.registerInstantiatedClosure(methodElement);
+    push(new HCreate(closureClassElement, capturedVariables, type,
+        callMethod: callElement, localFunction: methodElement));
   }
 
   @override

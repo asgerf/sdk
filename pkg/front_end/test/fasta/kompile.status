@@ -24,7 +24,7 @@ map: Fail
 mixin: Crash
 operators: Crash
 redirecting_constructor: Fail
-statements: Crash
+statements: Fail
 super_rasta_copy: Crash
 top_level_accessors: Crash
 type_variable_as_super: Fail
@@ -51,15 +51,14 @@ rasta/duplicated_mixin: Crash
 rasta/export: Fail
 rasta/external_factory_redirection: Crash
 rasta/foo: Fail
-rasta/for_loop: Crash
-rasta/generic_factory: VerificationError
+rasta/for_loop: Fail
+rasta/generic_factory: Fail # Compile-time error destroys program.
 rasta/issue_000001: Crash
 rasta/issue_000002: Crash
 rasta/issue_000004: Crash
 rasta/issue_000006: Crash
 rasta/issue_000007: Fail
 rasta/issue_000008: Crash
-rasta/issue_000011: Crash
 rasta/issue_000012: Crash
 rasta/issue_000025: Crash
 rasta/issue_000026: Crash
@@ -82,7 +81,6 @@ rasta/issue_000052: Crash
 rasta/issue_000053: Crash
 rasta/issue_000067: Crash
 rasta/issue_000068: Crash
-rasta/issue_000069: Crash
 rasta/issue_000070: Crash
 rasta/issue_000080: Crash
 rasta/issue_000081: Crash
@@ -102,7 +100,7 @@ rasta/super_mixin: Crash
 rasta/super_operator: Crash
 rasta/supports_reflection: Crash
 rasta/switch_execution_case_t02: Crash
-rasta/switch_fall_through: Crash
+rasta/switch_fall_through: Fail
 rasta/this_invoke: Crash
 rasta/try_label: Crash
 rasta/type_literals: Crash

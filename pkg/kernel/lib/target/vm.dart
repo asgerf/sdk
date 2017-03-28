@@ -87,7 +87,7 @@ class VmTarget extends Target {
     setup_builtin_library.transformProgram(program);
 
     if (strongMode) {
-      new Erasure().transform(program);
+      performErasure(program);
     }
 
     new SanitizeForVM().transform(program);
@@ -102,5 +102,9 @@ class VmTarget extends Target {
             programRoots: flags.programRoots)
         .transform(program);
     _hierarchy = null; // Hierarchy must be recomputed.
+  }
+
+  void performErasure(Program program) {
+    new Erasure().transform(program);
   }
 }

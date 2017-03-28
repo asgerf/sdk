@@ -809,13 +809,6 @@ DART_EXPORT bool Dart_IsFatalError(Dart_Handle object) {
 }
 
 
-DART_EXPORT bool Dart_IsVMRestartRequest(Dart_Handle handle) {
-  DARTSCOPE(Thread::Current());
-  const Object& obj = Object::Handle(Z, Api::UnwrapHandle(handle));
-  return (obj.IsUnwindError() && UnwindError::Cast(obj).is_vm_restart());
-}
-
-
 DART_EXPORT const char* Dart_GetError(Dart_Handle handle) {
   API_TIMELINE_DURATION;
   DARTSCOPE(Thread::Current());
@@ -5532,8 +5525,7 @@ DART_EXPORT Dart_Handle Dart_GetType(Dart_Handle library,
   // Construct the type object, canonicalize it and return.
   Type& instantiated_type =
       Type::Handle(Type::New(cls, type_args_obj, TokenPosition::kNoSource));
-  instantiated_type ^= ClassFinalizer::FinalizeType(
-      cls, instantiated_type, ClassFinalizer::kCanonicalize);
+  instantiated_type ^= ClassFinalizer::FinalizeType(cls, instantiated_type);
   return Api::NewHandle(T, instantiated_type.raw());
 }
 
@@ -6687,6 +6679,7 @@ Dart_CreateAppAOTSnapshotAsAssembly(uint8_t** assembly_buffer,
                             &image_writer, &image_writer);
 
   writer.WriteFullSnapshot();
+  image_writer.Finalize();
   *assembly_size = image_writer.AssemblySize();
 
   return Api::Success();
@@ -6710,6 +6703,9 @@ Dart_CreateAppAOTSnapshotAsBlobs(uint8_t** vm_snapshot_data_buffer,
 #elif !defined(DART_PRECOMPILER)
   return Api::NewError(
       "This VM was built without support for AOT compilation.");
+#elif defined(TARGET_OS_FUCHSIA)
+  return Api::NewError(
+      "AOT as blobs is not supported on Fuchsia; use dylibs instead.");
 #else
   API_TIMELINE_DURATION;
   DARTSCOPE(Thread::Current());

@@ -817,7 +817,6 @@ Field* Field::ReadFrom(Reader* reader) {
   reader->record_token_position(end_position_);
   annotations_.ReadFromStatic<Expression>(reader);
   type_ = DartType::ReadFrom(reader);
-  inferred_value_ = reader->ReadOptional<InferredValue>();
   initializer_ = reader->ReadOptional<Expression>();
   return this;
 }
@@ -1096,6 +1095,7 @@ PropertySet* PropertySet::ReadFrom(Reader* reader) {
 DirectPropertyGet* DirectPropertyGet::ReadFrom(Reader* reader) {
   TRACE_READ_OFFSET();
   DirectPropertyGet* get = new DirectPropertyGet();
+  get->position_ = reader->ReadPosition();
   get->receiver_ = Expression::ReadFrom(reader);
   get->target_reference_ = Reference::ReadMemberFrom(reader);
   return get;
@@ -1105,6 +1105,7 @@ DirectPropertyGet* DirectPropertyGet::ReadFrom(Reader* reader) {
 DirectPropertySet* DirectPropertySet::ReadFrom(Reader* reader) {
   TRACE_READ_OFFSET();
   DirectPropertySet* set = new DirectPropertySet();
+  set->position_ = reader->ReadPosition();
   set->receiver_ = Expression::ReadFrom(reader);
   set->target_reference_ = Reference::ReadMemberFrom(reader);
   set->value_ = Expression::ReadFrom(reader);
@@ -1561,11 +1562,15 @@ ForInStatement* ForInStatement::ReadFrom(Reader* reader, bool is_async) {
 
   ForInStatement* forinstmt = new ForInStatement();
   forinstmt->is_async_ = is_async;
+  forinstmt->position_ = reader->ReadPosition();
   forinstmt->variable_ = VariableDeclaration::ReadFromImpl(reader);
   forinstmt->iterable_ = Expression::ReadFrom(reader);
   forinstmt->body_ = Statement::ReadFrom(reader);
   forinstmt->end_position_ = reader->max_position();
-  forinstmt->position_ = reader->min_position();
+  if (!forinstmt->position_.IsReal()) {
+    forinstmt->position_ = reader->min_position();
+  }
+  forinstmt->variable_->set_end_position(forinstmt->position_);
 
   return forinstmt;
 }
@@ -1595,6 +1600,9 @@ SwitchStatement* SwitchStatement::ReadFrom(Reader* reader) {
 SwitchCase* SwitchCase::ReadFrom(Reader* reader) {
   TRACE_READ_OFFSET();
   expressions_.ReadFromStatic<Expression>(reader);
+  for (intptr_t i = 0; i < expressions_.length(); ++i) {
+    expressions_[i]->set_position(reader->ReadPosition());
+  }
   is_default_ = reader->ReadBool();
   body_ = Statement::ReadFrom(reader);
   return this;
@@ -1698,7 +1706,6 @@ VariableDeclaration* VariableDeclaration::ReadFromImpl(Reader* reader) {
   decl->flags_ = reader->ReadFlags();
   decl->name_ = Reference::ReadStringFrom(reader);
   decl->type_ = DartType::ReadFrom(reader);
-  decl->inferred_value_ = reader->ReadOptional<InferredValue>();
   decl->initializer_ = reader->ReadOptional<Expression>();
 
   // Go to next token position so it ends *after* the last potentially
@@ -1731,15 +1738,6 @@ Name* Name::ReadFrom(Reader* reader) {
   } else {
     return new Name(string, NULL);
   }
-}
-
-
-InferredValue* InferredValue::ReadFrom(Reader* reader) {
-  InferredValue* type = new InferredValue();
-  type->klass_reference_ = Reference::ReadClassFrom(reader, true);
-  type->kind_ = static_cast<BaseClassKind>(reader->ReadByte());
-  type->value_bits_ = reader->ReadByte();
-  return type;
 }
 
 
@@ -1909,7 +1907,6 @@ FunctionNode* FunctionNode::ReadFrom(Reader* reader) {
       reader);
   function->named_parameters().ReadFromStatic<VariableDeclarationImpl>(reader);
   function->return_type_ = DartType::ReadFrom(reader);
-  function->inferred_return_value_ = reader->ReadOptional<InferredValue>();
 
   LabelScope<ReaderHelper, BlockStack<LabeledStatement> > labels(
       reader->helper());

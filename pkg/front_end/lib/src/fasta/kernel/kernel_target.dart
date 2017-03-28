@@ -15,6 +15,7 @@ import 'package:kernel/ast.dart'
         Class,
         Constructor,
         DartType,
+        DynamicType,
         EmptyStatement,
         Expression,
         ExpressionStatement,
@@ -111,6 +112,13 @@ class KernelTarget extends TargetImplementation {
         super(dillTarget.ticker, uriTranslator) {
     resetCrashReporting();
     loader = createLoader();
+  }
+
+  void addError(file, int charOffset, String message) {
+    Uri uri = file is String ? Uri.parse(file) : file;
+    InputError error = new InputError(uri, charOffset, message);
+    print(error.format());
+    errors.add(error);
   }
 
   SourceLoader<Library> createLoader() => new SourceLoader<Library>(this);
@@ -216,6 +224,35 @@ class KernelTarget extends TargetImplementation {
         : writeLinkedProgram(uri, program, isFullProgram: isFullProgram);
   }
 
+  Future<Program> writeOutline(Uri uri) async {
+    if (loader.first == null) return null;
+    try {
+      await loader.buildOutlines();
+      loader.coreLibrary
+          .becomeCoreLibrary(const DynamicType(), const VoidType());
+      dynamicType.bind(loader.coreLibrary.members["dynamic"]);
+      loader.resolveParts();
+      loader.computeLibraryScopes();
+      loader.resolveTypes();
+      loader.buildProgram();
+      loader.checkSemantics();
+      List<SourceClassBuilder> sourceClasses = collectAllSourceClasses();
+      installDefaultSupertypes();
+      installDefaultConstructors(sourceClasses);
+      loader.resolveConstructors();
+      loader.finishTypeVariables(objectClassBuilder);
+      program = link(new List<Library>.from(loader.libraries));
+      loader.computeHierarchy(program);
+      loader.checkOverrides(sourceClasses);
+      if (uri == null) return program;
+      return await writeLinkedProgram(uri, program, isFullProgram: false);
+    } on InputError catch (e) {
+      return handleInputError(uri, e, isFullProgram: false);
+    } catch (e, s) {
+      return reportCrash(e, s, loader?.currentUriForCrashReporting);
+    }
+  }
+
   Future<Program> writeProgram(Uri uri,
       {bool dumpIr: false, bool verify: false}) async {
     if (loader.first == null) return null;
@@ -223,7 +260,6 @@ class KernelTarget extends TargetImplementation {
       return handleInputError(uri, null, isFullProgram: true);
     }
     try {
-      loader.computeHierarchy(program);
       await loader.buildBodies();
       loader.finishStaticInvocations();
       finishAllConstructors();
@@ -247,42 +283,28 @@ class KernelTarget extends TargetImplementation {
     }
   }
 
-  Future<Program> writeOutline(Uri uri) async {
-    if (loader.first == null) return null;
-    try {
-      await loader.buildOutlines();
-      loader.resolveParts();
-      loader.computeLibraryScopes();
-      loader.resolveTypes();
-      loader.buildProgram();
-      loader.checkSemantics();
-      List<SourceClassBuilder> sourceClasses = collectAllSourceClasses();
-      installDefaultSupertypes();
-      installDefaultConstructors(sourceClasses);
-      loader.resolveConstructors();
-      loader.finishTypeVariables(objectClassBuilder);
-      program = link(new List<Library>.from(loader.libraries));
-      if (uri == null) return program;
-      return await writeLinkedProgram(uri, program, isFullProgram: false);
-    } on InputError catch (e) {
-      return handleInputError(uri, e, isFullProgram: false);
-    } catch (e, s) {
-      return reportCrash(e, s, loader?.currentUriForCrashReporting);
+  Future writeDepsFile(Uri output, Uri depsFile,
+      {Iterable<Uri> extraDependencies}) async {
+    String toRelativeFilePath(Uri uri) {
+      return Uri.parse(relativizeUri(uri)).toFilePath();
     }
-  }
 
-  Future writeDepsFile(Uri output, Uri depsFile) async {
     if (loader.first == null) return null;
     StringBuffer sb = new StringBuffer();
-    Uri base = depsFile.resolve(".");
-    sb.write(Uri.parse(relativizeUri(output, base: base)).toFilePath());
+    sb.write(toRelativeFilePath(output));
     sb.write(":");
-    for (Uri dependency in loader.getDependencies()) {
+    Set<String> allDependencies = new Set<String>();
+    allDependencies.addAll(loader.getDependencies().map(toRelativeFilePath));
+    if (extraDependencies != null) {
+      allDependencies.addAll(extraDependencies.map(toRelativeFilePath));
+    }
+    for (String path in allDependencies) {
       sb.write(" ");
-      sb.write(Uri.parse(relativizeUri(dependency, base: base)).toFilePath());
+      sb.write(path);
     }
     sb.writeln();
     await new File.fromUri(depsFile).writeAsString("$sb");
+    ticker.logMs("Wrote deps file");
   }
 
   Program erroneousProgram(bool isFullProgram) {
@@ -306,6 +328,7 @@ class KernelTarget extends TargetImplementation {
           AsyncMarker.Sync,
           ProcedureKind.Method,
           library,
+          -1,
           -1,
           -1);
       library.addBuilder(mainBuilder.name, mainBuilder, -1);
@@ -534,7 +557,11 @@ class KernelTarget extends TargetImplementation {
     /// Edition](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-408.pdf):
     Constructor superTarget;
     List<Field> uninitializedFields = <Field>[];
+    List<Field> nonFinalFields = <Field>[];
     for (Field field in cls.fields) {
+      if (field.isInstanceMember && !field.isFinal) {
+        nonFinalFields.add(field);
+      }
       if (field.initializer == null) {
         uninitializedFields.add(field);
       }
@@ -550,6 +577,11 @@ class KernelTarget extends TargetImplementation {
           superTarget ??= defaultSuperConstructor(cls);
           Initializer initializer;
           if (superTarget == null) {
+            addError(
+                constructor.enclosingClass.fileUri,
+                constructor.fileOffset,
+                "${cls.superclass.name} has no constructor that takes no"
+                " arguments.");
             initializer = new InvalidInitializer();
           } else {
             initializer =
@@ -572,6 +604,15 @@ class KernelTarget extends TargetImplementation {
           }
         }
         fieldInitializers[constructor] = myFieldInitializers;
+        if (constructor.isConst && nonFinalFields.isNotEmpty) {
+          addError(constructor.enclosingClass.fileUri, constructor.fileOffset,
+              "Constructor is marked 'const' so all fields must be final.");
+          for (Field field in nonFinalFields) {
+            addError(constructor.enclosingClass.fileUri, field.fileOffset,
+                "Field isn't final, but constructor is 'const'.");
+          }
+          nonFinalFields.clear();
+        }
       }
     }
     Set<Field> initializedFields;

@@ -494,7 +494,8 @@ class KernelVisitor extends Object
     }
     return new StaticAccessor(
         (getter == null) ? null : kernel.elementToIr(getter),
-        (setter == null) ? null : kernel.elementToIr(setter));
+        (setter == null) ? null : kernel.elementToIr(setter),
+        ir.TreeNode.noOffset);
   }
 
   Accessor computeAccessor(ForIn node, Element element) {
@@ -514,15 +515,16 @@ class KernelVisitor extends Object
       return buildStaticAccessor(null);
     } else if (element.isGetter) {
       if (element.isInstanceMember) {
-        return new ThisPropertyAccessor(
-            kernel.irName(element.name, element), null, null);
+        return new ThisPropertyAccessor(kernel.irName(element.name, element),
+            null, null, ir.TreeNode.noOffset);
       } else {
         GetterElement getter = element;
         Element setter = getter.setter;
         return buildStaticAccessor(getter, setter);
       }
     } else if (element.isLocal) {
-      return new VariableAccessor(getLocal(element));
+      return new VariableAccessor(
+          getLocal(element), null, ir.TreeNode.noOffset);
     } else if (element.isField) {
       return buildStaticAccessor(element);
     } else {
@@ -1011,10 +1013,13 @@ class KernelVisitor extends Object
   @override
   ir.SwitchCase visitSwitchCase(SwitchCase node) {
     List<ir.Expression> expressions = <ir.Expression>[];
+    List<int> expressionOffsets = <int>[];
     for (var labelOrCase in node.labelsAndCases.nodes) {
       CaseMatch match = labelOrCase.asCaseMatch();
       if (match != null) {
-        expressions.add(visitForValue(match.expression));
+        ir.TreeNode expression = visitForValue(match.expression);
+        expressions.add(expression);
+        expressionOffsets.add(expression.fileOffset);
       } else {
         // Assert that labelOrCase is one of two known types: [CaseMatch] or
         // [Label]. We ignore cases, as any users have been resolved to use the
@@ -1025,7 +1030,8 @@ class KernelVisitor extends Object
     // We ignore the node's statements here, they're generated below in
     // [visitSwitchStatement] once we've set up all the jump targets.
     return associateNode(
-        new ir.SwitchCase(expressions, null, isDefault: node.isDefaultCase),
+        new ir.SwitchCase(expressions, expressionOffsets, null,
+            isDefault: node.isDefaultCase),
         node);
   }
 
@@ -1260,7 +1266,8 @@ class KernelVisitor extends Object
   }
 
   ir.Expression buildTypeLiteralSet(TypeConstantExpression constant, Node rhs) {
-    return new ReadOnlyAccessor(buildTypeLiteral(constant))
+    return new ReadOnlyAccessor(
+            buildTypeLiteral(constant), ir.TreeNode.noOffset)
         .buildAssignment(visitForValue(rhs), voidContext: isVoidContext);
   }
 
@@ -1325,7 +1332,9 @@ class KernelVisitor extends Object
   ir.PropertyGet visitDynamicPropertyGet(
       Send node, Node receiver, Name name, _) {
     return associateNode(
-        new ir.PropertyGet(visitForValue(receiver), nameToIrName(name)), node);
+        new ir.PropertyGet(visitForValue(receiver), nameToIrName(name))
+          ..fileOffset = node.selector.getBeginToken().charOffset,
+        node);
   }
 
   @override
@@ -1333,7 +1342,8 @@ class KernelVisitor extends Object
       Send node, Node receiver, NodeList arguments, Selector selector, _) {
     return associateNode(
         buildInvokeSelector(
-            visitForValue(receiver), selector, buildArguments(arguments)),
+            visitForValue(receiver), selector, buildArguments(arguments))
+          ..fileOffset = node.selector.getBeginToken().charOffset,
         node);
   }
 
@@ -1367,7 +1377,7 @@ class KernelVisitor extends Object
       Send node, Node receiver, Name name, Node rhs, _) {
     ir.Name irName = nameToIrName(name);
     Accessor accessor = (receiver == null)
-        ? new ThisPropertyAccessor(irName, null, null)
+        ? new ThisPropertyAccessor(irName, null, null, ir.TreeNode.noOffset)
         : PropertyAccessor.make(visitForValue(receiver), irName, null, null);
     return _finishSetIfNull(node, accessor, rhs);
   }
@@ -1569,8 +1579,8 @@ class KernelVisitor extends Object
   }
 
   Accessor buildNullAwarePropertyAccessor(Node receiver, Name name) {
-    return new NullAwarePropertyAccessor(
-        visitForValue(receiver), nameToIrName(name), null, null, null);
+    return new NullAwarePropertyAccessor(visitForValue(receiver),
+        nameToIrName(name), null, null, null, ir.TreeNode.noOffset);
   }
 
   @override
@@ -1848,8 +1858,10 @@ class KernelVisitor extends Object
   ir.Expression handleLocalCompounds(
       SendSet node, LocalElement local, CompoundRhs rhs, _,
       {bool isSetterValid}) {
-    ir.Expression compound =
-        buildCompound(new VariableAccessor(getLocal(local)), rhs, node);
+    ir.Expression compound = buildCompound(
+        new VariableAccessor(getLocal(local), null, ir.TreeNode.noOffset),
+        rhs,
+        node);
     if (compound is ir.VariableSet) {
       associateNode(compound.value, node);
     } else {
@@ -1951,7 +1963,8 @@ class KernelVisitor extends Object
   ir.Expression handleLocalSetIfNulls(
       SendSet node, LocalElement local, Node rhs, _,
       {bool isSetterValid}) {
-    return _finishSetIfNull(node, new VariableAccessor(getLocal(local)), rhs);
+    return _finishSetIfNull(node,
+        new VariableAccessor(getLocal(local), null, ir.TreeNode.noOffset), rhs);
   }
 
   @override
@@ -2431,7 +2444,9 @@ class KernelVisitor extends Object
   ir.Expression handleTypeLiteralConstantCompounds(
       SendSet node, ConstantExpression constant, CompoundRhs rhs, _) {
     return buildCompound(
-        new ReadOnlyAccessor(buildTypeLiteral(constant)), rhs, node);
+        new ReadOnlyAccessor(buildTypeLiteral(constant), ir.TreeNode.noOffset),
+        rhs,
+        node);
   }
 
   ir.TypeLiteral buildTypeVariable(TypeVariableElement element) {
@@ -2442,7 +2457,9 @@ class KernelVisitor extends Object
   ir.Expression handleTypeVariableTypeLiteralCompounds(
       SendSet node, TypeVariableElement element, CompoundRhs rhs, _) {
     return buildCompound(
-        new ReadOnlyAccessor(buildTypeVariable(element)), rhs, node);
+        new ReadOnlyAccessor(buildTypeVariable(element), ir.TreeNode.noOffset),
+        rhs,
+        node);
   }
 
   @override
@@ -2476,7 +2493,8 @@ class KernelVisitor extends Object
     return new SuperPropertyAccessor(
         kernel.irName(element.name, element),
         (getter == null) ? null : kernel.elementToIr(getter),
-        (setter == null) ? null : kernel.elementToIr(setter));
+        (setter == null) ? null : kernel.elementToIr(setter),
+        ir.TreeNode.noOffset);
   }
 
   Accessor buildSuperIndexAccessor(Expression index, Element getter,
@@ -2490,7 +2508,8 @@ class KernelVisitor extends Object
     return new SuperIndexAccessor(
         visitForValue(index),
         (getter == null) ? null : kernel.elementToIr(getter),
-        (setter == null) ? null : kernel.elementToIr(setter));
+        (setter == null) ? null : kernel.elementToIr(setter),
+        ir.TreeNode.noOffset);
   }
 
   @override
@@ -2658,7 +2677,8 @@ class KernelVisitor extends Object
   }
 
   Accessor buildThisPropertyAccessor(Name name) {
-    return new ThisPropertyAccessor(nameToIrName(name), null, null);
+    return new ThisPropertyAccessor(
+        nameToIrName(name), null, null, ir.TreeNode.noOffset);
   }
 
   @override
@@ -2765,7 +2785,8 @@ class KernelVisitor extends Object
   @override
   ir.Expression visitTypeVariableTypeLiteralSet(
       SendSet node, TypeVariableElement element, Node rhs, _) {
-    return new ReadOnlyAccessor(buildTypeVariable(element))
+    return new ReadOnlyAccessor(
+            buildTypeVariable(element), ir.TreeNode.noOffset)
         .buildAssignment(visitForValue(rhs), voidContext: isVoidContext);
   }
 
@@ -2773,7 +2794,9 @@ class KernelVisitor extends Object
   ir.Expression visitTypeVariableTypeLiteralSetIfNull(
       Send node, TypeVariableElement element, Node rhs, _) {
     return _finishSetIfNull(
-        node, new ReadOnlyAccessor(buildTypeVariable(element)), rhs);
+        node,
+        new ReadOnlyAccessor(buildTypeVariable(element), ir.TreeNode.noOffset),
+        rhs);
   }
 
   @override

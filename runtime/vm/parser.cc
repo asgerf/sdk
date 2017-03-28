@@ -4459,32 +4459,23 @@ void Parser::ParseClassMemberDefinition(ClassDesc* members,
   }
 
   // Optionally parse a type.
-  if (CurrentToken() == Token::kVOID) {
-    if (member.has_var || member.has_factory) {
-      ReportError("void not expected");
-    }
-    ConsumeToken();
-    ASSERT(member.type == NULL);
-    member.type = &Object::void_type();
-  } else {
-    bool found_type = false;
-    {
-      // Lookahead to determine whether the next tokens are a return type.
-      TokenPosScope saved_pos(this);
-      if (TryParseType(true)) {
-        if (IsIdentifier() || (CurrentToken() == Token::kGET) ||
-            (CurrentToken() == Token::kSET) ||
-            (CurrentToken() == Token::kOPERATOR)) {
-          found_type = true;
-        }
+  bool found_type = false;
+  {
+    // Lookahead to determine whether the next tokens are a return type.
+    TokenPosScope saved_pos(this);
+    if (TryParseType(true)) {
+      if (IsIdentifier() || (CurrentToken() == Token::kGET) ||
+          (CurrentToken() == Token::kSET) ||
+          (CurrentToken() == Token::kOPERATOR)) {
+        found_type = true;
       }
     }
-    if (found_type) {
-      // It is too early to resolve the type here, since it can be a result type
-      // referring to a not yet declared function type parameter.
-      member.type = &AbstractType::ZoneHandle(
-          Z, ParseTypeOrFunctionType(false, ClassFinalizer::kDoNotResolve));
-    }
+  }
+  if (found_type) {
+    // It is too early to resolve the type here, since it can be a result type
+    // referring to a not yet declared function type parameter.
+    member.type = &AbstractType::ZoneHandle(
+        Z, ParseTypeOrFunctionType(true, ClassFinalizer::kDoNotResolve));
   }
 
   // Optionally parse a (possibly named) constructor name or factory.
@@ -7261,25 +7252,6 @@ SequenceNode* Parser::CloseAsyncGeneratorFunction(const Function& closure_func,
 
   TokenPosition token_pos = TokenPosition::kNoSource;
 
-  if (FLAG_causal_async_stacks) {
-    // Add to AST:
-    //   :async_stack_trace = _asyncStackTraceHelper();
-    const Function& async_stack_trace_helper = Function::ZoneHandle(
-        Z,
-        async_lib.LookupFunctionAllowPrivate(Symbols::AsyncStackTraceHelper()));
-    ASSERT(!async_stack_trace_helper.IsNull());
-    ArgumentListNode* async_stack_trace_helper_args =
-        new (Z) ArgumentListNode(TokenPosition::kNoSource);
-    StaticCallNode* async_stack_trace_helper_call = new (Z) StaticCallNode(
-        token_pos, async_stack_trace_helper, async_stack_trace_helper_args);
-    LocalVariable* async_stack_trace_var =
-        current_block_->scope->LookupVariable(Symbols::AsyncStackTraceVar(),
-                                              false);
-    StoreLocalNode* store_async_stack_trace = new (Z) StoreLocalNode(
-        token_pos, async_stack_trace_var, async_stack_trace_helper_call);
-    current_block_->statements->Add(store_async_stack_trace);
-  }
-
 
   // Add to AST:
   //   :async_op = <closure>;  (containing the original body)
@@ -7291,6 +7263,27 @@ SequenceNode* Parser::CloseAsyncGeneratorFunction(const Function& closure_func,
       StoreLocalNode(TokenPosition::kNoSource, async_op_var, closure_obj);
 
   current_block_->statements->Add(store_async_op);
+
+  if (FLAG_causal_async_stacks) {
+    // Add to AST:
+    //   :async_stack_trace = _asyncStackTraceHelper();
+    const Function& async_stack_trace_helper = Function::ZoneHandle(
+        Z,
+        async_lib.LookupFunctionAllowPrivate(Symbols::AsyncStackTraceHelper()));
+    ASSERT(!async_stack_trace_helper.IsNull());
+    ArgumentListNode* async_stack_trace_helper_args =
+        new (Z) ArgumentListNode(TokenPosition::kNoSource);
+    async_stack_trace_helper_args->Add(
+        new (Z) LoadLocalNode(TokenPosition::kNoSource, async_op_var));
+    StaticCallNode* async_stack_trace_helper_call = new (Z) StaticCallNode(
+        token_pos, async_stack_trace_helper, async_stack_trace_helper_args);
+    LocalVariable* async_stack_trace_var =
+        current_block_->scope->LookupVariable(Symbols::AsyncStackTraceVar(),
+                                              false);
+    StoreLocalNode* store_async_stack_trace = new (Z) StoreLocalNode(
+        token_pos, async_stack_trace_var, async_stack_trace_helper_call);
+    current_block_->statements->Add(store_async_stack_trace);
+  }
 
   // :async_then_callback = _asyncThenWrapperHelper(:async_op)
   const Function& async_then_wrapper_helper = Function::ZoneHandle(
@@ -7504,6 +7497,8 @@ SequenceNode* Parser::CloseAsyncFunction(const Function& closure,
     ASSERT(!async_stack_trace_helper.IsNull());
     ArgumentListNode* async_stack_trace_helper_args =
         new (Z) ArgumentListNode(token_pos);
+    async_stack_trace_helper_args->Add(
+        new (Z) LoadLocalNode(token_pos, async_op_var));
     StaticCallNode* async_stack_trace_helper_call = new (Z) StaticCallNode(
         token_pos, async_stack_trace_helper, async_stack_trace_helper_args);
     LocalVariable* async_stack_trace_var =
@@ -9234,6 +9229,21 @@ AstNode* Parser::ParseAwaitForStatement(String* label_name) {
       stream_expr_pos, new (Z) LoadLocalNode(stream_expr_pos, iterator_var),
       Symbols::MoveNext(), no_args);
   OpenBlock();
+  if (FLAG_support_debugger) {
+    // Call '_asyncStarMoveNextHelper' so that the debugger can intercept and
+    // handle single stepping into a async* generator.
+    const Function& async_star_move_next_helper = Function::ZoneHandle(
+        Z, isolate()->object_store()->async_star_move_next_helper());
+    ASSERT(!async_star_move_next_helper.IsNull());
+    ArgumentListNode* async_star_move_next_helper_args =
+        new (Z) ArgumentListNode(stream_expr_pos);
+    async_star_move_next_helper_args->Add(
+        new (Z) LoadLocalNode(stream_expr_pos, stream_var));
+    StaticCallNode* async_star_move_next_helper_call =
+        new (Z) StaticCallNode(stream_expr_pos, async_star_move_next_helper,
+                               async_star_move_next_helper_args);
+    current_block_->statements->Add(async_star_move_next_helper_call);
+  }
   AstNode* await_moveNext = new (Z) AwaitNode(
       stream_expr_pos, iterator_moveNext, saved_try_ctx, async_saved_try_ctx,
       outer_saved_try_ctx, outer_async_saved_try_ctx, current_block_->scope);
@@ -12503,11 +12513,9 @@ RawAbstractType* Parser::CanonicalizeType(const AbstractType& type) {
   // use the class scope of the class from which the function originates.
   if (current_class().IsMixinApplication()) {
     return ClassFinalizer::FinalizeType(
-        Class::Handle(Z, parsed_function()->function().origin()), type,
-        ClassFinalizer::kCanonicalize);
+        Class::Handle(Z, parsed_function()->function().origin()), type);
   }
-  return ClassFinalizer::FinalizeType(current_class(), type,
-                                      ClassFinalizer::kCanonicalize);
+  return ClassFinalizer::FinalizeType(current_class(), type);
 }
 
 
@@ -12556,8 +12564,7 @@ const AbstractType* Parser::ReceiverType(const Class& cls) {
   type = Type::New(cls, TypeArguments::Handle(Z, cls.type_parameters()),
                    cls.token_pos(), Heap::kOld);
   if (cls.is_type_finalized()) {
-    type ^= ClassFinalizer::FinalizeType(
-        cls, type, ClassFinalizer::kCanonicalizeWellFormed);
+    type ^= ClassFinalizer::FinalizeType(cls, type);
     // Note that the receiver type may now be a malbounded type.
     cls.SetCanonicalType(type);
   }
@@ -12591,15 +12598,9 @@ bool Parser::AreFunctionInstantiatorsRequired() const {
 bool Parser::InGenericFunctionScope() const {
   if (!innermost_function().IsNull()) {
     // With one more free tag bit in Function, we could cache this information.
-    if (innermost_function().IsGeneric()) {
+    if (innermost_function().IsGeneric() ||
+        innermost_function().HasGenericParent()) {
       return true;
-    }
-    Function& parent = Function::Handle(innermost_function().parent_function());
-    while (!parent.IsNull()) {
-      if (parent.IsGeneric()) {
-        return true;
-      }
-      parent = parent.parent_function();
     }
   }
   return false;
@@ -13483,7 +13484,7 @@ AstNode* Parser::ParseListLiteral(TokenPosition type_pos,
       if (I->type_checks() && !element_type.IsDynamicType() &&
           (!elem->AsLiteralNode()->literal().IsNull() &&
            !elem->AsLiteralNode()->literal().IsInstanceOf(
-               element_type, TypeArguments::Handle(Z), &bound_error))) {
+               element_type, Object::null_type_arguments(), &bound_error))) {
         // If the failure is due to a bound error, display it instead.
         if (!bound_error.IsNull()) {
           ReportError(bound_error);
@@ -13955,7 +13956,7 @@ void Parser::ParseConstructorClosurization(Function* constructor,
       (la3 == Token::kLT) || (la3 == Token::kPERIOD) || (la3 == Token::kHASH);
   LibraryPrefix& prefix = LibraryPrefix::ZoneHandle(Z);
   AbstractType& type =
-      AbstractType::Handle(Z, ParseType(ClassFinalizer::kCanonicalizeWellFormed,
+      AbstractType::Handle(Z, ParseType(ClassFinalizer::kCanonicalize,
                                         true,  // allow deferred type
                                         consume_unresolved_prefix, &prefix));
   // A constructor tear-off closure can only have been created for a
@@ -14018,7 +14019,7 @@ AstNode* Parser::ParseNewOperator(Token::Kind op_kind) {
 
   LibraryPrefix& prefix = LibraryPrefix::ZoneHandle(Z);
   AbstractType& type = AbstractType::ZoneHandle(
-      Z, ParseType(ClassFinalizer::kCanonicalizeWellFormed, allow_deferred_type,
+      Z, ParseType(ClassFinalizer::kCanonicalize, allow_deferred_type,
                    consume_unresolved_prefix, &prefix));
 
   if (FLAG_load_deferred_eagerly && !prefix.IsNull() &&
@@ -14320,8 +14321,8 @@ AstNode* Parser::ParseNewOperator(Token::Kind op_kind) {
       ASSERT(!type_bound.IsMalformed());
       Error& bound_error = Error::Handle(Z);
       ASSERT(!is_top_level_);  // We cannot check unresolved types.
-      if (!const_instance.IsInstanceOf(type_bound, TypeArguments::Handle(Z),
-                                       &bound_error)) {
+      if (!const_instance.IsInstanceOf(
+              type_bound, Object::null_type_arguments(), &bound_error)) {
         type_bound = ClassFinalizer::NewFinalizedMalformedType(
             bound_error, script_, new_pos,
             "const factory result is not an instance of '%s'",

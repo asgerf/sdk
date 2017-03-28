@@ -27,6 +27,7 @@ import 'package:test/test.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 
 import '../../abstract_single_unit.dart';
+import 'flutter_util.dart';
 
 main() {
   defineReflectiveSuite(() {
@@ -53,6 +54,8 @@ class BaseFixProcessorTest extends AbstractSingleUnitTest {
 
   String myPkgLibPath = '/packages/my_pkg/lib';
 
+  String flutterPkgLibPath = '/packages/flutter/lib';
+
   Fix fix;
   SourceChange change;
   String resultCode;
@@ -77,13 +80,19 @@ bool test() {
 ''');
   }
 
-  assertHasFix(FixKind kind, String expected) async {
+  assertHasFix(FixKind kind, String expected, {String target}) async {
     AnalysisError error = await _findErrorToFix();
     fix = await _assertHasFix(kind, error);
     change = fix.change;
+
     // apply to "file"
     List<SourceFileEdit> fileEdits = change.edits;
     expect(fileEdits, hasLength(1));
+
+    if (target != null) {
+      expect(target, fileEdits.first.file);
+    }
+
     resultCode = SourceEdit.applySequence(testCode, change.edits[0].edits);
     // verify
     expect(resultCode, expected);
@@ -429,13 +438,20 @@ class A {
 
   test_addMissingRequiredArg_cons_single() async {
     _addMetaPackageSource();
-
-    await resolveTestUnit('''
+    addSource(
+        '/libA.dart',
+        r'''
+library libA;
 import 'package:meta/meta.dart';
 
 class A {
   A({@required int a}) {}
 }
+''');
+
+    await resolveTestUnit('''
+import 'libA.dart';
+
 main() {
   A a = new A();
 }
@@ -443,15 +459,13 @@ main() {
     await assertHasFix(
         DartFixKind.ADD_MISSING_REQUIRED_ARGUMENT,
         '''
-import 'package:meta/meta.dart';
+import 'libA.dart';
 
-class A {
-  A({@required int a}) {}
-}
 main() {
   A a = new A(a: null);
 }
-''');
+''',
+        target: '/test.dart');
   }
 
   test_addMissingRequiredArg_multiple() async {
@@ -5376,6 +5390,135 @@ class A {
 ''');
   }
 
+  test_undefinedParameter_convertFlutterChild_invalidList() async {
+    _configureFlutterPkg({
+      'src/widgets/framework.dart': flutter_framework_code,
+    });
+    await resolveTestUnit('''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Container(
+    child: new Row(
+      child: <Widget>[
+        new Transform(),
+        null,
+        new AspectRatio(),
+      ],
+    ),
+  );
+}
+''');
+    await assertNoFix(DartFixKind.CONVERT_FLUTTER_CHILD);
+  }
+
+  test_undefinedParameter_convertFlutterChild_OK_hasList() async {
+    _configureFlutterPkg({
+      'src/widgets/framework.dart': flutter_framework_code,
+    });
+    await resolveTestUnit('''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Container(
+    child: new Row(
+      child: [
+        new Transform(),
+        new ClipRect.rect(),
+        new AspectRatio(),
+      ],
+    ),
+  );
+}
+''');
+    await assertHasFix(
+        DartFixKind.CONVERT_FLUTTER_CHILD,
+        '''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Container(
+    child: new Row(
+      children: <Widget>[
+        new Transform(),
+        new ClipRect.rect(),
+        new AspectRatio(),
+      ],
+    ),
+  );
+}
+''');
+  }
+
+  test_undefinedParameter_convertFlutterChild_OK_hasTypedList() async {
+    _configureFlutterPkg({
+      'src/widgets/framework.dart': flutter_framework_code,
+    });
+    await resolveTestUnit('''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Container(
+    child: new Row(
+      child: <Widget>[
+        new Transform(),
+        new ClipRect.rect(),
+        new AspectRatio(),
+      ],
+    ),
+  );
+}
+''');
+    await assertHasFix(
+        DartFixKind.CONVERT_FLUTTER_CHILD,
+        '''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Container(
+    child: new Row(
+      children: <Widget>[
+        new Transform(),
+        new ClipRect.rect(),
+        new AspectRatio(),
+      ],
+    ),
+  );
+}
+''');
+  }
+
+  test_undefinedParameter_convertFlutterChild_OK_multiLine() async {
+    _configureFlutterPkg({
+      'src/widgets/framework.dart': flutter_framework_code,
+    });
+    await resolveTestUnit('''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+    body: new Row(
+      child: new Container(
+        width: 200.0,
+        height: 300.0,
+      ),
+    ),
+  );
+}
+''');
+    await assertHasFix(
+        DartFixKind.CONVERT_FLUTTER_CHILD,
+        '''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+    body: new Row(
+      children: <Widget>[
+        new Container(
+          width: 200.0,
+          height: 300.0,
+        ),
+      ],
+    ),
+  );
+}
+''');
+  }
+
   test_undefinedSetter_useSimilar_hint() async {
     await resolveTestUnit('''
 class A {
@@ -5512,6 +5655,34 @@ class Required {
   const Required([this.reason]);
 }
 ''');
+  }
+
+  /**
+   * Configures the [SourceFactory] to have the `flutter` package in
+   * `/packages/flutter/lib` folder.
+   */
+  void _configureFlutterPkg(Map<String, String> pathToCode) {
+    pathToCode.forEach((path, code) {
+      provider.newFile('$flutterPkgLibPath/$path', code);
+    });
+    // configure SourceFactory
+    Folder myPkgFolder = provider.getResource(flutterPkgLibPath);
+    UriResolver pkgResolver = new PackageMapUriResolver(provider, {
+      'flutter': [myPkgFolder]
+    });
+    SourceFactory sourceFactory = new SourceFactory(
+        [new DartUriResolver(sdk), pkgResolver, resourceResolver]);
+    if (enableNewAnalysisDriver) {
+      driver.configure(sourceFactory: sourceFactory);
+    } else {
+      context.sourceFactory = sourceFactory;
+    }
+    // force 'flutter' resolution
+    addSource(
+        '/tmp/other.dart',
+        pathToCode.keys
+            .map((path) => "import 'package:flutter/$path';")
+            .join('\n'));
   }
 }
 

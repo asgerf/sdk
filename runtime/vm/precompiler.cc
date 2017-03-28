@@ -482,11 +482,19 @@ void Precompiler::DoCompileAll(
       DropScriptData();
       I->object_store()->set_unique_dynamic_targets(Array::null_array());
       Class& null_class = Class::Handle(Z);
+      Function& null_function = Function::Handle(Z);
       I->object_store()->set_future_class(null_class);
       I->object_store()->set_completer_class(null_class);
       I->object_store()->set_stream_iterator_class(null_class);
       I->object_store()->set_symbol_class(null_class);
       I->object_store()->set_compiletime_error_class(null_class);
+      I->object_store()->set_simple_instance_of_function(null_function);
+      I->object_store()->set_simple_instance_of_true_function(null_function);
+      I->object_store()->set_simple_instance_of_false_function(null_function);
+      I->object_store()->set_async_set_thread_stack_trace(null_function);
+      I->object_store()->set_async_star_move_next_helper(null_function);
+      I->object_store()->set_complete_on_async_return(null_function);
+      I->object_store()->set_async_star_stream_controller(null_class);
     }
     DropClasses();
     DropLibraries();
@@ -980,7 +988,7 @@ void Precompiler::AddCalleesOf(const Function& function) {
 
 void Precompiler::AddTypesOf(const Class& cls) {
   if (cls.IsNull()) return;
-  if (classes_to_retain_.Lookup(&cls) != NULL) return;
+  if (classes_to_retain_.HasKey(&cls)) return;
   classes_to_retain_.Insert(&Class::ZoneHandle(Z, cls.raw()));
 
   Array& interfaces = Array::Handle(Z, cls.interfaces());
@@ -1008,7 +1016,7 @@ void Precompiler::AddTypesOf(const Function& function) {
   if (function.IsNull()) return;
   // We don't expect to see a reference to a redicting factory.
   ASSERT(!function.IsRedirectingFactory());
-  if (functions_to_retain_.Lookup(&function) != NULL) return;
+  if (functions_to_retain_.HasKey(&function)) return;
   functions_to_retain_.Insert(&Function::ZoneHandle(Z, function.raw()));
 
   AbstractType& type = AbstractType::Handle(Z);
@@ -1050,7 +1058,7 @@ void Precompiler::AddTypesOf(const Function& function) {
 void Precompiler::AddType(const AbstractType& abstype) {
   if (abstype.IsNull()) return;
 
-  if (types_to_retain_.Lookup(&abstype) != NULL) return;
+  if (types_to_retain_.HasKey(&abstype)) return;
   types_to_retain_.Insert(&AbstractType::ZoneHandle(Z, abstype.raw()));
 
   if (abstype.IsType()) {
@@ -1087,7 +1095,7 @@ void Precompiler::AddType(const AbstractType& abstype) {
 void Precompiler::AddTypeArguments(const TypeArguments& args) {
   if (args.IsNull()) return;
 
-  if (typeargs_to_retain_.Lookup(&args) != NULL) return;
+  if (typeargs_to_retain_.HasKey(&args)) return;
   typeargs_to_retain_.Insert(&TypeArguments::ZoneHandle(Z, args.raw()));
 
   AbstractType& arg = AbstractType::Handle(Z);
@@ -1121,7 +1129,7 @@ void Precompiler::AddConstObject(const Instance& instance) {
   if (!instance.IsCanonical()) return;
 
   // Constants are canonicalized and we avoid repeated processing of them.
-  if (consts_to_retain_.Lookup(&instance) != NULL) return;
+  if (consts_to_retain_.HasKey(&instance)) return;
 
   consts_to_retain_.Insert(&Instance::ZoneHandle(Z, instance.raw()));
 
@@ -1168,7 +1176,7 @@ void Precompiler::AddClosureCall(const Array& arguments_descriptor) {
 
 
 void Precompiler::AddField(const Field& field) {
-  if (fields_to_retain_.Lookup(&field) != NULL) return;
+  if (fields_to_retain_.HasKey(&field)) return;
 
   fields_to_retain_.Insert(&Field::ZoneHandle(Z, field.raw()));
 
@@ -1341,7 +1349,7 @@ RawObject* Precompiler::ExecuteOnce(SequenceNode* fragment) {
 
 
 void Precompiler::AddFunction(const Function& function) {
-  if (enqueued_functions_.Lookup(&function) != NULL) return;
+  if (enqueued_functions_.HasKey(&function)) return;
 
   enqueued_functions_.Insert(&Function::ZoneHandle(Z, function.raw()));
   pending_functions_.Add(function);
@@ -1353,7 +1361,7 @@ bool Precompiler::IsSent(const String& selector) {
   if (selector.IsNull()) {
     return false;
   }
-  return sent_selectors_.Lookup(&selector) != NULL;
+  return sent_selectors_.HasKey(&selector);
 }
 
 
@@ -1661,7 +1669,7 @@ void Precompiler::TraceForRetainedFunctions() {
       functions = cls.functions();
       for (intptr_t j = 0; j < functions.Length(); j++) {
         function ^= functions.At(j);
-        bool retain = enqueued_functions_.Lookup(&function) != NULL;
+        bool retain = enqueued_functions_.HasKey(&function);
         if (!retain && function.HasImplicitClosureFunction()) {
           // It can happen that all uses of an implicit closure inline their
           // target function, leaving the target function uncompiled. Keep
@@ -1681,7 +1689,7 @@ void Precompiler::TraceForRetainedFunctions() {
   closures = isolate()->object_store()->closure_functions();
   for (intptr_t j = 0; j < closures.Length(); j++) {
     function ^= closures.At(j);
-    bool retain = enqueued_functions_.Lookup(&function) != NULL;
+    bool retain = enqueued_functions_.HasKey(&function);
     if (retain) {
       AddTypesOf(function);
 
@@ -1723,7 +1731,7 @@ void Precompiler::DropFunctions() {
       retained_functions = GrowableObjectArray::New();
       for (intptr_t j = 0; j < functions.Length(); j++) {
         function ^= functions.At(j);
-        bool retain = functions_to_retain_.Lookup(&function) != NULL;
+        bool retain = functions_to_retain_.HasKey(&function);
         function.DropUncompiledImplicitClosureFunction();
         if (retain) {
           retained_functions.Add(function);
@@ -1758,7 +1766,7 @@ void Precompiler::DropFunctions() {
   retained_functions = GrowableObjectArray::New();
   for (intptr_t j = 0; j < closures.Length(); j++) {
     function ^= closures.At(j);
-    bool retain = functions_to_retain_.Lookup(&function) != NULL;
+    bool retain = functions_to_retain_.HasKey(&function);
     if (retain) {
       retained_functions.Add(function);
     } else {
@@ -1795,7 +1803,7 @@ void Precompiler::DropFields() {
       retained_fields = GrowableObjectArray::New();
       for (intptr_t j = 0; j < fields.Length(); j++) {
         field ^= fields.At(j);
-        bool retain = fields_to_retain_.Lookup(&field) != NULL;
+        bool retain = fields_to_retain_.HasKey(&field);
         if (retain) {
           retained_fields.Add(field);
           type = field.type();
@@ -1836,7 +1844,7 @@ void Precompiler::DropTypes() {
     types_array = HashTables::ToArray(types_table, false);
     for (intptr_t i = 0; i < (types_array.Length() - 1); i++) {
       type ^= types_array.At(i);
-      bool retain = types_to_retain_.Lookup(&type) != NULL;
+      bool retain = types_to_retain_.HasKey(&type);
       if (retain) {
         retained_types.Add(type);
       } else {
@@ -1874,7 +1882,7 @@ void Precompiler::DropTypeArguments() {
     typeargs_array = HashTables::ToArray(typeargs_table, false);
     for (intptr_t i = 0; i < (typeargs_array.Length() - 1); i++) {
       typeargs ^= typeargs_array.At(i);
-      bool retain = typeargs_to_retain_.Lookup(&typeargs) != NULL;
+      bool retain = typeargs_to_retain_.HasKey(&typeargs);
       if (retain) {
         retained_typeargs.Add(typeargs);
       } else {
@@ -1960,7 +1968,7 @@ void Precompiler::TraceTypesFromRetainedClasses() {
       retained_constants = GrowableObjectArray::New();
       for (intptr_t j = 0; j < constants.Length(); j++) {
         constant ^= constants.At(j);
-        bool retain = consts_to_retain_.Lookup(&constant) != NULL;
+        bool retain = consts_to_retain_.HasKey(&constant);
         if (retain) {
           retained_constants.Add(constant);
         }
@@ -2025,7 +2033,7 @@ void Precompiler::DropClasses() {
       continue;
     }
 
-    bool retain = classes_to_retain_.Lookup(&cls) != NULL;
+    bool retain = classes_to_retain_.HasKey(&cls);
     if (retain) {
       continue;
     }
@@ -2092,7 +2100,7 @@ void Precompiler::DropLibraries() {
       // A type for a top-level class may be referenced from an object pool as
       // part of an error message.
       const Class& top = Class::Handle(Z, lib.toplevel_class());
-      if (classes_to_retain_.Lookup(&top) != NULL) {
+      if (classes_to_retain_.HasKey(&top)) {
         retain = true;
       }
     }

@@ -11,6 +11,7 @@ import 'package:analysis_server/plugin/edit/assist/assist_core.dart';
 import 'package:analysis_server/plugin/edit/assist/assist_dart.dart';
 import 'package:analysis_server/src/protocol_server.dart' hide Element;
 import 'package:analysis_server/src/services/correction/assist.dart';
+import 'package:analysis_server/src/services/correction/flutter_util.dart';
 import 'package:analysis_server/src/services/correction/name_suggestion.dart';
 import 'package:analysis_server/src/services/correction/source_buffer.dart';
 import 'package:analysis_server/src/services/correction/source_range.dart';
@@ -36,10 +37,6 @@ typedef _SimpleIdentifierVisitor(SimpleIdentifier node);
  * The computer for Dart assists.
  */
 class AssistProcessor {
-  static const FLUTTER_WIDGET_NAME = "Widget";
-  static const FLUTTER_WIDGET_URI =
-      "package:flutter/src/widgets/framework.dart";
-
   AnalysisContext analysisContext;
 
   Source source;
@@ -121,6 +118,7 @@ class AssistProcessor {
     _addProposal_convertDocumentationIntoLine();
     _addProposal_convertToBlockFunctionBody();
     _addProposal_convertToExpressionFunctionBody();
+    _addProposal_convertFlutterChild();
     _addProposal_convertToForIndexLoop();
     _addProposal_convertToIsNot_onIs();
     _addProposal_convertToIsNot_onNot();
@@ -503,6 +501,57 @@ class AssistProcessor {
     }
     // add proposal
     _addAssist(DartAssistKind.CONVERT_DOCUMENTATION_INTO_LINE, []);
+  }
+
+  void _addProposal_convertFlutterChild() {
+    NamedExpression namedExp;
+    // Allow assist to activate from either the new-expr or the child: arg.
+    if (node is SimpleIdentifier &&
+        node.parent is Label &&
+        node.parent.parent is NamedExpression) {
+      namedExp = node.parent.parent as NamedExpression;
+      if ((node as SimpleIdentifier).name != 'child' ||
+          namedExp.expression == null) {
+        return;
+      }
+      if (namedExp.parent?.parent is! InstanceCreationExpression) {
+        return;
+      }
+      InstanceCreationExpression newExpr = namedExp.parent.parent;
+      if (newExpr == null || !isFlutterInstanceCreationExpression(newExpr)) {
+        return;
+      }
+    } else {
+      InstanceCreationExpression newExpr = identifyNewExpression(node);
+      if (newExpr == null || !isFlutterInstanceCreationExpression(newExpr)) {
+        _coverageMarker();
+        return;
+      }
+      namedExp = findChildArgument(newExpr);
+      if (namedExp == null || namedExp.expression == null) {
+        _coverageMarker();
+        return;
+      }
+    }
+    InstanceCreationExpression childArg = getChildWidget(namedExp, false);
+    if (childArg == null) {
+      _coverageMarker();
+      return;
+    }
+    convertFlutterChildToChildren(
+        childArg,
+        namedExp,
+        eol,
+        utils.getNodeText,
+        utils.getLinePrefix,
+        utils.getIndent,
+        utils.getText,
+        _addInsertEdit,
+        _addRemoveEdit,
+        _addReplaceEdit,
+        rangeStartLength,
+        rangeNode);
+    _addAssist(DartAssistKind.CONVERT_FLUTTER_CHILD, []);
   }
 
   void _addProposal_convertIntoFinalField() {
@@ -1567,18 +1616,18 @@ class AssistProcessor {
   }
 
   void _addProposal_moveFlutterWidgetDown() {
-    InstanceCreationExpression exprGoingDown = _identifyNewExpression();
+    InstanceCreationExpression exprGoingDown = identifyNewExpression(node);
     if (exprGoingDown == null ||
-        !_isFlutterInstanceCreationExpression(exprGoingDown)) {
+        !isFlutterInstanceCreationExpression(exprGoingDown)) {
       _coverageMarker();
       return;
     }
-    InstanceCreationExpression exprGoingUp = _findChildWidget(exprGoingDown);
+    InstanceCreationExpression exprGoingUp = findChildWidget(exprGoingDown);
     if (exprGoingUp == null) {
       _coverageMarker();
       return;
     }
-    NamedExpression stableChild = _findChildArgument(exprGoingUp);
+    NamedExpression stableChild = findChildArgument(exprGoingUp);
     if (stableChild == null || stableChild.expression == null) {
       _coverageMarker();
       return;
@@ -1600,9 +1649,9 @@ class AssistProcessor {
   }
 
   void _addProposal_moveFlutterWidgetUp() {
-    InstanceCreationExpression exprGoingUp = _identifyNewExpression();
+    InstanceCreationExpression exprGoingUp = identifyNewExpression(node);
     if (exprGoingUp == null ||
-        !_isFlutterInstanceCreationExpression(exprGoingUp)) {
+        !isFlutterInstanceCreationExpression(exprGoingUp)) {
       _coverageMarker();
       return;
     }
@@ -1612,7 +1661,7 @@ class AssistProcessor {
       return;
     }
     InstanceCreationExpression exprGoingDown = expr;
-    NamedExpression stableChild = _findChildArgument(exprGoingUp);
+    NamedExpression stableChild = findChildArgument(exprGoingUp);
     if (stableChild == null || stableChild.expression == null) {
       _coverageMarker();
       return;
@@ -1676,7 +1725,7 @@ class AssistProcessor {
     }
     if ((node as ListLiteral).elements.any((Expression exp) =>
         !(exp is InstanceCreationExpression &&
-            _isFlutterInstanceCreationExpression(exp)))) {
+            isFlutterInstanceCreationExpression(exp)))) {
       _coverageMarker();
       return;
     }
@@ -1717,8 +1766,8 @@ class AssistProcessor {
   }
 
   void _addProposal_reparentFlutterWidget() {
-    InstanceCreationExpression newExpr = _identifyNewExpression();
-    if (newExpr == null || !_isFlutterInstanceCreationExpression(newExpr)) {
+    InstanceCreationExpression newExpr = identifyNewExpression(node);
+    if (newExpr == null || !isFlutterInstanceCreationExpression(newExpr)) {
       _coverageMarker();
       return;
     }
@@ -2300,29 +2349,6 @@ class AssistProcessor {
     }
   }
 
-  NamedExpression _findChildArgument(InstanceCreationExpression newExpr) =>
-      newExpr.argumentList.arguments.firstWhere(
-          (arg) => arg is NamedExpression && arg.name.label.name == 'child',
-          orElse: () => null);
-
-  InstanceCreationExpression _findChildWidget(
-      InstanceCreationExpression newExpr) {
-    NamedExpression child = _findChildArgument(newExpr);
-    return _getChildWidget(child);
-  }
-
-  InstanceCreationExpression _getChildWidget(NamedExpression child) {
-    if (child?.expression is InstanceCreationExpression) {
-      InstanceCreationExpression childNewExpr = child.expression;
-      if (_isFlutterInstanceCreationExpression(childNewExpr)) {
-        if (_findChildArgument(childNewExpr) != null) {
-          return childNewExpr;
-        }
-      }
-    }
-    return null;
-  }
-
   /**
    * Returns an existing or just added [LinkedEditGroup] with [groupId].
    */
@@ -2347,22 +2373,6 @@ class AssistProcessor {
    */
   String _getRangeText(SourceRange range) {
     return utils.getRangeText(range);
-  }
-
-  InstanceCreationExpression _identifyNewExpression() {
-    InstanceCreationExpression newExpr;
-    if (node is SimpleIdentifier) {
-      if (node.parent is ConstructorName &&
-          node.parent.parent is InstanceCreationExpression) {
-        newExpr = node.parent.parent;
-      } else if (node.parent?.parent is ConstructorName &&
-          node.parent.parent?.parent is InstanceCreationExpression) {
-        newExpr = node.parent.parent.parent;
-      }
-    } else if (node is InstanceCreationExpression) {
-      newExpr = node;
-    }
-    return newExpr;
   }
 
   /**
@@ -2391,24 +2401,6 @@ class AssistProcessor {
         exitPosition = _newPosition(exitOffset);
       }
     }
-  }
-
-  bool _isFlutterInstanceCreationExpression(
-      InstanceCreationExpression newExpr) {
-    ClassElement classElement = newExpr.staticElement?.enclosingElement;
-    InterfaceType superType = classElement?.allSupertypes?.firstWhere(
-        (InterfaceType type) => FLUTTER_WIDGET_NAME == type.name,
-        orElse: () => null);
-    if (superType == null) {
-      _coverageMarker();
-      return false;
-    }
-    Uri uri = superType.element?.source?.uri;
-    if (uri.toString() != FLUTTER_WIDGET_URI) {
-      _coverageMarker();
-      return false;
-    }
-    return true;
   }
 
   Position _newPosition(int offset) {

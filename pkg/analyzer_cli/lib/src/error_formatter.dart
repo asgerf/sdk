@@ -7,6 +7,7 @@ library analyzer_cli.src.error_formatter;
 import 'package:analyzer/error/error.dart';
 import 'package:analyzer/src/generated/engine.dart';
 import 'package:analyzer/src/generated/source.dart';
+import 'package:analyzer_cli/src/ansi.dart';
 import 'package:analyzer_cli/src/options.dart';
 import 'package:path/path.dart' as path;
 
@@ -103,11 +104,14 @@ class AnalysisStats {
 }
 
 /// Helper for formatting [AnalysisError]s.
+///
 /// The two format options are a user consumable format and a machine consumable
 /// format.
 class ErrorFormatter {
   static final int _pipeCodeUnit = '|'.codeUnitAt(0);
   static final int _slashCodeUnit = '\\'.codeUnitAt(0);
+  static final int _newline = '\n'.codeUnitAt(0);
+  static final int _return = '\r'.codeUnitAt(0);
 
   final StringSink out;
   final CommandLineOptions options;
@@ -115,8 +119,12 @@ class ErrorFormatter {
 
   final _SeverityProcessor processSeverity;
 
+  AnsiLogger ansi;
+
   ErrorFormatter(this.out, this.options, this.stats,
-      [this.processSeverity = _identity]);
+      [this.processSeverity = _identity]) {
+    ansi = new AnsiLogger(this.options.color);
+  }
 
   /// Compute the severity for this [error] or `null` if this error should be
   /// filtered.
@@ -144,7 +152,7 @@ class ErrorFormatter {
       out.write('|');
       out.write(error.errorCode.name);
       out.write('|');
-      out.write(escapePipe(source.fullName));
+      out.write(escapeForMachineMode(source.fullName));
       out.write('|');
       out.write(location.lineNumber);
       out.write('|');
@@ -152,7 +160,7 @@ class ErrorFormatter {
       out.write('|');
       out.write(length);
       out.write('|');
-      out.write(escapePipe(error.message));
+      out.write(escapeForMachineMode(error.message));
       out.writeln();
     } else {
       // Get display name.
@@ -166,15 +174,21 @@ class ErrorFormatter {
         }
       }
 
-      int indent = errorType.length + 3;
+      final int errLength = ErrorSeverity.WARNING.displayName.length;
+      final int indent = errLength + 5;
 
-      // [warning] 'foo' is not a bar at lib/foo.dart:1:2 (foo_warning).
+      // warning • 'foo' is not a bar at lib/foo.dart:1:2 • foo_warning
       String message = error.message;
       // Remove any terminating '.' from the end of the message.
       if (message.endsWith('.')) {
         message = message.substring(0, message.length - 1);
       }
-      out.write('[$errorType] $message ');
+      String issueColor =
+          (severity == ErrorSeverity.ERROR || severity == ErrorSeverity.WARNING)
+              ? ansi.red
+              : '';
+      out.write('  $issueColor${errorType.padLeft(errLength)}${ansi.none} '
+          '${ansi.bullet} ${ansi.bold}$message${ansi.none} ');
       String sourceName;
       if (source.uriKind == UriKind.DART_URI) {
         sourceName = source.uri.toString();
@@ -189,7 +203,7 @@ class ErrorFormatter {
       }
       out.write('at $sourceName');
       out.write(':${location.lineNumber}:${location.columnNumber} ');
-      out.write('(${error.errorCode.name.toLowerCase()}).');
+      out.write('${ansi.bullet} ${error.errorCode.name.toLowerCase()}');
       out.writeln();
 
       // If verbose, also print any associated correction.
@@ -252,13 +266,19 @@ class ErrorFormatter {
     }
   }
 
-  static String escapePipe(String input) {
+  static String escapeForMachineMode(String input) {
     StringBuffer result = new StringBuffer();
     for (int c in input.codeUnits) {
-      if (c == _slashCodeUnit || c == _pipeCodeUnit) {
-        result.write('\\');
+      if (c == _newline) {
+        result.write(r'\n');
+      } else if (c == _return) {
+        result.write(r'\r');
+      } else {
+        if (c == _slashCodeUnit || c == _pipeCodeUnit) {
+          result.write('\\');
+        }
+        result.writeCharCode(c);
       }
-      result.writeCharCode(c);
     }
     return result.toString();
   }

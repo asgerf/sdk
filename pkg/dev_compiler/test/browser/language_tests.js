@@ -221,16 +221,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'mint_arithmetic_test': fail,
       'mixin_forwarding_constructor3_test': fail,
       'mixin_implements_test': fail,
-      'mixin_issue10216_2_test': fail,
-      'mixin_mixin2_test': fail,
-      'mixin_mixin3_test': fail,
-      'mixin_mixin4_test': fail,
-      'mixin_mixin5_test': fail,
-      'mixin_mixin6_test': fail,
-      'mixin_mixin7_test': fail,
-      'mixin_mixin_bound2_test': fail,
-      'mixin_mixin_bound_test': fail,
-      'mixin_mixin_test': fail,
       'mixin_regress_13688_test': fail,
       'modulo_test': fail,
       'named_parameter_clash_test': fail,
@@ -327,6 +317,8 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'list_insert_all_test': whitelist,
       'list_replace_range_test': fail,
       'list_set_all_test': fail,
+      'list_test_01_multi': fail,
+      'list_test_none_multi': fail,
       'list_to_string2_test': fail,
       'main_test': fail,
       'map_keys2_test': fail,
@@ -346,6 +338,8 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'string_fromcharcodes_test': skip_timeout,
       'string_operations_with_null_test': fail,
       'string_split_test': whitelist,
+      'string_trimlr_test_01_multi': is.chrome('<=58') ? fail : pass,
+      'string_trimlr_test_none_multi': is.chrome('<=58') ? fail : pass,
       'symbol_reserved_word_test_06_multi': fail,
       'symbol_reserved_word_test_09_multi': fail,
       'symbol_reserved_word_test_12_multi': fail,
@@ -355,7 +349,10 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       // TODO(rnystrom): Times out because it tests a huge number of
       // combinations of URLs (4 * 5 * 5 * 8 * 6 * 6 * 4 = 115200).
       'uri_parse_test': skip_timeout,
-      'uri_test': 'slow',
+
+      // this is timing out on Chrome Canary only
+      // pinning this skip in case it's a transient canary issue
+      'uri_test': is.chrome('59') ? ['skip'] : ['slow'],
 
       'list_insert_test': fail,
       'list_removeat_test': fail,
@@ -416,7 +413,10 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'custom_element_name_clash_test': async_unittest,
       'custom_elements_23127_test': async_unittest,
       'custom_elements_test': async_unittest,
-      'debugger_test': firefox_fail,
+
+      // TODO(jmesserly): investigate the change here; it is likely due to
+      // different reified types affecting the (gigantic) HTML literal
+      'debugger_test': fail, // firefox_fail
       'element_animate_test': 'unittest',
 
       // https://github.com/dart-lang/sdk/issues/27579.
@@ -462,15 +462,26 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'mediasource_test': 'fail',
       'media_stream_test': 'fail',
 
+      // https://github.com/dart-lang/sdk/issues/29071
+      'messageevent_test': firefox_fail,
+
       'mutationobserver_test': async_unittest,
       'native_gc_test': async_unittest,
       'postmessage_structured_test': async_unittest,
-      'queryall_test': ['slow'], // see sdk #27794
+
+      // this is timing out on Chrome Canary only
+      // pinning this skip in case it's a transient canary issue
+      'queryall_test': is.chrome('59') ? ['skip'] : ['slow'], // see sdk #27794
+
       'request_animation_frame_test': async_unittest,
       'resource_http_test': async_unittest,
 
       // was https://github.com/dart-lang/sdk/issues/27578, needs triage
       'rtc_test': is.chrome('<=55') ? fail : pass,
+
+      // https://github.com/dart-lang/sdk/issues/29071
+      'serialized_script_value_test': firefox_fail,
+
       'shadow_dom_test': firefox_fail,
 
       // was https://github.com/dart-lang/sdk/issues/27578, needs triage

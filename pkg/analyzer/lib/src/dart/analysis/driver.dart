@@ -68,11 +68,11 @@ import 'package:meta/meta.dart';
  *
  * TODO(scheglov) Clean up the list of implicitly analyzed files.
  */
-class AnalysisDriver {
+class AnalysisDriver implements AnalysisDriverGeneric {
   /**
    * The version of data format, should be incremented on every format change.
    */
-  static const int DATA_VERSION = 25;
+  static const int DATA_VERSION = 27;
 
   /**
    * The number of exception contexts allowed to write. Once this field is
@@ -258,7 +258,7 @@ class AnalysisDriver {
         _sdkBundle = sdkBundle {
     _testView = new AnalysisDriverTestView(this);
     _createFileTracker(logger);
-    _scheduler._add(this);
+    _scheduler.add(this);
     _search = new Search(this);
   }
 
@@ -370,7 +370,7 @@ class AnalysisDriver {
   /**
    * Return the priority of work that the driver needs to perform.
    */
-  AnalysisDriverPriority get _workPriority {
+  AnalysisDriverPriority get workPriority {
     if (_requestedFiles.isNotEmpty) {
       return AnalysisDriverPriority.interactive;
     }
@@ -544,6 +544,13 @@ class AnalysisDriver {
     return completer.future;
   }
 
+  ApiSignature getResolvedUnitKeyByPath(String path) {
+    ApiSignature signature = getUnitKeyByPath(path);
+    var file = fsState.getFileForPath(path);
+    signature.addString(file.contentHash);
+    return signature;
+  }
+
   /**
    * Return a [Future] that completes with a [AnalysisResult] for the Dart
    * file with the given [path]. If the file is not a Dart file or cannot
@@ -647,6 +654,14 @@ class AnalysisDriver {
     return completer.future;
   }
 
+  ApiSignature getUnitKeyByPath(String path) {
+    var file = fsState.getFileForPath(path);
+    ApiSignature signature = new ApiSignature();
+    signature.addUint32List(_salt);
+    signature.addString(file.transitiveSignature);
+    return signature;
+  }
+
   /**
    * Return a [Future] that completes with a [ParseResult] for the file
    * with the given [path].
@@ -665,6 +680,186 @@ class AnalysisDriver {
     CompilationUnit unit = file.parse(listener);
     return new ParseResult(file.path, file.uri, file.content, file.contentHash,
         unit.lineInfo, unit, listener.errors);
+  }
+
+  /**
+   * Perform a single chunk of work and produce [results].
+   */
+  Future<Null> performWork() async {
+    if (_fileTracker.verifyChangedFilesIfNeeded()) {
+      return;
+    }
+
+    // Analyze a requested file.
+    if (_requestedFiles.isNotEmpty) {
+      String path = _requestedFiles.keys.first;
+      try {
+        AnalysisResult result = _computeAnalysisResult(path, withUnit: true);
+        // If a part without a library, delay its analysis.
+        if (result == null) {
+          _requestedParts
+              .putIfAbsent(path, () => [])
+              .addAll(_requestedFiles.remove(path));
+          return;
+        }
+        // Notify the completers.
+        _requestedFiles.remove(path).forEach((completer) {
+          completer.complete(result);
+        });
+        // Remove from to be analyzed and produce it now.
+        _fileTracker.fileWasAnalyzed(path);
+        _resultController.add(result);
+      } catch (exception, stackTrace) {
+        _fileTracker.fileWasAnalyzed(path);
+        _requestedFiles.remove(path).forEach((completer) {
+          completer.completeError(exception, stackTrace);
+        });
+      }
+      return;
+    }
+
+    // Process an index request.
+    if (_indexRequestedFiles.isNotEmpty) {
+      String path = _indexRequestedFiles.keys.first;
+      AnalysisDriverUnitIndex index = _computeIndex(path);
+      _indexRequestedFiles.remove(path).forEach((completer) {
+        completer.complete(index);
+      });
+      return;
+    }
+
+    // Process a unit element key request.
+    if (_unitElementSignatureRequests.isNotEmpty) {
+      String path = _unitElementSignatureRequests.keys.first;
+      String signature = _computeUnitElementSignature(path);
+      _unitElementSignatureRequests.remove(path).forEach((completer) {
+        completer.complete(signature);
+      });
+      return;
+    }
+
+    // Process a unit element request.
+    if (_unitElementRequestedFiles.isNotEmpty) {
+      String path = _unitElementRequestedFiles.keys.first;
+      UnitElementResult result = _computeUnitElement(path);
+      _unitElementRequestedFiles.remove(path).forEach((completer) {
+        completer.complete(result);
+      });
+      return;
+    }
+
+    // Compute files defining a name.
+    if (_definingClassMemberNameTasks.isNotEmpty) {
+      _FilesDefiningClassMemberNameTask task =
+          _definingClassMemberNameTasks.first;
+      bool isDone = await task.perform();
+      if (isDone) {
+        _definingClassMemberNameTasks.remove(task);
+      }
+      return;
+    }
+
+    // Compute files referencing a name.
+    if (_referencingNameTasks.isNotEmpty) {
+      _FilesReferencingNameTask task = _referencingNameTasks.first;
+      bool isDone = await task.perform();
+      if (isDone) {
+        _referencingNameTasks.remove(task);
+      }
+      return;
+    }
+
+    // Compute top-level declarations.
+    if (_topLevelNameDeclarationsTasks.isNotEmpty) {
+      _TopLevelNameDeclarationsTask task = _topLevelNameDeclarationsTasks.first;
+      bool isDone = await task.perform();
+      if (isDone) {
+        _topLevelNameDeclarationsTasks.remove(task);
+      }
+      return;
+    }
+
+    // Analyze a priority file.
+    if (_priorityFiles.isNotEmpty) {
+      for (String path in _priorityFiles) {
+        if (_fileTracker.isFilePending(path)) {
+          try {
+            AnalysisResult result =
+                _computeAnalysisResult(path, withUnit: true);
+            if (result == null) {
+              _partsToAnalyze.add(path);
+            } else {
+              _resultController.add(result);
+            }
+          } catch (exception, stackTrace) {
+            _reportException(path, exception, stackTrace);
+          } finally {
+            _fileTracker.fileWasAnalyzed(path);
+          }
+          return;
+        }
+      }
+    }
+
+    // Analyze a general file.
+    if (_fileTracker.hasPendingFiles) {
+      String path = _fileTracker.anyPendingFile;
+      try {
+        AnalysisResult result = _computeAnalysisResult(path,
+            withUnit: false, skipIfSameSignature: true);
+        if (result == null) {
+          _partsToAnalyze.add(path);
+        } else if (result == AnalysisResult._UNCHANGED) {
+          // We found that the set of errors is the same as we produced the
+          // last time, so we don't need to produce it again now.
+        } else {
+          _resultController.add(result);
+          _lastProducedSignatures[result.path] = result._signature;
+        }
+      } catch (exception, stackTrace) {
+        _reportException(path, exception, stackTrace);
+      } finally {
+        _fileTracker.fileWasAnalyzed(path);
+      }
+      return;
+    }
+
+    // Analyze a requested part file.
+    if (_requestedParts.isNotEmpty) {
+      String path = _requestedParts.keys.first;
+      try {
+        AnalysisResult result = _computeAnalysisResult(path,
+            withUnit: true, asIsIfPartWithoutLibrary: true);
+        // Notify the completers.
+        _requestedParts.remove(path).forEach((completer) {
+          completer.complete(result);
+        });
+        // Remove from to be analyzed and produce it now.
+        _partsToAnalyze.remove(path);
+        _resultController.add(result);
+      } catch (exception, stackTrace) {
+        _partsToAnalyze.remove(path);
+        _requestedParts.remove(path).forEach((completer) {
+          completer.completeError(exception, stackTrace);
+        });
+      }
+      return;
+    }
+
+    // Analyze a general part.
+    if (_partsToAnalyze.isNotEmpty) {
+      String path = _partsToAnalyze.first;
+      _partsToAnalyze.remove(path);
+      try {
+        AnalysisResult result = _computeAnalysisResult(path,
+            withUnit: _priorityFiles.contains(path),
+            asIsIfPartWithoutLibrary: true);
+        _resultController.add(result);
+      } catch (exception, stackTrace) {
+        _reportException(path, exception, stackTrace);
+      }
+      return;
+    }
   }
 
   /**
@@ -909,8 +1104,13 @@ class AnalysisDriver {
         // errors were written.
         throw new StateError('No ErrorCode for $errorName in $file');
       }
-      return new AnalysisError.forValues(file.source, error.offset,
-          error.length, errorCode, error.message, error.correction);
+      return new AnalysisError.forValues(
+          file.source,
+          error.offset,
+          error.length,
+          errorCode,
+          error.message,
+          error.correction.isEmpty ? null : error.correction);
     }).toList();
   }
 
@@ -949,186 +1149,6 @@ class AnalysisDriver {
       }
     }
     return null;
-  }
-
-  /**
-   * Perform a single chunk of work and produce [results].
-   */
-  Future<Null> _performWork() async {
-    if (_fileTracker.verifyChangedFilesIfNeeded()) {
-      return;
-    }
-
-    // Analyze a requested file.
-    if (_requestedFiles.isNotEmpty) {
-      String path = _requestedFiles.keys.first;
-      try {
-        AnalysisResult result = _computeAnalysisResult(path, withUnit: true);
-        // If a part without a library, delay its analysis.
-        if (result == null) {
-          _requestedParts
-              .putIfAbsent(path, () => [])
-              .addAll(_requestedFiles.remove(path));
-          return;
-        }
-        // Notify the completers.
-        _requestedFiles.remove(path).forEach((completer) {
-          completer.complete(result);
-        });
-        // Remove from to be analyzed and produce it now.
-        _fileTracker.fileWasAnalyzed(path);
-        _resultController.add(result);
-      } catch (exception, stackTrace) {
-        _fileTracker.fileWasAnalyzed(path);
-        _requestedFiles.remove(path).forEach((completer) {
-          completer.completeError(exception, stackTrace);
-        });
-      }
-      return;
-    }
-
-    // Process an index request.
-    if (_indexRequestedFiles.isNotEmpty) {
-      String path = _indexRequestedFiles.keys.first;
-      AnalysisDriverUnitIndex index = _computeIndex(path);
-      _indexRequestedFiles.remove(path).forEach((completer) {
-        completer.complete(index);
-      });
-      return;
-    }
-
-    // Process a unit element key request.
-    if (_unitElementSignatureRequests.isNotEmpty) {
-      String path = _unitElementSignatureRequests.keys.first;
-      String signature = _computeUnitElementSignature(path);
-      _unitElementSignatureRequests.remove(path).forEach((completer) {
-        completer.complete(signature);
-      });
-      return;
-    }
-
-    // Process a unit element request.
-    if (_unitElementRequestedFiles.isNotEmpty) {
-      String path = _unitElementRequestedFiles.keys.first;
-      UnitElementResult result = _computeUnitElement(path);
-      _unitElementRequestedFiles.remove(path).forEach((completer) {
-        completer.complete(result);
-      });
-      return;
-    }
-
-    // Compute files defining a name.
-    if (_definingClassMemberNameTasks.isNotEmpty) {
-      _FilesDefiningClassMemberNameTask task =
-          _definingClassMemberNameTasks.first;
-      bool isDone = await task.perform();
-      if (isDone) {
-        _definingClassMemberNameTasks.remove(task);
-      }
-      return;
-    }
-
-    // Compute files referencing a name.
-    if (_referencingNameTasks.isNotEmpty) {
-      _FilesReferencingNameTask task = _referencingNameTasks.first;
-      bool isDone = await task.perform();
-      if (isDone) {
-        _referencingNameTasks.remove(task);
-      }
-      return;
-    }
-
-    // Compute top-level declarations.
-    if (_topLevelNameDeclarationsTasks.isNotEmpty) {
-      _TopLevelNameDeclarationsTask task = _topLevelNameDeclarationsTasks.first;
-      bool isDone = await task.perform();
-      if (isDone) {
-        _topLevelNameDeclarationsTasks.remove(task);
-      }
-      return;
-    }
-
-    // Analyze a priority file.
-    if (_priorityFiles.isNotEmpty) {
-      for (String path in _priorityFiles) {
-        if (_fileTracker.isFilePending(path)) {
-          try {
-            AnalysisResult result =
-                _computeAnalysisResult(path, withUnit: true);
-            if (result == null) {
-              _partsToAnalyze.add(path);
-            } else {
-              _resultController.add(result);
-            }
-          } catch (exception, stackTrace) {
-            _reportException(path, exception, stackTrace);
-          } finally {
-            _fileTracker.fileWasAnalyzed(path);
-          }
-          return;
-        }
-      }
-    }
-
-    // Analyze a general file.
-    if (_fileTracker.hasPendingFiles) {
-      String path = _fileTracker.anyPendingFile;
-      try {
-        AnalysisResult result = _computeAnalysisResult(path,
-            withUnit: false, skipIfSameSignature: true);
-        if (result == null) {
-          _partsToAnalyze.add(path);
-        } else if (result == AnalysisResult._UNCHANGED) {
-          // We found that the set of errors is the same as we produced the
-          // last time, so we don't need to produce it again now.
-        } else {
-          _resultController.add(result);
-          _lastProducedSignatures[result.path] = result._signature;
-        }
-      } catch (exception, stackTrace) {
-        _reportException(path, exception, stackTrace);
-      } finally {
-        _fileTracker.fileWasAnalyzed(path);
-      }
-      return;
-    }
-
-    // Analyze a requested part file.
-    if (_requestedParts.isNotEmpty) {
-      String path = _requestedParts.keys.first;
-      try {
-        AnalysisResult result = _computeAnalysisResult(path,
-            withUnit: true, asIsIfPartWithoutLibrary: true);
-        // Notify the completers.
-        _requestedParts.remove(path).forEach((completer) {
-          completer.complete(result);
-        });
-        // Remove from to be analyzed and produce it now.
-        _partsToAnalyze.remove(path);
-        _resultController.add(result);
-      } catch (exception, stackTrace) {
-        _partsToAnalyze.remove(path);
-        _requestedParts.remove(path).forEach((completer) {
-          completer.completeError(exception, stackTrace);
-        });
-      }
-      return;
-    }
-
-    // Analyze a general part.
-    if (_partsToAnalyze.isNotEmpty) {
-      String path = _partsToAnalyze.first;
-      _partsToAnalyze.remove(path);
-      try {
-        AnalysisResult result = _computeAnalysisResult(path,
-            withUnit: _priorityFiles.contains(path),
-            asIsIfPartWithoutLibrary: true);
-        _resultController.add(result);
-      } catch (exception, stackTrace) {
-        _reportException(path, exception, stackTrace);
-      }
-      return;
-    }
   }
 
   void _reportException(String path, exception, StackTrace stackTrace) {
@@ -1213,6 +1233,18 @@ class AnalysisDriver {
 }
 
 /**
+ * A generic schedulable interface via the AnalysisDriverScheduler. Currently
+ * only implemented by [AnalysisDriver] and the angular plugin, at least as
+ * a temporary measure until the official plugin API is ready (and a different
+ * scheduler is used)
+ */
+abstract class AnalysisDriverGeneric {
+  bool get hasFilesToAnalyze;
+  AnalysisDriverPriority get workPriority;
+  Future<Null> performWork();
+}
+
+/**
  * Priorities of [AnalysisDriver] work. The farther a priority to the beginning
  * of the list, the earlier the corresponding [AnalysisDriver] should be asked
  * to perform work.
@@ -1246,7 +1278,7 @@ class AnalysisDriverScheduler {
   static const int _NUMBER_OF_EVENT_QUEUE_PUMPINGS = 128;
 
   final PerformanceLog _logger;
-  final List<AnalysisDriver> _drivers = [];
+  final List<AnalysisDriverGeneric> _drivers = [];
   final Monitor _hasWork = new Monitor();
   final StatusSupport _statusSupport = new StatusSupport();
 
@@ -1268,7 +1300,7 @@ class AnalysisDriverScheduler {
    * Return `true` if there is a driver with a file to analyze.
    */
   bool get _hasFilesToAnalyze {
-    for (AnalysisDriver driver in _drivers) {
+    for (AnalysisDriverGeneric driver in _drivers) {
       if (driver.hasFilesToAnalyze) {
         return true;
       }
@@ -1277,10 +1309,18 @@ class AnalysisDriverScheduler {
   }
 
   /**
+   * Add the given [driver] and schedule it to perform its work.
+   */
+  void add(AnalysisDriverGeneric driver) {
+    _drivers.add(driver);
+    _hasWork.notify();
+  }
+
+  /**
    * Notify that there is a change to the [driver], it it might need to
    * perform some work.
    */
-  void notify(AnalysisDriver driver) {
+  void notify(AnalysisDriverGeneric driver) {
     _hasWork.notify();
     _statusSupport.preTransitionToAnalyzing();
   }
@@ -1306,18 +1346,10 @@ class AnalysisDriverScheduler {
   Future<Null> waitForIdle() => _statusSupport.waitForIdle();
 
   /**
-   * Add the given [driver] and schedule it to perform its work.
-   */
-  void _add(AnalysisDriver driver) {
-    _drivers.add(driver);
-    _hasWork.notify();
-  }
-
-  /**
    * Remove the given [driver] from the scheduler, so that it will not be
    * asked to perform any new work.
    */
-  void _remove(AnalysisDriver driver) {
+  void _remove(AnalysisDriverGeneric driver) {
     _drivers.remove(driver);
     _hasWork.notify();
   }
@@ -1345,10 +1377,10 @@ class AnalysisDriverScheduler {
       }
 
       // Find the driver with the highest priority.
-      AnalysisDriver bestDriver;
+      AnalysisDriverGeneric bestDriver;
       AnalysisDriverPriority bestPriority = AnalysisDriverPriority.nothing;
       for (AnalysisDriver driver in _drivers) {
-        AnalysisDriverPriority priority = driver._workPriority;
+        AnalysisDriverPriority priority = driver.workPriority;
         if (priority.index > bestPriority.index) {
           bestDriver = driver;
           bestPriority = priority;
@@ -1368,7 +1400,7 @@ class AnalysisDriverScheduler {
       }
 
       // Ask the driver to perform a chunk of work.
-      await bestDriver._performWork();
+      await bestDriver.performWork();
 
       // Schedule one more cycle.
       _hasWork.notify();

@@ -25,6 +25,7 @@ import 'package:test/test.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 
 import '../../abstract_single_unit.dart';
+import 'flutter_util.dart';
 
 main() {
   defineReflectiveSuite(() {
@@ -43,24 +44,6 @@ class AssistProcessorTest extends AbstractSingleUnitTest {
   SourceChange change;
   String resultCode;
   LinkedEditGroup linkedPositionGroup;
-
-  String flutterPkgLibPath = '/packages/flutter/lib';
-
-  String get _flutter_framework_code => '''
-class Widget {}
-class RenderObjectWidget extends Widget {}
-class StatelessWidget extends Widget {}
-class SingleChildRenderObjectWidget extends RenderObjectWidget {}
-class Transform extends SingleChildRenderObjectWidget {}
-class ClipRect extends SingleChildRenderObjectWidget { ClipRect.rect(){} }
-class AspectRatio extends SingleChildRenderObjectWidget {}
-class Container extends StatelessWidget { Container({child: null, width: null, height: null}){}}
-class Center extends StatelessWidget { Center({child: null, key: null}){}}
-class DefaultTextStyle extends StatelessWidget { DefaultTextStyle({child: null}){}}
-class Row extends Widget { Row({children: null}){}}
-class GestureDetector extends SingleChildRenderObjectWidget { GestureDetector({child: null, onTap: null}){}}
-class Scaffold extends Widget { Scaffold({body: null}){}}
-''';
 
   /**
    * Asserts that there is an [Assist] of the given [kind] at [offset] which
@@ -1032,6 +1015,129 @@ class A {
   /// BBBBBBBB BBBB BBBB
   /// CCC [A] CCCCCCCCCCC
   mmm() {}
+}
+''');
+  }
+
+  test_convertFlutterChild_OK_multiLine() async {
+    _configureFlutterPkg({
+      'src/widgets/framework.dart': flutter_framework_code,
+    });
+    await resolveTestUnit('''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+// start
+    body: new Center(
+      /*caret*/child: new Container(
+        width: 200.0,
+        height: 300.0,
+      ),
+      key: null,
+    ),
+// end
+  );
+}
+''');
+    _setCaretLocation();
+    await assertHasAssist(
+        DartAssistKind.CONVERT_FLUTTER_CHILD,
+        '''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+// start
+    body: new Center(
+      /*caret*/children: <Widget>[
+        new Container(
+          width: 200.0,
+          height: 300.0,
+        ),
+      ],
+      key: null,
+    ),
+// end
+  );
+}
+''');
+  }
+
+  test_convertFlutterChild_OK_newlineChild() async {
+    // This case could occur with deeply nested constructors, common in Flutter.
+    _configureFlutterPkg({
+      'src/widgets/framework.dart': flutter_framework_code,
+    });
+    await resolveTestUnit('''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+// start
+    body: new Center(
+      /*caret*/child:
+          new Container(
+        width: 200.0,
+        height: 300.0,
+      ),
+      key: null,
+    ),
+// end
+  );
+}
+''');
+    _setCaretLocation();
+    await assertHasAssist(
+        DartAssistKind.CONVERT_FLUTTER_CHILD,
+        '''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+// start
+    body: new Center(
+      /*caret*/children: <Widget>[
+        new Container(
+          width: 200.0,
+          height: 300.0,
+        ),
+      ],
+      key: null,
+    ),
+// end
+  );
+}
+''');
+  }
+
+  test_convertFlutterChild_OK_singleLine() async {
+    _configureFlutterPkg({
+      'src/widgets/framework.dart': flutter_framework_code,
+    });
+    await resolveTestUnit('''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+// start
+    body: new Center(
+      /*caret*/child: new GestureDetector(),
+      key: null,
+    ),
+// end
+  );
+}
+''');
+    _setCaretLocation();
+    await assertHasAssist(
+        DartAssistKind.CONVERT_FLUTTER_CHILD,
+        '''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+// start
+    body: new Center(
+      /*caret*/children: <Widget>[new GestureDetector()],
+      key: null,
+    ),
+// end
+  );
 }
 ''');
   }
@@ -3502,6 +3608,104 @@ main() {
 ''');
   }
 
+  test_moveFlutterWidgetDown_OK() async {
+    _configureFlutterPkg({
+      'src/widgets/framework.dart': flutter_framework_code,
+    });
+    await resolveTestUnit('''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+// start
+    body: new /*caret*/GestureDetector(
+      onTap: () => startResize(),
+      child: new Center(
+        child: new Container(
+          width: 200.0,
+          height: 300.0,
+        ),
+        key: null,
+      ),
+    ),
+// end
+  );
+}
+startResize() {}
+''');
+    _setCaretLocation();
+    await assertHasAssist(
+        DartAssistKind.MOVE_FLUTTER_WIDGET_DOWN,
+        '''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+// start
+    body: new Center(
+      child: new /*caret*/GestureDetector(
+        onTap: () => startResize(),
+        child: new Container(
+          width: 200.0,
+          height: 300.0,
+        ),
+      ),
+      key: null,
+    ),
+// end
+  );
+}
+startResize() {}
+''');
+  }
+
+  test_moveFlutterWidgetUp_OK() async {
+    _configureFlutterPkg({
+      'src/widgets/framework.dart': flutter_framework_code,
+    });
+    await resolveTestUnit('''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+// start
+    body: new Center(
+      child: new /*caret*/GestureDetector(
+        onTap: () => startResize(),
+        child: new Container(
+          width: 200.0,
+          height: 300.0,
+        ),
+      ),
+      key: null,
+    ),
+// end
+  );
+}
+startResize() {}
+''');
+    _setCaretLocation();
+    await assertHasAssist(
+        DartAssistKind.MOVE_FLUTTER_WIDGET_UP,
+        '''
+import 'package:flutter/src/widgets/framework.dart';
+build() {
+  return new Scaffold(
+// start
+    body: new /*caret*/GestureDetector(
+      onTap: () => startResize(),
+      child: new Center(
+        child: new Container(
+          width: 200.0,
+          height: 300.0,
+        ),
+        key: null,
+      ),
+    ),
+// end
+  );
+}
+startResize() {}
+''');
+  }
+
   test_removeTypeAnnotation_classField_OK() async {
     await resolveTestUnit('''
 class A {
@@ -3625,7 +3829,7 @@ final V = 1;
 
   test_reparentFlutterList_BAD_multiLine() async {
     _configureFlutterPkg({
-      'src/widgets/framework.dart': _flutter_framework_code,
+      'src/widgets/framework.dart': flutter_framework_code,
     });
     await resolveTestUnit('''
 import 'package:flutter/src/widgets/framework.dart';
@@ -3649,7 +3853,7 @@ build() {
 
   test_reparentFlutterList_BAD_singleLine() async {
     _configureFlutterPkg({
-      'src/widgets/framework.dart': _flutter_framework_code,
+      'src/widgets/framework.dart': flutter_framework_code,
     });
     await resolveTestUnit('''
 import 'package:flutter/src/widgets/framework.dart';
@@ -3666,107 +3870,9 @@ class FakeFlutter {
     await assertNoAssist(DartAssistKind.REPARENT_FLUTTER_LIST);
   }
 
-  test_moveFlutterWidgetDown_OK() async {
-    _configureFlutterPkg({
-      'src/widgets/framework.dart': _flutter_framework_code,
-    });
-    await resolveTestUnit('''
-import 'package:flutter/src/widgets/framework.dart';
-build() {
-  return new Scaffold(
-// start
-    body: new /*caret*/GestureDetector(
-      onTap: () => startResize(),
-      child: new Center(
-        child: new Container(
-          width: 200.0,
-          height: 300.0,
-        ),
-        key: null,
-      ),
-    ),
-// end
-  );
-}
-startResize() {}
-''');
-    _setCaretLocation();
-    await assertHasAssist(
-        DartAssistKind.MOVE_FLUTTER_WIDGET_DOWN,
-        '''
-import 'package:flutter/src/widgets/framework.dart';
-build() {
-  return new Scaffold(
-// start
-    body: new Center(
-      child: new /*caret*/GestureDetector(
-        onTap: () => startResize(),
-        child: new Container(
-          width: 200.0,
-          height: 300.0,
-        ),
-      ),
-      key: null,
-    ),
-// end
-  );
-}
-startResize() {}
-''');
-  }
-
-  test_moveFlutterWidgetUp_OK() async {
-    _configureFlutterPkg({
-      'src/widgets/framework.dart': _flutter_framework_code,
-    });
-    await resolveTestUnit('''
-import 'package:flutter/src/widgets/framework.dart';
-build() {
-  return new Scaffold(
-// start
-    body: new Center(
-      child: new /*caret*/GestureDetector(
-        onTap: () => startResize(),
-        child: new Container(
-          width: 200.0,
-          height: 300.0,
-        ),
-      ),
-      key: null,
-    ),
-// end
-  );
-}
-startResize() {}
-''');
-    _setCaretLocation();
-    await assertHasAssist(
-        DartAssistKind.MOVE_FLUTTER_WIDGET_UP,
-        '''
-import 'package:flutter/src/widgets/framework.dart';
-build() {
-  return new Scaffold(
-// start
-    body: new /*caret*/GestureDetector(
-      onTap: () => startResize(),
-      child: new Center(
-        child: new Container(
-          width: 200.0,
-          height: 300.0,
-        ),
-        key: null,
-      ),
-    ),
-// end
-  );
-}
-startResize() {}
-''');
-  }
-
   test_reparentFlutterList_OK_multiLine() async {
     _configureFlutterPkg({
-      'src/widgets/framework.dart': _flutter_framework_code,
+      'src/widgets/framework.dart': flutter_framework_code,
     });
     await resolveTestUnit('''
 import 'package:flutter/src/widgets/framework.dart';
@@ -3811,7 +3917,7 @@ build() {
 
   test_reparentFlutterWidget_BAD_minimal() async {
     _configureFlutterPkg({
-      'src/widgets/framework.dart': _flutter_framework_code,
+      'src/widgets/framework.dart': flutter_framework_code,
     });
     await resolveTestUnit('''
 /*caret*/x(){}
@@ -3822,7 +3928,7 @@ build() {
 
   test_reparentFlutterWidget_BAD_singleLine() async {
     _configureFlutterPkg({
-      'src/widgets/framework.dart': _flutter_framework_code,
+      'src/widgets/framework.dart': flutter_framework_code,
     });
     await resolveTestUnit('''
 import 'package:flutter/src/widgets/framework.dart';
@@ -3841,7 +3947,7 @@ class FakeFlutter {
 
   test_reparentFlutterWidget_OK_multiLines() async {
     _configureFlutterPkg({
-      'src/widgets/framework.dart': _flutter_framework_code,
+      'src/widgets/framework.dart': flutter_framework_code,
     });
     await resolveTestUnit('''
 import 'package:flutter/src/widgets/framework.dart';
@@ -3890,7 +3996,7 @@ class FakeFlutter {
 
   test_reparentFlutterWidget_OK_singleLine1() async {
     _configureFlutterPkg({
-      'src/widgets/framework.dart': _flutter_framework_code,
+      'src/widgets/framework.dart': flutter_framework_code,
     });
     await resolveTestUnit('''
 import 'package:flutter/src/widgets/framework.dart';
@@ -3919,7 +4025,7 @@ class FakeFlutter {
 
   test_reparentFlutterWidget_OK_singleLine2() async {
     _configureFlutterPkg({
-      'src/widgets/framework.dart': _flutter_framework_code,
+      'src/widgets/framework.dart': flutter_framework_code,
     });
     await resolveTestUnit('''
 import 'package:flutter/src/widgets/framework.dart';

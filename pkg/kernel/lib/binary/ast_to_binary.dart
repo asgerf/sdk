@@ -123,17 +123,6 @@ class BinaryPrinter extends Visitor {
     }
   }
 
-  void writeOptionalInferredValue(InferredValue node) {
-    if (node == null) {
-      writeByte(Tag.Nothing);
-    } else {
-      writeByte(Tag.Something);
-      writeClassReference(node.baseClass, allowNull: true);
-      writeByte(node.baseClassKind.index);
-      writeByte(node.valueBits);
-    }
-  }
-
   void writeLinkTable(Program program) {
     List<CanonicalName> list = <CanonicalName>[];
     void visitCanonicalName(CanonicalName node) {
@@ -222,7 +211,7 @@ class BinaryPrinter extends Visitor {
     writeCanonicalNameReference(node.canonicalName);
   }
 
-  writeOffset(TreeNode node, int offset) {
+  writeOffset(int offset) {
     // TODO(jensj): Delta-encoding.
     // File offset ranges from -1 and up,
     // but is here saved as unsigned (thus the +1)
@@ -306,7 +295,7 @@ class BinaryPrinter extends Visitor {
     }
     writeByte(Tag.Class);
     writeCanonicalNameReference(getCanonicalNameOfClass(node));
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeByte(flags);
     writeStringReference(node.name ?? '');
     writeUriReference(node.fileUri ?? '');
@@ -331,8 +320,8 @@ class BinaryPrinter extends Visitor {
     _variableIndexer = new VariableIndexer();
     writeByte(Tag.Constructor);
     writeCanonicalNameReference(getCanonicalNameOfMember(node));
-    writeOffset(node, node.fileOffset);
-    writeOffset(node, node.fileEndOffset);
+    writeOffset(node.fileOffset);
+    writeOffset(node.fileEndOffset);
     writeByte(node.flags);
     writeName(node.name ?? _emptyName);
     writeAnnotationList(node.annotations);
@@ -352,8 +341,8 @@ class BinaryPrinter extends Visitor {
     _variableIndexer = new VariableIndexer();
     writeByte(Tag.Procedure);
     writeCanonicalNameReference(getCanonicalNameOfMember(node));
-    writeOffset(node, node.fileOffset);
-    writeOffset(node, node.fileEndOffset);
+    writeOffset(node.fileOffset);
+    writeOffset(node.fileEndOffset);
     writeByte(node.kind.index);
     writeByte(node.flags);
     writeName(node.name ?? '');
@@ -370,47 +359,46 @@ class BinaryPrinter extends Visitor {
     _variableIndexer = new VariableIndexer();
     writeByte(Tag.Field);
     writeCanonicalNameReference(getCanonicalNameOfMember(node));
-    writeOffset(node, node.fileOffset);
-    writeOffset(node, node.fileEndOffset);
+    writeOffset(node.fileOffset);
+    writeOffset(node.fileEndOffset);
     writeByte(node.flags);
     writeName(node.name);
     writeUriReference(node.fileUri ?? '');
     writeAnnotationList(node.annotations);
     writeNode(node.type);
-    writeOptionalInferredValue(node.inferredValue);
     writeOptionalNode(node.initializer);
     _variableIndexer = null;
   }
 
   visitInvalidInitializer(InvalidInitializer node) {
     writeByte(Tag.InvalidInitializer);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
   }
 
   visitFieldInitializer(FieldInitializer node) {
     writeByte(Tag.FieldInitializer);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeReference(node.fieldReference);
     writeNode(node.value);
   }
 
   visitSuperInitializer(SuperInitializer node) {
     writeByte(Tag.SuperInitializer);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.arguments);
   }
 
   visitRedirectingInitializer(RedirectingInitializer node) {
     writeByte(Tag.RedirectingInitializer);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.arguments);
   }
 
   visitLocalInitializer(LocalInitializer node) {
     writeByte(Tag.LocalInitializer);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeVariableDeclaration(node.variable);
   }
 
@@ -423,8 +411,8 @@ class BinaryPrinter extends Visitor {
     _switchCaseIndexer = new SwitchCaseIndexer();
     // Note: FunctionNode has no tag.
     _typeParameterIndexer.enter(node.typeParameters);
-    writeOffset(node, node.fileOffset);
-    writeOffset(node, node.fileEndOffset);
+    writeOffset(node.fileOffset);
+    writeOffset(node.fileEndOffset);
     writeByte(node.asyncMarker.index);
     writeByte(node.dartAsyncMarker.index);
     writeNodeList(node.typeParameters);
@@ -432,7 +420,6 @@ class BinaryPrinter extends Visitor {
     writeVariableDeclarationList(node.positionalParameters);
     writeVariableDeclarationList(node.namedParameters);
     writeNode(node.returnType);
-    writeOptionalInferredValue(node.inferredReturnValue);
     writeOptionalNode(node.body);
     _labelIndexer = oldLabels;
     _switchCaseIndexer = oldCases;
@@ -456,10 +443,10 @@ class BinaryPrinter extends Visitor {
     if (index & Tag.SpecializedPayloadMask == index &&
         node.promotedType == null) {
       writeByte(Tag.SpecializedVariableGet + index);
-      writeOffset(node, node.fileOffset);
+      writeOffset(node.fileOffset);
     } else {
       writeByte(Tag.VariableGet);
-      writeOffset(node, node.fileOffset);
+      writeOffset(node.fileOffset);
       writeUInt30(_variableIndexer[node.variable]);
       writeOptionalNode(node.promotedType);
     }
@@ -471,11 +458,11 @@ class BinaryPrinter extends Visitor {
     int index = _variableIndexer[node.variable];
     if (index & Tag.SpecializedPayloadMask == index) {
       writeByte(Tag.SpecializedVariableSet + index);
-      writeOffset(node, node.fileOffset);
+      writeOffset(node.fileOffset);
       writeNode(node.value);
     } else {
       writeByte(Tag.VariableSet);
-      writeOffset(node, node.fileOffset);
+      writeOffset(node.fileOffset);
       writeUInt30(_variableIndexer[node.variable]);
       writeNode(node.value);
     }
@@ -484,7 +471,7 @@ class BinaryPrinter extends Visitor {
 
   visitPropertyGet(PropertyGet node) {
     writeByte(Tag.PropertyGet);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeNode(node.receiver);
     writeName(node.name);
     writeReference(node.interfaceTargetReference);
@@ -493,7 +480,7 @@ class BinaryPrinter extends Visitor {
 
   visitPropertySet(PropertySet node) {
     writeByte(Tag.PropertySet);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeNode(node.receiver);
     writeName(node.name);
     writeNode(node.value);
@@ -518,6 +505,7 @@ class BinaryPrinter extends Visitor {
 
   visitDirectPropertyGet(DirectPropertyGet node) {
     writeByte(Tag.DirectPropertyGet);
+    writeOffset(node.fileOffset);
     writeNode(node.receiver);
     writeReference(node.targetReference);
     writeInferredValueOffset(node.inferredValueOffset);
@@ -525,6 +513,7 @@ class BinaryPrinter extends Visitor {
 
   visitDirectPropertySet(DirectPropertySet node) {
     writeByte(Tag.DirectPropertySet);
+    writeOffset(node.fileOffset);
     writeNode(node.receiver);
     writeReference(node.targetReference);
     writeNode(node.value);
@@ -533,14 +522,14 @@ class BinaryPrinter extends Visitor {
 
   visitStaticGet(StaticGet node) {
     writeByte(Tag.StaticGet);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeReference(node.targetReference);
     writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitStaticSet(StaticSet node) {
     writeByte(Tag.StaticSet);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.value);
     writeInferredValueOffset(node.inferredValueOffset);
@@ -548,7 +537,7 @@ class BinaryPrinter extends Visitor {
 
   visitMethodInvocation(MethodInvocation node) {
     writeByte(Tag.MethodInvocation);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeNode(node.receiver);
     writeName(node.name);
     writeNode(node.arguments);
@@ -558,7 +547,7 @@ class BinaryPrinter extends Visitor {
 
   visitSuperMethodInvocation(SuperMethodInvocation node) {
     writeByte(Tag.SuperMethodInvocation);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeName(node.name);
     writeNode(node.arguments);
     writeReference(node.interfaceTargetReference);
@@ -575,7 +564,7 @@ class BinaryPrinter extends Visitor {
 
   visitStaticInvocation(StaticInvocation node) {
     writeByte(node.isConst ? Tag.ConstStaticInvocation : Tag.StaticInvocation);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.arguments);
     writeInferredValueOffset(node.inferredValueOffset);
@@ -585,7 +574,7 @@ class BinaryPrinter extends Visitor {
     writeByte(node.isConst
         ? Tag.ConstConstructorInvocation
         : Tag.ConstructorInvocation);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.arguments);
     writeInferredValueOffset(node.inferredValueOffset);
@@ -638,14 +627,14 @@ class BinaryPrinter extends Visitor {
 
   visitStringConcatenation(StringConcatenation node) {
     writeByte(Tag.StringConcatenation);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeNodeList(node.expressions);
     writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitIsExpression(IsExpression node) {
     writeByte(Tag.IsExpression);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeNode(node.operand);
     writeNode(node.type);
     writeInferredValueOffset(node.inferredValueOffset);
@@ -653,7 +642,7 @@ class BinaryPrinter extends Visitor {
 
   visitAsExpression(AsExpression node) {
     writeByte(Tag.AsExpression);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeNode(node.operand);
     writeNode(node.type);
     writeInferredValueOffset(node.inferredValueOffset);
@@ -723,20 +712,20 @@ class BinaryPrinter extends Visitor {
 
   visitRethrow(Rethrow node) {
     writeByte(Tag.Rethrow);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitThrow(Throw node) {
     writeByte(Tag.Throw);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeNode(node.expression);
     writeInferredValueOffset(node.inferredValueOffset);
   }
 
   visitListLiteral(ListLiteral node) {
     writeByte(node.isConst ? Tag.ConstListLiteral : Tag.ListLiteral);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeNode(node.typeArgument);
     writeNodeList(node.expressions);
     writeInferredValueOffset(node.inferredTypeArgumentOffset);
@@ -745,7 +734,7 @@ class BinaryPrinter extends Visitor {
 
   visitMapLiteral(MapLiteral node) {
     writeByte(node.isConst ? Tag.ConstMapLiteral : Tag.MapLiteral);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeNode(node.keyType);
     writeNode(node.valueType);
     writeNodeList(node.entries);
@@ -791,6 +780,29 @@ class BinaryPrinter extends Visitor {
     writeInferredValueOffset(node.inferredValueOffset);
   }
 
+  visitVectorCreation(VectorCreation node) {
+    writeByte(Tag.VectorCreation);
+    writeUInt30(node.length);
+  }
+
+  visitVectorGet(VectorGet node) {
+    writeByte(Tag.VectorGet);
+    writeNode(node.vectorExpression);
+    writeUInt30(node.index);
+  }
+
+  visitVectorSet(VectorSet node) {
+    writeByte(Tag.VectorSet);
+    writeNode(node.vectorExpression);
+    writeUInt30(node.index);
+    writeNode(node.value);
+  }
+
+  visitVectorCopy(VectorCopy node) {
+    writeByte(Tag.VectorCopy);
+    writeNode(node.vectorExpression);
+  }
+
   writeStatementOrEmpty(Statement node) {
     if (node == null) {
       writeByte(Tag.EmptyStatement);
@@ -834,7 +846,7 @@ class BinaryPrinter extends Visitor {
 
   visitBreakStatement(BreakStatement node) {
     writeByte(Tag.BreakStatement);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeUInt30(_labelIndexer[node.target]);
   }
 
@@ -863,6 +875,7 @@ class BinaryPrinter extends Visitor {
   visitForInStatement(ForInStatement node) {
     _variableIndexer.pushScope();
     writeByte(node.isAsync ? Tag.AsyncForInStatement : Tag.ForInStatement);
+    writeOffset(node.fileOffset);
     writeVariableDeclaration(node.variable);
     writeNode(node.iterable);
     writeNode(node.body);
@@ -880,6 +893,7 @@ class BinaryPrinter extends Visitor {
   visitSwitchCase(SwitchCase node) {
     // Note: there is no tag on SwitchCase.
     writeNodeList(node.expressions);
+    node.expressionOffsets.forEach(writeOffset);
     writeByte(node.isDefault ? 1 : 0);
     writeNode(node.body);
   }
@@ -898,7 +912,7 @@ class BinaryPrinter extends Visitor {
 
   visitReturnStatement(ReturnStatement node) {
     writeByte(Tag.ReturnStatement);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeOptionalNode(node.expression);
   }
 
@@ -926,7 +940,7 @@ class BinaryPrinter extends Visitor {
 
   visitYieldStatement(YieldStatement node) {
     writeByte(Tag.YieldStatement);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeByte(node.flags);
     writeNode(node.expression);
   }
@@ -937,12 +951,11 @@ class BinaryPrinter extends Visitor {
   }
 
   void writeVariableDeclaration(VariableDeclaration node) {
-    writeOffset(node, node.fileOffset);
-    writeOffset(node, node.fileEqualsOffset);
+    writeOffset(node.fileOffset);
+    writeOffset(node.fileEqualsOffset);
     writeByte(node.flags);
     writeStringReference(node.name ?? '');
     writeNode(node.type);
-    writeOptionalInferredValue(node.inferredValue);
     writeOptionalNode(node.initializer);
     // Declare the variable after its initializer. It is not in scope in its
     // own initializer.
@@ -965,7 +978,7 @@ class BinaryPrinter extends Visitor {
 
   visitFunctionDeclaration(FunctionDeclaration node) {
     writeByte(Tag.FunctionDeclaration);
-    writeOffset(node, node.fileOffset);
+    writeOffset(node.fileOffset);
     writeVariableDeclaration(node.variable);
     writeNode(node.function);
   }
@@ -1035,6 +1048,10 @@ class BinaryPrinter extends Visitor {
   visitTypeParameterType(TypeParameterType node) {
     writeByte(Tag.TypeParameterType);
     writeUInt30(_typeParameterIndexer[node.parameter]);
+  }
+
+  visitVectorType(VectorType node) {
+    writeByte(Tag.VectorType);
   }
 
   visitTypeParameter(TypeParameter node) {

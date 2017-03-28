@@ -512,7 +512,7 @@ class CodeGenerator extends GeneralizingAstVisitor
       // We'll need to be consistent about when we're generating functions, and
       // only run this on the outermost function, and not any closures.
       inferNullableTypes(node);
-      return _visit(node);
+      return _visit(node) as JS.Node;
     });
 
     if (item != null) _moduleItems.add(item);
@@ -716,11 +716,10 @@ class CodeGenerator extends GeneralizingAstVisitor
   @override
   JS.Statement visitClassTypeAlias(ClassTypeAlias node) {
     ClassElement element = node.element;
+    var supertype = element.supertype;
 
     // Forward all generative constructors from the base class.
     var methods = <JS.Method>[];
-
-    var supertype = element.supertype;
     if (!supertype.isObject) {
       for (var ctor in element.constructors) {
         var parentCtor = supertype.lookUpConstructor(ctor.name, ctor.library);
@@ -740,14 +739,45 @@ class CodeGenerator extends GeneralizingAstVisitor
       }
     }
 
-    var classExpr = _emitClassExpression(element, methods);
-
     var typeFormals = element.typeParameters;
-    if (typeFormals.isNotEmpty) {
+    var isGeneric = typeFormals.isNotEmpty;
+    var className = isGeneric ? element.name : _emitTopLevelName(element);
+    JS.Statement declareInterfaces(JS.Statement decl) {
+      if (element.interfaces.isNotEmpty) {
+        var body = [decl]
+          ..add(js.statement('#[#.implements] = () => #;', [
+            className,
+            _runtimeModule,
+            new JS.ArrayInitializer(
+                new List<JS.Expression>.from(element.interfaces.map(_emitType)))
+          ]));
+        decl = _statement(body);
+      }
+      return decl;
+    }
+
+    if (supertype.isObject && element.mixins.length == 1) {
+      // Special case where supertype is Object, and we mixin a single class.
+      // The resulting 'class' is a mixable class in this case.
+      var classExpr = _emitClassHeritage(element);
+      if (isGeneric) {
+        var classStmt = js.statement('const # = #;', [className, classExpr]);
+        return _defineClassTypeArguments(
+            element, typeFormals, declareInterfaces(classStmt));
+      } else {
+        var classStmt = js.statement('# = #;', [className, classExpr]);
+        return declareInterfaces(classStmt);
+      }
+    }
+
+    var classExpr = _emitClassExpression(element, methods);
+    if (isGeneric) {
+      var classStmt = new JS.ClassDeclaration(classExpr);
       return _defineClassTypeArguments(
-          element, typeFormals, new JS.ClassDeclaration(classExpr));
+          element, typeFormals, declareInterfaces(classStmt));
     } else {
-      return js.statement('# = #;', [_emitTopLevelName(element), classExpr]);
+      var classStmt = js.statement('# = #;', [className, classExpr]);
+      return declareInterfaces(classStmt);
     }
   }
 
@@ -2855,7 +2885,17 @@ class CodeGenerator extends GeneralizingAstVisitor
       // For instance members, we add implicit-this.
       // For method tear-offs, we ensure it's a bound method.
       var tearOff = element is MethodElement && !inInvocationContext(node);
-      if (tearOff) return _callHelper('bind(this, #)', member);
+      if (tearOff) {
+        // To be safe always use the symbolized name when binding on a native
+        // class as bind assumes the name will match the name class sigatures
+        // which is symbolized for native classes.
+        var safeName = _emitMemberName(name,
+            isStatic: isStatic,
+            type: type,
+            element: element,
+            alwaysSymbolizeNative: true);
+        return _callHelper('bind(this, #)', safeName);
+      }
       return js.call('this.#', member);
     }
 
@@ -5022,13 +5062,22 @@ class CodeGenerator extends GeneralizingAstVisitor
     JS.Expression result;
     if (member != null && member is MethodElement && !isStatic) {
       // Tear-off methods: explicitly bind it.
+      // To be safe always use the symbolized name when binding on a native
+      // class as bind assumes the name will match the name class sigatures
+      // which is symbolized for native classes.
+      var safeName = _emitMemberName(memberName,
+          type: getStaticType(target),
+          isStatic: isStatic,
+          element: member,
+          alwaysSymbolizeNative: true);
       if (isSuper) {
-        result = _callHelper('bind(this, #, #.#)', [name, jsTarget, name]);
+        result =
+            _callHelper('bind(this, #, #.#)', [safeName, jsTarget, safeName]);
       } else if (_isObjectMemberCall(target, memberName)) {
         result = _callHelper('bind(#, #, #.#)',
             [jsTarget, _propertyName(memberName), _runtimeModule, memberName]);
       } else {
-        result = _callHelper('bind(#, #)', [jsTarget, name]);
+        result = _callHelper('bind(#, #)', [jsTarget, safeName]);
       }
     } else if (_isObjectMemberCall(target, memberName)) {
       result = _callHelper('#(#)', [memberName, jsTarget]);
@@ -5517,10 +5566,11 @@ class CodeGenerator extends GeneralizingAstVisitor
     return result is JS.Node ? annotate(result, node) : result;
   }
 
-  List/*<T>*/ _visitList/*<T extends AstNode>*/(Iterable/*<T>*/ nodes) {
+  // TODO(jmesserly): we should make sure this only returns JS AST nodes.
+  List/*<R>*/ _visitList/*<T extends AstNode, R>*/(Iterable/*<T>*/ nodes) {
     if (nodes == null) return null;
-    var result = /*<T>*/ [];
-    for (var node in nodes) result.add(_visit(node) as dynamic/*=T*/);
+    var result = /*<R>*/ [];
+    for (var node in nodes) result.add(_visit(node) as dynamic/*=R*/);
     return result;
   }
 
@@ -5625,6 +5675,7 @@ class CodeGenerator extends GeneralizingAstVisitor
       bool isStatic: false,
       bool useExtension,
       bool useDisplayName: false,
+      bool alwaysSymbolizeNative: false,
       Element element}) {
     // Static members skip the rename steps and may require JS interop renames.
     if (isStatic) {
@@ -5663,8 +5714,8 @@ class CodeGenerator extends GeneralizingAstVisitor
       while (baseType is TypeParameterType) {
         baseType = (baseType.element as TypeParameterElement).bound;
       }
-      useExtension =
-          baseType is InterfaceType && _isSymbolizedMember(baseType, name);
+      useExtension = baseType is InterfaceType &&
+          _isSymbolizedMember(baseType, name, alwaysSymbolizeNative);
     }
 
     return useExtension
@@ -5701,7 +5752,8 @@ class CodeGenerator extends GeneralizingAstVisitor
   /// Note, this is an underlying assumption here that, if another native type
   /// subtypes this one, it also forwards this member to its underlying native
   /// one without renaming.
-  bool _isSymbolizedMember(InterfaceType type, String name) {
+  bool _isSymbolizedMember(
+      InterfaceType type, String name, bool alwaysSymbolizeNative) {
     // Object members are handled separately.
     if (isObjectMember(name)) {
       return false;
@@ -5716,7 +5768,7 @@ class CodeGenerator extends GeneralizingAstVisitor
       if (member is FieldElement ||
           member is ExecutableElement && member.isExternal) {
         var jsName = getAnnotationName(member, isJsName);
-        return jsName != null && jsName != name;
+        return alwaysSymbolizeNative || (jsName != null && jsName != name);
       } else {
         // Non-external members must be symbolized.
         return true;
@@ -5850,24 +5902,22 @@ class CodeGenerator extends GeneralizingAstVisitor
     return js.statement('#.$code', args);
   }
 
+  // TODO(kevmoo): https://github.com/dart-lang/sdk/issues/27255
+  // TODO(kevmoo): Remove once pkg/angular2 has moved to the new compiler
+  //               See https://github.com/dart-lang/angular2/issues/48
+  /// Temporary workaround *cough* total hack *cough*.
+  ///
   /// Maps whitelisted files to a list of whitelisted methods
   /// within the file.
   ///
   /// If the value is null, the entire file is whitelisted.
   ///
-  // TODO(jmesserly): why is this here, and what can we do to remove it?
-  //
-  // Hard coded lists are completely unnecessary -- if a feature is needed,
-  // metadata, type system features, or command line options are the right way
-  // to express it.
-  //
-  // As it is this is completely unsound and unmaintainable.
-  static Map<String, List<String>> _uncheckedWhitelist = {
-    'dom_renderer.dart': ['moveNodesAfterSibling'],
-    'template_ref.dart': ['createEmbeddedView'],
-    'ng_class.dart': ['_applyIterableChanges'],
-    'ng_for.dart': ['_bulkRemove', '_bulkInsert'],
-    'view_container_ref.dart': ['createEmbeddedView'],
+  static const Map<String, List<String>> _uncheckedWhitelist = const {
+    'dom_renderer.dart': const ['moveNodesAfterSibling'],
+    'template_ref.dart': const ['createEmbeddedView'],
+    'ng_class.dart': const ['_applyIterableChanges'],
+    'ng_for.dart': const ['_bulkRemove', '_bulkInsert'],
+    'view_container_ref.dart': const ['createEmbeddedView'],
     'default_iterable_differ.dart': null,
   };
 

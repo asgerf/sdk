@@ -7,6 +7,7 @@ library codegen.protocol;
 import 'dart:convert';
 
 import 'package:analyzer/src/codegen/tools.dart';
+import 'package:front_end/src/codegen/tools.dart';
 import 'package:html/dom.dart' as dom;
 
 import 'api.dart';
@@ -531,7 +532,7 @@ class CodegenProtocolVisitor extends DartCodegenVisitor with CodeGenerator {
    */
   void emitObjectEqualsMember(TypeObject type, String className) {
     writeln('@override');
-    writeln('bool operator==(other) {');
+    writeln('bool operator ==(other) {');
     indent(() {
       writeln('if (other is $className) {');
       indent(() {

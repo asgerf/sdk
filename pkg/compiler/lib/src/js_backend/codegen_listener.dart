@@ -4,20 +4,26 @@
 
 library js_backend.backend.codegen_listener;
 
+import '../common.dart';
+import '../common/backend_api.dart';
 import '../common/names.dart' show Identifiers;
 import '../common_elements.dart' show CommonElements, ElementEnvironment;
+import '../constants/values.dart';
 import '../dump_info.dart' show DumpInfoTask;
 import '../elements/elements.dart';
 import '../elements/entities.dart';
 import '../elements/resolution_types.dart';
 import '../enqueue.dart' show Enqueuer, EnqueuerListener;
+import '../native/enqueue.dart';
 import '../universe/call_structure.dart' show CallStructure;
 import '../universe/use.dart' show StaticUse, TypeUse;
-import '../universe/world_impact.dart' show WorldImpact, WorldImpactBuilderImpl;
+import '../universe/world_impact.dart'
+    show WorldImpact, WorldImpactBuilder, WorldImpactBuilderImpl;
 import 'backend.dart';
 import 'backend_helpers.dart';
 import 'backend_impact.dart';
 import 'backend_usage.dart';
+import 'constant_handler_javascript.dart';
 import 'custom_elements_analysis.dart';
 import 'lookup_map_analysis.dart' show LookupMapAnalysis;
 import 'mirrors_analysis.dart';
@@ -25,43 +31,48 @@ import 'mirrors_data.dart';
 import 'type_variable_handler.dart';
 
 class CodegenEnqueuerListener extends EnqueuerListener {
-  // TODO(johnniwinther): Avoid the need for accessing through [_backend].
-  final JavaScriptBackend _backend;
-
   final ElementEnvironment _elementEnvironment;
   final CommonElements _commonElements;
   final BackendHelpers _helpers;
   final BackendImpacts _impacts;
+  final BackendClasses _backendClasses;
 
-  final MirrorsData _mirrorsData;
+  final BackendUsage _backendUsage;
+  final RuntimeTypesNeed _rtiNeed;
 
-  final CustomElementsAnalysis _customElementsAnalysis;
-  final TypeVariableHandler _typeVariableHandler;
+  final CustomElementsCodegenAnalysis _customElementsAnalysis;
+  final TypeVariableCodegenAnalysis _typeVariableCodegenAnalysis;
   final LookupMapAnalysis _lookupMapAnalysis;
-  final MirrorsAnalysis _mirrorsAnalysis;
+  final MirrorsCodegenAnalysis _mirrorsAnalysis;
+
+  final NativeCodegenEnqueuer _nativeEnqueuer;
 
   bool _isNoSuchMethodUsed = false;
 
   CodegenEnqueuerListener(
-      this._backend,
       this._elementEnvironment,
       this._commonElements,
       this._helpers,
       this._impacts,
-      this._mirrorsData,
+      this._backendClasses,
+      this._backendUsage,
+      this._rtiNeed,
       this._customElementsAnalysis,
-      this._typeVariableHandler,
+      this._typeVariableCodegenAnalysis,
       this._lookupMapAnalysis,
-      this._mirrorsAnalysis);
-
-  // TODO(johnniwinther): Change these to final fields.
-  DumpInfoTask get _dumpInfoTask => _backend.compiler.dumpInfoTask;
-  RuntimeTypesNeed get _rtiNeed => _backend.rtiNeed;
-  BackendUsage get _backendUsage => _backend.backendUsage;
+      this._mirrorsAnalysis,
+      this._nativeEnqueuer);
 
   @override
-  WorldImpact registerBoundClosure() {
-    return _impacts.memberClosure.createImpact(_elementEnvironment);
+  WorldImpact registerClosurizedMember(MemberElement element) {
+    WorldImpactBuilderImpl impactBuilder = new WorldImpactBuilderImpl();
+    impactBuilder
+        .addImpact(_impacts.memberClosure.createImpact(_elementEnvironment));
+    if (element.type.containsTypeVariables &&
+        _rtiNeed.methodNeedsRti(element)) {
+      impactBuilder.addImpact(_registerComputeSignature());
+    }
+    return impactBuilder;
   }
 
   @override
@@ -75,7 +86,10 @@ class CodegenEnqueuerListener extends EnqueuerListener {
 
   @override
   void registerInstantiatedType(ResolutionInterfaceType type,
-      {bool isGlobal: false}) {
+      {bool isGlobal: false, bool nativeUsage: false}) {
+    if (nativeUsage) {
+      _nativeEnqueuer.onInstantiatedType(type);
+    }
     _lookupMapAnalysis.registerInstantiatedType(type);
   }
 
@@ -121,8 +135,7 @@ class CodegenEnqueuerListener extends EnqueuerListener {
   @override
   void onQueueOpen(Enqueuer enqueuer, FunctionEntity mainMethod,
       Iterable<LibraryEntity> libraries) {
-    enqueuer
-        .applyImpact(enqueuer.nativeEnqueuer.processNativeClasses(libraries));
+    enqueuer.applyImpact(_nativeEnqueuer.processNativeClasses(libraries));
     if (mainMethod != null) {
       enqueuer.applyImpact(_computeMainImpact(mainMethod));
     }
@@ -138,9 +151,9 @@ class CodegenEnqueuerListener extends EnqueuerListener {
     //
     // Return early if any elements are added to avoid counting the elements as
     // due to mirrors.
-    enqueuer.applyImpact(_customElementsAnalysis.flush(forResolution: false));
-    enqueuer.applyImpact(_lookupMapAnalysis.flush(forResolution: false));
-    enqueuer.applyImpact(_typeVariableHandler.flush(forResolution: false));
+    enqueuer.applyImpact(_customElementsAnalysis.flush());
+    enqueuer.applyImpact(_lookupMapAnalysis.flush());
+    enqueuer.applyImpact(_typeVariableCodegenAnalysis.flush());
 
     if (_backendUsage.isNoSuchMethodUsed && !_isNoSuchMethodUsed) {
       enqueuer.applyImpact(
@@ -155,10 +168,88 @@ class CodegenEnqueuerListener extends EnqueuerListener {
   }
 
   @override
+  void onQueueClosed() {
+    _lookupMapAnalysis.onQueueClosed();
+  }
+
+  /// Adds the impact of [constant] to [impactBuilder].
+  void _computeImpactForCompileTimeConstant(
+      ConstantValue constant, WorldImpactBuilder impactBuilder) {
+    _computeImpactForCompileTimeConstantInternal(constant, impactBuilder);
+
+    if (_lookupMapAnalysis.isLookupMap(constant)) {
+      // Note: internally, this registration will temporarily remove the
+      // constant dependencies and add them later on-demand.
+      _lookupMapAnalysis.registerLookupMapReference(constant);
+    }
+
+    for (ConstantValue dependency in constant.getDependencies()) {
+      _computeImpactForCompileTimeConstant(dependency, impactBuilder);
+    }
+  }
+
+  void _computeImpactForCompileTimeConstantInternal(
+      ConstantValue constant, WorldImpactBuilder impactBuilder) {
+    ResolutionDartType type = constant.getType(_commonElements);
+    _computeImpactForInstantiatedConstantType(type, impactBuilder);
+
+    if (constant.isFunction) {
+      FunctionConstantValue function = constant;
+      impactBuilder
+          .registerStaticUse(new StaticUse.staticTearOff(function.element));
+    } else if (constant.isInterceptor) {
+      // An interceptor constant references the class's prototype chain.
+      InterceptorConstantValue interceptor = constant;
+      ClassElement cls = interceptor.cls;
+      _computeImpactForInstantiatedConstantType(cls.thisType, impactBuilder);
+    } else if (constant.isType) {
+      impactBuilder
+          .registerTypeUse(new TypeUse.instantiation(_backendClasses.typeType));
+      // If the type is a web component, we need to ensure the constructors are
+      // available to 'upgrade' the native object.
+      TypeConstantValue type = constant;
+      if (type.representedType.isInterfaceType) {
+        ResolutionInterfaceType representedType = type.representedType;
+        _customElementsAnalysis.registerTypeConstant(representedType.element);
+        _lookupMapAnalysis.registerTypeConstant(representedType.element);
+      }
+    }
+    _lookupMapAnalysis.registerConstantKey(constant);
+  }
+
+  void _computeImpactForInstantiatedConstantType(
+      ResolutionDartType type, WorldImpactBuilder impactBuilder) {
+    if (type is ResolutionInterfaceType) {
+      impactBuilder.registerTypeUse(new TypeUse.instantiation(type));
+      if (_rtiNeed.classNeedsRtiField(type.element)) {
+        impactBuilder.registerStaticUse(new StaticUse.staticInvoke(
+            // TODO(johnniwinther): Find the right [CallStructure].
+            _helpers.setRuntimeTypeInfo,
+            null));
+      }
+      if (type.element == _backendClasses.typeClass) {
+        // If we use a type literal in a constant, the compile time
+        // constant emitter will generate a call to the createRuntimeType
+        // helper so we register a use of that.
+        impactBuilder.registerStaticUse(new StaticUse.staticInvoke(
+            // TODO(johnniwinther): Find the right [CallStructure].
+            _helpers.createRuntimeType,
+            null));
+      }
+    }
+  }
+
+  @override
+  WorldImpact registerUsedConstant(ConstantValue constant) {
+    WorldImpactBuilderImpl impactBuilder = new WorldImpactBuilderImpl();
+    _computeImpactForCompileTimeConstant(constant, impactBuilder);
+    return impactBuilder;
+  }
+
+  @override
   WorldImpact registerUsedElement(MemberElement member) {
     WorldImpactBuilderImpl worldImpact = new WorldImpactBuilderImpl();
-    _mirrorsData.registerUsedMember(member);
-    _customElementsAnalysis.registerStaticUse(member, forResolution: false);
+    _customElementsAnalysis.registerStaticUse(member);
 
     if (member.isFunction && member.isInstanceMember) {
       MethodElement method = member;
@@ -173,18 +264,10 @@ class CodegenEnqueuerListener extends EnqueuerListener {
     return worldImpact;
   }
 
-  WorldImpact registerClosureWithFreeTypeVariables(MethodElement closure) {
-    if (_rtiNeed.methodNeedsRti(closure)) {
-      return _registerComputeSignature();
-    }
-    return const WorldImpact();
-  }
-
   WorldImpact _processClass(ClassElement cls) {
     WorldImpactBuilderImpl impactBuilder = new WorldImpactBuilderImpl();
     if (!cls.typeVariables.isEmpty) {
-      _typeVariableHandler.registerClassWithTypeVariables(cls,
-          forResolution: false);
+      _typeVariableCodegenAnalysis.registerClassWithTypeVariables(cls);
     }
     if (cls == _helpers.closureClass) {
       _impacts.closureClass.registerImpact(impactBuilder, _elementEnvironment);
@@ -244,8 +327,7 @@ class CodegenEnqueuerListener extends EnqueuerListener {
           .registerImpact(impactBuilder, _elementEnvironment);
     }
 
-    _customElementsAnalysis.registerInstantiatedClass(cls,
-        forResolution: false);
+    _customElementsAnalysis.registerInstantiatedClass(cls);
     _lookupMapAnalysis.registerInstantiatedClass(cls);
     return impactBuilder;
   }
@@ -258,5 +340,11 @@ class CodegenEnqueuerListener extends EnqueuerListener {
   @override
   WorldImpact registerInstantiatedClass(ClassEntity cls) {
     return _processClass(cls);
+  }
+
+  @override
+  void logSummary(void log(String message)) {
+    _lookupMapAnalysis.logSummary(log);
+    _nativeEnqueuer.logSummary(log);
   }
 }

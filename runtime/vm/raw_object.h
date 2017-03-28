@@ -1115,14 +1115,6 @@ class RawNamespace : public RawObject {
 
 
 class RawCode : public RawObject {
-  enum InlinedMetadataIndex {
-    kInlinedIntervalsIndex = 0,
-    kInlinedIdToFunctionIndex = 1,
-    kInlinedCallerIdMapIndex = 2,
-    kInlinedIdToTokenPosIndex = 3,
-    kInlinedMetadataSize = 4,
-  };
-
   RAW_HEAP_OBJECT_IMPLEMENTATION(Code);
 
   uword entry_point_;          // Accessed from generated code.
@@ -1629,7 +1621,6 @@ class RawUnwindError : public RawError {
   RawString* message_;
   RawObject** to() { return reinterpret_cast<RawObject**>(&ptr()->message_); }
   bool is_user_initiated_;
-  bool is_vm_restart_;
 };
 
 

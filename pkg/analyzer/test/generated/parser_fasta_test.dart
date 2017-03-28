@@ -6,13 +6,15 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/token.dart' as analyzer;
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/error/error.dart';
+import 'package:analyzer/src/fasta/ast_builder.dart';
+import 'package:analyzer/src/fasta/element_store.dart';
 import 'package:analyzer/src/generated/parser.dart' as analyzer;
 import 'package:analyzer/src/generated/utilities_dart.dart';
-import 'package:front_end/src/fasta/analyzer/ast_builder.dart';
-import 'package:front_end/src/fasta/analyzer/element_store.dart';
 import 'package:front_end/src/fasta/builder/scope.dart';
 import 'package:front_end/src/fasta/kernel/kernel_builder.dart';
 import 'package:front_end/src/fasta/kernel/kernel_library_builder.dart';
+import 'package:front_end/src/fasta/parser/identifier_context.dart'
+    show IdentifierContext;
 import 'package:front_end/src/fasta/parser/parser.dart' as fasta;
 import 'package:front_end/src/fasta/scanner/precedence.dart' as fasta;
 import 'package:front_end/src/fasta/scanner/string_scanner.dart';
@@ -28,6 +30,7 @@ main() {
     defineReflectiveTests(ComplexParserTest_Fasta);
     defineReflectiveTests(ExpressionParserTest_Fasta);
     defineReflectiveTests(FormalParameterParserTest_Fasta);
+    defineReflectiveTests(StatementParserTest_Fasta);
     defineReflectiveTests(TopLevelParserTest_Fasta);
   });
 }
@@ -94,13 +97,6 @@ class ClassMemberParserTest_Fasta extends FastaParserTestCase
 
   @override
   @failingTest
-  void test_parseConstructor_with_pseudo_function_literal() {
-    // TODO(paulberry): Expected: an object with length of <1>
-    super.test_parseConstructor_with_pseudo_function_literal();
-  }
-
-  @override
-  @failingTest
   void test_parseConstructorFieldInitializer_qualified() {
     // TODO(paulberry): Unhandled event: ThisExpression
     super.test_parseConstructorFieldInitializer_qualified();
@@ -134,14 +130,6 @@ class ComplexParserTest_Fasta extends FastaParserTestCase
     // TODO(paulberry,ahe): AstBuilder doesn't implement
     // endTypeArguments().
     super.test_assignableExpression_arguments_normal_chain_typeArguments();
-  }
-
-  @override
-  @failingTest
-  void test_cascade_withAssignment() {
-    // TODO(paulberry,ahe): AstBuilder doesn't implement
-    // endConstructorReference().
-    super.test_cascade_withAssignment();
   }
 
   @override
@@ -185,13 +173,6 @@ class ComplexParserTest_Fasta extends FastaParserTestCase
   void test_logicalOrExpression_precedence_nullableType() {
     // TODO(paulberry,ahe): Fasta doesn't support NNBD syntax yet.
     super.test_logicalOrExpression_precedence_nullableType();
-  }
-
-  @override
-  @failingTest
-  void test_multipleLabels_statement() {
-    // TODO(paulberry,ahe): AstBuilder doesn't implement handleLabel().
-    super.test_multipleLabels_statement();
   }
 
   @override
@@ -446,18 +427,6 @@ class ExpressionParserTest_Fasta extends FastaParserTestCase
 
   @override
   @failingTest
-  void test_parseSuperConstructorInvocation_named() {
-    super.test_parseSuperConstructorInvocation_named();
-  }
-
-  @override
-  @failingTest
-  void test_parseSuperConstructorInvocation_unnamed() {
-    super.test_parseSuperConstructorInvocation_unnamed();
-  }
-
-  @override
-  @failingTest
   void test_parseUnaryExpression_decrement_super() {
     super.test_parseUnaryExpression_decrement_super();
   }
@@ -613,6 +582,16 @@ class FastaParserTestCase extends Object
   @override
   Expression parseConstExpression(String code) {
     return _parseExpression(code);
+  }
+
+  @override
+  ConstructorInitializer parseConstructorInitializer(String code) {
+    String source = 'class __Test { __Test() : $code; }';
+    var unit =
+        _runParser(source, (parser) => parser.parseUnit) as CompilationUnit;
+    var clazz = unit.declarations[0] as ClassDeclaration;
+    var constructor = clazz.members[0] as ConstructorDeclaration;
+    return constructor.initializers.single;
   }
 
   @override
@@ -779,8 +758,10 @@ class FastaParserTestCase extends Object
   @override
   Expression parsePrimaryExpression(String code) {
     return _runParser(
-            code, (parser) => parser.parsePrimary, const <ErrorCode>[])
-        as Expression;
+        code,
+        (parser) =>
+            (token) => parser.parsePrimary(token, IdentifierContext.expression),
+        const <ErrorCode>[]) as Expression;
   }
 
   @override
@@ -805,21 +786,13 @@ class FastaParserTestCase extends Object
 
   @override
   Statement parseStatement(String source,
-      [List<ErrorCode> errorCodes = const <ErrorCode>[],
-      bool enableLazyAssignmentOperators]) {
-    return _runParser(source, (parser) => parser.parseStatement, errorCodes)
-        as Statement;
+      [bool enableLazyAssignmentOperators]) {
+    return _runParser(source, (parser) => parser.parseStatement) as Statement;
   }
 
   @override
   Expression parseStringLiteral(String code) {
     return _parseExpression(code);
-  }
-
-  @override
-  SuperConstructorInvocation parseSuperConstructorInvocation(String code) {
-    // TODO(scheglov): implement parseSuperConstructorInvocation
-    throw new UnimplementedError();
   }
 
   @override
@@ -1005,7 +978,7 @@ class ParserProxy implements analyzer.Parser {
     var member = new BuilderProxy();
     var elementStore = new ElementStoreProxy();
     var scope = new ScopeProxy();
-    var astBuilder = new AstBuilder(library, member, elementStore, scope);
+    var astBuilder = new AstBuilder(null, library, member, elementStore, scope);
     return new ParserProxy._(
         startingToken, new fasta.Parser(astBuilder), astBuilder);
   }
@@ -1076,6 +1049,82 @@ class ScopeProxy implements Scope {
 }
 
 /**
+ * Tests of the fasta parser based on [StatementParserTestMixin].
+ */
+@reflectiveTest
+class StatementParserTest_Fasta extends FastaParserTestCase
+    with StatementParserTestMixin {
+  @override
+  @failingTest
+  void test_parseBreakStatement_noLabel() {
+    super.test_parseBreakStatement_noLabel();
+  }
+
+  @override
+  @failingTest
+  void test_parseContinueStatement_label() {
+    super.test_parseContinueStatement_label();
+  }
+
+  @override
+  @failingTest
+  void test_parseContinueStatement_noLabel() {
+    super.test_parseContinueStatement_noLabel();
+  }
+
+  @override
+  @failingTest
+  void test_parseForStatement_each_noType_metadata() {
+    super.test_parseForStatement_each_noType_metadata();
+  }
+
+  @override
+  @failingTest
+  void test_parseForStatement_loop_i_withMetadata() {
+    super.test_parseForStatement_loop_i_withMetadata();
+  }
+
+  @override
+  @failingTest
+  void test_parseFunctionDeclarationStatement_typeParameterComments() {
+    // TODO(scheglov): Fasta doesn't support generic comment syntax.
+    super.test_parseFunctionDeclarationStatement_typeParameterComments();
+  }
+
+  @override
+  @failingTest
+  void test_parseStatement_emptyTypeArgumentList() {
+    super.test_parseStatement_emptyTypeArgumentList();
+  }
+
+  @override
+  @failingTest
+  void
+      test_parseStatement_functionDeclaration_noReturnType_typeParameterComments() {
+    super
+        .test_parseStatement_functionDeclaration_noReturnType_typeParameterComments();
+  }
+
+  @override
+  @failingTest
+  void test_parseTryStatement_catch_finally() {
+    super.test_parseTryStatement_catch_finally();
+  }
+
+  @override
+  @failingTest
+  void test_parseTryStatement_on_catch() {
+    super.test_parseTryStatement_on_catch();
+  }
+
+  @override
+  @failingTest
+  void test_parseTryStatement_on_catch_finally() {
+    super.test_parseTryStatement_on_catch_finally();
+  }
+}
+
+/**
  * Tests of the fasta parser based on [TopLevelParserTestMixin].
  */
 @reflectiveTest
@@ -1116,16 +1165,6 @@ class TopLevelParserTest_Fasta extends FastaParserTestCase
   void test_parseCompilationUnit_typedefAsPrefix() {
     // TODO(paulberry): As of commit 5de9108 this syntax is invalid.
     super.test_parseCompilationUnit_typedefAsPrefix();
-  }
-
-  @override
-  @failingTest
-  void
-      test_parseCompilationUnitMember_function_generic_noReturnType_annotated() {
-    // TODO(paulberry,ahe): Fasta doesn't appear to support annotated type
-    // parameters.
-    super
-        .test_parseCompilationUnitMember_function_generic_noReturnType_annotated();
   }
 
   @override

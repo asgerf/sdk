@@ -71,7 +71,7 @@ class KernelWorldBuilder extends KernelElementAdapterMixin {
   KernelWorldBuilder(this.reporter, ir.Program program)
       : _env = new KEnv(program) {
     _elementEnvironment = new KernelElementEnvironment(this);
-    _commonElements = new KernelCommonElements(_elementEnvironment);
+    _commonElements = new CommonElementsImpl(_elementEnvironment);
     ConstantEnvironment constants = new KernelConstantEnvironment(this);
     _nativeBehaviorBuilder =
         new KernelBehaviorBuilder(_commonElements, helpers, constants);
@@ -148,12 +148,12 @@ class KernelWorldBuilder extends KernelElementAdapterMixin {
 
   KClass _getClass(ir.Class node, [KClassEnv classEnv]) {
     return _classMap.putIfAbsent(node, () {
+      KLibrary library = _getLibrary(node.enclosingLibrary);
       if (classEnv == null) {
-        KLibrary library = _getLibrary(node.enclosingLibrary);
         classEnv = _libraryEnvs[library.libraryIndex].lookupClass(node.name);
       }
       _classEnvs.add(classEnv);
-      return new KClass(_classMap.length, node.name);
+      return new KClass(library, _classMap.length, node.name);
     });
   }
 
@@ -190,12 +190,17 @@ class KernelWorldBuilder extends KernelElementAdapterMixin {
     return _constructorMap.putIfAbsent(node, () {
       int constructorIndex = _constructorList.length;
       KConstructor constructor;
+      KClass enclosingClass = _getClass(node.enclosingClass);
+      Name name = getName(node.name);
+      bool isExternal = node.isExternal;
       if (node is ir.Constructor) {
-        constructor = new KGenerativeConstructor(constructorIndex,
-            _getClass(node.enclosingClass), getName(node.name));
+        constructor = new KGenerativeConstructor(
+            constructorIndex, enclosingClass, name,
+            isExternal: isExternal);
       } else {
-        constructor = new KFactoryConstructor(constructorIndex,
-            _getClass(node.enclosingClass), getName(node.name));
+        constructor = new KFactoryConstructor(
+            constructorIndex, enclosingClass, name,
+            isExternal: isExternal);
       }
       _constructorList.add(node);
       return constructor;
@@ -204,21 +209,30 @@ class KernelWorldBuilder extends KernelElementAdapterMixin {
 
   KFunction _getMethod(ir.Procedure node) {
     return _methodMap.putIfAbsent(node, () {
-      KClass enclosingClass =
-          node.enclosingClass != null ? _getClass(node.enclosingClass) : null;
+      KLibrary library;
+      KClass enclosingClass;
+      if (node.enclosingClass != null) {
+        enclosingClass = _getClass(node.enclosingClass);
+        library = enclosingClass.library;
+      } else {
+        library = _getLibrary(node.enclosingLibrary);
+      }
       Name name = getName(node.name);
       bool isStatic = node.isStatic;
+      bool isExternal = node.isExternal;
       switch (node.kind) {
         case ir.ProcedureKind.Factory:
           throw new UnsupportedError("Cannot create method from factory.");
         case ir.ProcedureKind.Getter:
-          return new KGetter(enclosingClass, name, isStatic: isStatic);
+          return new KGetter(library, enclosingClass, name,
+              isStatic: isStatic, isExternal: isExternal);
         case ir.ProcedureKind.Method:
         case ir.ProcedureKind.Operator:
-          return new KMethod(enclosingClass, name, isStatic: isStatic);
+          return new KMethod(library, enclosingClass, name,
+              isStatic: isStatic, isExternal: isExternal);
         case ir.ProcedureKind.Setter:
-          return new KSetter(enclosingClass, getName(node.name).setter,
-              isStatic: isStatic);
+          return new KSetter(library, enclosingClass, getName(node.name).setter,
+              isStatic: isStatic, isExternal: isExternal);
       }
     });
   }
@@ -226,12 +240,18 @@ class KernelWorldBuilder extends KernelElementAdapterMixin {
   KField _getField(ir.Field node) {
     return _fieldMap.putIfAbsent(node, () {
       int fieldIndex = _fieldList.length;
-      KClass enclosingClass =
-          node.enclosingClass != null ? _getClass(node.enclosingClass) : null;
+      KLibrary library;
+      KClass enclosingClass;
+      if (node.enclosingClass != null) {
+        enclosingClass = _getClass(node.enclosingClass);
+        library = enclosingClass.library;
+      } else {
+        library = _getLibrary(node.enclosingLibrary);
+      }
       Name name = getName(node.name);
       bool isStatic = node.isStatic;
       _fieldList.add(node);
-      return new KField(fieldIndex, enclosingClass, name,
+      return new KField(fieldIndex, library, enclosingClass, name,
           isStatic: isStatic, isAssignable: node.isMutable);
     });
   }
@@ -500,6 +520,9 @@ class KernelElementEnvironment implements ElementEnvironment {
   KernelElementEnvironment(this.worldBuilder);
 
   @override
+  DartType get dynamicType => const DynamicType();
+
+  @override
   LibraryEntity get mainLibrary => worldBuilder._mainLibrary;
 
   @override
@@ -545,6 +568,23 @@ class KernelElementEnvironment implements ElementEnvironment {
   }
 
   @override
+  ClassEntity getSuperClass(ClassEntity cls) {
+    throw new UnimplementedError('KernelElementEnvironment.getSuperClass');
+  }
+
+  @override
+  void forEachMixin(ClassEntity cls, void f(ClassEntity mixin)) {
+    throw new UnimplementedError('KernelElementEnvironment.forEachMixin');
+  }
+
+  @override
+  void forEachClassMember(
+      ClassEntity cls, void f(ClassEntity declarer, MemberEntity member)) {
+    throw new UnimplementedError(
+        'KernelElementEnvironment.forEachInstanceMember');
+  }
+
+  @override
   MemberEntity lookupLibraryMember(LibraryEntity library, String name,
       {bool setter: false, bool required: false}) {
     MemberEntity member =
@@ -575,46 +615,6 @@ class KernelElementEnvironment implements ElementEnvironment {
           CURRENT_ELEMENT_SPANNABLE, "The library '$uri' was not found.");
     }
     return library;
-  }
-}
-
-/// [CommonElements] implementation based on [KernelWorldBuilder].
-class KernelCommonElements extends CommonElementsMixin {
-  final ElementEnvironment environment;
-
-  KernelCommonElements(this.environment);
-
-  @override
-  LibraryEntity get coreLibrary {
-    return environment.lookupLibrary(Uris.dart_core, required: true);
-  }
-
-  @override
-  DynamicType get dynamicType => const DynamicType();
-
-  @override
-  ClassEntity get nativeAnnotationClass {
-    throw new UnimplementedError('KernelCommonElements.nativeAnnotationClass');
-  }
-
-  @override
-  ClassEntity get patchAnnotationClass {
-    throw new UnimplementedError('KernelCommonElements.patchAnnotationClass');
-  }
-
-  @override
-  LibraryEntity get typedDataLibrary {
-    throw new UnimplementedError('KernelCommonElements.typedDataLibrary');
-  }
-
-  @override
-  LibraryEntity get mirrorsLibrary {
-    throw new UnimplementedError('KernelCommonElements.mirrorsLibrary');
-  }
-
-  @override
-  LibraryEntity get asyncLibrary {
-    throw new UnimplementedError('KernelCommonElements.asyncLibrary');
   }
 }
 

@@ -23,6 +23,7 @@ import 'package:analysis_server/src/domains/analysis/navigation.dart';
 import 'package:analysis_server/src/domains/analysis/navigation_dart.dart';
 import 'package:analysis_server/src/domains/analysis/occurrences.dart';
 import 'package:analysis_server/src/domains/analysis/occurrences_dart.dart';
+import 'package:analysis_server/src/ide_options.dart';
 import 'package:analysis_server/src/operation/operation.dart';
 import 'package:analysis_server/src/operation/operation_analysis.dart';
 import 'package:analysis_server/src/operation/operation_queue.dart';
@@ -109,6 +110,11 @@ class AnalysisServer {
    * to stdin. This should be removed once the underlying problem is fixed.
    */
   static int performOperationDelayFrequency = 25;
+
+  /**
+   * IDE options for this server instance.
+   */
+  IdeOptions ideOptions;
 
   /**
    * The options of this server instance.
@@ -336,6 +342,18 @@ class AnalysisServer {
   nd.AnalysisDriverScheduler analysisDriverScheduler;
 
   /**
+   * This exists as a temporary stopgap for plugins, until the official plugin
+   * API is complete.
+   */
+  StreamController<String> _onFileAddedController;
+
+  /**
+   * This exists as a temporary stopgap for plugins, until the official plugin
+   * API is complete.
+   */
+  StreamController<String> _onFileChangedController;
+
+  /**
    * The set of the files that are currently priority.
    */
   final Set<String> priorityFiles = new Set<String>();
@@ -370,9 +388,8 @@ class AnalysisServer {
       ResolverProvider packageResolverProvider: null,
       bool useSingleContextManager: false,
       this.rethrowExceptions: true})
-      // TODO(brianwilkerson) Initialize notificationManager to
-      // "new NotificationManager(channel, resourceProvider)"
-      : notificationManager = null {
+      : notificationManager =
+            new NotificationManager(channel, resourceProvider) {
     _performance = performanceDuringStartup;
     defaultContextOptions.incremental = true;
     defaultContextOptions.incrementalApi =
@@ -425,6 +442,10 @@ class AnalysisServer {
     AnalysisEngine.instance.logger = new AnalysisLogger(this);
     _onAnalysisStartedController = new StreamController.broadcast();
     _onFileAnalyzedController = new StreamController.broadcast();
+    // temporary plugin support:
+    _onFileAddedController = new StreamController.broadcast();
+    // temporary plugin support:
+    _onFileChangedController = new StreamController.broadcast();
     _onPriorityChangeController =
         new StreamController<PriorityChangeEvent>.broadcast();
     running = true;
@@ -446,6 +467,7 @@ class AnalysisServer {
     channel.sendNotification(notification);
     channel.listen(handleRequest, onDone: done, onError: error);
     handlers = serverPlugin.createDomains(this);
+    ideOptions = new IdeOptions.from(options);
   }
 
   /**
@@ -514,9 +536,23 @@ class AnalysisServer {
       _onContextsChangedController.stream;
 
   /**
+   * The stream that is notified when a single file has been added. This exists
+   * as a temporary stopgap for plugins, until the official plugin API is
+   * complete.
+   */
+  Stream get onFileAdded => _onFileAddedController.stream;
+
+  /**
    * The stream that is notified when a single file has been analyzed.
    */
   Stream get onFileAnalyzed => _onFileAnalyzedController.stream;
+
+  /**
+   * The stream that is notified when a single file has been changed. This
+   * exists as a temporary stopgap for plugins, until the official plugin API is
+   * complete.
+   */
+  Stream get onFileChanged => _onFileChangedController.stream;
 
   /**
    * The stream that is notified when priority sources change.
@@ -633,6 +669,10 @@ class AnalysisServer {
    * otherwise in the first driver, otherwise `null` is returned.
    */
   Future<nd.AnalysisResult> getAnalysisResult(String path) async {
+    if (!AnalysisEngine.isDartFileName(path)) {
+      return null;
+    }
+
     try {
       nd.AnalysisDriver driver = getAnalysisDriver(path);
       return await driver?.getResult(path);
@@ -1519,6 +1559,9 @@ class AnalysisServer {
           driver.changeFile(file);
         });
 
+        // temporary plugin support:
+        _onFileChangedController.add(file);
+
         // If the file did not exist, and is "overlay only", it still should be
         // analyzed. Add it to driver to which it should have been added.
         contextManager.getDriverFor(file)?.addFile(file);
@@ -1814,6 +1857,8 @@ class AnalysisServerOptions {
   bool useAnalysisHighlight2 = false;
   String fileReadMode = 'as-is';
   String newAnalysisDriverLog;
+  // IDE options
+  bool enableVerboseFlutterCompletions = false;
 }
 
 /**
@@ -1988,9 +2033,13 @@ class ServerContextManagerCallbacks extends ContextManagerCallbacks {
       if (analysisDriver != null) {
         changeSet.addedSources.forEach((source) {
           analysisDriver.addFile(source.fullName);
+          // temporary plugin support:
+          analysisServer._onFileAddedController.add(source.fullName);
         });
         changeSet.changedSources.forEach((source) {
           analysisDriver.changeFile(source.fullName);
+          // temporary plugin support:
+          analysisServer._onFileChangedController.add(source.fullName);
         });
         changeSet.removedSources.forEach((source) {
           analysisDriver.removeFile(source.fullName);
