@@ -20,9 +20,10 @@ class UI {
   BodyElement body = document.body;
 
   DivElement fileSelectDiv = $('file-select');
-  FileUploadInputElement reportFileInput = $('report-file-input');
   FileUploadInputElement kernelFileInput = $('kernel-file-input');
-  ButtonElement reloadButton = $('reload-button');
+
+  DivElement loadingScreenContainer = $('loading-screen-container');
+  TableElement loadingScreenTable = $('loading-screen-table');
 
   DivElement debugBox = $('debug-box');
 

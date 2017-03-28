@@ -11,11 +11,9 @@ import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
-import 'package:kernel/dataflow/report/binary_reader.dart';
-import 'package:kernel/dataflow/report/report.dart';
+import 'package:kernel/dataflow/dataflow.dart';
 import 'package:kernel/dataflow/value.dart';
 import 'package:kernel/library_index.dart';
-import 'package:kernel/util/reader.dart';
 
 import 'history_manager.dart';
 import 'key_codes.dart';
@@ -34,14 +32,12 @@ final Map<int, Element> hotkeys = <int, Element>{
 };
 
 main() {
-  ui.kernelFileInput.onChange.listen((_) => loadKernelFile());
-  ui.reportFileInput.onChange.listen((_) => loadReportFile());
-  ui.reloadButton.onClick.listen((_) {
-    if (ui.kernelFileInput.files.isEmpty || ui.reportFileInput.files.isEmpty) {
-      return;
+  ui.kernelFileInput.onChange.listen((_) async {
+    try {
+      await loadKernelFile();
+    } catch (e) {
+      showError('Crash.\n$e');
     }
-    loadKernelFile();
-    loadReportFile();
   });
   ui.body.onKeyPress.listen(onBodyKeyPressed);
 }
@@ -52,6 +48,7 @@ void startMainUI() {
   ui.codeView.showObject(program.mainMethodName);
   ui.mainContentDiv.style.visibility = 'visible';
   ui.fileSelectDiv.style.display = 'none';
+  ui.loadingScreenContainer.style.display = 'none';
 }
 
 void onBodyKeyPressed(KeyboardEvent ev) {
@@ -64,18 +61,18 @@ void onBodyKeyPressed(KeyboardEvent ev) {
   }
 }
 
-void onProgramLoaded() {
+Future onProgramLoaded() async {
+  await showProgress('Indexing program...');
   program.computeCanonicalNames();
   libraryIndex = new LibraryIndex.all(program);
   coreTypes = new CoreTypes(program);
   classHierarchy = new ClassHierarchy(program);
   valueLattice = new ValueLattice(classHierarchy);
-  if (report != null && program != null) {
-    startMainUI();
-  }
-}
-
-void onReportFileLoaded() {
+  await showProgress('Running dataflow analysis...');
+  var reporter = new DataflowReporter();
+  DataflowEngine.analyzeWholeProgram(program, diagnostic: reporter);
+  report = reporter.report;
+  constraintSystem = reporter.constraintSystem;
   ui.backtracker.reset();
   if (report != null && program != null) {
     startMainUI();
@@ -92,29 +89,56 @@ Future<Uint8List> readBytesFromFileInput(FileUploadInputElement input) async {
   return reader.result as Uint8List;
 }
 
-loadKernelFile() async {
-  var bytes = await readBytesFromFileInput(ui.kernelFileInput);
-  if (bytes == null) return;
-  program = new Program();
-  new BinaryBuilder(bytes).readProgram(program);
-  info('Read kernel file with ${program.libraries.length} libraries');
-  onProgramLoaded();
+void showLoadingScreen() {
+  ui.fileSelectDiv.style.display = 'none';
+  ui.loadingScreenContainer.style.display = 'block';
 }
 
-loadReportFile() async {
-  if (program == null) {
-    info('Load the program first');
-    return;
+Element progressLoadingDiv;
+Stopwatch progressStopwatch = new Stopwatch();
+
+Future showProgress(String message) async {
+  finishLastLoadingMessage();
+  var row = new TableRowElement();
+  row.append(new TableCellElement()..text = message);
+  progressLoadingDiv = new TableCellElement();
+  row.append(progressLoadingDiv);
+  ui.loadingScreenTable.append(row);
+  progressStopwatch
+    ..reset()
+    ..start();
+  var completer = new Completer();
+  window.requestAnimationFrame(completer.complete);
+  return completer.future;
+}
+
+void showError(Object error) {
+  finishLastLoadingMessage();
+  var row = new TableRowElement();
+  row.append(new TableCellElement()
+    ..text = '$error'
+    ..style.color = 'red'
+    ..colSpan = 2);
+  ui.loadingScreenTable.append(row);
+}
+
+void finishLastLoadingMessage() {
+  var milliseconds = progressStopwatch.elapsedMilliseconds;
+  progressLoadingDiv?.appendText(' [$milliseconds ms]');
+  progressLoadingDiv = null;
+}
+
+Future loadKernelFile() async {
+  showLoadingScreen();
+  await showProgress('Loading kernel file ${ui.kernelFileInput}...');
+  var bytes = await readBytesFromFileInput(ui.kernelFileInput);
+  if (bytes == null) {
+    await showProgress('Error: Could not load file');
+    return null;
   }
-  var bytes = await readBytesFromFileInput(ui.reportFileInput);
-  if (bytes == null) return;
-  var reader = new BinaryReportReader(new Reader(bytes, program.root));
-  program.computeCanonicalNames();
-  constraintSystem = reader.readConstraintSystem();
-  var events = reader.readEventList();
-  report = new Report.fromTransfers(events);
-  info('Read report with '
-      '${reader.constraintSystem.numberOfConstraints} constraints and '
-      '${events.length} transfer events');
-  onReportFileLoaded();
+  await showProgress('Deserializing kernel program...');
+  finishLastLoadingMessage();
+  program = new Program();
+  new BinaryBuilder(bytes).readProgram(program);
+  return onProgramLoaded();
 }

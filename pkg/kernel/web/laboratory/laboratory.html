@@ -8,10 +8,39 @@
         font-family: arial;
       }
 
-      #file-select {
-        width: 800px;
+      .splash-screen-box {
+        width: 400px;
+        height: 300px;
         background-color: white;
         margin: 200px auto;
+        text-align: center;
+        border: 1px solid gray;
+      }
+
+      #file-select label {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+      }
+
+      #file-select input {
+        /* Remove ugly upload button */
+        position: fixed;
+        top: -1000px;
+      }
+
+      #loading-screen-container {
+        display: none; /* Becomes visible when loading */
+        width: 800px;
+      }
+      #loading-screen-table {
+        width: 100%;
+        height: 100%;
+        vertical-align: top;
+        text-align: left;
       }
 
       #top-bar {
@@ -283,13 +312,23 @@
     </style>
   </head>
   <body id="body">
-    <div id="file-select">
-      Dill file: <input type="file" id="kernel-file-input" />
-      Report file: <input type="file" id="report-file-input" />
-      <input type="button" id="reload-button" value="Reload"/>
+    <div id="file-select" class="splash-screen-box">
+      <label for="kernel-file-input">
+        Click to upload a .dill file
+        <input type="file" id="kernel-file-input" />
+      </label>
     </div>
 
-    <div id="main-content" style="position: absolute;"> <!-- shown when files are selected -->
+    <div id="loading-screen-container" class="splash-screen-box">
+      <table id="loading-screen-table">
+        <tr>
+          <th style="width: auto;"></th>
+          <th style="width: 100px;"></th>
+        </tr>
+      </table>
+    </div>
+
+    <div id="main-content" style="position: absolute;">
 
       <div id="top-bar">
         <div id="search-input-container">
