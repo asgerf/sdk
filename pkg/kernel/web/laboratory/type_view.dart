@@ -244,7 +244,7 @@ class TypeView {
       storageLocationNameElement.text = '';
       var row = new TableRowElement();
       row.append(new TableCellElement()
-        ..text = 'The value cannot be shown here because no inference location '
+        ..text = 'The value cannot be shown here because no dataflow location '
             'was stored on the node');
       tableElement.append(row);
       unsetRelatedElements();

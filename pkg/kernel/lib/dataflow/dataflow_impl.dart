@@ -3,7 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 part of kernel.dataflow;
 
-class _InferenceResults extends DataflowResults {
+class _DataflowResults extends DataflowResults {
   final Program program;
   CoreTypes coreTypes;
   ClassHierarchy hierarchy;
@@ -16,7 +16,7 @@ class _InferenceResults extends DataflowResults {
 
   Report _report;
 
-  _InferenceResults(this.program,
+  _DataflowResults(this.program,
       {this.coreTypes,
       this.hierarchy,
       List<ProgramRoot> programRoots,
@@ -39,20 +39,20 @@ class _InferenceResults extends DataflowResults {
   }
 
   MemberDataflowResults getResultsForMember(Member member) {
-    return new _MemberInferenceResults(
+    return new _MemberDataflowResults(
         _binding.getMemberBank(member), _binding, _solver.lattice, _top);
   }
 
   Report get report => _report;
 }
 
-class _MemberInferenceResults extends MemberDataflowResults {
+class _MemberDataflowResults extends MemberDataflowResults {
   final StorageLocationBank _bank;
   final Binding _binding;
   final ValueLattice _lattice;
   final Value _top;
 
-  _MemberInferenceResults(this._bank, this._binding, this._lattice, this._top);
+  _MemberDataflowResults(this._bank, this._binding, this._lattice, this._top);
 
   Value _getStorageLocationValue(StorageLocation location) {
     Value value = location.value;

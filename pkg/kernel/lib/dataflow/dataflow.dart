@@ -23,14 +23,14 @@ part 'dataflow_impl.dart';
 class DataflowEngine {
   /// Analyzes the whole program and returns the inferred type information.
   ///
-  /// This invalidates any existing inference results for that program, since
+  /// This invalidates any existing dataflow results for that program, since
   /// some of the information is stored directly on AST nodes.
   static DataflowResults analyzeWholeProgram(
       Program program, List<ProgramRoot> programRoots,
       {CoreTypes coreTypes,
       ClassHierarchy hierarchy,
       bool buildReport: false}) {
-    return new _InferenceResults(program,
+    return new _DataflowResults(program,
         coreTypes: coreTypes,
         hierarchy: hierarchy,
         programRoots: programRoots,
