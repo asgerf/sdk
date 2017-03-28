@@ -5,8 +5,6 @@ library kernel.dataflow.extractor.external_model;
 
 import '../../ast.dart';
 import '../../core_types.dart';
-import '../../library_index.dart';
-import '../../program_root.dart';
 
 abstract class ExternalModel {
   /// True if the given external [member] does not return `null` and does not

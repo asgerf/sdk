@@ -6,7 +6,6 @@ library kernel.dataflow;
 import '../ast.dart';
 import '../class_hierarchy.dart';
 import '../core_types.dart';
-import '../program_root.dart';
 import 'extractor/binding.dart';
 import 'extractor/constraint_extractor.dart';
 import 'package:kernel/dataflow/extractor/external_model.dart';

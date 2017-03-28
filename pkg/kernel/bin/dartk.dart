@@ -6,11 +6,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'batch_util.dart';
-import 'package:kernel/program_root.dart';
-import 'package:kernel/program_root_parser.dart';
-
-import 'package:args/args.dart';
 import 'package:analyzer/src/kernel/loader.dart';
 import 'package:args/args.dart';
 import 'package:kernel/application_root.dart';

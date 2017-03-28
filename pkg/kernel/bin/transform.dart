@@ -8,8 +8,6 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:kernel/kernel.dart';
-import 'package:kernel/program_root.dart';
-import 'package:kernel/program_root_parser.dart';
 import 'package:kernel/transformations/closure_conversion.dart' as closures;
 import 'package:kernel/transformations/continuation.dart' as cont;
 import 'package:kernel/transformations/empty.dart' as empty;

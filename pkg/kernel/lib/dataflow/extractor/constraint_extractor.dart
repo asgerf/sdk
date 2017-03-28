@@ -1699,6 +1699,26 @@ class ConstraintExtractorVisitor
         coreTypes.futureClass,
         [extractor.topType]);
   }
+
+  @override
+  visitVectorCopy(VectorCopy node) {
+    throw 'Code with vectors not supported';
+  }
+
+  @override
+  visitVectorCreation(VectorCreation node) {
+    throw 'Code with vectors not supported';
+  }
+
+  @override
+  visitVectorGet(VectorGet node) {
+    throw 'Code with vectors not supported';
+  }
+
+  @override
+  visitVectorSet(VectorSet node) {
+    throw 'Code with vectors not supported';
+  }
 }
 
 /// Generates constraints for external code based on its type.

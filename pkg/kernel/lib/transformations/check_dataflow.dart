@@ -4,9 +4,8 @@
 library kernel.transformations.check_dataflow;
 
 import 'package:kernel/ast.dart';
-import 'package:kernel/frontend/accessors.dart';
 import 'package:kernel/dataflow/dataflow.dart';
-import 'package:kernel/program_root.dart';
+import 'package:kernel/frontend/accessors.dart';
 
 /// Inserts runtime checks to verify the results of the dataflow analysis.
 ///

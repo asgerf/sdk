@@ -8,8 +8,6 @@ import '../ast.dart';
 import '../class_hierarchy.dart';
 import '../core_types.dart';
 import '../type_environment.dart';
-import '../library_index.dart';
-import '../program_root.dart';
 
 Program transformProgram(Program program, {bool forceShaking: false}) {
   new TreeShaker(program, forceShaking: forceShaking).transform(program);
