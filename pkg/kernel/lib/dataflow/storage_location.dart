@@ -9,10 +9,10 @@ import 'extractor/value_source.dart';
 import 'solver/solver.dart' as solver show StorageLocationBaseClass;
 import 'value.dart';
 
-/// An abstract storage location, with which the type inference will associate
-/// an abstract value.
+/// An abstract storage location, with which the analysis will associate an
+/// abstract value.
 ///
-/// The inference algorithm must associate two things with a storage location:
+/// The analysis must associate two things with a storage location:
 /// - a [Value] summarizing what can flow in here
 /// - whether the values that flow in here can escape
 ///

@@ -8,7 +8,7 @@ import 'storage_location.dart';
 import 'solver/solver.dart';
 import 'value.dart';
 
-/// Constraint system used by the inference engine.
+/// Constraint system used for dataflow analysis.
 ///
 /// A constraint system is divided into clusters, with each cluster owned by a
 /// class or member.  Each cluster contains a list of storage locations and a

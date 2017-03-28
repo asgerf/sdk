@@ -120,7 +120,7 @@ class VMNativeDatabase {
   static const int returnsNull = dirty;
 
   /// A native that mutates one or more objects reachable from its arguments,
-  /// in a way that affects the type inference results.
+  /// in a way that affects the analysis results.
   static const int mutatesArgument = dirty;
 
   /// Natives that have side-effects or may return null but because

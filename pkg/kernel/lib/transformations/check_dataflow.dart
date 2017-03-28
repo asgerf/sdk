@@ -1,22 +1,22 @@
 // Copyright (c) 2017, the Dart project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-library kernel.transformations.check_inference;
+library kernel.transformations.check_dataflow;
 
 import 'package:kernel/ast.dart';
 import 'package:kernel/frontend/accessors.dart';
 import 'package:kernel/dataflow/dataflow.dart';
 import 'package:kernel/program_root.dart';
 
-/// Inserts runtime checks to verify the results of the type inference.
+/// Inserts runtime checks to verify the results of the dataflow analysis.
 ///
-/// This is for debugging the type inference, not intended for production.
+/// This is for debugging the dataflow analysis, not intended for production.
 class CheckInference {
   final List<ProgramRoot> programRoots;
 
   CheckInference(this.programRoots);
 
-  DataflowResults inferenceResults;
+  DataflowResults dataflowResults;
 
   /// A synthetic field that keeps track of whether an error has been found
   /// and prevents further checks in the process of throwing an error.
@@ -27,8 +27,7 @@ class CheckInference {
   Field stopField;
 
   void transformProgram(Program program) {
-    inferenceResults =
-        DataflowEngine.analyzeWholeProgram(program, programRoots);
+    dataflowResults = DataflowEngine.analyzeWholeProgram(program, programRoots);
     addStopField(program);
     for (var library in program.libraries) {
       library.members.forEach(instrumentMember);
@@ -39,7 +38,7 @@ class CheckInference {
   }
 
   void addStopField(Program program) {
-    var library = new Library(Uri.parse('transformer:check_inference'));
+    var library = new Library(Uri.parse('transformer:check_dataflow'));
     program.libraries.add(library..parent = library);
     stopField = new Field(new Name('_stopChecks', library),
         initializer: new BoolLiteral(false), isStatic: true);
@@ -50,7 +49,7 @@ class CheckInference {
     var function = member.function;
     var body = function?.body;
     if (body != null) {
-      var inferredValues = inferenceResults.getResultsForMember(member);
+      var inferredValues = dataflowResults.getResultsForMember(member);
       List<Statement> checks = <Statement>[];
       for (int i = 0; i < function.positionalParameters.length; ++i) {
         var parameter = function.positionalParameters[i];
