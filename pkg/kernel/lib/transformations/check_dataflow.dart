@@ -18,7 +18,7 @@ class CheckDataflow {
   ///
   /// The error-handling code performs string interpolation and calls `toString`
   /// on an arbitrary value, which can lead to infinite recursion if we don't
-  /// disable the checks.
+  /// disable the checks first.
   Field stopField;
 
   void transformProgram(Program program) {
