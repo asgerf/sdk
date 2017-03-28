@@ -78,7 +78,7 @@ class VmTarget extends Target {
     }
 
     if (flags.checkDataflow) {
-      new CheckInference(flags.programRoots).transformProgram(program);
+      new CheckDataflow(flags.programRoots).transformProgram(program);
     }
 
     cont.transformProgram(program);

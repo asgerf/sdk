@@ -11,10 +11,10 @@ import 'package:kernel/program_root.dart';
 /// Inserts runtime checks to verify the results of the dataflow analysis.
 ///
 /// This is for debugging the dataflow analysis, not intended for production.
-class CheckInference {
+class CheckDataflow {
   final List<ProgramRoot> programRoots;
 
-  CheckInference(this.programRoots);
+  CheckDataflow(this.programRoots);
 
   DataflowResults dataflowResults;
 
