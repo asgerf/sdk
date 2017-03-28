@@ -38,11 +38,11 @@ class DataflowEngine {
   }
 }
 
-/// Provides access to type information for the whole program.
+/// Provides access to dataflow results for the whole program.
 ///
 /// This is partly backed by information stored on the AST nodes, so this object
-/// should not be seen as a side table, but more as an API for accessing the
-/// inferred types.
+/// should not be seen as a side table, but as an API for accessing the stored
+/// values.
 abstract class DataflowResults {
   /// Returns the values inferred for the given member.
   MemberDataflowResults getResultsForMember(Member member);
