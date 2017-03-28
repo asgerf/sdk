@@ -6,8 +6,8 @@ library kernel.laboratory.type_view;
 import 'dart:html';
 
 import 'package:kernel/ast.dart';
-import 'package:kernel/inference/storage_location.dart';
-import 'package:kernel/inference/value.dart';
+import 'package:kernel/dataflow/storage_location.dart';
+import 'package:kernel/dataflow/value.dart';
 
 import 'laboratory.dart';
 import 'laboratory_ui.dart';

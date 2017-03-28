@@ -11,9 +11,9 @@ import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
-import 'package:kernel/inference/report/binary_reader.dart';
-import 'package:kernel/inference/report/report.dart';
-import 'package:kernel/inference/value.dart';
+import 'package:kernel/dataflow/report/binary_reader.dart';
+import 'package:kernel/dataflow/report/report.dart';
+import 'package:kernel/dataflow/value.dart';
 import 'package:kernel/library_index.dart';
 import 'package:kernel/util/reader.dart';
 

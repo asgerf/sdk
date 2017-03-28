@@ -1,7 +1,7 @@
 import 'package:kernel/ast.dart';
-import 'package:kernel/inference/extractor/augmented_type.dart';
-import 'package:kernel/inference/extractor/value_sink.dart';
-import 'package:kernel/inference/value.dart';
+import 'package:kernel/dataflow/extractor/augmented_type.dart';
+import 'package:kernel/dataflow/extractor/value_sink.dart';
+import 'package:kernel/dataflow/value.dart';
 import 'package:test/test.dart';
 
 FunctionAType fun(

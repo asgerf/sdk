@@ -4,11 +4,11 @@
 library kernel.inference.report.binary_writer;
 
 import 'package:kernel/ast.dart';
-import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/report/events.dart';
-import 'package:kernel/inference/report/tags.dart';
-import 'package:kernel/inference/storage_location.dart';
-import 'package:kernel/inference/value.dart';
+import 'package:kernel/dataflow/constraints.dart';
+import 'package:kernel/dataflow/report/events.dart';
+import 'package:kernel/dataflow/report/tags.dart';
+import 'package:kernel/dataflow/storage_location.dart';
+import 'package:kernel/dataflow/value.dart';
 import 'package:kernel/util/writer.dart';
 
 class BinaryReportWriter {

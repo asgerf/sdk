@@ -4,7 +4,7 @@
 library kernel.laboratory.view;
 
 import 'package:kernel/ast.dart';
-import 'package:kernel/inference/constraints.dart';
+import 'package:kernel/dataflow/constraints.dart';
 
 import 'laboratory_data.dart';
 import 'lexer.dart';

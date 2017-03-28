@@ -5,8 +5,8 @@ library kernel.laboratory.constraint_view;
 
 import 'dart:html';
 
-import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/value.dart';
+import 'package:kernel/dataflow/constraints.dart';
+import 'package:kernel/dataflow/value.dart';
 
 import 'html_buffer.dart';
 import 'laboratory_ui.dart';

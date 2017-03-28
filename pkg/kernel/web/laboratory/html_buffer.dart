@@ -7,9 +7,9 @@ import 'dart:html';
 import 'dart:html' as html;
 
 import 'package:kernel/ast.dart';
-import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/storage_location.dart';
-import 'package:kernel/inference/value.dart';
+import 'package:kernel/dataflow/constraints.dart';
+import 'package:kernel/dataflow/storage_location.dart';
+import 'package:kernel/dataflow/value.dart';
 
 import 'laboratory.dart';
 import 'laboratory_ui.dart';

@@ -3,9 +3,9 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.inference.report.events;
 
-import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/storage_location.dart';
-import 'package:kernel/inference/value.dart';
+import 'package:kernel/dataflow/constraints.dart';
+import 'package:kernel/dataflow/storage_location.dart';
+import 'package:kernel/dataflow/value.dart';
 
 class TransferEvent {
   final Constraint constraint;

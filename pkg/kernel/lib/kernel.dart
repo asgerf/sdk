@@ -19,7 +19,7 @@ import 'binary/ast_from_binary.dart';
 import 'dart:async';
 import 'dart:io';
 import 'text/ast_to_text.dart';
-import 'inference/extractor/binding.dart';
+import 'dataflow/extractor/binding.dart';
 
 export 'ast.dart';
 

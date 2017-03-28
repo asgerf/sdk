@@ -5,9 +5,9 @@ library kernel.laboratory.backtracker;
 
 import 'dart:html';
 
-import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/report/report.dart';
-import 'package:kernel/inference/storage_location.dart';
+import 'package:kernel/dataflow/constraints.dart';
+import 'package:kernel/dataflow/report/report.dart';
+import 'package:kernel/dataflow/storage_location.dart';
 
 import 'history_manager.dart';
 import 'laboratory_data.dart';

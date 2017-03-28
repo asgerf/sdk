@@ -4,12 +4,12 @@
 import 'dart:io';
 
 import 'package:kernel/core_types.dart';
-import 'package:kernel/inference/extractor/constraint_extractor.dart';
-import 'package:kernel/inference/extractor/external_model.dart';
-import 'package:kernel/inference/report/binary_reader.dart';
-import 'package:kernel/inference/report/binary_writer.dart';
-import 'package:kernel/inference/report/report.dart';
-import 'package:kernel/inference/solver/solver.dart';
+import 'package:kernel/dataflow/extractor/constraint_extractor.dart';
+import 'package:kernel/dataflow/extractor/external_model.dart';
+import 'package:kernel/dataflow/report/binary_reader.dart';
+import 'package:kernel/dataflow/report/binary_writer.dart';
+import 'package:kernel/dataflow/report/report.dart';
+import 'package:kernel/dataflow/solver/solver.dart';
 import 'package:kernel/kernel.dart';
 import 'package:kernel/program_root_parser.dart';
 import 'package:kernel/util/reader.dart';

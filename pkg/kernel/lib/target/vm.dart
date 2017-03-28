@@ -6,7 +6,7 @@ library kernel.target.vm;
 import '../ast.dart';
 import '../class_hierarchy.dart';
 import '../core_types.dart';
-import '../transformations/check_inference.dart';
+import '../transformations/check_dataflow.dart';
 import '../transformations/continuation.dart' as cont;
 import '../transformations/erasure.dart';
 import '../transformations/insert_type_checks.dart';

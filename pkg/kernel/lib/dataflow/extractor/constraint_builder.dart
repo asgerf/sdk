@@ -4,10 +4,10 @@
 library kernel.inference.extractor.constraint_builder;
 
 import '../../ast.dart';
-import '../../inference/extractor/value_sink.dart';
-import '../../inference/extractor/value_source.dart';
-import '../../inference/storage_location.dart';
-import '../../inference/value.dart';
+import '../../dataflow/extractor/value_sink.dart';
+import '../../dataflow/extractor/value_source.dart';
+import '../../dataflow/storage_location.dart';
+import '../../dataflow/value.dart';
 import '../constraints.dart';
 import 'augmented_type.dart';
 import 'hierarchy.dart';

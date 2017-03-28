@@ -6,9 +6,9 @@ library kernel.laboratory.data;
 import 'package:kernel/ast.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
-import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/report/report.dart';
-import 'package:kernel/inference/value.dart';
+import 'package:kernel/dataflow/constraints.dart';
+import 'package:kernel/dataflow/report/report.dart';
+import 'package:kernel/dataflow/value.dart';
 import 'package:kernel/library_index.dart';
 
 // Extracted from dill file

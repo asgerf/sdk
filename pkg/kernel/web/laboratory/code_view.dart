@@ -9,7 +9,7 @@ import 'dart:math';
 
 import 'history_manager.dart';
 import 'package:kernel/ast.dart';
-import 'package:kernel/inference/constraints.dart';
+import 'package:kernel/dataflow/constraints.dart';
 
 import 'laboratory.dart';
 import 'laboratory_data.dart';

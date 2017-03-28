@@ -3,10 +3,10 @@
 // BSD-style license that can be found in the LICENSE file.
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
-import 'package:kernel/inference/constraints.dart';
-import 'package:kernel/inference/extractor/augmented_type.dart';
-import 'package:kernel/inference/extractor/binding.dart';
-import 'package:kernel/inference/extractor/hierarchy.dart';
+import 'package:kernel/dataflow/constraints.dart';
+import 'package:kernel/dataflow/extractor/augmented_type.dart';
+import 'package:kernel/dataflow/extractor/binding.dart';
+import 'package:kernel/dataflow/extractor/hierarchy.dart';
 import 'package:kernel/kernel.dart';
 import 'package:test/test.dart';
 

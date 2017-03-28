@@ -5,7 +5,7 @@ library kernel.transformations.check_inference;
 
 import 'package:kernel/ast.dart';
 import 'package:kernel/frontend/accessors.dart';
-import 'package:kernel/inference/inference.dart';
+import 'package:kernel/dataflow/inference.dart';
 import 'package:kernel/program_root.dart';
 
 /// Inserts runtime checks to verify the results of the type inference.
