@@ -38,7 +38,7 @@ class _InferenceResults extends DataflowResults {
     _solver.solve();
   }
 
-  MemberDataflowResults getInferredValuesForMember(Member member) {
+  MemberDataflowResults getResultsForMember(Member member) {
     return new _MemberInferenceResults(
         _binding.getMemberBank(member), _binding, _solver.lattice, _top);
   }

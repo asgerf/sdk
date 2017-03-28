@@ -50,7 +50,7 @@ class CheckInference {
     var function = member.function;
     var body = function?.body;
     if (body != null) {
-      var inferredValues = inferenceResults.getInferredValuesForMember(member);
+      var inferredValues = inferenceResults.getResultsForMember(member);
       List<Statement> checks = <Statement>[];
       for (int i = 0; i < function.positionalParameters.length; ++i) {
         var parameter = function.positionalParameters[i];

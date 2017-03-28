@@ -45,7 +45,7 @@ class DataflowEngine {
 /// inferred types.
 abstract class DataflowResults {
   /// Returns the values inferred for the given member.
-  MemberDataflowResults getInferredValuesForMember(Member member);
+  MemberDataflowResults getResultsForMember(Member member);
 
   Report get report;
 }
