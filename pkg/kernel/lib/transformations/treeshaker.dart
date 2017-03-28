@@ -8,11 +8,9 @@ import '../ast.dart';
 import '../class_hierarchy.dart';
 import '../core_types.dart';
 import '../type_environment.dart';
-import '../library_index.dart';
-import '../program_root.dart';
 
-Program transformProgram(Program program, {List<ProgramRoot> programRoots}) {
-  new TreeShaker(program, programRoots: programRoots).transform(program);
+Program transformProgram(Program program, {bool forceShaking: false}) {
+  new TreeShaker(program, forceShaking: forceShaking).transform(program);
   return program;
 }
 
@@ -38,7 +36,6 @@ class TreeShaker {
   final ClassHierarchy hierarchy;
   final CoreTypes coreTypes;
   final bool strongMode;
-  final List<ProgramRoot> programRoots;
 
   /// Map from classes to set of names that have been dispatched with that class
   /// as the static receiver type (meaning any subtype of that class can be
@@ -109,17 +106,16 @@ class TreeShaker {
   /// Set to true if any use of the `dart:mirrors` API is found.
   bool isUsingMirrors = false;
 
-  /// If we have roots, we will shake, even if we encounter some elements from
-  /// the mirrors library.
-  bool get forceShaking => programRoots != null && programRoots.isNotEmpty;
+  /// If true, the tree shaker will ignore mirror usage.
+  final bool forceShaking;
 
   TreeShaker(Program program,
       {ClassHierarchy hierarchy,
       CoreTypes coreTypes,
       bool strongMode: false,
-      List<ProgramRoot> programRoots})
+      bool forceShaking: false})
       : this._internal(program, hierarchy ?? new ClassHierarchy(program),
-            coreTypes ?? new CoreTypes(program), strongMode, programRoots);
+            coreTypes ?? new CoreTypes(program), strongMode, forceShaking);
 
   bool isMemberBodyUsed(Member member) {
     return _usedMembers.containsKey(member);
@@ -155,7 +151,7 @@ class TreeShaker {
   }
 
   TreeShaker._internal(this.program, ClassHierarchy hierarchy, this.coreTypes,
-      this.strongMode, this.programRoots)
+      this.strongMode, this.forceShaking)
       : this.hierarchy = hierarchy,
         this._dispatchedNames = new List<Set<Name>>(hierarchy.classes.length),
         this._usedMembersWithHost =
@@ -188,10 +184,26 @@ class TreeShaker {
     _addDispatchedName(hierarchy.rootClass, new Name('noSuchMethod'));
     _addPervasiveUses();
     _addUsedMember(null, program.mainMethod);
-    if (programRoots != null) {
-      var table = new LibraryIndex(program, programRoots.map((r) => r.library));
-      for (var root in programRoots) {
-        _addUsedRoot(root, table);
+
+    for (var library in program.libraries) {
+      for (var class_ in library.classes) {
+        for (var member in class_.members) {
+          if (member.isEntryPoint) {
+            if (member.isInstanceMember) {
+              _addUsedMember(class_, member);
+            } else if (member is Constructor) {
+              _addUsedMember(class_, member);
+              _addInstantiatedClass(class_);
+            } else {
+              _addUsedMember(null, member);
+            }
+          }
+        }
+      }
+      for (var member in library.members) {
+        if (member.isEntryPoint) {
+          _addUsedMember(null, member);
+        }
       }
     }
 
@@ -384,38 +396,6 @@ class TreeShaker {
       return;
     }
     visitList(classNode.annotations, _visitor);
-  }
-
-  /// Registers the given root as being used.
-  void _addUsedRoot(ProgramRoot root, LibraryIndex table) {
-    if (root.kind == ProgramRootKind.ExternallyInstantiatedClass) {
-      Class class_ = root.getClass(table);
-
-      // This is a class which will be instantiated by non-Dart code (whether it
-      // has a valid generative construtor or not).
-      _addInstantiatedClass(class_);
-
-      // We keep all the constructors of externally instantiated classes.
-      // Sometimes the runtime might do a constructor call and sometimes it
-      // might just allocate the class without invoking the constructor.
-      // So we try to be on the safe side here!
-      for (var constructor in class_.constructors) {
-        _addUsedMember(class_, constructor);
-      }
-
-      // We keep all factory constructors as well for the same reason.
-      for (var member in class_.procedures) {
-        if (member.isStatic && member.kind == ProcedureKind.Factory) {
-          _addUsedMember(class_, member);
-        }
-      }
-    } else {
-      var member = root.getMember(table);
-      _addUsedMember(member.enclosingClass, member);
-      if (member is Constructor) {
-        _addInstantiatedClass(member.enclosingClass);
-      }
-    }
   }
 
   /// Registers the given class as being used in a type annotation.

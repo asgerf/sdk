@@ -60,3 +60,11 @@ class ProgramRoot {
     return table.tryGetClass(library, klass);
   }
 }
+
+void markEntryPoints(Program program, List<ProgramRoot> roots) {
+  var index = new LibraryIndex(program, roots.map((r) => r.library));
+  for (var root in roots) {
+    if (root.member == null) continue;
+    root.getMember(index)?.isEntryPoint = true;
+  }
+}

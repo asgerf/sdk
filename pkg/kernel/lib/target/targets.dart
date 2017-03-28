@@ -6,7 +6,6 @@ library kernel.target.targets;
 import '../ast.dart';
 import '../core_types.dart';
 import 'flutter.dart';
-import '../program_root.dart';
 import 'vm.dart';
 import 'vmcc.dart';
 import 'vmreify.dart';
@@ -16,13 +15,13 @@ final List<String> targetNames = targets.keys.toList();
 class TargetFlags {
   bool strongMode;
   bool treeShake;
-  List<ProgramRoot> programRoots;
+  bool forceTreeShake;
   Uri kernelRuntime;
 
   TargetFlags(
       {this.strongMode: false,
       this.treeShake: false,
-      this.programRoots: const <ProgramRoot>[],
+      this.forceTreeShake: false,
       this.kernelRuntime});
 }
 

@@ -85,7 +85,8 @@ ArgParser parser = new ArgParser(allowTrailingOptions: true)
   ..addFlag('include-sdk',
       help: 'Include the SDK in the output. Implied by --link.')
   ..addFlag('tree-shake',
-      defaultsTo: false, help: 'Enable tree-shaking if the target supports it');
+      defaultsTo: false, help: 'Enable tree-shaking if the target supports it')
+  ..addFlag('force-tree-shake', help: 'Ignore dart:mirrors when tree-shaking.');
 
 String getUsage() => """
 Usage: dartk [options] FILE
@@ -316,8 +317,8 @@ Future<CompilerOutcome> batchMain(
   TargetFlags targetFlags = new TargetFlags(
       strongMode: options['strong'],
       treeShake: options['tree-shake'],
-      kernelRuntime: Platform.script.resolve('../runtime/'),
-      programRoots: programRoots);
+      forceTreeShake: options['force-tree-shake'],
+      kernelRuntime: Platform.script.resolve('../runtime/'));
   Target target = getTarget(options['target'], targetFlags);
 
   var declaredVariables = <String, String>{};
@@ -381,6 +382,8 @@ Future<CompilerOutcome> batchMain(
       }
     }
   }
+
+  markEntryPoints(program, programRoots);
 
   bool canContinueCompilation = errors.isEmpty || options['tolerant'];
 

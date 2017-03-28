@@ -95,7 +95,7 @@ class VmTarget extends Target {
             hierarchy: _hierarchy,
             coreTypes: coreTypes,
             strongMode: strongMode,
-            programRoots: flags.programRoots)
+            forceShaking: flags.forceTreeShake)
         .transform(program);
     _hierarchy = null; // Hierarchy must be recomputed.
   }
