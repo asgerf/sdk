@@ -86,6 +86,9 @@ abstract class DataflowDiagnosticListener {
 
 /// Dataflow diagnostic listener that builds an indexed report in memory.
 ///
+/// Note: This class exposes analysis internal details and breaking changes are
+/// to be expected.
+///
 /// Example usage:
 ///
 ///     var reporter = new DataflowReporter();
@@ -97,9 +100,6 @@ abstract class DataflowDiagnosticListener {
 ///
 /// The memory overhead is quite significant and this should absolutely not be
 /// used in production.
-///
-/// The report contains analysis internal details and breaking changes are
-/// to be expected.
 abstract class DataflowReporter implements DataflowDiagnosticListener {
   Binding get binding;
   ConstraintSystem get constraintSystem;
