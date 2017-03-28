@@ -5,7 +5,7 @@ library kernel.transformations.check_inference;
 
 import 'package:kernel/ast.dart';
 import 'package:kernel/frontend/accessors.dart';
-import 'package:kernel/dataflow/inference.dart';
+import 'package:kernel/dataflow/dataflow.dart';
 import 'package:kernel/program_root.dart';
 
 /// Inserts runtime checks to verify the results of the type inference.
@@ -16,7 +16,7 @@ class CheckInference {
 
   CheckInference(this.programRoots);
 
-  InferenceResults inferenceResults;
+  DataflowResults inferenceResults;
 
   /// A synthetic field that keeps track of whether an error has been found
   /// and prevents further checks in the process of throwing an error.
@@ -28,7 +28,7 @@ class CheckInference {
 
   void transformProgram(Program program) {
     inferenceResults =
-        InferenceEngine.analyzeWholeProgram(program, programRoots);
+        DataflowEngine.analyzeWholeProgram(program, programRoots);
     addStopField(program);
     for (var library in program.libraries) {
       library.members.forEach(instrumentMember);

@@ -18,14 +18,14 @@ import 'value.dart';
 export 'value.dart' show Value;
 export 'report/report.dart' show Report;
 
-part 'inference_impl.dart';
+part 'dataflow_impl.dart';
 
-class InferenceEngine {
+class DataflowEngine {
   /// Analyzes the whole program and returns the inferred type information.
   ///
   /// This invalidates any existing inference results for that program, since
   /// some of the information is stored directly on AST nodes.
-  static InferenceResults analyzeWholeProgram(
+  static DataflowResults analyzeWholeProgram(
       Program program, List<ProgramRoot> programRoots,
       {CoreTypes coreTypes,
       ClassHierarchy hierarchy,
@@ -43,15 +43,15 @@ class InferenceEngine {
 /// This is partly backed by information stored on the AST nodes, so this object
 /// should not be seen as a side table, but more as an API for accessing the
 /// inferred types.
-abstract class InferenceResults {
+abstract class DataflowResults {
   /// Returns the values inferred for the given member.
-  MemberInferenceResults getInferredValuesForMember(Member member);
+  MemberDataflowResults getInferredValuesForMember(Member member);
 
   Report get report;
 }
 
 /// Inferred type information for the body of a member.
-abstract class MemberInferenceResults {
+abstract class MemberDataflowResults {
   /// The value of the member itself.
   ///
   /// For fields, this is the value of the field, for procedures and

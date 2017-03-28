@@ -3,7 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 part of kernel.inference;
 
-class _InferenceResults extends InferenceResults {
+class _InferenceResults extends DataflowResults {
   final Program program;
   CoreTypes coreTypes;
   ClassHierarchy hierarchy;
@@ -38,7 +38,7 @@ class _InferenceResults extends InferenceResults {
     _solver.solve();
   }
 
-  MemberInferenceResults getInferredValuesForMember(Member member) {
+  MemberDataflowResults getInferredValuesForMember(Member member) {
     return new _MemberInferenceResults(
         _binding.getMemberBank(member), _binding, _solver.lattice, _top);
   }
@@ -46,7 +46,7 @@ class _InferenceResults extends InferenceResults {
   Report get report => _report;
 }
 
-class _MemberInferenceResults extends MemberInferenceResults {
+class _MemberInferenceResults extends MemberDataflowResults {
   final StorageLocationBank _bank;
   final Binding _binding;
   final ValueLattice _lattice;
