@@ -5,6 +5,7 @@ library kernel.laboratory.view;
 
 import 'package:kernel/ast.dart';
 import 'package:kernel/dataflow/constraints.dart';
+import 'package:path/path.dart';
 
 import 'laboratory_data.dart';
 import 'lexer.dart';
@@ -209,7 +210,7 @@ String getShortName(NamedNode node) {
     }
     return node.name.name;
   } else if (node is Library) {
-    return node.name ?? '${node.importUri}';
+    return getLibraryName(node);
   } else {
     throw 'Unexpected node: ${node.runtimeType}';
   }
@@ -221,7 +222,10 @@ String getLongName(NamedNode node) {
   } else if (node is Member) {
     return '${getLongName(node.parent)}.${node.name.name}';
   } else {
-    Library library = node;
-    return library.name ?? '${library.importUri}';
+    return getLibraryName(node);
   }
+}
+
+String getLibraryName(Library library) {
+  return library.name ?? withoutExtension(library.importUri.pathSegments.last);
 }
