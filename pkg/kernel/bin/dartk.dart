@@ -6,18 +6,18 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'batch_util.dart';
-import 'util.dart';
-
-import 'package:args/args.dart';
 import 'package:analyzer/src/kernel/loader.dart';
+import 'package:args/args.dart';
 import 'package:kernel/application_root.dart';
-import 'package:kernel/verifier.dart';
 import 'package:kernel/kernel.dart';
 import 'package:kernel/log.dart';
+import 'package:kernel/program_root.dart';
+import 'package:kernel/program_root_parser.dart';
 import 'package:kernel/target/targets.dart';
-import 'package:kernel/transformations/treeshaker.dart';
+import 'package:kernel/verifier.dart';
 import 'package:path/path.dart' as path;
+
+import 'batch_util.dart';
 
 // Returns the path to the current sdk based on `Platform.resolvedExecutable`.
 String currentSdk() {
