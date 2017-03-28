@@ -86,9 +86,9 @@ ArgParser parser = new ArgParser(allowTrailingOptions: true)
       help: 'Include the SDK in the output. Implied by --link.')
   ..addFlag('tree-shake',
       defaultsTo: false, help: 'Enable tree-shaking if the target supports it')
-  ..addFlag('check-inference',
+  ..addFlag('check-dataflow',
       negatable: false,
-      help: 'Insert runtime checks to verify the results of type inference.\n'
+      help: 'Insert runtime checks to verify the results of type dataflow.\n'
           'Only for internal use. Generates very slow code.');
 
 String getUsage() => """
@@ -336,7 +336,7 @@ Future<CompilerOutcome> batchMain(
   TargetFlags targetFlags = new TargetFlags(
       strongMode: options['strong'],
       treeShake: options['tree-shake'],
-      checkInference: options['check-inference'],
+      checkDataflow: options['check-dataflow'],
       kernelRuntime: Platform.script.resolve('../runtime/'),
       programRoots: programRoots);
   Target target = getTarget(options['target'], targetFlags);

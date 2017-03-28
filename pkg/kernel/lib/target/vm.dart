@@ -77,7 +77,7 @@ class VmTarget extends Target {
       performTreeShaking(program);
     }
 
-    if (flags.checkInference) {
+    if (flags.checkDataflow) {
       new CheckInference(flags.programRoots).transformProgram(program);
     }
 

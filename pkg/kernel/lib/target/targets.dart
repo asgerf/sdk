@@ -16,17 +16,16 @@ final List<String> targetNames = targets.keys.toList();
 class TargetFlags {
   bool strongMode;
   bool treeShake;
-  bool checkInference;
+  bool checkDataflow;
   List<ProgramRoot> programRoots;
   Uri kernelRuntime;
 
-  TargetFlags({
-    this.strongMode: false,
-    this.treeShake: false,
-    this.checkInference,
-    this.programRoots: const <ProgramRoot>[],
-    this.kernelRuntime
-  });
+  TargetFlags(
+      {this.strongMode: false,
+      this.treeShake: false,
+      this.checkDataflow,
+      this.programRoots: const <ProgramRoot>[],
+      this.kernelRuntime});
 }
 
 typedef Target _TargetBuilder(TargetFlags flags);
