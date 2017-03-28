@@ -14,8 +14,12 @@ abstract class ExternalModel {
   bool isCleanExternal(Member member);
 
   /// If true, the analysis should treat [member] as external using this model,
-  /// even though it has an implementation and/or is overridden by methods that
-  /// implement it.
+  /// even if it has an implementation and/or is overridden by methods in the
+  /// core libraries.
+  ///
+  /// User-defined methods that override the given member still affect interface
+  /// calls to the member, but overriders in the core libraries are ignored as
+  /// the model is assumed to account for them.
   bool forceExternal(Member member);
 
   /// True if the given member can be invoked from external code.
@@ -37,10 +41,11 @@ class VmExternalModel extends ExternalModel {
   VmExternalModel(Program program, this.coreTypes, this.programRoots) {
     externalNameAnnotation =
         coreTypes.getClass('dart:_internal', 'ExternalName');
-    var index = new LibraryIndex(program, programRoots.map((r) => r.library));
+    var rootIndex =
+        new LibraryIndex(program, programRoots.map((r) => r.library));
     for (var root in programRoots) {
       if (root.member != null) {
-        var member = root.getMember(index);
+        var member = root.getMember(rootIndex);
         if (member != null) {
           entryPointMembers.add(member);
         }
@@ -57,6 +62,9 @@ class VmExternalModel extends ExternalModel {
     forceExternals.addAll(coreTypes.mapClass.members);
     forceExternals.addAll(coreTypes.futureClass.members);
     forceExternals.addAll(coreTypes.streamClass.members);
+
+    forceExternals
+        .addAll(coreTypes.getClass('dart:core', '_StringBase').members);
   }
 
   ConstructorInvocation getAnnotation(
