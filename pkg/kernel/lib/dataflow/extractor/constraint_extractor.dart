@@ -1799,8 +1799,8 @@ class ExternalVisitor extends ATypeVisitor {
     type.accept(this);
   }
 
-  void visitBound(AType type) => type.accept(bivariantVisitor);
-  void visitInverse(AType type) => type.accept(inverseVisitor);
+  void visitBound(AType type) => bivariantVisitor.visit(type);
+  void visitInverse(AType type) => inverseVisitor.visit(type);
 
   @override
   visitBottomAType(BottomAType type) {}
