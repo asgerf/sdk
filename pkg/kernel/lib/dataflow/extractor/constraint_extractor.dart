@@ -371,6 +371,104 @@ class LocalScope extends TypeParameterScope {
   }
 }
 
+class ControlFlowState {
+  /// A stack entry contains either:
+  /// - null, if the branch cannot complete normally, or
+  /// - a set of variables that may be uninitialized at the end of the branch
+  final List<Set<VariableDeclaration>> stack = <Set<VariableDeclaration>>[
+    new Set<VariableDeclaration>()
+  ];
+
+  int get current => stack.length - 1;
+
+  void declareUninitializedVariable(VariableDeclaration node) {
+    stack.last?.add(node);
+  }
+
+  void setInitialized(VariableDeclaration node) {
+    stack.last?.remove(node);
+  }
+
+  void terminateBranch() {
+    stack[current] = null;
+  }
+
+  bool isDefinitelyInitialized(VariableDeclaration variable) {
+    var uninitializedSet = stack.last;
+    return uninitializedSet == null || !uninitializedSet.contains(variable);
+  }
+
+  bool get isReachable => stack.last != null;
+
+  void branchFrom(int base) {
+    var uninitializedSet = stack[base];
+    if (uninitializedSet != null) {
+      uninitializedSet = new Set<VariableDeclaration>.from(uninitializedSet);
+    }
+    stack.add(uninitializedSet);
+  }
+
+  /// Return to the [base] branch and merge the abstract state from its children
+  /// assuming at least one of them has completed normally.
+  void mergeInto(int base) {
+    if (base == current) return;
+    stack[base]?.removeWhere((v) {
+      // If it is still uninitialized in one of the branches, keep it as
+      // uninitialized in the parent.
+      for (int i = base + 1; i < stack.length; ++i) {
+        var uninitialized = stack[i];
+        if (uninitialized != null && uninitialized.contains(v)) {
+          return false;
+        }
+      }
+      return true;
+    });
+    bool allTerminate = true;
+    for (int i = base + 1; i < stack.length; ++i) {
+      if (stack[i] != null) {
+        allTerminate = false;
+        break;
+      }
+    }
+    if (allTerminate) {
+      stack[base] = null;
+    }
+    stack.removeRange(base + 1, stack.length);
+  }
+
+  /// Return to the [base] branch and merge the abstract state from its children
+  /// assuming all of them have completed normally.
+  ///
+  /// This is used try/finally blocks.
+  void mergeFinally(int base) {
+    if (base == current) return;
+    stack[base]?.removeWhere((v) {
+      // If it was initialized in any branch, it is initialized after finally.
+      for (int i = base + 1; i < stack.length; ++i) {
+        var uninitialized = stack[i];
+        if (uninitialized == null || !uninitialized.contains(v)) {
+          return true;
+        }
+      }
+      return false;
+    });
+    // If one child cannot complete normally, neither can the parent.
+    for (int i = base + 1; i < stack.length; ++i) {
+      if (stack[i] == null) {
+        stack[base] = null;
+        break;
+      }
+    }
+    stack.removeRange(base + 1, stack.length);
+  }
+
+  /// Return to the [base] branch without merging any state from its children.
+  void resumeBranch(int base) {
+    if (base == current) return;
+    stack.removeRange(base + 1, stack.length);
+  }
+}
+
 /// Generates constraints from the body of a member.
 class ConstraintExtractorVisitor
     implements
@@ -402,6 +500,8 @@ class ConstraintExtractorVisitor
   AType yieldType;
   AsyncMarker currentAsyncMarker;
   bool seenTypeError = false;
+
+  final ControlFlowState controlFlow = new ControlFlowState();
 
   final LocalScope scope = new LocalScope();
   final bool isUncheckedLibrary;
@@ -461,7 +561,11 @@ class ConstraintExtractorVisitor
 
   /// Returns false if the statement cannot complete normally.
   bool visitStatement(Statement node) {
-    return node.accept(this);
+    bool result = node.accept(this);
+    if (!result) {
+      controlFlow.terminateBranch();
+    }
+    return result;
   }
 
   void visitInitializer(Initializer node) {
@@ -1413,26 +1517,32 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitVariableGet(VariableGet node) {
-    if (node.promotedType != null) {
-      // TODO: Ensure dataflow from variable base type
-      return augmentor.augmentType(node.promotedType);
+    var variable = node.variable;
+    var type = getVariableType(variable);
+    if (!controlFlow.isDefinitelyInitialized(variable)) {
+      builder.addAssignment(Value.null_, type.sink, ValueFlags.all);
     }
-    return getVariableType(node.variable);
+    return type;
   }
 
   @override
   AType visitVariableSet(VariableSet node) {
     var value = visitExpression(node.value);
-    checkAssignable(node.value, value, getVariableType(node.variable));
+    var variable = node.variable;
+    checkAssignable(node.value, value, getVariableType(variable));
+    controlFlow.setInitialized(variable);
     return value;
   }
 
   @override
   bool visitAssertStatement(AssertStatement node) {
+    int base = controlFlow.current;
+    controlFlow.branchFrom(base);
     visitExpression(node.condition);
     if (node.message != null) {
       visitExpression(node.message);
     }
+    controlFlow.resumeBranch(base);
     return true;
   }
 
@@ -1537,8 +1647,11 @@ class ConstraintExtractorVisitor
     if (node.condition != null) {
       checkConditionExpression(node.condition);
     }
-    node.updates.forEach(visitExpression);
+    int base = controlFlow.current;
+    controlFlow.branchFrom(base);
     visitStatement(node.body);
+    node.updates.forEach(visitExpression);
+    controlFlow.resumeBranch(base);
     return !isTrueConstant(node.condition);
   }
 
@@ -1551,14 +1664,19 @@ class ConstraintExtractorVisitor
   @override
   bool visitIfStatement(IfStatement node) {
     checkConditionExpression(node.condition);
+    int base = controlFlow.current;
+    controlFlow.branchFrom(base);
     bool thenCompletes = visitStatement(node.then);
+    controlFlow.branchFrom(base);
     bool elseCompletes =
         (node.otherwise != null) ? visitStatement(node.otherwise) : true;
+    controlFlow.mergeInto(base);
     return thenCompletes || elseCompletes;
   }
 
   @override
   bool visitInvalidStatement(InvalidStatement node) {
+    controlFlow.terminateBranch();
     return false;
   }
 
@@ -1581,6 +1699,7 @@ class ConstraintExtractorVisitor
         checkAssignable(node.expression, type, returnType, node.fileOffset);
       }
     }
+    controlFlow.terminateBranch();
     return false;
   }
 
@@ -1591,11 +1710,14 @@ class ConstraintExtractorVisitor
       switchCase.expressions.forEach(visitExpression);
       visitStatement(switchCase.body);
     }
+    controlFlow.terminateBranch();
     return false; // Must break out from an enclosing labeled statement.
   }
 
   @override
   bool visitTryCatch(TryCatch node) {
+    int base = controlFlow.current;
+    controlFlow.branchFrom(base);
     bool bodyCompletes = visitStatement(node.body);
     bool catchCompletes = false;
     for (var catchClause in node.catches) {
@@ -1604,18 +1726,24 @@ class ConstraintExtractorVisitor
       if (catchClause.stackTrace != null) {
         scope.variables[catchClause.stackTrace] = extractor.topType;
       }
+      controlFlow.branchFrom(base);
       bool completes = visitStatement(catchClause.body);
       if (completes) {
         catchCompletes = true;
       }
     }
+    controlFlow.mergeInto(base);
     return bodyCompletes || catchCompletes;
   }
 
   @override
   bool visitTryFinally(TryFinally node) {
+    int base = controlFlow.current;
+    controlFlow.branchFrom(base);
     bool bodyCompletes = visitStatement(node.body);
+    controlFlow.branchFrom(base);
     bool finalizerCompletes = visitStatement(node.finalizer);
+    controlFlow.mergeFinally(base);
     return bodyCompletes && finalizerCompletes;
   }
 
@@ -1626,6 +1754,8 @@ class ConstraintExtractorVisitor
     var type = scope.variables[node] = augmentor.augmentType(node.type);
     if (node.initializer != null) {
       checkAssignableExpression(node.initializer, type);
+    } else {
+      controlFlow.declareUninitializedVariable(node);
     }
     return true;
   }
@@ -1633,7 +1763,10 @@ class ConstraintExtractorVisitor
   @override
   bool visitWhileStatement(WhileStatement node) {
     checkConditionExpression(node.condition);
+    int base = controlFlow.current;
+    controlFlow.branchFrom(base);
     visitStatement(node.body);
+    controlFlow.resumeBranch(base);
     return !isTrueConstant(node.condition);
   }
 
