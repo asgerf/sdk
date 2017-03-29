@@ -73,8 +73,10 @@ class CheckDataflow {
           new IsExpression(new VariableGet(variable), value.baseClass.rawType));
     }
     Throw throw_ = new Throw(new StringConcatenation([
-      new StringLiteral(
-          "Unexpected value of '${variable.name}' in $where.\nActual value: "),
+      new StringLiteral("Unexpected value of '${variable.name}' in $where."
+          "\nActual value runtimeType: "),
+      new PropertyGet(new VariableGet(variable), new Name('runtimeType')),
+      new StringLiteral("\nActual value stringified: "),
       new VariableGet(variable),
       new StringLiteral('\nExpected values: $value')
     ]))..fileOffset = variable.fileOffset ?? where.fileOffset;
