@@ -434,6 +434,7 @@ class BinaryPrinter extends Visitor {
 
   visitInvalidExpression(InvalidExpression node) {
     writeByte(Tag.InvalidExpression);
+    writeInferredValueOffset(node.dataflowValueOffset);
   }
 
   visitVariableGet(VariableGet node) {
