@@ -285,6 +285,10 @@ class CodeView extends UIComponent {
       int locationIndex = getInferredValueOffset(astNode);
       if (locationIndex != -1) {
         element.classes.add('v$locationIndex');
+        var location =
+            constraintSystem.getStorageLocation(view.reference, locationIndex);
+        element.onClick.listen(
+            ui.backtracker.investigateStorageLocationOnEvent(location, null));
       }
     }
     return element;
