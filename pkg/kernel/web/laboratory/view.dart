@@ -200,15 +200,21 @@ int getInferredValueOffset(TreeNode node) {
   return -1;
 }
 
+String getMemberName(Member node) {
+  var name = node.name.name;
+  return name.isEmpty ? '<default>' : name;
+}
+
 String getShortName(NamedNode node) {
   if (node is Class) {
     return node.name;
   } else if (node is Member) {
     var class_ = node.enclosingClass;
+    String name = getMemberName(node);
     if (class_ != null) {
-      return '${class_.name}.${node.name.name}';
+      return '${class_.name}.$name';
     }
-    return node.name.name;
+    return name;
   } else if (node is Library) {
     return getLibraryName(node);
   } else {
@@ -220,7 +226,7 @@ String getLongName(NamedNode node) {
   if (node is Class) {
     return '${getLongName(node.enclosingLibrary)}.${node.name}';
   } else if (node is Member) {
-    return '${getLongName(node.parent)}.${node.name.name}';
+    return '${getLongName(node.parent)}.${getMemberName(node)}';
   } else {
     return getLibraryName(node);
   }

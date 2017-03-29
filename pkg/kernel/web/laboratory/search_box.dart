@@ -243,6 +243,18 @@ class FuzzyFinder {
       ++regexpIndex;
       if (regexpIndex == regexps.length) {
         suggestions.add(new Suggestion(class_.reference, penalty));
+
+        // Also suggest anonymous constructors (and factories).
+        for (var member in class_.procedures) {
+          if (member.name.name.isEmpty) {
+            suggestions.add(new Suggestion(member.reference, penalty + 1));
+          }
+        }
+        for (var member in class_.constructors) {
+          if (member.name.name.isEmpty) {
+            suggestions.add(new Suggestion(member.reference, penalty + 1));
+          }
+        }
         return;
       }
     }
