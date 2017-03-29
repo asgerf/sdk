@@ -330,7 +330,6 @@ Future<CompilerOutcome> batchMain(
         .getDefaultEntryPointManifests(sdkCheckout)
         .map((uri) => uri.toFilePath())
         .toList();
-    print('Entry points = $embedderEntryPointManifests');
   }
   List<ProgramRoot> programRoots =
       parseProgramRoots(embedderEntryPointManifests);
