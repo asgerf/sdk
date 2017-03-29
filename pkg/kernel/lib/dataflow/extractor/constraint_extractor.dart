@@ -1525,8 +1525,12 @@ class ConstraintExtractorVisitor
       if (asStream == null) return extractor.topType;
       var parameter = coreTypes.streamClass.typeParameters[0];
       var location = bank.newLocation();
-      return asStream
+      var substitution = Substitution.sequence(
+          asStream, Substitution.fromInterfaceType(stream));
+      var result = substitution
           .getSubstitute(new TypeParameterAType(location, location, parameter));
+      assert(result != null);
+      return result;
     }
     return extractor.topType;
   }
