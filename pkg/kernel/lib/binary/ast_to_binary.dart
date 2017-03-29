@@ -584,7 +584,7 @@ class BinaryPrinter extends Visitor {
     writeNodeList(node.types);
     writeNodeList(node.positional);
     writeNodeList(node.named);
-    writeInferredValueOffset(node.typeArgumentDataflowValueOffset);
+    writeInferredValueOffset(node.typeDataflowValueOffset);
   }
 
   visitNamedExpression(NamedExpression node) {
@@ -728,7 +728,7 @@ class BinaryPrinter extends Visitor {
     writeOffset(node.fileOffset);
     writeNode(node.typeArgument);
     writeNodeList(node.expressions);
-    writeInferredValueOffset(node.typeArgumentDataflowValueOffset);
+    writeInferredValueOffset(node.typeDataflowValueOffset);
     writeInferredValueOffset(node.dataflowValueOffset);
   }
 
@@ -738,7 +738,7 @@ class BinaryPrinter extends Visitor {
     writeNode(node.keyType);
     writeNode(node.valueType);
     writeNodeList(node.entries);
-    writeInferredValueOffset(node.typeArgumentDataflowValueOffset);
+    writeInferredValueOffset(node.typeDataflowValueOffset);
     writeInferredValueOffset(node.dataflowValueOffset);
   }
 

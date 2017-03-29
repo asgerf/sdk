@@ -1922,7 +1922,7 @@ class Arguments extends TreeNode {
   final List<NamedExpression> named;
 
   /// Offset of the initial dataflow value for the type arguments.
-  int typeArgumentDataflowValueOffset = -1;
+  int typeDataflowValueOffset = -1;
 
   Arguments(this.positional,
       {List<DartType> types, List<NamedExpression> named})
@@ -2560,7 +2560,7 @@ class Throw extends Expression {
 
 class ListLiteral extends Expression {
   bool isConst;
-  int typeArgumentDataflowValueOffset = -1;
+  int typeDataflowValueOffset = -1;
   DartType typeArgument; // Not null, defaults to DynamicType.
   final List<Expression> expressions;
 
@@ -2590,7 +2590,7 @@ class ListLiteral extends Expression {
 
 class MapLiteral extends Expression {
   bool isConst;
-  int typeArgumentDataflowValueOffset = -1;
+  int typeDataflowValueOffset = -1;
   DartType keyType; // Not null, defaults to DynamicType.
   DartType valueType; // Not null, defaults to DynamicType.
   final List<MapEntry> entries;

@@ -966,7 +966,7 @@ class Printer extends Visitor<Null> {
     }
     if (node.typeArgument != null) {
       writeSymbol('<');
-      var iterator = getAugmentor(node.typeArgumentDataflowValueOffset);
+      var iterator = getAugmentor(node.typeDataflowValueOffset);
       writeType(node.typeArgument, iterator);
       writeSymbol('>');
     }
@@ -982,7 +982,7 @@ class Printer extends Visitor<Null> {
     }
     if (node.keyType != null) {
       writeSymbol('<');
-      var iterator = getAugmentor(node.typeArgumentDataflowValueOffset);
+      var iterator = getAugmentor(node.typeDataflowValueOffset);
       writeList([node.keyType, node.valueType], (t) => writeType(t, iterator));
       writeSymbol('>');
     }
@@ -1425,7 +1425,7 @@ class Printer extends Visitor<Null> {
 
   visitArguments(Arguments node) {
     if (node.types.isNotEmpty) {
-      var augmentor = getAugmentor(node.typeArgumentDataflowValueOffset);
+      var augmentor = getAugmentor(node.typeDataflowValueOffset);
       writeSymbol('<');
       writeList(node.types, (t) => writeType(t, augmentor));
       writeSymbol('>');

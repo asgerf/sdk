@@ -795,14 +795,14 @@ class BinaryBuilder {
         return new ListLiteral(readExpressionList(),
             typeArgument: typeArgument, isConst: false)
           ..fileOffset = offset
-          ..typeArgumentDataflowValueOffset = readInferredValueOffset();
+          ..typeDataflowValueOffset = readInferredValueOffset();
       case Tag.ConstListLiteral:
         int offset = readOffset();
         var typeArgument = readDartType();
         return new ListLiteral(readExpressionList(),
             typeArgument: typeArgument, isConst: true)
           ..fileOffset = offset
-          ..typeArgumentDataflowValueOffset = readInferredValueOffset();
+          ..typeDataflowValueOffset = readInferredValueOffset();
       case Tag.MapLiteral:
         int offset = readOffset();
         var keyType = readDartType();
@@ -810,7 +810,7 @@ class BinaryBuilder {
         return new MapLiteral(readMapEntryList(),
             keyType: keyType, valueType: valueType, isConst: false)
           ..fileOffset = offset
-          ..typeArgumentDataflowValueOffset = readInferredValueOffset();
+          ..typeDataflowValueOffset = readInferredValueOffset();
       case Tag.ConstMapLiteral:
         int offset = readOffset();
         var keyType = readDartType();
@@ -818,7 +818,7 @@ class BinaryBuilder {
         return new MapLiteral(readMapEntryList(),
             keyType: keyType, valueType: valueType, isConst: true)
           ..fileOffset = offset
-          ..typeArgumentDataflowValueOffset = readInferredValueOffset();
+          ..typeDataflowValueOffset = readInferredValueOffset();
       case Tag.AwaitExpression:
         return new AwaitExpression(readExpression());
       case Tag.FunctionExpression:
@@ -1098,7 +1098,7 @@ class BinaryBuilder {
     var positional = readExpressionList();
     var named = readNamedExpressionList();
     return new Arguments(positional, types: typeArguments, named: named)
-      ..typeArgumentDataflowValueOffset = readInferredValueOffset();
+      ..typeDataflowValueOffset = readInferredValueOffset();
   }
 
   List<NamedExpression> readNamedExpressionList() {

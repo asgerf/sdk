@@ -956,7 +956,7 @@ class ConstraintExtractorVisitor
     Constructor target = node.target;
     Arguments arguments = node.arguments;
     Class class_ = target.enclosingClass;
-    node.arguments.typeArgumentDataflowValueOffset = bank.nextIndex;
+    node.arguments.typeDataflowValueOffset = bank.nextIndex;
     var typeArguments = augmentor.augmentTypeList(arguments.types);
     Substitution substitution =
         Substitution.fromPairs(class_.typeParameters, typeArguments);
@@ -1043,7 +1043,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitListLiteral(ListLiteral node) {
-    node.typeArgumentDataflowValueOffset = bank.nextIndex;
+    node.typeDataflowValueOffset = bank.nextIndex;
     var typeArgument = augmentor.augmentType(node.typeArgument);
     for (var item in node.expressions) {
       checkAssignableExpression(item, typeArgument);
@@ -1068,7 +1068,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitMapLiteral(MapLiteral node) {
-    node.typeArgumentDataflowValueOffset = bank.nextIndex;
+    node.typeDataflowValueOffset = bank.nextIndex;
     var keyType = augmentor.augmentType(node.keyType);
     var valueType = augmentor.augmentType(node.valueType);
     for (var entry in node.entries) {
