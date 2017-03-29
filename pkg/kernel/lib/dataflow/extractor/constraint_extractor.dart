@@ -800,7 +800,7 @@ class ConstraintExtractorVisitor
       for (int j = 0; j < function.namedParameters.length; ++j) {
         if (argument.name == function.namedParameters[j].name) {
           var expectedType =
-              substitution.substituteType(target.namedParameters[i]);
+              substitution.substituteType(target.namedParameters[j]);
           checkAssignableExpression(argument.value, expectedType);
           found = true;
           break;
