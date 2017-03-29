@@ -700,11 +700,18 @@ abstract class Member extends NamedNode {
   bool get isExternal;
   void set isExternal(bool value);
 
-  /// True if the member can be invoked from outside the Dart program, such as
-  /// through a VM embedder or JS interop.
+  /// True if the member can be invoked from a place not visible given whole
+  /// Kernel program.
   ///
   /// Note that the program's main method is not considered a foreign entry
-  /// point.
+  /// point (the main entry point is visible in the sense that it is declared
+  /// by the [Program]).
+  ///
+  /// Examples of foreign entry points are:
+  /// - Methods invoked by the VM embedder
+  /// - Methods invoked by JS interop
+  /// - Helper methods used by the backend's code generation
+  ///
   bool get isForeignEntryPoint;
   void set isForeignEntryPoint(bool value);
 
