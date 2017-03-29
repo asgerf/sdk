@@ -417,10 +417,10 @@ class TypeParameterAType extends AType {
   }
 }
 
-abstract class ATypeVisitor {
-  visitInterfaceAType(InterfaceAType type);
-  visitFunctionAType(FunctionAType type);
-  visitFunctionTypeParameterAType(FunctionTypeParameterAType type);
-  visitBottomAType(BottomAType type);
-  visitTypeParameterAType(TypeParameterAType type);
+abstract class ATypeVisitor<T> {
+  T visitInterfaceAType(InterfaceAType type);
+  T visitFunctionAType(FunctionAType type);
+  T visitFunctionTypeParameterAType(FunctionTypeParameterAType type);
+  T visitBottomAType(BottomAType type);
+  T visitTypeParameterAType(TypeParameterAType type);
 }

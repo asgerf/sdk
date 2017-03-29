@@ -15,6 +15,7 @@ import 'constraint_builder.dart';
 import 'external_model.dart';
 import 'hierarchy.dart';
 import 'dynamic_index.dart';
+import 'package:kernel/dataflow/extractor/value_source.dart';
 import 'substitution.dart';
 import 'type_augmentor.dart';
 import 'value_sink.dart';
@@ -205,10 +206,6 @@ class ConstraintExtractor {
 
   void checkOverride(
       Class host, Member ownMember, Member superMember, bool isSetter) {
-    if (externalModel.forceExternal(superMember) &&
-        host.enclosingLibrary.importUri.scheme == 'dart') {
-      return;
-    }
     builder.setOwner(ownMember);
     if (isSetter) {
       checkAssignable(
@@ -218,12 +215,14 @@ class ConstraintExtractor {
           new GlobalScope(binding),
           ownMember.fileOffset);
     } else {
-      checkAssignable(
-          ownMember,
-          getterType(host, ownMember),
-          getterType(host, superMember),
-          new GlobalScope(binding),
-          ownMember.fileOffset);
+      var ownMemberType = getterType(host, ownMember);
+      var superMemberType = getterType(host, superMember);
+      if (externalModel.forceExternal(superMember) &&
+          host.enclosingLibrary.importUri.scheme == 'dart') {
+        superMemberType = new ProtectType().protectType(superMemberType);
+      }
+      checkAssignable(ownMember, ownMemberType, superMemberType,
+          new GlobalScope(binding), ownMember.fileOffset);
     }
   }
 
@@ -578,13 +577,12 @@ class ConstraintExtractorVisitor
     yieldType = _getYieldType(node.function.asyncMarker, ret);
     recordParameterTypes(bank, node.function);
     bool treatAsExternal = node.isExternal || externalModel.forceExternal(node);
-    if (!treatAsExternal) {
-      handleFunctionBody(node.function);
-      if (seenTypeError) {
-        treatAsExternal = true;
-      }
-    }
     if (treatAsExternal) {
+      returnType = extractor.topType;
+      yieldType = extractor.topType;
+    }
+    handleFunctionBody(node.function);
+    if (treatAsExternal || seenTypeError) {
       builder.setFileOffset(node.fileOffset);
       new ExternalVisitor(extractor,
               isClean: externalModel.isCleanExternal(node),
@@ -1884,4 +1882,61 @@ class AllocationVisitor extends ATypeVisitor {
 
   @override
   visitTypeParameterAType(TypeParameterAType type) {}
+}
+
+class ProtectType extends ATypeVisitor<AType> {
+  final bool covariant;
+
+  ProtectType([this.covariant = true]);
+
+  ProtectType get inverse => new ProtectType(!covariant);
+
+  AType protectType(AType type) => type.accept(this);
+
+  List<AType> protectTypeList(List<AType> types) =>
+      types.map(protectType).toList(growable: false);
+
+  ValueSource protectSource(ValueSource source) {
+    return covariant ? Value.bottom : source;
+  }
+
+  ValueSink protectSink(ValueSink sink) {
+    return covariant ? sink : ValueSink.nowhere;
+  }
+
+  @override
+  AType visitBottomAType(BottomAType type) => type;
+
+  @override
+  AType visitFunctionAType(FunctionAType type) {
+    return new FunctionAType(
+        protectSource(type.source),
+        protectSink(type.sink),
+        inverse.protectTypeList(type.typeParameterBounds),
+        type.requiredParameterCount,
+        inverse.protectTypeList(type.positionalParameters),
+        type.namedParameterNames,
+        inverse.protectTypeList(type.namedParameters),
+        protectType(type.returnType));
+  }
+
+  @override
+  AType visitFunctionTypeParameterAType(FunctionTypeParameterAType type) {
+    return type;
+  }
+
+  @override
+  AType visitInterfaceAType(InterfaceAType type) {
+    return new InterfaceAType(
+        protectSource(type.source),
+        protectSink(type.sink),
+        type.classNode,
+        protectTypeList(type.typeArguments));
+  }
+
+  @override
+  AType visitTypeParameterAType(TypeParameterAType type) {
+    return new TypeParameterAType(
+        protectSource(type.source), protectSink(type.sink), type.parameter);
+  }
 }
