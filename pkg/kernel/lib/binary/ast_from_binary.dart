@@ -498,6 +498,9 @@ class BinaryBuilder {
 
   Procedure readProcedure() {
     int tag = readByte();
+    if (tag != Tag.Procedure) {
+      fail('A procedure was expected, but found tag $tag');
+    }
     assert(tag == Tag.Procedure);
     var canonicalName = readCanonicalNameReference();
     var reference = canonicalName.getReference();

@@ -25,7 +25,8 @@ export 'ast.dart';
 
 Program loadProgramFromBinary(String path, [Program program]) {
   program ??= new Program();
-  new BinaryBuilder(new File(path).readAsBytesSync()).readProgram(program);
+  new BinaryBuilder(new File(path).readAsBytesSync(), path)
+      .readProgram(program);
   return program;
 }
 

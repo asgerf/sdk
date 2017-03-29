@@ -985,6 +985,7 @@ class FunctionNode : public TreeNode {
   Child<Statement> body_;
   TokenPosition position_;
   TokenPosition end_position_;
+  int32_t return_dataflow_value_offset_;
 
   DISALLOW_COPY_AND_ASSIGN(FunctionNode);
 };
@@ -1006,6 +1007,7 @@ class Expression : public TreeNode {
  protected:
   Expression() : position_(TokenPosition::kNoSource) {}
   TokenPosition position_;
+  int32_t dataflow_value_offset_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Expression);
@@ -1249,6 +1251,7 @@ class Arguments : public TreeNode {
   List<DartType> types_;
   List<Expression> positional_;
   List<NamedExpression> named_;
+  int32_t type_dataflow_value_offset_;
 
   DISALLOW_COPY_AND_ASSIGN(Arguments);
 };
@@ -1783,6 +1786,7 @@ class ListLiteral : public Expression {
   bool is_const_;
   Child<DartType> type_;
   List<Expression> expressions_;
+  int32_t type_dataflow_value_offset_;
 
   DISALLOW_COPY_AND_ASSIGN(ListLiteral);
 };
@@ -1811,6 +1815,7 @@ class MapLiteral : public Expression {
   Child<DartType> key_type_;
   Child<DartType> value_type_;
   List<MapEntry> entries_;
+  int32_t type_dataflow_value_offset_;
 
   DISALLOW_COPY_AND_ASSIGN(MapLiteral);
 };
@@ -2483,6 +2488,7 @@ class VariableDeclaration : public Statement {
   Child<Expression> initializer_;
   TokenPosition equals_position_;
   TokenPosition end_position_;
+  int32_t dataflow_value_offset_;
 
   DISALLOW_COPY_AND_ASSIGN(VariableDeclaration);
 };

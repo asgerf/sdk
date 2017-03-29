@@ -924,8 +924,7 @@ LocalInitializer* LocalInitializer::ReadFromImpl(Reader* reader) {
 }
 
 
-Expression* Expression::ReadFrom(Reader* reader) {
-  TRACE_READ_OFFSET();
+Expression* ReadExpressionAux(Reader* reader) {
   uint8_t payload = 0;
   Tag tag = reader->ReadTag(&payload);
   switch (tag) {
@@ -1021,6 +1020,14 @@ Expression* Expression::ReadFrom(Reader* reader) {
       UNREACHABLE();
   }
   return NULL;
+}
+
+
+Expression* Expression::ReadFrom(Reader* reader) {
+  TRACE_READ_OFFSET();
+  Expression* node = ReadExpressionAux(reader);
+  node->dataflow_value_offset_ = reader->ReadUInt();
+  return node;
 }
 
 
@@ -1138,6 +1145,7 @@ Arguments* Arguments::ReadFrom(Reader* reader) {
   arguments->types().ReadFromStatic<DartType>(reader);
   arguments->positional().ReadFromStatic<Expression>(reader);
   arguments->named().ReadFromStatic<NamedExpression>(reader);
+  arguments->type_dataflow_value_offset_ = reader->ReadUInt();
   return arguments;
 }
 
@@ -1351,6 +1359,7 @@ ListLiteral* ListLiteral::ReadFrom(Reader* reader, bool is_const) {
   literal->position_ = reader->ReadPosition();
   literal->type_ = DartType::ReadFrom(reader);
   literal->expressions_.ReadFromStatic<Expression>(reader);
+  literal->type_dataflow_value_offset_ = reader->ReadUInt();
   return literal;
 }
 
@@ -1363,6 +1372,7 @@ MapLiteral* MapLiteral::ReadFrom(Reader* reader, bool is_const) {
   literal->key_type_ = DartType::ReadFrom(reader);
   literal->value_type_ = DartType::ReadFrom(reader);
   literal->entries_.ReadFromStatic<MapEntry>(reader);
+  literal->type_dataflow_value_offset_ = reader->ReadUInt();
   return literal;
 }
 
@@ -1715,6 +1725,8 @@ VariableDeclaration* VariableDeclaration::ReadFromImpl(Reader* reader) {
   decl->end_position_ = position;
   reader->helper()->variables().Push(decl);
 
+  decl->dataflow_value_offset_ = reader->ReadUInt();
+
   return decl;
 }
 
@@ -1912,6 +1924,9 @@ FunctionNode* FunctionNode::ReadFrom(Reader* reader) {
       reader->helper());
   VariableScope<ReaderHelper> vars(reader->helper());
   function->body_ = reader->ReadOptional<Statement>();
+
+  function->return_dataflow_value_offset_ = reader->ReadUInt();
+
   return function;
 }
 

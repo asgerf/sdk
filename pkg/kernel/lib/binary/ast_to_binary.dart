@@ -783,12 +783,14 @@ class BinaryPrinter extends Visitor {
   visitVectorCreation(VectorCreation node) {
     writeByte(Tag.VectorCreation);
     writeUInt30(node.length);
+    throw 'vector';
   }
 
   visitVectorGet(VectorGet node) {
     writeByte(Tag.VectorGet);
     writeNode(node.vectorExpression);
     writeUInt30(node.index);
+    throw 'vector';
   }
 
   visitVectorSet(VectorSet node) {
@@ -796,11 +798,13 @@ class BinaryPrinter extends Visitor {
     writeNode(node.vectorExpression);
     writeUInt30(node.index);
     writeNode(node.value);
+    throw 'vector';
   }
 
   visitVectorCopy(VectorCopy node) {
     writeByte(Tag.VectorCopy);
     writeNode(node.vectorExpression);
+    throw 'vector';
   }
 
   writeStatementOrEmpty(Statement node) {
