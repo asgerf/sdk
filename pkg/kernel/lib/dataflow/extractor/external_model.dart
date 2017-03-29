@@ -56,6 +56,10 @@ class VmExternalModel extends ExternalModel {
 
     extraEntryPoints
         .add(coreTypes.getMember('dart:core', '_StringBase', '_interpolate'));
+    extraEntryPoints.add(coreTypes.getTopLevelMember(
+        'dart:async', '_setScheduleImmediateClosure'));
+    extraEntryPoints
+        .add(coreTypes.getMember('dart:core', 'List', '_fromLiteral'));
   }
 
   ConstructorInvocation getAnnotation(
