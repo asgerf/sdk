@@ -34,6 +34,7 @@ class VmExternalModel extends ExternalModel {
   final Set<Member> entryPointMembers = new Set<Member>();
   Class externalNameAnnotation;
   final Set<Member> forceExternals = new Set<Member>();
+  final Set<Member> extraEntryPoints = new Set<Member>();
 
   VmExternalModel(Program program, this.coreTypes) {
     externalNameAnnotation =
@@ -52,6 +53,9 @@ class VmExternalModel extends ExternalModel {
 
     forceExternals
         .addAll(coreTypes.getClass('dart:core', '_StringBase').members);
+
+    extraEntryPoints
+        .add(coreTypes.getMember('dart:core', '_StringBase', '_interpolate'));
   }
 
   ConstructorInvocation getAnnotation(
@@ -79,7 +83,7 @@ class VmExternalModel extends ExternalModel {
   }
 
   bool isEntryPoint(Member member) {
-    return member.isForeignEntryPoint;
+    return member.isForeignEntryPoint || extraEntryPoints.contains(member);
   }
 
   bool forceExternal(Member member) {
