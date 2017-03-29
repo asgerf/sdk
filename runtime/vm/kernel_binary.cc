@@ -113,6 +113,7 @@ enum Tag {
   kFunctionDeclaration = 79,
   kAsyncForInStatement = 80,
 
+  kBottomType = 89,
   kInvalidType = 90,
   kDynamicType = 91,
   kVoidType = 92,
@@ -865,6 +866,7 @@ Procedure* Procedure::ReadFrom(Reader* reader) {
 Initializer* Initializer::ReadFrom(Reader* reader) {
   TRACE_READ_OFFSET();
   Tag tag = reader->ReadTag();
+  reader->ReadUInt();
   switch (tag) {
     case kInvalidInitializer:
       return InvalidInitializer::ReadFromImpl(reader);
@@ -1760,6 +1762,7 @@ DartType* DartType::ReadFrom(Reader* reader) {
     case kInvalidType:
       return InvalidType::ReadFrom(reader);
     case kDynamicType:
+    case kBottomType:
       return DynamicType::ReadFrom(reader);
     case kVoidType:
       return VoidType::ReadFrom(reader);
