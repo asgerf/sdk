@@ -55,15 +55,15 @@ abstract class MemberDataflowResults {
   Value getValueAtStorageLocation(int storageLocationOffset);
 
   Value getValueOfVariable(VariableDeclaration node) {
-    return getValueAtStorageLocation(node.inferredValueOffset);
+    return getValueAtStorageLocation(node.dataflowValueOffset);
   }
 
   Value getValueOfFunctionReturn(FunctionNode node) {
-    return getValueAtStorageLocation(node.inferredReturnValueOffset);
+    return getValueAtStorageLocation(node.returnDataflowValueOffset);
   }
 
   Value getValueOfExpression(Expression node) {
-    return getValueAtStorageLocation(node.inferredValueOffset);
+    return getValueAtStorageLocation(node.dataflowValueOffset);
   }
 }
 

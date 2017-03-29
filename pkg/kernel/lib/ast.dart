@@ -745,7 +745,10 @@ class Field extends Member {
   /// The uri of the source file this field was loaded from.
   String fileUri;
 
-  static const int inferredValueOffset = 0; // Always 0 for fields.
+  /// The offset of a field's dataflow value within its own cluster.
+  ///
+  /// This is zero for all fields, so it is not stored explicitly on the field.
+  static const int dataflowValueOffset = 0;
 
   Field(Name name,
       {this.type: const DynamicType(),
@@ -1275,7 +1278,9 @@ class FunctionNode extends TreeNode {
   DartType returnType; // Not null.
   Statement body;
 
-  int inferredReturnValueOffset = -1;
+  /// The offset of the dataflow value summarizing the return values of this
+  /// function.
+  int returnDataflowValueOffset = -1;
 
   FunctionNode(this.body,
       {List<TypeParameter> typeParameters,
@@ -1389,8 +1394,8 @@ enum AsyncMarker {
 // ------------------------------------------------------------------------
 
 abstract class Expression extends TreeNode {
-  /// Index of the abstract value inferred for this expression.
-  int inferredValueOffset = -1;
+  /// Offset of the dataflow value computed for this expression.
+  int dataflowValueOffset = -1;
 
   /// Returns the static type of the expression.
   ///
@@ -1916,7 +1921,8 @@ class Arguments extends TreeNode {
   final List<Expression> positional;
   final List<NamedExpression> named;
 
-  int inferredTypeArgumentOffset = -1;
+  /// Offset of the initial dataflow value for the type arguments.
+  int typeArgumentDataflowValueOffset = -1;
 
   Arguments(this.positional,
       {List<DartType> types, List<NamedExpression> named})
@@ -2554,7 +2560,7 @@ class Throw extends Expression {
 
 class ListLiteral extends Expression {
   bool isConst;
-  int inferredTypeArgumentOffset = -1;
+  int typeArgumentDataflowValueOffset = -1;
   DartType typeArgument; // Not null, defaults to DynamicType.
   final List<Expression> expressions;
 
@@ -2584,7 +2590,7 @@ class ListLiteral extends Expression {
 
 class MapLiteral extends Expression {
   bool isConst;
-  int inferredTypeArgumentOffset = -1;
+  int typeArgumentDataflowValueOffset = -1;
   DartType keyType; // Not null, defaults to DynamicType.
   DartType valueType; // Not null, defaults to DynamicType.
   final List<MapEntry> entries;
@@ -3502,7 +3508,7 @@ class VariableDeclaration extends Statement {
   /// Should be null in other cases.
   Expression initializer; // May be null.
 
-  int inferredValueOffset = -1;
+  int dataflowValueOffset = -1;
 
   VariableDeclaration(this.name,
       {this.initializer,

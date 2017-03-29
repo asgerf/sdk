@@ -449,13 +449,13 @@ class ConstraintExtractorVisitor
     var type = node.accept(this);
     var source = type.source;
     if (source is StorageLocation && source.owner == bank.classOrMember) {
-      node.inferredValueOffset = source.index;
+      node.dataflowValueOffset = source.index;
     } else {
       var newKey = bank.newLocation();
       builder.setFileOffset(node.fileOffset);
       builder.addAssignment(source, newKey, ValueFlags.all);
       type = type.withSource(newKey);
-      node.inferredValueOffset = newKey.index;
+      node.dataflowValueOffset = newKey.index;
     }
     return type;
   }
@@ -623,15 +623,15 @@ class ConstraintExtractorVisitor
       var variable = function.positionalParameters[i];
       var type = bank.positionalParameters[i];
       scope.variables[variable] = type;
-      variable.inferredValueOffset = getStorageOffsetFromType(type);
+      variable.dataflowValueOffset = getStorageOffsetFromType(type);
     }
     for (int i = 0; i < function.namedParameters.length; ++i) {
       var variable = function.namedParameters[i];
       var type = bank.namedParameters[i];
       scope.variables[variable] = type;
-      variable.inferredValueOffset = getStorageOffsetFromType(type);
+      variable.dataflowValueOffset = getStorageOffsetFromType(type);
     }
-    function.inferredReturnValueOffset =
+    function.returnDataflowValueOffset =
         getStorageOffsetFromType(bank.returnType);
   }
 
@@ -660,12 +660,12 @@ class ConstraintExtractorVisitor
           augmentor.augmentBound(parameter.bound);
     }
     for (var parameter in node.positionalParameters) {
-      parameter.inferredValueOffset = bank.nextIndex;
+      parameter.dataflowValueOffset = bank.nextIndex;
       var type = augmentor.augmentType(parameter.type);
       scope.variables[parameter] = type;
     }
     for (var parameter in node.namedParameters) {
-      parameter.inferredValueOffset = bank.nextIndex;
+      parameter.dataflowValueOffset = bank.nextIndex;
       var type = augmentor.augmentType(parameter.type);
       scope.variables[parameter] = type;
     }
@@ -956,7 +956,7 @@ class ConstraintExtractorVisitor
     Constructor target = node.target;
     Arguments arguments = node.arguments;
     Class class_ = target.enclosingClass;
-    node.arguments.inferredTypeArgumentOffset = bank.nextIndex;
+    node.arguments.typeArgumentDataflowValueOffset = bank.nextIndex;
     var typeArguments = augmentor.augmentTypeList(arguments.types);
     Substitution substitution =
         Substitution.fromPairs(class_.typeParameters, typeArguments);
@@ -1031,8 +1031,8 @@ class ConstraintExtractorVisitor
     var value = visitExpression(node.variable.initializer);
     if (node.variable.type is DynamicType) {
       scope.variables[node.variable] = value;
-      node.variable.inferredValueOffset =
-          node.variable.initializer.inferredValueOffset;
+      node.variable.dataflowValueOffset =
+          node.variable.initializer.dataflowValueOffset;
     } else {
       var type = scope.variables[node.variable] =
           augmentor.augmentType(node.variable.type);
@@ -1043,7 +1043,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitListLiteral(ListLiteral node) {
-    node.inferredTypeArgumentOffset = bank.nextIndex;
+    node.typeArgumentDataflowValueOffset = bank.nextIndex;
     var typeArgument = augmentor.augmentType(node.typeArgument);
     for (var item in node.expressions) {
       checkAssignableExpression(item, typeArgument);
@@ -1068,7 +1068,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitMapLiteral(MapLiteral node) {
-    node.inferredTypeArgumentOffset = bank.nextIndex;
+    node.typeArgumentDataflowValueOffset = bank.nextIndex;
     var keyType = augmentor.augmentType(node.keyType);
     var valueType = augmentor.augmentType(node.valueType);
     for (var entry in node.entries) {
@@ -1624,7 +1624,7 @@ class ConstraintExtractorVisitor
   @override
   bool visitVariableDeclaration(VariableDeclaration node) {
     assert(!scope.variables.containsKey(node));
-    node.inferredValueOffset = bank.nextIndex;
+    node.dataflowValueOffset = bank.nextIndex;
     var type = scope.variables[node] = augmentor.augmentType(node.type);
     if (node.initializer != null) {
       checkAssignableExpression(node.initializer, type);

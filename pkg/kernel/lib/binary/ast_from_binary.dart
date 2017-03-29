@@ -588,7 +588,7 @@ class BinaryBuilder {
         dartAsyncMarker: dartAsyncMarker)
       ..fileOffset = offset
       ..fileEndOffset = endOffset
-      ..inferredReturnValueOffset = readInferredValueOffset();
+      ..returnDataflowValueOffset = readInferredValueOffset();
   }
 
   void pushVariableDeclaration(VariableDeclaration variable) {
@@ -632,7 +632,7 @@ class BinaryBuilder {
 
   Expression readExpression() {
     var exp = readExpressionInner();
-    exp.inferredValueOffset = readInferredValueOffset();
+    exp.dataflowValueOffset = readInferredValueOffset();
     return exp;
   }
 
@@ -795,14 +795,14 @@ class BinaryBuilder {
         return new ListLiteral(readExpressionList(),
             typeArgument: typeArgument, isConst: false)
           ..fileOffset = offset
-          ..inferredTypeArgumentOffset = readInferredValueOffset();
+          ..typeArgumentDataflowValueOffset = readInferredValueOffset();
       case Tag.ConstListLiteral:
         int offset = readOffset();
         var typeArgument = readDartType();
         return new ListLiteral(readExpressionList(),
             typeArgument: typeArgument, isConst: true)
           ..fileOffset = offset
-          ..inferredTypeArgumentOffset = readInferredValueOffset();
+          ..typeArgumentDataflowValueOffset = readInferredValueOffset();
       case Tag.MapLiteral:
         int offset = readOffset();
         var keyType = readDartType();
@@ -810,7 +810,7 @@ class BinaryBuilder {
         return new MapLiteral(readMapEntryList(),
             keyType: keyType, valueType: valueType, isConst: false)
           ..fileOffset = offset
-          ..inferredTypeArgumentOffset = readInferredValueOffset();
+          ..typeArgumentDataflowValueOffset = readInferredValueOffset();
       case Tag.ConstMapLiteral:
         int offset = readOffset();
         var keyType = readDartType();
@@ -818,7 +818,7 @@ class BinaryBuilder {
         return new MapLiteral(readMapEntryList(),
             keyType: keyType, valueType: valueType, isConst: true)
           ..fileOffset = offset
-          ..inferredTypeArgumentOffset = readInferredValueOffset();
+          ..typeArgumentDataflowValueOffset = readInferredValueOffset();
       case Tag.AwaitExpression:
         return new AwaitExpression(readExpression());
       case Tag.FunctionExpression:
@@ -1098,7 +1098,7 @@ class BinaryBuilder {
     var positional = readExpressionList();
     var named = readNamedExpressionList();
     return new Arguments(positional, types: typeArguments, named: named)
-      ..inferredTypeArgumentOffset = readInferredValueOffset();
+      ..typeArgumentDataflowValueOffset = readInferredValueOffset();
   }
 
   List<NamedExpression> readNamedExpressionList() {
@@ -1136,7 +1136,7 @@ class BinaryBuilder {
         isConst: flags & 0x2 != 0)
       ..fileOffset = offset
       ..fileEqualsOffset = fileEqualsOffset
-      ..inferredValueOffset = readInferredValueOffset();
+      ..dataflowValueOffset = readInferredValueOffset();
   }
 
   int readOffset() {

@@ -132,7 +132,7 @@ class AstNodeCollector extends RecursiveVisitor {
   @override
   visitProcedure(Procedure node) {
     if (node.fileOffset != TreeNode.noOffset &&
-        node.function.inferredReturnValueOffset != -1) {
+        node.function.returnDataflowValueOffset != -1) {
       result.add(node);
     }
     node.visitChildren(this);
@@ -141,7 +141,7 @@ class AstNodeCollector extends RecursiveVisitor {
   @override
   visitConstructor(Constructor node) {
     if (node.fileOffset != TreeNode.noOffset &&
-        node.function.inferredReturnValueOffset != -1) {
+        node.function.returnDataflowValueOffset != -1) {
       result.add(node);
     }
     node.visitChildren(this);
@@ -158,7 +158,7 @@ class AstNodeCollector extends RecursiveVisitor {
   @override
   defaultExpression(Expression node) {
     if (node.fileOffset != TreeNode.noOffset &&
-        node.inferredValueOffset != -1) {
+        node.dataflowValueOffset != -1) {
       result.add(node);
     }
     node.visitChildren(this);
@@ -167,7 +167,7 @@ class AstNodeCollector extends RecursiveVisitor {
   @override
   visitVariableDeclaration(VariableDeclaration node) {
     if (node.fileOffset != TreeNode.noOffset &&
-        node.inferredValueOffset != -1) {
+        node.dataflowValueOffset != -1) {
       result.add(node);
     }
     node.visitChildren(this);
@@ -189,13 +189,13 @@ bool isDynamicCall(TreeNode node) {
 
 int getInferredValueOffset(TreeNode node) {
   if (node is Expression) {
-    return node.inferredValueOffset;
+    return node.dataflowValueOffset;
   } else if (node is VariableDeclaration) {
-    return node.inferredValueOffset;
+    return node.dataflowValueOffset;
   } else if (node is Field) {
-    return Field.inferredValueOffset;
+    return Field.dataflowValueOffset;
   } else if (node is Member) {
-    return node.function.inferredReturnValueOffset;
+    return node.function.returnDataflowValueOffset;
   }
   return -1;
 }

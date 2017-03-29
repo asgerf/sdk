@@ -590,8 +590,8 @@ class Printer extends Visitor<Null> {
 
   TypeAugmentor getExpressionAugmentor(Expression node, int offset) {
     if (bank == null) return null;
-    if (node.inferredValueOffset == -1) return null;
-    return bank.getReusingAugmentor(node.inferredValueOffset + offset);
+    if (node.dataflowValueOffset == -1) return null;
+    return bank.getReusingAugmentor(node.dataflowValueOffset + offset);
   }
 
   void writeReturnType(DartType type, TypeAugmentor augmentor) {
@@ -966,7 +966,7 @@ class Printer extends Visitor<Null> {
     }
     if (node.typeArgument != null) {
       writeSymbol('<');
-      var iterator = getAugmentor(node.inferredTypeArgumentOffset);
+      var iterator = getAugmentor(node.typeArgumentDataflowValueOffset);
       writeType(node.typeArgument, iterator);
       writeSymbol('>');
     }
@@ -982,7 +982,7 @@ class Printer extends Visitor<Null> {
     }
     if (node.keyType != null) {
       writeSymbol('<');
-      var iterator = getAugmentor(node.inferredTypeArgumentOffset);
+      var iterator = getAugmentor(node.typeArgumentDataflowValueOffset);
       writeList([node.keyType, node.valueType], (t) => writeType(t, iterator));
       writeSymbol('>');
     }
@@ -1410,7 +1410,7 @@ class Printer extends Visitor<Null> {
     writeModifier(node.isFinal, 'final');
     writeModifier(node.isConst, 'const');
     if (node.type != null) {
-      augmentor ??= getAugmentor(node.inferredValueOffset);
+      augmentor ??= getAugmentor(node.dataflowValueOffset);
       writeType(node.type, augmentor);
     }
     if (useVarKeyword && !node.isFinal && !node.isConst && node.type == null) {
@@ -1425,7 +1425,7 @@ class Printer extends Visitor<Null> {
 
   visitArguments(Arguments node) {
     if (node.types.isNotEmpty) {
-      var augmentor = getAugmentor(node.inferredTypeArgumentOffset);
+      var augmentor = getAugmentor(node.typeArgumentDataflowValueOffset);
       writeSymbol('<');
       writeList(node.types, (t) => writeType(t, augmentor));
       writeSymbol('>');
