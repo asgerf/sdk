@@ -8,7 +8,6 @@ class _DataflowResults extends DataflowResults {
   CoreTypes coreTypes;
   ClassHierarchy hierarchy;
 
-  Binding _binding;
   ConstraintExtractor _extractor;
   ConstraintSolver _solver;
 
@@ -40,8 +39,9 @@ class _DataflowResults extends DataflowResults {
   }
 
   MemberDataflowResults getResultsForMember(Member member) {
+    var binding = _extractor.binding;
     return new _MemberDataflowResults(
-        _binding.getMemberBank(member), _binding, _solver.lattice, _top);
+        binding.getMemberBank(member), binding, _solver.lattice, _top);
   }
 }
 

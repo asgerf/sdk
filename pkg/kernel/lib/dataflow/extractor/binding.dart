@@ -78,11 +78,12 @@ class Binding {
   }
 
   StorageLocation getBoundForParameter(TypeParameterStorageLocation parameter) {
-    if (parameter.owner is Class) {
-      var bank = getClassBank(parameter.owner.node);
+    var node = parameter.owner.node;
+    if (node is Class) {
+      var bank = getClassBank(node);
       return bank.locations[parameter.indexOfBound];
     } else {
-      var bank = getFunctionBank(parameter.owner.node);
+      var bank = getFunctionBank(node);
       return bank.locations[parameter.indexOfBound];
     }
   }
