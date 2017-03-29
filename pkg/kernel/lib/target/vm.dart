@@ -55,6 +55,15 @@ class VmTarget extends Target {
         'dart:io',
       ];
 
+  Iterable<Uri> getDefaultEntryPointManifests(Uri sdkRoot) {
+    var manifestDir = sdkRoot.resolve('runtime/bin/');
+    return <Uri>[
+      manifestDir.resolve('dart_entries.txt'),
+      manifestDir.resolve('dart_io_entries.txt'),
+      manifestDir.resolve('dart_product_entries.txt'),
+    ];
+  }
+
   ClassHierarchy _hierarchy;
 
   void performModularTransformations(Program program) {

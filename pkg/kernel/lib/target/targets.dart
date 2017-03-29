@@ -63,6 +63,10 @@ abstract class Target {
   /// transformations.
   Map<String, List<String>> get requiredSdkClasses => CoreTypes.requiredClasses;
 
+  Iterable<Uri> getDefaultEntryPointManifests(Uri sdkRoot) {
+    return const <Uri>[];
+  }
+
   bool get strongMode;
 
   /// If true, the SDK should be loaded in strong mode.

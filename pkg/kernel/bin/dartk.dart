@@ -244,18 +244,7 @@ bool isSupportedArgument(String arg) {
   return true;
 }
 
-List<String> defaultEntryPointManifests() {
-  Uri sdkCheckout = Platform.script.resolve('../../../');
-  Uri manifestDir = sdkCheckout.resolve('runtime/bin/');
-  var filenames = [
-    'dart_entries.txt',
-    'dart_io_entries.txt',
-    'dart_product_entries.txt'
-  ];
-  return filenames
-      .map((name) => manifestDir.resolve(name).toFilePath())
-      .toList();
-}
+final Uri sdkCheckout = Platform.script.resolve('../../../');
 
 Future<CompilerOutcome> batchMain(
     List<String> args, BatchModeState batchModeState) async {
@@ -322,14 +311,6 @@ Future<CompilerOutcome> batchMain(
   List<String> urlMapping = options['url-mapping'] as List<String>;
   var customUriMappings = parseCustomUriMappings(urlMapping);
 
-  List<String> embedderEntryPointManifests =
-      options['embedder-entry-points-manifest'] as List<String>;
-  if (embedderEntryPointManifests.isEmpty) {
-    embedderEntryPointManifests = defaultEntryPointManifests();
-  }
-  List<ProgramRoot> programRoots =
-      parseProgramRoots(embedderEntryPointManifests);
-
   var program = new Program();
 
   var watch = new Stopwatch()..start();
@@ -341,6 +322,18 @@ Future<CompilerOutcome> batchMain(
       checkDataflow: options['check-dataflow'],
       kernelRuntime: Platform.script.resolve('../runtime/'));
   Target target = getTarget(options['target'], targetFlags);
+
+  List<String> embedderEntryPointManifests =
+      options['embedder-entry-points-manifest'] as List<String>;
+  if (embedderEntryPointManifests.isEmpty) {
+    embedderEntryPointManifests = target
+        .getDefaultEntryPointManifests(sdkCheckout)
+        .map((uri) => uri.toFilePath())
+        .toList();
+    print('Entry points = $embedderEntryPointManifests');
+  }
+  List<ProgramRoot> programRoots =
+      parseProgramRoots(embedderEntryPointManifests);
 
   var declaredVariables = <String, String>{};
   declaredVariables.addAll(target.extraDeclaredVariables);
