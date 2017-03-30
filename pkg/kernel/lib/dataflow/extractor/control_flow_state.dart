@@ -18,8 +18,27 @@ class ControlFlowState {
     new Set<VariableDeclaration>()
   ];
 
+  /// Maps a labeled statement to the set of states that break to the label.
+  final Map<LabeledStatement, List<Set<VariableDeclaration>>> _labelState =
+      <LabeledStatement, List<Set<VariableDeclaration>>>{};
+
   /// Identifier for the current branch.
   int get current => _stack.length - 1;
+
+  void enterLabel(LabeledStatement label) {
+    _labelState[label] = <Set<VariableDeclaration>>[];
+    branchFrom(current);
+  }
+
+  void exitLabel(LabeledStatement label, int base) {
+    _stack.addAll(_labelState.remove(label));
+    mergeInto(base);
+  }
+
+  void breakToLabel(LabeledStatement label) {
+    _labelState[label].add(_stack.last);
+    _stack[current] = null; // local branch becomes unreachable
+  }
 
   void declareUninitializedVariable(VariableDeclaration node) {
     _stack.last?.add(node);

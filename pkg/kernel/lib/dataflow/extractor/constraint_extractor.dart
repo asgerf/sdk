@@ -1466,7 +1466,7 @@ class ConstraintExtractorVisitor
 
   @override
   visitBreakStatement(BreakStatement node) {
-    controlFlow.terminateBranch();
+    controlFlow.breakToLabel(node.target);
   }
 
   @override
@@ -1596,9 +1596,9 @@ class ConstraintExtractorVisitor
   @override
   visitLabeledStatement(LabeledStatement node) {
     int base = controlFlow.current;
-    controlFlow.branchFrom(base);
+    controlFlow.enterLabel(node);
     visitStatement(node.body);
-    controlFlow.resumeBranch(base);
+    controlFlow.exitLabel(node, base);
   }
 
   @override
@@ -1620,12 +1620,21 @@ class ConstraintExtractorVisitor
   @override
   visitSwitchStatement(SwitchStatement node) {
     visitExpression(node.expression);
+    bool hasDefault = false;
+    int base = controlFlow.current;
     for (var switchCase in node.cases) {
       switchCase.expressions.forEach(visitExpression);
+      controlFlow.branchFrom(base);
       visitStatement(switchCase.body);
+      if (switchCase.isDefault) {
+        hasDefault = true;
+      }
     }
-    // Control must break out from an enclosing labeled statement.
-    controlFlow.terminateBranch();
+    controlFlow.resumeBranch(base);
+    if (hasDefault) {
+      // Control must break out from an enclosing labeled statement.
+      controlFlow.terminateBranch();
+    }
   }
 
   @override
