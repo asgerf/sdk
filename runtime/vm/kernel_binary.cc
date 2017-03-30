@@ -113,6 +113,7 @@ enum Tag {
   kFunctionDeclaration = 79,
   kAsyncForInStatement = 80,
 
+  kBottomType = 89,
   kInvalidType = 90,
   kDynamicType = 91,
   kVoidType = 92,
@@ -1751,6 +1752,7 @@ DartType* DartType::ReadFrom(Reader* reader) {
   switch (tag) {
     case kInvalidType:
       return InvalidType::ReadFrom(reader);
+    case kBottomType:
     case kDynamicType:
       return DynamicType::ReadFrom(reader);
     case kVoidType:
