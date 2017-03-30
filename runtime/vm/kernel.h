@@ -1007,6 +1007,8 @@ class Expression : public TreeNode {
   TokenPosition position() { return position_; }
   void set_position(TokenPosition position) { position_ = position; }
 
+  virtual const char* expression_kind() = 0;
+
  protected:
   Expression() : position_(TokenPosition::kNoSource) {}
   TokenPosition position_;
@@ -1018,6 +1020,8 @@ class Expression : public TreeNode {
 
 class InvalidExpression : public Expression {
  public:
+  virtual const char* expression_kind() { return "InvalidExpression"; }
+  
   static InvalidExpression* ReadFrom(Reader* reader);
 
   virtual ~InvalidExpression();
@@ -1036,6 +1040,8 @@ class InvalidExpression : public Expression {
 
 class VariableGet : public Expression {
  public:
+  virtual const char* expression_kind() { return "VariableGet"; }
+  
   static VariableGet* ReadFrom(Reader* reader);
   static VariableGet* ReadFrom(Reader* reader, uint8_t payload);
 
@@ -1059,6 +1065,8 @@ class VariableGet : public Expression {
 
 class VariableSet : public Expression {
  public:
+  virtual const char* expression_kind() { return "VariableSet"; }
+  
   static VariableSet* ReadFrom(Reader* reader);
   static VariableSet* ReadFrom(Reader* reader, uint8_t payload);
 
@@ -1084,6 +1092,8 @@ class VariableSet : public Expression {
 
 class PropertyGet : public Expression {
  public:
+  virtual const char* expression_kind() { return "PropertyGet"; }
+  
   static PropertyGet* ReadFrom(Reader* reader);
 
   virtual ~PropertyGet();
@@ -1109,6 +1119,8 @@ class PropertyGet : public Expression {
 
 class PropertySet : public Expression {
  public:
+  virtual const char* expression_kind() { return "PropertySet"; }
+  
   static PropertySet* ReadFrom(Reader* reader);
 
   virtual ~PropertySet();
@@ -1136,6 +1148,8 @@ class PropertySet : public Expression {
 
 class DirectPropertyGet : public Expression {
  public:
+  virtual const char* expression_kind() { return "DirectPropertyGet"; }
+  
   static DirectPropertyGet* ReadFrom(Reader* reader);
 
   virtual ~DirectPropertyGet();
@@ -1160,6 +1174,8 @@ class DirectPropertyGet : public Expression {
 
 class DirectPropertySet : public Expression {
  public:
+  virtual const char* expression_kind() { return "DirectPropertySet"; }
+  
   static DirectPropertySet* ReadFrom(Reader* reader);
 
   virtual ~DirectPropertySet();
@@ -1186,6 +1202,8 @@ class DirectPropertySet : public Expression {
 
 class StaticGet : public Expression {
  public:
+  virtual const char* expression_kind() { return "StaticGet"; }
+  
   static StaticGet* ReadFrom(Reader* reader);
 
   virtual ~StaticGet();
@@ -1208,6 +1226,8 @@ class StaticGet : public Expression {
 
 class StaticSet : public Expression {
  public:
+  virtual const char* expression_kind() { return "StaticSet"; }
+  
   static StaticSet* ReadFrom(Reader* reader);
 
   virtual ~StaticSet();
@@ -1286,6 +1306,8 @@ class NamedExpression : public TreeNode {
 
 class MethodInvocation : public Expression {
  public:
+  virtual const char* expression_kind() { return "MethodInvocation"; }
+  
   static MethodInvocation* ReadFrom(Reader* reader);
 
   virtual ~MethodInvocation();
@@ -1313,6 +1335,8 @@ class MethodInvocation : public Expression {
 
 class DirectMethodInvocation : public Expression {
  public:
+  virtual const char* expression_kind() { return "DirectMethodInvocation"; }
+  
   static DirectMethodInvocation* ReadFrom(Reader* reader);
 
   virtual ~DirectMethodInvocation();
@@ -1339,6 +1363,8 @@ class DirectMethodInvocation : public Expression {
 
 class StaticInvocation : public Expression {
  public:
+  virtual const char* expression_kind() { return "StaticInvocation"; }
+  
   static StaticInvocation* ReadFrom(Reader* reader, bool is_const);
   ~StaticInvocation();
 
@@ -1362,6 +1388,8 @@ class StaticInvocation : public Expression {
 
 class ConstructorInvocation : public Expression {
  public:
+  virtual const char* expression_kind() { return "ConstructorInvocation"; }
+  
   static ConstructorInvocation* ReadFrom(Reader* reader, bool is_const);
 
   virtual ~ConstructorInvocation();
@@ -1388,6 +1416,8 @@ class ConstructorInvocation : public Expression {
 
 class Not : public Expression {
  public:
+  virtual const char* expression_kind() { return "Not"; }
+  
   static Not* ReadFrom(Reader* reader);
 
   virtual ~Not();
@@ -1410,6 +1440,8 @@ class Not : public Expression {
 
 class LogicalExpression : public Expression {
  public:
+  virtual const char* expression_kind() { return "LogicalExpression"; }
+  
   enum Operator { kAnd, kOr };
 
   static LogicalExpression* ReadFrom(Reader* reader);
@@ -1438,6 +1470,8 @@ class LogicalExpression : public Expression {
 
 class ConditionalExpression : public Expression {
  public:
+  virtual const char* expression_kind() { return "ConditionalExpression"; }
+  
   static ConditionalExpression* ReadFrom(Reader* reader);
 
   virtual ~ConditionalExpression();
@@ -1464,6 +1498,8 @@ class ConditionalExpression : public Expression {
 
 class StringConcatenation : public Expression {
  public:
+  virtual const char* expression_kind() { return "StringConcatenation"; }
+  
   static StringConcatenation* ReadFrom(Reader* reader);
 
   virtual ~StringConcatenation();
@@ -1486,6 +1522,8 @@ class StringConcatenation : public Expression {
 
 class IsExpression : public Expression {
  public:
+  virtual const char* expression_kind() { return "IsExpression"; }
+  
   static IsExpression* ReadFrom(Reader* reader);
 
   virtual ~IsExpression();
@@ -1510,6 +1548,8 @@ class IsExpression : public Expression {
 
 class AsExpression : public Expression {
  public:
+  virtual const char* expression_kind() { return "AsExpression"; }
+  
   static AsExpression* ReadFrom(Reader* reader);
 
   virtual ~AsExpression();
@@ -1534,6 +1574,8 @@ class AsExpression : public Expression {
 
 class BasicLiteral : public Expression {
  public:
+  virtual const char* expression_kind() { return "BasicLiteral"; }
+  
   virtual ~BasicLiteral();
 
   DEFINE_CASTING_OPERATIONS(BasicLiteral);
@@ -1666,6 +1708,8 @@ class NullLiteral : public BasicLiteral {
 
 class SymbolLiteral : public Expression {
  public:
+  virtual const char* expression_kind() { return "SymbolLiteral"; }
+  
   static SymbolLiteral* ReadFrom(Reader* reader);
 
   virtual ~SymbolLiteral();
@@ -1688,6 +1732,8 @@ class SymbolLiteral : public Expression {
 
 class TypeLiteral : public Expression {
  public:
+  virtual const char* expression_kind() { return "TypeLiteral"; }
+  
   static TypeLiteral* ReadFrom(Reader* reader);
 
   virtual ~TypeLiteral();
@@ -1710,6 +1756,8 @@ class TypeLiteral : public Expression {
 
 class ThisExpression : public Expression {
  public:
+  virtual const char* expression_kind() { return "ThisExpression"; }
+  
   static ThisExpression* ReadFrom(Reader* reader);
 
   virtual ~ThisExpression();
@@ -1728,6 +1776,8 @@ class ThisExpression : public Expression {
 
 class Rethrow : public Expression {
  public:
+  virtual const char* expression_kind() { return "Rethrow"; }
+  
   static Rethrow* ReadFrom(Reader* reader);
 
   virtual ~Rethrow();
@@ -1746,6 +1796,8 @@ class Rethrow : public Expression {
 
 class Throw : public Expression {
  public:
+  virtual const char* expression_kind() { return "Throw"; }
+  
   static Throw* ReadFrom(Reader* reader);
 
   virtual ~Throw();
@@ -1768,6 +1820,8 @@ class Throw : public Expression {
 
 class ListLiteral : public Expression {
  public:
+  virtual const char* expression_kind() { return "ListLiteral"; }
+  
   static ListLiteral* ReadFrom(Reader* reader, bool is_const);
 
   virtual ~ListLiteral();
@@ -1794,6 +1848,8 @@ class ListLiteral : public Expression {
 
 class MapLiteral : public Expression {
  public:
+  virtual const char* expression_kind() { return "MapLiteral"; }
+  
   static MapLiteral* ReadFrom(Reader* reader, bool is_const);
 
   virtual ~MapLiteral();
@@ -1849,6 +1905,8 @@ class MapEntry : public TreeNode {
 
 class AwaitExpression : public Expression {
  public:
+  virtual const char* expression_kind() { return "AwaitExpression"; }
+  
   static AwaitExpression* ReadFrom(Reader* reader);
 
   virtual ~AwaitExpression();
@@ -1871,6 +1929,8 @@ class AwaitExpression : public Expression {
 
 class FunctionExpression : public Expression {
  public:
+  virtual const char* expression_kind() { return "FunctionExpression"; }
+  
   static FunctionExpression* ReadFrom(Reader* reader);
 
   virtual ~FunctionExpression();
@@ -1893,6 +1953,8 @@ class FunctionExpression : public Expression {
 
 class Let : public Expression {
  public:
+  virtual const char* expression_kind() { return "Let"; }
+  
   static Let* ReadFrom(Reader* reader);
 
   virtual ~Let();
