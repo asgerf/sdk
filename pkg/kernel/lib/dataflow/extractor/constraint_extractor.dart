@@ -253,7 +253,8 @@ class ConstraintExtractor {
         // Remove all value sinks from the super member to avoid polluting its
         // return type (which should be based on the external model).
         // We still need to generate constraints from its arguments to the
-        // overridden member, to ensure its body can be compiled soundly.
+        // overridden member, to ensure the body of the overridden member can be
+        // compiled soundly.
         superMemberType = new ProtectSinks().convertType(superMemberType);
       }
       checkAssignable(ownMember, ownMemberType, superMemberType,
