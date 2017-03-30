@@ -1,0 +1,21 @@
+library;
+import self as self;
+import "dart:core" as core;
+
+class Foo extends core::Object {
+  field core::List!<core::int!&core::Object/core::int!> list = <core::int!&core::Object>[1, 2, 3];
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  set first(core::int!&core::Object x) → Null
+    this.{self::Foo::list}.{core::List::[]=}(0, x);
+  operator []=(core::int!&core::Object x, core::int!&core::Object y) → Null&core::Object
+    this.{self::Foo::list}.{core::List::[]=}(x as core::int, y);
+  method clear() → Null
+    this.{self::Foo::list}.{core::List::clear}();
+}
+static method main() → Null&core::Object {
+  new self::Foo::•().{self::Foo::first} = 4;
+  new self::Foo::•().{self::Foo::[]=}(3, 4);
+  new self::Foo::•().{self::Foo::clear}();
+}

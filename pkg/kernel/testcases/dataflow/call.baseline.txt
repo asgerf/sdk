@@ -1,0 +1,53 @@
+// call.dart:30:25: Too few positional arguments
+// call.dart:31:30: Too few positional arguments
+// call.dart:35:26: Too few positional arguments
+// call.dart:36:27: Too few positional arguments
+// call.dart:37:32: Too few positional arguments
+library;
+import self as self;
+import "dart:core" as core;
+
+class Callable extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method call(core::int!&core::Object x) → core::String!&core::Object {
+    return "string";
+  }
+}
+class CallableGetter extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  get call() → self::Callable!&core::Object
+    return new self::Callable::•();
+}
+static method main() → core::Object+? {
+  (core::int!&core::Object) => core::Object+? closure = (core::Object+? x) → dynamic => x;
+  core::Object+? int1 = closure.call(1);
+  core::Object+? int2 = closure.call(1);
+  core::Object+? int3 = closure.call.call(1);
+  core::Object+? int4 = closure.call.call.call(1);
+  self::Callable! callable = new self::Callable::•();
+  core::String!&core::Object string1 = callable.{self::Callable::call}(1);
+  core::String!&core::Object string2 = callable.{self::Callable::call}(1);
+  core::String!&core::Object string3 = callable.{self::Callable::call}.call(1);
+  core::Object+? string4 = callable.{self::Callable::call}.call.call(1);
+  self::CallableGetter! callableGetter = new self::CallableGetter::•();
+  core::Object+? string5 = callableGetter.call(1);
+  core::Object+? string6 = callableGetter.{self::CallableGetter::call}.call(1);
+  core::Object+? string7 = callableGetter.{self::CallableGetter::call}.call(1);
+  core::Object+? string8 = callableGetter.{self::CallableGetter::call}.call.call(1);
+  Bottom&core::Object nothing1 = closure.call();
+  Bottom&core::Object nothing2 = closure.call();
+  core::Object+? nothing3 = closure.call.call();
+  core::Object+? nothing4 = closure.call.call.call();
+  Bottom&core::Object nothing5 = callable.{self::Callable::call}();
+  Bottom&core::Object nothing6 = callable.{self::Callable::call}();
+  Bottom&core::Object nothing7 = callable.{self::Callable::call}.call();
+  core::Object+? nothing8 = callable.{self::Callable::call}.call.call();
+  core::Object+? nothing9 = callableGetter.call();
+  core::Object+? nothing10 = callableGetter.{self::CallableGetter::call}.call();
+  core::Object+? nothing11 = callableGetter.{self::CallableGetter::call}.call();
+  core::Object+? nothing12 = callableGetter.{self::CallableGetter::call}.call.call();
+}

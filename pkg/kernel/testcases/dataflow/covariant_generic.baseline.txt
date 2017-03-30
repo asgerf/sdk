@@ -1,0 +1,38 @@
+library;
+import self as self;
+import "dart:core" as core;
+
+class Foo<T extends core::num+&core::Object/Bottom> extends core::Object {
+  final field self::Foo::T finalField;
+  final field (self::Foo::T) => Null callbackField;
+  field self::Foo::T? mutableField = null;
+  field ?(self::Foo::T) => Null mutableCallbackField = null;
+  constructor •(self::Foo::T finalField, (self::Foo::T) => Null callbackField) → Bottom
+    : self::Foo::finalField = finalField, self::Foo::callbackField = callbackField, super core::Object::•()
+    ;
+  method method(self::Foo::T x) → Null {}
+  set setter(self::Foo::T x) → Null {}
+  method withCallback((self::Foo::T) => Null callback) → Null {
+    callback.call(this.{self::Foo::finalField});
+  }
+}
+static method main() → Null&core::Object {
+  self::Foo!<core::num+&core::int/core::num+> fooInt = new self::Foo::•<core::num+&core::int>(1, (core::num+&core::int x) → core::Null {});
+  fooInt.{self::Foo::method}(3);
+  fooInt.{self::Foo::setter} = 3;
+  fooInt.{self::Foo::withCallback}((core::num+&core::int x) → core::Null {});
+  fooInt.{self::Foo::withCallback}((core::num+ x) → core::Null {});
+  fooInt.{self::Foo::mutableField} = 3;
+  fooInt.{self::Foo::mutableCallbackField} = (core::num+&core::int x) → core::Null {};
+  self::Foo!<core::num+/core::num+> fooNum = fooInt;
+  fooNum.{self::Foo::method}(3);
+  fooNum.{self::Foo::method}(2.5);
+  fooNum.{self::Foo::setter} = 3;
+  fooNum.{self::Foo::setter} = 2.5;
+  fooNum.{self::Foo::withCallback}((core::num+ x) → core::Null {});
+  fooNum.{self::Foo::mutableField} = 3;
+  fooNum.{self::Foo::mutableField} = 2.5;
+  fooNum.{self::Foo::mutableCallbackField}.call(3);
+  fooNum.{self::Foo::mutableCallbackField}.call(2.5);
+  fooNum.{self::Foo::mutableCallbackField} = (core::num+ x) → core::Null {};
+}

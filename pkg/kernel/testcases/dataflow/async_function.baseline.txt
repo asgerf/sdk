@@ -1,0 +1,31 @@
+library;
+import self as self;
+import "dart:async" as asy;
+import "dart:core" as core;
+
+static field core::List!<core::String!/> stringList = <core::String!>["bar"];
+static method asyncString() → Bottom&asy::Future<Bottom&core::String/core::String!> async {
+  return "foo";
+}
+static method asyncString2() → Bottom&asy::Future<Bottom&core::String/> async {
+  return self::asyncString();
+}
+static method syncStarString() → Bottom&core::Iterable<Bottom&core::String/core::String!> sync* {
+  yield "foo";
+  yield* self::syncStarString2();
+  yield* self::stringList;
+}
+static method syncStarString2() → Bottom&core::Iterable<Bottom&core::String/core::String!> sync* {
+  yield "foo";
+}
+static method asyncStarString() → Bottom&asy::Stream<Bottom&core::String/core::String!> async* {
+  yield "foo";
+  yield* self::asyncStarString2();
+  yield await self::asyncString();
+}
+static method asyncStarString2() → Bottom&asy::Stream<Bottom&core::String/core::String!> async* {
+  yield "bar";
+}
+static method main() → Bottom&core::Object async {
+  Bottom&core::String str = await self::asyncString();
+}

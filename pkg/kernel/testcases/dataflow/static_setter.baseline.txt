@@ -1,0 +1,13 @@
+library;
+import self as self;
+import "dart:core" as core;
+
+class Foo extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+}
+static set foo(self::Foo!&core::Object x) → Null&core::Object {}
+static method main() → Null&core::Object {
+  self::foo = new self::Foo::•();
+}

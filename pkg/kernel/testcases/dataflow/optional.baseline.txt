@@ -1,0 +1,65 @@
+// optional.dart:45:22: Too few positional arguments
+// optional.dart:46:22: Too many positional arguments
+// optional.dart:47:25: Too few positional arguments
+// optional.dart:48:25: Too many positional arguments
+library;
+import self as self;
+import "dart:core" as core;
+
+class Foo extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method method(core::int!&core::Object x, [core::int!?&core::Object y, core::int!?&core::Object z]) → core::String!&core::Object {
+    return "string";
+  }
+}
+abstract class External extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  abstract method externalMethod(core::int! x, [core::int!? y, core::int!? z]) → Bottom&core::String;
+  abstract method listen(core::Object+&self::Listener listener) → Bottom;
+}
+abstract class Listener extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  abstract method event(Bottom&core::String input, [Null&core::int x, Null&core::int y]) → Null;
+}
+class TestListener extends self::Listener {
+  constructor •() → Bottom
+    : super self::Listener::•()
+    ;
+  method event(Bottom&core::String input, [Null&core::int x, Null&core::int y]) → Null {}
+}
+class ExtendedListener extends self::Listener {
+  constructor •() → Bottom
+    : super self::Listener::•()
+    ;
+  method event(Bottom&core::String input, [Null&core::int x, Null&core::int y, Null&core::Object z]) → Null {}
+}
+class InvalidListener extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method event(Bottom&core::Object input, [Null&core::Object x]) → Null {}
+}
+external static method createExternal() → self::External!?;
+static method main() → core::Object+? {
+  self::Foo! foo = new self::Foo::•();
+  core::String!&core::Object string1 = foo.{self::Foo::method}(1);
+  core::String!&core::Object string2 = foo.{self::Foo::method}(1, 2);
+  core::String!&core::Object string3 = foo.{self::Foo::method}(1, 2, 3);
+  self::External!? extern = self::createExternal();
+  Bottom&core::String string4 = extern.{self::External::externalMethod}(1);
+  Bottom&core::String string5 = extern.{self::External::externalMethod}(1, 2);
+  Bottom&core::String string6 = extern.{self::External::externalMethod}(1, 2, 3);
+  extern.{self::External::listen}(new self::TestListener::•());
+  extern.{self::External::listen}(new self::ExtendedListener::•());
+  extern.{self::External::listen}(new self::InvalidListener::•() as self::Listener);
+  Bottom&core::Object nothing1 = foo.{self::Foo::method}();
+  Bottom&core::Object nothing2 = foo.{self::Foo::method}(1, 2, 3, 4);
+  Bottom&core::String nothing3 = extern.{self::External::externalMethod}();
+  Bottom&core::String nothing4 = extern.{self::External::externalMethod}(1, 2, 3, 4);
+}

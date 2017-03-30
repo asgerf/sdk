@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:analyzer/src/kernel/loader.dart';
 import 'package:kernel/application_root.dart';
+import 'package:kernel/dataflow/extractor/binding.dart';
 import 'package:kernel/kernel.dart';
 import 'package:kernel/target/targets.dart';
 import 'package:kernel/text/ast_to_text.dart';
@@ -15,6 +16,7 @@ import 'package:test/test.dart';
 final String testcaseDirectory = 'pkg/kernel/testcases';
 final String inputDirectory = 'pkg/kernel/testcases/input';
 final String sdkDirectory = 'sdk';
+final String patchedSdkDirectory = 'out/ReleaseX64/patched_sdk';
 
 /// A target to be used for testing.
 ///
@@ -23,6 +25,10 @@ final String sdkDirectory = 'sdk';
 abstract class TestTarget extends Target {
   /// Annotations to apply on the textual output.
   Annotator get annotator => null;
+
+  Binding get binding => null;
+
+  bool get usePatchedSdk => false;
 
   // Return a list of strings so that we can accumulate errors.
   List<String> performModularTransformations(Program program);
@@ -49,7 +55,7 @@ void runBaselineTests(String folderName, TestTarget target) {
             program,
             new DartOptions(
                 strongMode: target.strongMode,
-                sdk: sdkDirectory,
+                sdk: target.usePatchedSdk ? patchedSdkDirectory : sdkDirectory,
                 declaredVariables: target.extraDeclaredVariables,
                 applicationRoot: applicationRoot));
         loader.loadProgram(dartPath, target: target);
@@ -64,7 +70,8 @@ void runBaselineTests(String folderName, TestTarget target) {
         for (var error in errors) {
           buffer.writeln('// $error');
         }
-        new Printer(buffer, annotator: target.annotator)
+        new Printer(buffer,
+                annotator: target.annotator, binding: target.binding)
             .writeLibraryFile(program.mainMethod.enclosingLibrary);
         String current = '$buffer';
         new File(filenameOfCurrent).writeAsStringSync(current);

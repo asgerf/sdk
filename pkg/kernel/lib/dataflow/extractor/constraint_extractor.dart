@@ -21,11 +21,15 @@ import 'type_augmentor.dart';
 import 'value_sink.dart';
 import 'value_source.dart';
 
+typedef void TypeErrorCallback(TreeNode where, String message);
+
 /// Generates constraints from an AST.
 ///
 /// This follows like the type checking, where each subtyping judgement gives
 /// rise to constraints.
 class ConstraintExtractor {
+  TypeErrorCallback typeErrorCallback;
+
   CoreTypes coreTypes;
   Binding binding;
   ClassHierarchy baseHierarchy;
@@ -247,7 +251,9 @@ class ConstraintExtractor {
 
   /// Indicates that type checking failed.
   void reportTypeError(TreeNode where, String message) {
-    print('$where: $message');
+    if (typeErrorCallback != null) {
+      typeErrorCallback(where, message);
+    }
   }
 
   Value getWorstCaseValueForType(AType type, {bool isClean: false}) {

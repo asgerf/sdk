@@ -22,6 +22,7 @@ class _DataflowResults extends DataflowResults {
 
     var externalModel = new VmExternalModel(program, coreTypes);
     _extractor = new ConstraintExtractor(externalModel)
+      ..typeErrorCallback = diagnostic?._onTypeError
       ..extractFromProgram(program);
     diagnostic?._constraintSystem = _extractor.constraintSystem;
     diagnostic?._binding = _extractor.binding;
@@ -77,6 +78,7 @@ class _DataflowReporter extends DataflowReporter {
   Stopwatch _stopwatch;
   Duration _solvingTime;
   Binding _binding;
+  final List<ErrorMessage> errorMessages = <ErrorMessage>[];
 
   _DataflowReporter() : super._();
 
@@ -94,5 +96,10 @@ class _DataflowReporter extends DataflowReporter {
   void _onEndSolve() {
     _solvingTime = _stopwatch.elapsed;
     _stopwatch.stop();
+  }
+
+  @override
+  void _onTypeError(TreeNode where, String message) {
+    errorMessages.add(new ErrorMessage(where, message));
   }
 }

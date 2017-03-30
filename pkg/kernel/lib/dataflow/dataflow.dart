@@ -14,6 +14,7 @@ import 'package:kernel/dataflow/report/report.dart';
 import 'solver/solver.dart';
 import 'storage_location.dart';
 import 'value.dart';
+import 'package:path/path.dart' as pathlib;
 
 export 'value.dart' show Value;
 export 'report/report.dart' show Report;
@@ -82,6 +83,7 @@ abstract class DataflowDiagnosticListener {
   void set _binding(Binding binding);
   void _onBeginSolve();
   void _onEndSolve();
+  void _onTypeError(TreeNode where, String message);
 }
 
 /// Dataflow diagnostic listener that builds an indexed report in memory.
@@ -105,7 +107,27 @@ abstract class DataflowReporter implements DataflowDiagnosticListener {
   ConstraintSystem get constraintSystem;
   Report get report;
   Duration get solvingTime;
+  List<ErrorMessage> get errorMessages;
 
   factory DataflowReporter() = _DataflowReporter;
   DataflowReporter._();
+}
+
+class ErrorMessage {
+  final TreeNode where;
+  final String message;
+
+  ErrorMessage(this.where, this.message);
+
+  String get brief {
+    var location = where.location;
+    if (location == null) return message;
+    var shortFile = pathlib.basename(location.file);
+    return '$shortFile:${location.line}:${location.column}: $message';
+  }
+
+  String toString() {
+    var location = where.location;
+    return location == null ? message : '$location: $message';
+  }
 }

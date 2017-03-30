@@ -1,0 +1,86 @@
+library;
+import self as self;
+import "dart:core" as core;
+
+class UnusedClass extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•() {
+    core::print("Unused");
+  }
+}
+abstract class UsedAsBaseClass extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method usedInSubclass() → Null {
+    core::print("Unused");
+  }
+  method calledFromB() → Null {
+    this.{self::UsedAsBaseClass::calledFromSubclass}();
+  }
+  method calledFromSubclass() → Null {
+    core::print("Unused");
+  }
+}
+class UsedAsInterface extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method usedInSubclass() → Null {
+    core::print("Unused");
+  }
+}
+class InstantiatedButMethodsUnused extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method usedInSubclass() → Null {
+    core::print("Unused");
+  }
+}
+class ClassA extends self::UsedAsBaseClass implements self::UsedAsInterface, self::InstantiatedButMethodsUnused {
+  constructor •() → Bottom
+    : super self::UsedAsBaseClass::•()
+    ;
+  method usedInSubclass() → Null {
+    core::print("A");
+  }
+}
+class ClassB extends self::UsedAsBaseClass implements self::UsedAsInterface, self::InstantiatedButMethodsUnused {
+  constructor •() → Bottom
+    : super self::UsedAsBaseClass::•()
+    ;
+  method usedInSubclass() → Null {
+    core::print("B");
+    this.{self::UsedAsBaseClass::calledFromB}();
+  }
+  method calledFromSubclass() → Null {}
+}
+static method baseClassCall(self::UsedAsBaseClass+ object) → Null {
+  object.{self::UsedAsBaseClass::usedInSubclass}();
+}
+static method interfaceCall(self::UsedAsBaseClass+&self::UsedAsInterface object) → Null {
+  object.{self::UsedAsInterface::usedInSubclass}();
+}
+static method exactCallA(self::ClassA! object) → Null {
+  object.{self::ClassA::usedInSubclass}();
+}
+static method exactCallB(self::ClassB! object) → Null {
+  object.{self::ClassB::usedInSubclass}();
+}
+static method unusedTopLevel() → Null&core::Object {
+  core::print("Unused");
+}
+static method usedTopLevel() → Null&core::Object {}
+static method main() → Null&core::Object {
+  self::usedTopLevel();
+  self::ClassA! a = new self::ClassA::•();
+  self::exactCallA(a);
+  self::baseClassCall(a);
+  self::interfaceCall(a);
+  self::ClassB! b = new self::ClassB::•();
+  self::exactCallB(b);
+  self::baseClassCall(b);
+  self::interfaceCall(b);
+  new self::InstantiatedButMethodsUnused::•();
+}

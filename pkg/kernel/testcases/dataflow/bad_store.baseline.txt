@@ -1,0 +1,24 @@
+library;
+import self as self;
+import "dart:core" as core;
+
+class Foo extends core::Object {
+  field Null&core::Object field = null;
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+}
+static method identity(self::Foo!&core::Object x) → self::Foo!&core::Object
+  return x;
+static method use(core::Object+? x) → Null {}
+static method main(core::List+<core::String!/> args) → Null&core::Object {
+  self::Foo!&core::Object foo = self::identity(new self::Foo::•());
+  if(args.{core::List::length}.{core::num::>}(1)) {
+    foo.field = "string";
+    core::Object+? first = foo.field;
+    self::use(first);
+    foo.noField = "string";
+    core::Object+? second = foo.noField;
+    self::use(second);
+  }
+}

@@ -1,0 +1,28 @@
+// closure.dart:19:19: #lib1::Foo::_field is not accessible on a receiver of type Bottom&dart.core::Object
+library;
+import self as self;
+import "dart:core" as core;
+
+class Foo extends core::Object {
+  field self::Bar! _field = new self::Bar::•();
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+}
+class Bar extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+}
+static method useCallback(core::Function+&core::Object callback) → Null&core::Object {
+  core::Object+? _ = callback.call();
+}
+static method main() → core::Object+? {
+  self::Foo!&core::Object x;
+  function inner() → dynamic {
+    x = new self::Foo::•();
+    return new self::Foo::•();
+  }
+  self::useCallback(inner);
+  self::Bar! _ = inner.call().{self::Foo::_field};
+}
