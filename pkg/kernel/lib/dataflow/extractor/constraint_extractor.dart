@@ -1424,6 +1424,7 @@ class ConstraintExtractorVisitor
     var variable = node.variable;
     var type = getVariableType(variable);
     if (!controlFlow.isDefinitelyInitialized(variable)) {
+      builder.setFileOffset(node.variable.fileOffset);
       builder.addAssignment(Value.null_, type.sink, ValueFlags.all);
     }
     return type;
@@ -1574,8 +1575,8 @@ class ConstraintExtractorVisitor
     int base = controlFlow.current;
     controlFlow.branchFrom(base);
     visitStatement(node.then);
+    controlFlow.branchFrom(base);
     if (node.otherwise != null) {
-      controlFlow.branchFrom(base);
       visitStatement(node.otherwise);
     }
     controlFlow.mergeInto(base);
