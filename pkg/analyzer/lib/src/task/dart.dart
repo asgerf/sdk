@@ -56,7 +56,7 @@ import 'package:analyzer/task/model.dart';
  * The [ResultCachingPolicy] for ASTs.
  */
 const ResultCachingPolicy<CompilationUnit> AST_CACHING_POLICY =
-    const SimpleResultCachingPolicy(16384, 32);
+    const SimpleResultCachingPolicy<dynamic>(16384, 32);
 
 /**
  * The [ResultCachingPolicy] for fully resolved ASTs.  It is separated from
@@ -65,7 +65,7 @@ const ResultCachingPolicy<CompilationUnit> AST_CACHING_POLICY =
  * of the cache by temporary partially resolved ASTs.
  */
 const ResultCachingPolicy<CompilationUnit> AST_RESOLVED_CACHING_POLICY =
-    const SimpleResultCachingPolicy(1024, 32);
+    const SimpleResultCachingPolicy<dynamic>(1024, 32);
 
 /**
  * The [ResultCachingPolicy] for ASTs that can be reused when a library
@@ -76,44 +76,45 @@ const ResultCachingPolicy<CompilationUnit> AST_RESOLVED_CACHING_POLICY =
  * once analysis is done, they can be flushed.
  */
 const ResultCachingPolicy<CompilationUnit> AST_REUSABLE_CACHING_POLICY =
-    const SimpleResultCachingPolicy(1024, 64);
+    const SimpleResultCachingPolicy<dynamic>(1024, 64);
 
 /**
  * The [ResultCachingPolicy] for lists of [ConstantEvaluationTarget]s.
  */
 const ResultCachingPolicy<List<ConstantEvaluationTarget>>
     CONSTANT_EVALUATION_TARGET_LIST_POLICY =
-    const SimpleResultCachingPolicy(-1, -1);
+    const SimpleResultCachingPolicy<dynamic>(-1, -1);
 
 /**
  * The [ResultCachingPolicy] for [ConstantEvaluationTarget]s.
  */
 const ResultCachingPolicy<ConstantEvaluationTarget>
-    CONSTANT_EVALUATION_TARGET_POLICY = const SimpleResultCachingPolicy(-1, -1);
+    CONSTANT_EVALUATION_TARGET_POLICY =
+    const SimpleResultCachingPolicy<dynamic>(-1, -1);
 
 /**
  * The [ResultCachingPolicy] for [Element]s.
  */
 const ResultCachingPolicy<Element> ELEMENT_CACHING_POLICY =
-    const SimpleResultCachingPolicy(-1, -1);
+    const SimpleResultCachingPolicy<dynamic>(-1, -1);
 
 /**
  * The [ResultCachingPolicy] for [TOKEN_STREAM].
  */
 const ResultCachingPolicy<Token> TOKEN_STREAM_CACHING_POLICY =
-    const SimpleResultCachingPolicy(1, 1);
+    const SimpleResultCachingPolicy<dynamic>(1, 1);
 
 /**
  * The [ResultCachingPolicy] for [UsedImportedElements]s.
  */
 const ResultCachingPolicy<UsedImportedElements> USED_IMPORTED_ELEMENTS_POLICY =
-    const SimpleResultCachingPolicy(-1, -1);
+    const SimpleResultCachingPolicy<dynamic>(-1, -1);
 
 /**
  * The [ResultCachingPolicy] for [UsedLocalElements]s.
  */
 const ResultCachingPolicy<UsedLocalElements> USED_LOCAL_ELEMENTS_POLICY =
-    const SimpleResultCachingPolicy(-1, -1);
+    const SimpleResultCachingPolicy<dynamic>(-1, -1);
 
 /**
  * The errors produced while building a library's directives.

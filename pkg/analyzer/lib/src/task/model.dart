@@ -12,7 +12,7 @@ import 'package:analyzer/task/model.dart';
  * The default [ResultCachingPolicy], results are never flushed.
  */
 const ResultCachingPolicy<Object> DEFAULT_CACHING_POLICY =
-    const SimpleResultCachingPolicy(-1, -1);
+    const SimpleResultCachingPolicy<dynamic>(-1, -1);
 
 /**
  * A concrete implementation of a [ListResultDescriptor].
