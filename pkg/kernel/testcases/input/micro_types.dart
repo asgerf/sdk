@@ -464,22 +464,23 @@ void testCombinators() {
 void testDefaultNulls() {
   var nullable1 = testReturnUninitializedVar();
   var nullable2 = testFallOverEnd();
-  var nonNullableInt = testReturnLateInitializedVar();
+  var nonNullableInt1 = testReturnLateInitializedVar();
+  int nonNullableInt2 = testInitializedVarInBranches();
   var nullableInt = testReturnMaybeInitializedVar();
 }
 
-void testReturnUninitializedVar() {
+int testReturnUninitializedVar() {
   var uninitialized;
   return uninitialized;
 }
 
-void testReturnLateInitializedVar() {
+int testReturnLateInitializedVar() {
   var v;
   v = 45;
   return v;
 }
 
-void testReturnMaybeInitializedVar() {
+int testReturnMaybeInitializedVar() {
   var v;
   if (unknownInt > 1) {
     v = 45;
@@ -487,5 +488,20 @@ void testReturnMaybeInitializedVar() {
   return v;
 }
 
-void testFallOverEnd() {
+int testInitializedVarInBranches() {
+  var v;
+  if (unknownInt > 10) {
+    v = 45;
+  } else if (unknownInt > 5) {
+    v = 40;
+  } else if (unknownInt > 3) {
+    v = 35;
+  } else if (unknownInt > 1) {
+    v = 30;
+  } else {
+    v = 25;
+  }
+  return v;
 }
+
+testFallOverEnd() {}
