@@ -1970,6 +1970,10 @@ class AllocationVisitor extends ATypeVisitor {
   visitTypeParameterAType(TypeParameterAType type) {}
 }
 
+/// Builds a copy of a type with the sources and sinks replaced.
+///
+/// The subclass must override [convertSource] and [convertSink] to determine
+/// how sources and sinks are converted.
 abstract class SourceSinkConverter extends ATypeVisitor<AType> {
   ValueSource convertSource(ValueSource source);
 
@@ -2019,6 +2023,7 @@ abstract class SourceSinkConverter extends ATypeVisitor<AType> {
   }
 }
 
+/// Replaces all sinks in a type with [ValueSink.nowhere].
 class ProtectSinks extends SourceSinkConverter {
   @override
   ValueSink convertSink(ValueSink sink) {
