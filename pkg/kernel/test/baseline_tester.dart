@@ -46,7 +46,6 @@ void runBaselineTests(String folderName, TestTarget target) {
   for (FileSystemEntity file in directory.listSync()) {
     if (file is File && file.path.endsWith('.dart')) {
       String name = pathlib.basename(file.path);
-      if (name != 'generic_subclass.dart') continue;
       test(name, () async {
         Uri dartPath =
             new Uri(scheme: 'file', path: pathlib.absolute(file.path));
@@ -92,9 +91,9 @@ void runBaselineTests(String folderName, TestTarget target) {
           if (baseline != current) {
             fail('Output of `$name` changed for $folderName.\n'
                 'Command to reset the baseline:\n'
-                '  rm $filenameOfBaseline\n'
+                '  rm ${filenameOfBaseline.toFilePath()}\n'
                 'Command to see the diff:\n'
-                '  diff -cd $outputDirectory/$shortName.{baseline,current}.txt'
+                '  diff -cd ${outputDirectory.toFilePath()}/$shortName.{baseline,current}.txt'
                 '\n');
           }
         }

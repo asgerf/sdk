@@ -151,6 +151,7 @@ class ConstraintExtractor {
 
     for (var library in program.libraries) {
       for (var class_ in library.classes) {
+        addSupertypeConstraints(class_);
         baseHierarchy.forEachOverridePair(class_,
             (Member ownMember, Member superMember, bool isSetter) {
           checkOverride(class_, ownMember, superMember, isSetter);
@@ -199,6 +200,23 @@ class ConstraintExtractor {
     var visitor = new ConstraintExtractorVisitor(this, member,
         binding.getMemberBank(member), classBank, isUncheckedLibrary);
     visitor.analyzeMember();
+  }
+
+  void addSupertypeConstraints(Class class_) {
+    builder.setOwner(class_);
+    builder.setFileOffset(class_.fileOffset);
+    var bank = binding.getClassBank(class_);
+    for (var supertype in bank.supertypes) {
+      var substitution = Substitution.fromSupertype(supertype);
+      var superBank = binding.getClassBank(supertype.classNode);
+      for (int i = 0; i < supertype.typeArguments.length; ++i) {
+        var typeArgument = supertype.typeArguments[i];
+        var bound = superBank.typeParameterBounds[i];
+        typeArgument.generateSubBoundConstraint(
+            substitution.substituteBound(bound),
+            new SubtypingScope(builder, new GlobalScope(binding)));
+      }
+    }
   }
 
   AType getterType(Class host, Member member) {
