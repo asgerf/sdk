@@ -115,7 +115,7 @@ class OverrideSub extends self::OverrideBase {
     return null;
   method generic<T extends Bottom&core::Object/Bottom>(self::OverrideSub::generic::T arg) → Null {}
 }
-class GenericBase<E extends Bottom&core::Object/Bottom> extends core::Object {
+class GenericBase<E extends Null&core::Object/Bottom> extends core::Object {
   field self::GenericBase::E? value = null;
   constructor •() → Bottom
     : super core::Object::•()
@@ -350,7 +350,7 @@ static method testGenericDowncast() → Null {
   core::List!&core::Object upcastList = list;
   core::List!<Bottom&core::int/Null> downcastList = upcastList as core::List<core::int>;
   downcastList.{core::List::add}(null);
-  core::int! nullableIntFromList = list.{core::Iterable::last};
+  core::int!? nullableIntFromList = list.{core::Iterable::last};
   core::Map!<core::int!/, core::int!/> kmap = <core::int!, core::int!>{5: 6};
   core::Map!&core::Object upcastKMap = kmap;
   core::Map!<Bottom&core::int/Null, Bottom&core::int/core::int!> downcastKMap = upcastKMap as core::Map<core::int, core::int>;
@@ -370,7 +370,7 @@ static method testGenericDynamic() → Null {
   core::List!<core::int!/> list = <core::int!>[5];
   core::List!&core::Object dynamicList = list;
   dynamicList.add(null);
-  core::int! nullableIntFromList = list.{core::Iterable::last};
+  core::int!? nullableIntFromList = list.{core::Iterable::last};
   core::Map!<core::int!/, core::int!/> kmap = <core::int!, core::int!>{5: 6};
   core::Map!&core::Object dynamicKMap = kmap;
   dynamicKMap.[]=(null, 3);
@@ -438,12 +438,12 @@ static method testCombinators() → Null {
   nonNullable.{core::Iterable::forEach}((core::String!? x) → core::Null {
     core::print(x);
   });
-  core::Object+?&core::String nonNullableMapped = nonNullable.{core::Iterable::map}<core::String>((core::String! x) → core::String => x).{core::Iterable::first};
+  core::String!? nonNullableMapped = nonNullable.{core::Iterable::map}<core::String>((core::String!? x) → core::String => x).{core::Iterable::first};
   core::List!<core::String!?/> nullable = <core::String!?>["foo", "bar", null, "baz"];
   nullable.{core::Iterable::forEach}((core::String!? x) → core::Null {
     core::print(x);
   });
-  core::Object+?&core::String nullableMapped = nullable.{core::Iterable::map}<core::String>((core::String!? x) → core::String => x).{core::Iterable::first};
+  core::String!? nullableMapped = nullable.{core::Iterable::map}<core::String>((core::String!? x) → core::String => x).{core::Iterable::first};
 }
 static method testDefaultNulls() → Null {
   Null&core::int nullable1 = self::testReturnUninitializedVar();
@@ -453,11 +453,11 @@ static method testDefaultNulls() → Null {
   core::int! nonNullableInt3 = self::testInitializedInSwitch();
   core::int!? nullableInt1 = self::testUninitializedInSwitch();
   core::int!? nullableInt2 = self::testReturnMaybeInitializedVar();
-  core::int! nullableInt3 = self::testMaybeAssignedInLogicalOr();
-  core::int! nullableInt4 = self::testMaybeAssignedInLogicalAnd();
-  core::int! nonNullableInt4 = self::testGuardedByLogicalAnd();
-  core::int! nullableInt5 = self::testNotGuardedByLogicalOr();
-  core::int! nonNullableInt5 = self::testGuardedByLogicalOr();
+  core::int!? nullableInt3 = self::testMaybeAssignedInLogicalOr();
+  core::int!? nullableInt4 = self::testMaybeAssignedInLogicalAnd();
+  core::int!? nonNullableInt4 = self::testGuardedByLogicalAnd();
+  core::int!? nullableInt5 = self::testNotGuardedByLogicalOr();
+  core::int!? nonNullableInt5 = self::testGuardedByLogicalOr();
 }
 static method testReturnUninitializedVar() → Null&core::int {
   Null&core::Object uninitialized;
@@ -541,32 +541,32 @@ static method testUninitializedInSwitch() → core::int!? {
   }
   return v;
 }
-static method testMaybeAssignedInLogicalOr() → core::int! {
-  core::int! v;
+static method testMaybeAssignedInLogicalOr() → core::int!? {
+  core::int!? v;
   self::unknownInt.{core::num::==}(0) || (v = 3).{core::num::>}(0);
   return v;
 }
-static method testMaybeAssignedInLogicalAnd() → core::int! {
-  core::int! v;
+static method testMaybeAssignedInLogicalAnd() → core::int!? {
+  core::int!? v;
   self::unknownInt.{core::num::==}(0) && (v = 3).{core::num::>}(0);
   return v;
 }
-static method testGuardedByLogicalAnd() → core::int! {
-  core::int! v;
+static method testGuardedByLogicalAnd() → core::int!? {
+  core::int!? v;
   if(self::unknownInt.{core::num::==}(0) && (v = 3).{core::num::>}(0)) {
     return v;
   }
   return 0;
 }
-static method testNotGuardedByLogicalOr() → core::int! {
-  core::int! v;
+static method testNotGuardedByLogicalOr() → core::int!? {
+  core::int!? v;
   if(self::unknownInt.{core::num::==}(0) || (v = 3).{core::num::>}(0)) {
     return v;
   }
   return 0;
 }
-static method testGuardedByLogicalOr() → core::int! {
-  core::int! v;
+static method testGuardedByLogicalOr() → core::int!? {
+  core::int!? v;
   if(self::unknownInt.{core::num::==}(0) || (v = 3).{core::num::>}(0)) {
     return 0;
   }
