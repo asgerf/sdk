@@ -16,6 +16,7 @@ class TargetFlags {
   bool strongMode;
   bool treeShake;
   bool checkDataflow;
+  bool noErase;
   bool forceTreeShake;
   Uri kernelRuntime;
 
@@ -24,6 +25,7 @@ class TargetFlags {
       this.treeShake: false,
       this.forceTreeShake: false,
       this.checkDataflow,
+      this.noErase,
       this.kernelRuntime});
 }
 

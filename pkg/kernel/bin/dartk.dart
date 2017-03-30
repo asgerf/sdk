@@ -90,7 +90,10 @@ ArgParser parser = new ArgParser(allowTrailingOptions: true)
   ..addFlag('check-dataflow',
       negatable: false,
       help: 'Insert runtime checks to verify the results of type dataflow.\n'
-          'Only for internal use. Generates very slow code.');
+          'Only for internal use. Generates very slow code.')
+  ..addFlag('no-erase',
+      negatable: false,
+      help: 'Do not erase types at end of transformation step.');
 
 String getUsage() => """
 Usage: dartk [options] FILE
@@ -320,6 +323,7 @@ Future<CompilerOutcome> batchMain(
       treeShake: options['tree-shake'],
       forceTreeShake: options['force-tree-shake'],
       checkDataflow: options['check-dataflow'],
+      noErase: options['no-erase'],
       kernelRuntime: Platform.script.resolve('../runtime/'));
   Target target = getTarget(options['target'], targetFlags);
 

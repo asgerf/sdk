@@ -95,7 +95,7 @@ class VmTarget extends Target {
     // Repair `_getMainClosure()` function in dart:_builtin.
     setup_builtin_library.transformProgram(program);
 
-    if (strongMode) {
+    if (strongMode && !flags.noErase) {
       performErasure(program);
     }
 
