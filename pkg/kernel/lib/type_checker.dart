@@ -111,6 +111,7 @@ class TypeCheckingVisitor
   CoreTypes get coreTypes => environment.coreTypes;
   ClassHierarchy get hierarchy => environment.hierarchy;
   Class get currentClass => environment.thisType.classNode;
+  int constantContexts = 0;
 
   TypeCheckingVisitor(this.checker, this.environment);
 
@@ -119,6 +120,10 @@ class TypeCheckingVisitor
   }
 
   Expression checkAndDowncastExpression(Expression from, DartType to) {
+    if (constantContexts > 0) {
+      checkExpressionNoDowncast(from, to);
+      return from;
+    }
     var parent = from.parent;
     var type = visitExpression(from);
     var result = checker.checkAndDowncastExpression(from, type, to);
@@ -162,11 +167,25 @@ class TypeCheckingVisitor
     throw 'Unexpected initializer ${node.runtimeType}';
   }
 
+  void enterPotentialConst(bool isConst) {
+    if (isConst) {
+      ++constantContexts;
+    }
+  }
+
+  void exitPotentialConst(bool isConst) {
+    if (isConst) {
+      --constantContexts;
+    }
+  }
+
   visitField(Field node) {
+    enterPotentialConst(node.isConst);
     if (node.initializer != null) {
       node.initializer =
           checkAndDowncastExpression(node.initializer, node.type);
     }
+    exitPotentialConst(node.isConst);
   }
 
   visitConstructor(Constructor node) {
@@ -379,8 +398,10 @@ class TypeCheckingVisitor
     Constructor target = node.target;
     Arguments arguments = node.arguments;
     Class class_ = target.enclosingClass;
+    enterPotentialConst(node.isConst);
     handleCall(arguments, target.function,
         typeParameters: class_.typeParameters);
+    exitPotentialConst(node.isConst);
     return new InterfaceType(target.enclosingClass, arguments.types);
   }
 
@@ -443,10 +464,12 @@ class TypeCheckingVisitor
 
   @override
   DartType visitListLiteral(ListLiteral node) {
+    enterPotentialConst(node.isConst);
     for (int i = 0; i < node.expressions.length; ++i) {
       node.expressions[i] =
           checkAndDowncastExpression(node.expressions[i], node.typeArgument);
     }
+    exitPotentialConst(node.isConst);
     return environment.literalListType(node.typeArgument);
   }
 
@@ -459,10 +482,12 @@ class TypeCheckingVisitor
 
   @override
   DartType visitMapLiteral(MapLiteral node) {
+    enterPotentialConst(node.isConst);
     for (var entry in node.entries) {
       entry.key = checkAndDowncastExpression(entry.key, node.keyType);
       entry.value = checkAndDowncastExpression(entry.value, node.valueType);
     }
+    exitPotentialConst(node.isConst);
     return environment.literalMapType(node.keyType, node.valueType);
   }
 
