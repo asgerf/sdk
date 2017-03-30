@@ -450,9 +450,14 @@ static method testDefaultNulls() → Null {
   Null&core::Object nullable2 = self::testFallOverEnd();
   core::int! nonNullableInt1 = self::testReturnLateInitializedVar();
   core::int! nonNullableInt2 = self::testInitializedVarInBranches();
-  core::int!? nonNullableInt3 = self::testInitializedInSwitch();
+  core::int! nonNullableInt3 = self::testInitializedInSwitch();
   core::int!? nullableInt1 = self::testUninitializedInSwitch();
   core::int!? nullableInt2 = self::testReturnMaybeInitializedVar();
+  core::int! nullableInt3 = self::testMaybeAssignedInLogicalOr();
+  core::int! nullableInt4 = self::testMaybeAssignedInLogicalAnd();
+  core::int! nonNullableInt4 = self::testGuardedByLogicalAnd();
+  core::int! nullableInt5 = self::testNotGuardedByLogicalOr();
+  core::int! nonNullableInt5 = self::testGuardedByLogicalOr();
 }
 static method testReturnUninitializedVar() → Null&core::int {
   Null&core::Object uninitialized;
@@ -492,8 +497,8 @@ static method testInitializedVarInBranches() → core::int! {
         }
   return v;
 }
-static method testInitializedInSwitch() → core::int!? {
-  core::int!? v;
+static method testInitializedInSwitch() → core::int! {
+  core::int! v;
   #L1:
   switch(self::unknownInt) {
     #L2:
@@ -533,6 +538,37 @@ static method testUninitializedInSwitch() → core::int!? {
         v = 2;
         break #L5;
       }
+  }
+  return v;
+}
+static method testMaybeAssignedInLogicalOr() → core::int! {
+  core::int! v;
+  self::unknownInt.{core::num::==}(0) || (v = 3).{core::num::>}(0);
+  return v;
+}
+static method testMaybeAssignedInLogicalAnd() → core::int! {
+  core::int! v;
+  self::unknownInt.{core::num::==}(0) && (v = 3).{core::num::>}(0);
+  return v;
+}
+static method testGuardedByLogicalAnd() → core::int! {
+  core::int! v;
+  if(self::unknownInt.{core::num::==}(0) && (v = 3).{core::num::>}(0)) {
+    return v;
+  }
+  return 0;
+}
+static method testNotGuardedByLogicalOr() → core::int! {
+  core::int! v;
+  if(self::unknownInt.{core::num::==}(0) || (v = 3).{core::num::>}(0)) {
+    return v;
+  }
+  return 0;
+}
+static method testGuardedByLogicalOr() → core::int! {
+  core::int! v;
+  if(self::unknownInt.{core::num::==}(0) || (v = 3).{core::num::>}(0)) {
+    return 0;
   }
   return v;
 }

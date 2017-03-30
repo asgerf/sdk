@@ -943,8 +943,12 @@ class ConstraintExtractorVisitor
   AType visitConditionalExpression(ConditionalExpression node) {
     checkConditionExpression(node.condition);
     var type = augmentor.augmentType(node.staticType);
+    int base = controlFlow.current;
+    controlFlow.branchFrom(base);
     checkAssignableExpression(node.then, type);
+    controlFlow.branchFrom(base);
     checkAssignableExpression(node.otherwise, type);
+    controlFlow.mergeInto(base);
     return type;
   }
 
@@ -1072,7 +1076,10 @@ class ConstraintExtractorVisitor
   @override
   AType visitLogicalExpression(LogicalExpression node) {
     checkConditionExpression(node.left);
+    int base = controlFlow.current;
+    controlFlow.branchFrom(base);
     checkConditionExpression(node.right);
+    controlFlow.resumeBranch(base);
     return extractor.boolType;
   }
 

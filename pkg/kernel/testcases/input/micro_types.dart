@@ -469,6 +469,11 @@ void testDefaultNulls() {
   int nonNullableInt3 = testInitializedInSwitch();
   int nullableInt1 = testUninitializedInSwitch();
   var nullableInt2 = testReturnMaybeInitializedVar();
+  int nullableInt3 = testMaybeAssignedInLogicalOr();
+  int nullableInt4 = testMaybeAssignedInLogicalAnd();
+  int nonNullableInt4 = testGuardedByLogicalAnd();
+  int nullableInt5 = testNotGuardedByLogicalOr();
+  int nonNullableInt5 = testGuardedByLogicalOr();
 }
 
 int testReturnUninitializedVar() {
@@ -530,6 +535,42 @@ int testUninitializedInSwitch() {
     case 2:
       v = 2;
       break;
+  }
+  return v;
+}
+
+int testMaybeAssignedInLogicalOr() {
+  int v;
+  (unknownInt == 0 || (v = 3) > 0);
+  return v;
+}
+
+int testMaybeAssignedInLogicalAnd() {
+  int v;
+  (unknownInt == 0 && (v = 3) > 0);
+  return v;
+}
+
+int testGuardedByLogicalAnd() {
+  int v;
+  if (unknownInt == 0 && (v = 3) > 0) {
+    return v;
+  }
+  return 0;
+}
+
+int testNotGuardedByLogicalOr() {
+  int v;
+  if (unknownInt == 0 || (v = 3) > 0) {
+    return v;
+  }
+  return 0;
+}
+
+int testGuardedByLogicalOr() {
+  int v;
+  if (unknownInt == 0 || (v = 3) > 0) {
+    return 0;
   }
   return v;
 }
