@@ -11,7 +11,10 @@ class Subclass extends Foo {}
 
 class Subtype implements Foo {}
 
+int unknownInt = 0;
+
 main(List<String> args) {
+  unknownInt = args.length;
   testBasic(args.length);
   testListMutation();
   testUpcasting();
@@ -26,6 +29,7 @@ main(List<String> args) {
   testGenericCasts();
   testEscapeNonGeneric();
   testCombinators();
+  testDefaultNulls();
 }
 
 void takeExact(Foo foo) => takeExact2(foo);
@@ -455,4 +459,33 @@ void testCombinators() {
     print(x);
   });
   var nullableMapped = nullable.map<String>((x) => x).first;
+}
+
+void testDefaultNulls() {
+  var nullable1 = testReturnUninitializedVar();
+  var nullable2 = testFallOverEnd();
+  var nonNullableInt = testReturnLateInitializedVar();
+  var nullableInt = testReturnMaybeInitializedVar();
+}
+
+void testReturnUninitializedVar() {
+  var uninitialized;
+  return uninitialized;
+}
+
+void testReturnLateInitializedVar() {
+  var v;
+  v = 45;
+  return v;
+}
+
+void testReturnMaybeInitializedVar() {
+  var v;
+  if (unknownInt > 1) {
+    v = 45;
+  }
+  return v;
+}
+
+void testFallOverEnd() {
 }
