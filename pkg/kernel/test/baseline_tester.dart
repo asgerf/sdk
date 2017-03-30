@@ -13,10 +13,13 @@ import 'package:kernel/verifier.dart';
 import 'package:path/path.dart' as pathlib;
 import 'package:test/test.dart';
 
-final String testcaseDirectory = 'pkg/kernel/testcases';
-final String inputDirectory = 'pkg/kernel/testcases/input';
-final String sdkDirectory = 'sdk';
-final String patchedSdkDirectory = 'out/ReleaseX64/patched_sdk';
+final Uri testcaseDirectory = Platform.script.resolve('../testcases/');
+final Uri inputDirectory = testcaseDirectory.resolve('input/');
+
+final Uri repositoryRoot = Platform.script.resolve('../../../');
+final Uri sdkDirectory = repositoryRoot.resolve('sdk');
+final Uri patchedSdkDirectory =
+    repositoryRoot.resolve('out/ReleaseX64/patched_sdk');
 
 /// A target to be used for testing.
 ///
@@ -36,26 +39,31 @@ abstract class TestTarget extends Target {
 }
 
 void runBaselineTests(String folderName, TestTarget target) {
-  String outputDirectory = '$testcaseDirectory/$folderName';
+  Uri outputDirectory = testcaseDirectory.resolve('$folderName/');
   var batch = new DartLoaderBatch();
-  Directory directory = new Directory(inputDirectory);
+  Directory directory = new Directory.fromUri(inputDirectory);
   var applicationRoot = new ApplicationRoot(directory.absolute.path);
   for (FileSystemEntity file in directory.listSync()) {
     if (file is File && file.path.endsWith('.dart')) {
       String name = pathlib.basename(file.path);
+      if (name != 'generic_subclass.dart') continue;
       test(name, () async {
         Uri dartPath =
             new Uri(scheme: 'file', path: pathlib.absolute(file.path));
         String shortName = pathlib.withoutExtension(name);
-        String filenameOfBaseline = '$outputDirectory/$shortName.baseline.txt';
-        String filenameOfCurrent = '$outputDirectory/$shortName.current.txt';
+        Uri filenameOfBaseline =
+            outputDirectory.resolve('$shortName.baseline.txt');
+        Uri filenameOfCurrent =
+            outputDirectory.resolve('$shortName.current.txt');
 
         var program = new Program();
         var loader = await batch.getLoader(
             program,
             new DartOptions(
                 strongMode: target.strongMode,
-                sdk: target.usePatchedSdk ? patchedSdkDirectory : sdkDirectory,
+                sdk: target.usePatchedSdk
+                    ? patchedSdkDirectory.path
+                    : sdkDirectory.path,
                 declaredVariables: target.extraDeclaredVariables,
                 applicationRoot: applicationRoot));
         loader.loadProgram(dartPath, target: target);
@@ -74,11 +82,11 @@ void runBaselineTests(String folderName, TestTarget target) {
                 annotator: target.annotator, binding: target.binding)
             .writeLibraryFile(program.mainMethod.enclosingLibrary);
         String current = '$buffer';
-        new File(filenameOfCurrent).writeAsStringSync(current);
+        new File.fromUri(filenameOfCurrent).writeAsStringSync(current);
 
-        var baselineFile = new File(filenameOfBaseline);
+        var baselineFile = new File.fromUri(filenameOfBaseline);
         if (!baselineFile.existsSync()) {
-          new File(filenameOfBaseline).writeAsStringSync(current);
+          new File.fromUri(filenameOfBaseline).writeAsStringSync(current);
         } else {
           var baseline = baselineFile.readAsStringSync();
           if (baseline != current) {

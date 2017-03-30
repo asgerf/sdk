@@ -12,8 +12,23 @@ import 'baseline_tester.dart';
 class DataflowTest extends TestTarget {
   Binding binding;
 
-  @override
-  List<String> get extraRequiredLibraries => [];
+  List<String> get extraRequiredLibraries => const <String>[
+        'dart:async',
+        'dart:collection',
+        'dart:convert',
+        'dart:developer',
+        'dart:_internal',
+        'dart:isolate',
+        'dart:math',
+        'dart:mirrors',
+        'dart:profiler',
+        'dart:typed_data',
+        'dart:vmservice_io',
+        'dart:_vmservice',
+        'dart:_builtin',
+        'dart:nativewrappers',
+        'dart:io',
+      ];
 
   @override
   String get name => 'dataflow-test';
