@@ -19,10 +19,10 @@ class Strength extends core::Object {
     ;
   method nextWeaker() → self::Strength!
     return const <self::Strength!>[self::STRONG_PREFERRED, self::PREFERRED, self::STRONG_DEFAULT, self::NORMAL, self::WEAK_DEFAULT, self::WEAKEST].{core::List::[]}(this.{self::Strength::value});
-  static method stronger(self::Strength! s1, self::Strength! s2) → core::Object+?&core::bool {
+  static method stronger(self::Strength! s1, self::Strength! s2) → core::bool! {
     return s1.{self::Strength::value}.{core::num::<}(s2.{self::Strength::value});
   }
-  static method weaker(self::Strength! s1, self::Strength! s2) → core::Object+?&core::bool {
+  static method weaker(self::Strength! s1, self::Strength! s2) → core::bool! {
     return s1.{self::Strength::value}.{core::num::>}(s2.{self::Strength::value});
   }
   static method weakest(self::Strength! s1, self::Strength! s2) → self::Strength! {
@@ -240,7 +240,7 @@ class Variable extends core::Object {
   field core::int! mark = 0;
   field self::Strength! walkStrength = self::WEAKEST;
   field core::bool! stay = true;
-  field core::Object+?&core::int value;
+  field core::int! value;
   final field core::String! name;
   constructor •(core::String! name, core::int! value) → Bottom
     : self::Variable::name = name, self::Variable::value = value, super core::Object::•()
@@ -359,7 +359,7 @@ class Plan extends core::Object {
   method addConstraint(self::Constraint+ c) → Null {
     this.{self::Plan::list}.{core::List::add}(c);
   }
-  method size() → core::Object+?&core::int
+  method size() → core::int!
     return this.{self::Plan::list}.{core::List::length};
   method execute() → Null {
     for (core::int! i = 0; i.{core::num::<}(this.{self::Plan::list}.{core::List::length}); i = i.{core::num::+}(1)) {

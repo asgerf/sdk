@@ -194,7 +194,7 @@ class EscapingSubclass extends self::EscapingBaseClass {
     x.escapingField3 = null;
   }
 }
-static field core::Object+?&core::int unknownInt = 0;
+static field core::int! unknownInt = 0;
 static method main(core::List+<core::String!/> args) → Null&core::Object {
   self::unknownInt = args.{core::List::length};
   self::testBasic(args.{core::List::length});
@@ -225,7 +225,7 @@ static method takeExact2(self::Foo! foo) → Null {}
 static method takeSubclass2(self::Subclass!&self::Foo foo) → Null {}
 static method takeSubtype2(self::Subtype!&self::Foo foo) → Null {}
 static method takeNullable2(self::Foo!? foo) → Null {}
-static method testBasic(core::Object+?&core::int n) → Null {
+static method testBasic(core::int! n) → Null {
   Null&self::Foo nullableFoo = null;
   self::takeExact(new self::Foo::•());
   self::takeSubclass(new self::Subclass::•());

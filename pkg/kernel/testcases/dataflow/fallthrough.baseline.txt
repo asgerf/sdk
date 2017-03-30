@@ -3,7 +3,7 @@ import self as self;
 import "dart:core" as core;
 
 static method main(core::List+<core::String!/> args) → Null {
-  core::Object+?&core::int x = args.{core::List::length};
+  core::int! x = args.{core::List::length};
   #L1:
   switch(x) {
     #L2:

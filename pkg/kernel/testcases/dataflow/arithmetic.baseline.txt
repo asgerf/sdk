@@ -2,12 +2,12 @@ library;
 import self as self;
 import "dart:core" as core;
 
-static method foo(core::int! x, core::int! y) → core::Object+?&core::int {
+static method foo(core::int! x, core::int! y) → core::int! {
   core::int! z = x.{core::num::+}(y);
   return z.{core::int::<<}(4);
 }
 static method loop(core::List!<core::String!&core::Object/> xs) → Null {
-  core::Object+?&core::int _ = xs.{core::List::length};
+  core::int! _ = xs.{core::List::length};
   for (core::int! i = 0; i.{core::num::<}(xs.{core::List::length}); i = i.{core::num::+}(1)) {
   }
 }

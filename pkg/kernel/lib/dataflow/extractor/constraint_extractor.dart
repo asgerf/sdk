@@ -1979,11 +1979,11 @@ class ProtectType extends ATypeVisitor<AType> {
       types.map(protectType).toList(growable: false);
 
   ValueSource protectSource(ValueSource source) {
-    return covariant ? Value.bottom : source;
+    return source;
   }
 
   ValueSink protectSink(ValueSink sink) {
-    return covariant ? sink : ValueSink.nowhere;
+    return ValueSink.nowhere;
   }
 
   @override
