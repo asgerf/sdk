@@ -466,7 +466,9 @@ void testDefaultNulls() {
   var nullable2 = testFallOverEnd();
   var nonNullableInt1 = testReturnLateInitializedVar();
   int nonNullableInt2 = testInitializedVarInBranches();
-  var nullableInt = testReturnMaybeInitializedVar();
+  int nonNullableInt3 = testInitializedInSwitch();
+  int nullableInt1 = testUninitializedInSwitch();
+  var nullableInt2 = testReturnMaybeInitializedVar();
 }
 
 int testReturnUninitializedVar() {
@@ -500,6 +502,34 @@ int testInitializedVarInBranches() {
     v = 30;
   } else {
     v = 25;
+  }
+  return v;
+}
+
+int testInitializedInSwitch() {
+  int v;
+  switch (unknownInt) {
+    case 1:
+      v = 1;
+      break;
+    case 2:
+      v = 2;
+      break;
+    default:
+      v = 0;
+  }
+  return v;
+}
+
+int testUninitializedInSwitch() {
+  int v;
+  switch (unknownInt) {
+    case 1:
+      v = 1;
+      break;
+    case 2:
+      v = 2;
+      break;
   }
   return v;
 }

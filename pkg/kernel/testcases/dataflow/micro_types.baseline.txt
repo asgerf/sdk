@@ -450,7 +450,9 @@ static method testDefaultNulls() → Null {
   Null&core::Object nullable2 = self::testFallOverEnd();
   core::int! nonNullableInt1 = self::testReturnLateInitializedVar();
   core::int! nonNullableInt2 = self::testInitializedVarInBranches();
-  core::int!? nullableInt = self::testReturnMaybeInitializedVar();
+  core::int!? nonNullableInt3 = self::testInitializedInSwitch();
+  core::int!? nullableInt1 = self::testUninitializedInSwitch();
+  core::int!? nullableInt2 = self::testReturnMaybeInitializedVar();
 }
 static method testReturnUninitializedVar() → Null&core::int {
   Null&core::Object uninitialized;
@@ -488,6 +490,50 @@ static method testInitializedVarInBranches() → core::int! {
         else {
           v = 25;
         }
+  return v;
+}
+static method testInitializedInSwitch() → core::int!? {
+  core::int!? v;
+  #L1:
+  switch(self::unknownInt) {
+    #L2:
+    case 1:
+      {
+        v = 1;
+        break #L1;
+      }
+    #L3:
+    case 2:
+      {
+        v = 2;
+        break #L1;
+      }
+    #L4:
+    default:
+      {
+        v = 0;
+        break #L1;
+      }
+  }
+  return v;
+}
+static method testUninitializedInSwitch() → core::int!? {
+  core::int!? v;
+  #L5:
+  switch(self::unknownInt) {
+    #L6:
+    case 1:
+      {
+        v = 1;
+        break #L5;
+      }
+    #L7:
+    case 2:
+      {
+        v = 2;
+        break #L5;
+      }
+  }
   return v;
 }
 static method testFallOverEnd() → Null&core::Object {}
