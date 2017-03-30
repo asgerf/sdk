@@ -1,8 +1,24 @@
+## 1.24.0
+
+### Language
+
+### Core library changes
+
+### Dart VM
+
+### Strong Mode
+
+### Tool Changes
+
 ## 1.23.0
 
 ### Language
 * Allow using URI strings in `part of` declarations to refer to the
   importing library.
+  A library part now can declare its library either as:
+  `part of name.of.library;` or as `part of "uriReferenceOfLibrary.dart";`.
+  This allows libraries with no library declarations (and therefore no name)
+  to have parts, and it allows tools to easily find the library of a part file.
 
 ### Core library changes
 
@@ -24,6 +40,56 @@
 * Calls to `print()` and `Stdout.write*()` now correctly print unicode
   characters to the console on Windows. Calls to `Stdout.add*()` behave as
   before.
+
+### Strong Mode
+
+* Strong mode will prefer the expected type to infer generic types,
+  functions, and methods
+  (SDK issue [27586](https://github.com/dart-lang/sdk/issues/27586)).
+
+  ```dart
+  main() {
+    List<Object> foo = /*infers: <Object>*/['hello', 'world'];
+    var bar = /*infers: <String>*/['hello', 'world'];
+  }
+  ```
+
+* Strong mode inference error messages are improved
+  (SDK issue [29108](https://github.com/dart-lang/sdk/issues/29108)).
+
+  ```dart
+  import 'dart:math';
+  test(Iterable/* fix is to add <num> here */ values) {
+    num n = values.fold(values.first as num, max);
+  }
+  ```
+  Now produces the error on the generic function "max":
+  ```
+  Couldn't infer type parameter 'T'.
+
+  Tried to infer 'dynamic' for 'T' which doesn't work:
+    Function type declared as '<T extends num>(T, T) → T'
+                  used where  '(num, dynamic) → num' is required.
+
+  Consider passing explicit type argument(s) to the generic.
+  ```
+
+* Strong mode supports overriding fields, `@virtual` is no longer required
+    (SDK issue [28120](https://github.com/dart-lang/sdk/issues/28120)).
+
+    ```dart
+    class C {
+      int x = 42;
+    }
+    class D extends C {
+      int x = 123;
+      get y => super.x;
+    }
+    main() {
+      print(new D().x);
+      print(new D().y);
+    }
+    ```
 
 ### Tool changes
 
@@ -72,12 +138,16 @@
       that's also valid according to the user's pubspec.
 
 * dartfmt
+  * Support new generic function typedef syntax.
   * Make the precedence of cascades more visible.
   * Fix a couple of places where spurious newlines were inserted.
   * Correctly report unchanged formatting when reading from stdin.
+  * Ensure space between `-` and `--`. Code that does this is pathological, but
+    it technically meant dartfmt could change the semantics of the code.
+  * Preserve a blank line between enum cases.
   * Other small formatting tweaks.
 
-## 1.22.0
+## 1.22.0 - 2017-02-14
 
 ### Language
 

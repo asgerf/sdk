@@ -6,6 +6,8 @@ library fasta.outline_builder;
 
 import 'package:kernel/ast.dart' show AsyncMarker, ProcedureKind;
 
+import '../fasta_codes.dart' show FastaMessage, codeExpectedBlockToSkip;
+
 import '../parser/parser.dart' show FormalParameterType, optional;
 
 import '../parser/identifier_context.dart' show IdentifierContext;
@@ -26,12 +28,15 @@ import 'source_library_builder.dart' show SourceLibraryBuilder;
 
 import 'unhandled_listener.dart' show NullValue, Unhandled, UnhandledListener;
 
-import '../parser/error_kind.dart' show ErrorKind;
-
 import '../parser/dart_vm_native.dart'
     show removeNativeClause, skipNativeClause;
 
-import '../operator.dart' show Operator, operatorFromString, operatorToString;
+import '../operator.dart'
+    show
+        Operator,
+        operatorFromString,
+        operatorToString,
+        operatorRequiredArgumentCount;
 
 import '../quote.dart' show unescapeString;
 
@@ -369,6 +374,22 @@ class OutlineBuilder extends UnhandledListener {
     if (nameOrOperator is Operator) {
       name = operatorToString(nameOrOperator);
       kind = ProcedureKind.Operator;
+      int requiredArgumentCount = operatorRequiredArgumentCount(nameOrOperator);
+      if ((formals?.length ?? 0) != requiredArgumentCount) {
+        library.addCompileTimeError(
+            charOffset,
+            "Operator '$name' must have exactly $requiredArgumentCount "
+            "parameters.");
+      } else {
+        if (formals != null) {
+          for (FormalParameterBuilder formal in formals) {
+            if (!formal.isRequired) {
+              library.addCompileTimeError(formal.charOffset,
+                  "An operator can't have optional parameters.");
+            }
+          }
+        }
+      }
     } else {
       name = nameOrOperator;
       kind = computeProcedureKind(getOrSet);
@@ -782,15 +803,15 @@ class OutlineBuilder extends UnhandledListener {
   }
 
   @override
-  Token handleUnrecoverableError(Token token, ErrorKind kind, Map arguments) {
-    if (isDartLibrary && kind == ErrorKind.ExpectedBlockToSkip) {
+  Token handleUnrecoverableError(Token token, FastaMessage message) {
+    if (isDartLibrary && message.code == codeExpectedBlockToSkip) {
       Token recover = skipNativeClause(token);
       if (recover != null) {
         nativeMethodName = unescapeString(token.next.lexeme);
         return recover;
       }
     }
-    return super.handleUnrecoverableError(token, kind, arguments);
+    return super.handleUnrecoverableError(token, message);
   }
 
   @override

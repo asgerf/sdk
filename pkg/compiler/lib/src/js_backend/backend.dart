@@ -355,11 +355,6 @@ class JavaScriptBackend {
    */
   final Set<ClassElement> specialOperatorEqClasses = new Set<ClassElement>();
 
-  /**
-   * A set of members that are called from subclasses via `super`.
-   */
-  final Set<MethodElement> aliasedSuperMembers = new Setlet<MethodElement>();
-
   List<CompilerTask> get tasks {
     List<CompilerTask> result = functionCompiler.tasks;
     result.add(emitter);
@@ -446,6 +441,8 @@ class JavaScriptBackend {
   MirrorsDataImpl _mirrorsData;
   CheckedModeHelpers _checkedModeHelpers;
 
+  final SuperMemberData superMemberData = new SuperMemberData();
+
   native.NativeResolutionEnqueuer _nativeResolutionEnqueuer;
   native.NativeCodegenEnqueuer _nativeCodegenEnqueuer;
 
@@ -506,14 +503,10 @@ class JavaScriptBackend {
     impacts = new BackendImpacts(compiler.options, commonElements, helpers);
     _mirrorsData = new MirrorsDataImpl(
         compiler, compiler.options, commonElements, helpers, constants);
-    _backendUsageBuilder = new BackendUsageBuilderImpl(
-        compiler.elementEnvironment, commonElements, helpers);
+    _backendUsageBuilder = new BackendUsageBuilderImpl(commonElements, helpers);
     _checkedModeHelpers = new CheckedModeHelpers(commonElements, helpers);
     emitter =
         new CodeEmitterTask(compiler, generateSourceMap, useStartupEmitter);
-    _nativeResolutionEnqueuer = new native.NativeResolutionEnqueuer(compiler);
-    _nativeCodegenEnqueuer = new native.NativeCodegenEnqueuer(
-        compiler, emitter, _nativeResolutionEnqueuer);
 
     _typeVariableResolutionAnalysis = new TypeVariableResolutionAnalysis(
         compiler.elementEnvironment, impacts, backendUsageBuilder);
@@ -523,7 +516,8 @@ class JavaScriptBackend {
     lookupMapResolutionAnalysis =
         new LookupMapResolutionAnalysis(reporter, compiler.elementEnvironment);
 
-    noSuchMethodRegistry = new NoSuchMethodRegistry(this);
+    noSuchMethodRegistry =
+        new NoSuchMethodRegistry(helpers, new NoSuchMethodResolverImpl());
     kernelTask = new KernelTask(compiler);
     patchResolverTask = new PatchResolverTask(compiler);
     functionCompiler =
@@ -684,10 +678,6 @@ class JavaScriptBackend {
     return constantCompilerTask.jsConstantCompiler;
   }
 
-  bool isDefaultNoSuchMethod(MethodElement element) {
-    return noSuchMethodRegistry.isDefaultNoSuchMethodImplementation(element);
-  }
-
   MethodElement resolveExternalFunction(MethodElement element) {
     if (isForeign(element)) {
       return element;
@@ -746,31 +736,6 @@ class JavaScriptBackend {
         !mirrorsData.invokedReflectively(method);
   }
 
-  /**
-   * Record that [method] is called from a subclass via `super`.
-   */
-  bool maybeRegisterAliasedSuperMember(
-      MemberElement member, Selector selector) {
-    if (!canUseAliasedSuperMember(member, selector)) {
-      // Invoking a super getter isn't supported, this would require changes to
-      // compact field descriptors in the emitter.
-      return false;
-    }
-    aliasedSuperMembers.add(member);
-    return true;
-  }
-
-  bool canUseAliasedSuperMember(Element member, Selector selector) {
-    return !selector.isGetter;
-  }
-
-  /**
-   * Returns `true` if [member] is called from a subclass via `super`.
-   */
-  bool isAliasedSuperMember(FunctionElement member) {
-    return aliasedSuperMembers.contains(member);
-  }
-
   /// Maps compile-time classes to their runtime class.  The runtime class is
   /// always a superclass or the class itself.
   ClassElement getRuntimeClass(ClassElement class_) {
@@ -817,7 +782,7 @@ class JavaScriptBackend {
     }
     mirrorsDataBuilder.computeMembersNeededForReflection(
         compiler.enqueuer.resolution.worldBuilder, closedWorld);
-    _backendUsage = _backendUsageBuilder.close();
+    _backendUsage = backendUsageBuilder.close();
     _rtiNeed = rtiNeedBuilder.computeRuntimeTypesNeed(
         compiler.enqueuer.resolution.worldBuilder,
         closedWorld,
@@ -826,23 +791,14 @@ class JavaScriptBackend {
         helpers,
         _backendUsage,
         enableTypeAssertions: compiler.options.enableTypeAssertions);
-    _interceptorData =
-        _interceptorDataBuilder.onResolutionComplete(closedWorld);
+    _interceptorData = interceptorDataBuilder.onResolutionComplete(closedWorld);
     _oneShotInterceptorData =
         new OneShotInterceptorData(interceptorData, helpers);
     mirrorsResolutionAnalysis.onResolutionComplete();
   }
 
-  void onTypeInferenceComplete() {
-    noSuchMethodRegistry.onTypeInferenceComplete();
-  }
-
-  /// Register a runtime type variable bound tests between [typeArgument] and
-  /// [bound].
-  void registerTypeVariableBoundsSubtypeCheck(
-      ResolutionDartType typeArgument, ResolutionDartType bound) {
-    rtiChecksBuilder.registerTypeVariableBoundsSubtypeCheck(
-        typeArgument, bound);
+  void onTypeInferenceComplete(GlobalTypeInferenceResults results) {
+    noSuchMethodRegistry.onTypeInferenceComplete(results);
   }
 
   /// Returns the [WorldImpact] of enabling deferred loading.
@@ -883,13 +839,14 @@ class JavaScriptBackend {
     return null;
   }
 
-  bool isComplexNoSuchMethod(FunctionElement element) =>
-      noSuchMethodRegistry.isComplex(element);
-
   ResolutionEnqueuer createResolutionEnqueuer(
       CompilerTask task, Compiler compiler) {
     _nativeBasicData =
         nativeBasicDataBuilder.close(compiler.elementEnvironment);
+    _nativeResolutionEnqueuer = new native.NativeResolutionEnqueuer(
+        compiler,
+        new NativeClassResolverImpl(
+            compiler.resolution, reporter, helpers, nativeBasicData));
     _nativeData = new NativeDataImpl(nativeBasicData);
     _backendClasses = new JavaScriptBackendClasses(
         compiler.elementEnvironment, helpers, nativeBasicData);
@@ -914,11 +871,7 @@ class JavaScriptBackend {
         customElementsResolutionAnalysis,
         rtiNeedBuilder);
     _interceptorDataBuilder = new InterceptorDataBuilderImpl(
-        nativeBasicData,
-        helpers,
-        compiler.elementEnvironment,
-        commonElements,
-        compiler.resolution);
+        nativeBasicData, helpers, compiler.elementEnvironment, commonElements);
     return new ResolutionEnqueuer(
         task,
         compiler.options,
@@ -927,7 +880,6 @@ class JavaScriptBackend {
             ? const DirectEnqueuerStrategy()
             : const TreeShakingEnqueuerStrategy(),
         new ResolutionEnqueuerListener(
-            kernelTask,
             compiler.options,
             compiler.elementEnvironment,
             commonElements,
@@ -935,16 +887,17 @@ class JavaScriptBackend {
             impacts,
             backendClasses,
             nativeBasicData,
-            _interceptorDataBuilder,
-            _backendUsageBuilder,
-            _rtiNeedBuilder,
+            interceptorDataBuilder,
+            backendUsageBuilder,
+            rtiNeedBuilder,
             mirrorsDataBuilder,
             noSuchMethodRegistry,
             customElementsResolutionAnalysis,
             lookupMapResolutionAnalysis,
             mirrorsResolutionAnalysis,
             typeVariableResolutionAnalysis,
-            _nativeResolutionEnqueuer),
+            nativeResolutionEnqueuer,
+            kernelTask),
         new ElementResolutionWorldBuilder(
             this, compiler.resolution, const OpenWorldStrategy()),
         new ResolutionWorkItemBuilder(compiler.resolution));
@@ -972,6 +925,8 @@ class JavaScriptBackend {
         backendClasses,
         helpers,
         nativeBasicData);
+    _nativeCodegenEnqueuer = new native.NativeCodegenEnqueuer(
+        compiler, emitter, _nativeResolutionEnqueuer);
     return new CodegenEnqueuer(
         task,
         compiler.options,
@@ -991,7 +946,7 @@ class JavaScriptBackend {
             typeVariableCodegenAnalysis,
             lookupMapAnalysis,
             mirrorsCodegenAnalysis,
-            _nativeCodegenEnqueuer));
+            nativeCodegenEnqueuer));
   }
 
   WorldImpact codegen(CodegenWorkItem work) {
@@ -1097,7 +1052,7 @@ class JavaScriptBackend {
   /// Generates the output and returns the total size of the generated code.
   int assembleProgram(ClosedWorld closedWorld) {
     int programSize = emitter.assembleProgram(namer, closedWorld);
-    noSuchMethodRegistry.emitDiagnostic();
+    noSuchMethodRegistry.emitDiagnostic(reporter);
     int totalMethodCount = generatedCode.length;
     if (totalMethodCount != mirrorsCodegenAnalysis.preMirrorsMethodCount) {
       int mirrorCount =
@@ -1606,7 +1561,7 @@ class JavaScriptBackendTarget extends Target {
 
   @override
   bool isDefaultNoSuchMethod(MethodElement element) {
-    return _backend.isDefaultNoSuchMethod(element);
+    return _backend.helpers.isDefaultNoSuchMethodImplementation(element);
   }
 
   @override
@@ -1620,4 +1575,29 @@ class JavaScriptBackendTarget extends Target {
 
   @override
   bool isForeign(Element element) => _backend.isForeign(element);
+}
+
+class SuperMemberData {
+  /// A set of member that are called from subclasses via `super`.
+  final Set<MemberEntity> _aliasedSuperMembers = new Setlet<MemberEntity>();
+
+  /// Record that [member] is called from a subclass via `super`.
+  bool maybeRegisterAliasedSuperMember(MemberEntity member, Selector selector) {
+    if (!canUseAliasedSuperMember(member, selector)) {
+      // Invoking a super getter isn't supported, this would require changes to
+      // compact field descriptors in the emitter.
+      return false;
+    }
+    _aliasedSuperMembers.add(member);
+    return true;
+  }
+
+  bool canUseAliasedSuperMember(MemberEntity member, Selector selector) {
+    return !selector.isGetter;
+  }
+
+  /// Returns `true` if [member] is called from a subclass via `super`.
+  bool isAliasedSuperMember(MemberEntity member) {
+    return _aliasedSuperMembers.contains(member);
+  }
 }

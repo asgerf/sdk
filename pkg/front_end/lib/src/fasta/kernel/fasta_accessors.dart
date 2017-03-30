@@ -2,7 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-library fasta.builder_accessors;
+library fasta.fasta_accessors;
 
 export 'package:kernel/frontend/accessors.dart' show wrapInvalid;
 
@@ -20,6 +20,7 @@ import 'package:kernel/frontend/accessors.dart' as kernel
         IndexAccessor,
         NullAwarePropertyAccessor,
         PropertyAccessor,
+        ReadOnlyAccessor,
         StaticAccessor,
         SuperIndexAccessor,
         SuperPropertyAccessor,
@@ -60,7 +61,7 @@ abstract class BuilderHelper {
       {bool isSuper: false, isGetter: false, isSetter: false});
 }
 
-abstract class BuilderAccessor implements Accessor {
+abstract class FastaAccessor implements Accessor {
   BuilderHelper get helper;
 
   String get plainNameForRead;
@@ -87,10 +88,10 @@ abstract class BuilderAccessor implements Accessor {
         isSetter: true);
   }
 
-  /* Expression | BuilderAccessor */ doInvocation(
+  /* Expression | FastaAccessor */ doInvocation(
       int offset, Arguments arguments);
 
-  /* Expression | BuilderAccessor */ buildPropertyAccess(
+  /* Expression | FastaAccessor */ buildPropertyAccess(
       IncompleteSend send, bool isNullAware) {
     if (send is SendAccessor) {
       return buildMethodInvocation(
@@ -102,7 +103,7 @@ abstract class BuilderAccessor implements Accessor {
     }
   }
 
-  /* Expression | BuilderAccessor */ buildThrowNoSuchMethodError(
+  /* Expression | FastaAccessor */ buildThrowNoSuchMethodError(
       Arguments arguments,
       {bool isSuper: false,
       isGetter: false,
@@ -117,7 +118,7 @@ abstract class BuilderAccessor implements Accessor {
   bool get isThisPropertyAccessor => false;
 }
 
-abstract class CompileTimeErrorAccessor implements BuilderAccessor {
+abstract class CompileTimeErrorAccessor implements FastaAccessor {
   @override
   Expression get builtBinary => internalError("Unsupported operation.");
 
@@ -197,7 +198,7 @@ abstract class CompileTimeErrorAccessor implements BuilderAccessor {
   Expression makeInvalidWrite(Expression value) => buildError();
 }
 
-class ThisAccessor extends BuilderAccessor {
+class ThisAccessor extends FastaAccessor {
   final BuilderHelper helper;
 
   final int offset;
@@ -331,7 +332,7 @@ class ThisAccessor extends BuilderAccessor {
   toString() => "ThisAccessor($offset${isSuper ? ', super' : ''})";
 }
 
-abstract class IncompleteSend extends BuilderAccessor {
+abstract class IncompleteSend extends FastaAccessor {
   final BuilderHelper helper;
 
   @override
@@ -395,7 +396,7 @@ class SendAccessor extends IncompleteSend {
       /// `(SomeType).toString`.
       isNullAware = false;
     }
-    if (receiver is BuilderAccessor) {
+    if (receiver is FastaAccessor) {
       return receiver.buildPropertyAccess(this, isNullAware);
     }
     if (receiver is PrefixBuilder) {
@@ -481,7 +482,7 @@ class IncompletePropertyAccessor extends IncompleteSend {
       //
       isNullAware = false;
     }
-    if (receiver is BuilderAccessor) {
+    if (receiver is FastaAccessor) {
       return receiver.buildPropertyAccess(this, isNullAware);
     }
     if (receiver is PrefixBuilder) {
@@ -538,7 +539,7 @@ class IncompletePropertyAccessor extends IncompleteSend {
   toString() => "IncompletePropertyAccessor($offset, $name)";
 }
 
-class IndexAccessor extends kernel.IndexAccessor with BuilderAccessor {
+class IndexAccessor extends kernel.IndexAccessor with FastaAccessor {
   final BuilderHelper helper;
 
   IndexAccessor.internal(this.helper, int offset, Expression receiver,
@@ -556,7 +557,7 @@ class IndexAccessor extends kernel.IndexAccessor with BuilderAccessor {
 
   toString() => "IndexAccessor()";
 
-  static BuilderAccessor make(
+  static FastaAccessor make(
       BuilderHelper helper,
       int offset,
       Expression receiver,
@@ -572,7 +573,7 @@ class IndexAccessor extends kernel.IndexAccessor with BuilderAccessor {
   }
 }
 
-class PropertyAccessor extends kernel.PropertyAccessor with BuilderAccessor {
+class PropertyAccessor extends kernel.PropertyAccessor with FastaAccessor {
   final BuilderHelper helper;
 
   PropertyAccessor.internal(this.helper, int offset, Expression receiver,
@@ -589,7 +590,7 @@ class PropertyAccessor extends kernel.PropertyAccessor with BuilderAccessor {
 
   toString() => "PropertyAccessor()";
 
-  static BuilderAccessor make(
+  static FastaAccessor make(
       BuilderHelper helper,
       int offset,
       Expression receiver,
@@ -609,7 +610,7 @@ class PropertyAccessor extends kernel.PropertyAccessor with BuilderAccessor {
   }
 }
 
-class StaticAccessor extends kernel.StaticAccessor with BuilderAccessor {
+class StaticAccessor extends kernel.StaticAccessor with FastaAccessor {
   final BuilderHelper helper;
 
   StaticAccessor(this.helper, int offset, Member readTarget, Member writeTarget)
@@ -654,7 +655,7 @@ class StaticAccessor extends kernel.StaticAccessor with BuilderAccessor {
 }
 
 class SuperPropertyAccessor extends kernel.SuperPropertyAccessor
-    with BuilderAccessor {
+    with FastaAccessor {
   final BuilderHelper helper;
 
   SuperPropertyAccessor(
@@ -676,7 +677,7 @@ class SuperPropertyAccessor extends kernel.SuperPropertyAccessor
   toString() => "SuperPropertyAccessor()";
 }
 
-class ThisIndexAccessor extends kernel.ThisIndexAccessor with BuilderAccessor {
+class ThisIndexAccessor extends kernel.ThisIndexAccessor with FastaAccessor {
   final BuilderHelper helper;
 
   ThisIndexAccessor(this.helper, int offset, Expression index, Procedure getter,
@@ -695,8 +696,7 @@ class ThisIndexAccessor extends kernel.ThisIndexAccessor with BuilderAccessor {
   toString() => "ThisIndexAccessor()";
 }
 
-class SuperIndexAccessor extends kernel.SuperIndexAccessor
-    with BuilderAccessor {
+class SuperIndexAccessor extends kernel.SuperIndexAccessor with FastaAccessor {
   final BuilderHelper helper;
 
   SuperIndexAccessor(
@@ -716,7 +716,7 @@ class SuperIndexAccessor extends kernel.SuperIndexAccessor
 }
 
 class ThisPropertyAccessor extends kernel.ThisPropertyAccessor
-    with BuilderAccessor {
+    with FastaAccessor {
   final BuilderHelper helper;
 
   ThisPropertyAccessor(
@@ -741,7 +741,7 @@ class ThisPropertyAccessor extends kernel.ThisPropertyAccessor
 }
 
 class NullAwarePropertyAccessor extends kernel.NullAwarePropertyAccessor
-    with BuilderAccessor {
+    with FastaAccessor {
   final BuilderHelper helper;
 
   NullAwarePropertyAccessor(this.helper, int offset, Expression receiver,
@@ -757,7 +757,7 @@ class NullAwarePropertyAccessor extends kernel.NullAwarePropertyAccessor
   toString() => "NullAwarePropertyAccessor()";
 }
 
-class VariableAccessor extends kernel.VariableAccessor with BuilderAccessor {
+class VariableAccessor extends kernel.VariableAccessor with FastaAccessor {
   final BuilderHelper helper;
 
   VariableAccessor(this.helper, int offset, VariableDeclaration variable,
@@ -774,6 +774,32 @@ class VariableAccessor extends kernel.VariableAccessor with BuilderAccessor {
   }
 
   toString() => "VariableAccessor()";
+}
+
+class ReadOnlyAccessor extends kernel.ReadOnlyAccessor with FastaAccessor {
+  final BuilderHelper helper;
+
+  final String plainNameForRead;
+
+  ReadOnlyAccessor(
+      this.helper, Expression expression, this.plainNameForRead, int offset)
+      : super(expression, offset);
+
+  Expression doInvocation(int offset, Arguments arguments) {
+    return buildMethodInvocation(
+        buildSimpleRead(), callName, arguments, offset);
+  }
+}
+
+class ParenthesizedExpression extends ReadOnlyAccessor {
+  ParenthesizedExpression(
+      BuilderHelper helper, Expression expression, int offset)
+      : super(helper, expression, "<a parenthesized expression>", offset);
+
+  Expression makeInvalidWrite(Expression value) {
+    return helper.buildCompileTimeError(
+        "Can't assign to a parenthesized expression.", offset);
+  }
 }
 
 bool isFieldOrGetter(Member member) {
