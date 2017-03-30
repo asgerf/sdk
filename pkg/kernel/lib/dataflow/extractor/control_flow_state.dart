@@ -5,52 +5,60 @@ library kernel.dataflow.extractor.control_flow_state;
 
 import '../../ast.dart';
 
+/// Tracks control-flow reachability and variable initialization during an AST
+/// traversal.
+///
+/// The current abstract state can be saved using [branchFrom], and later
+/// restored using [resumeBranch], [mergeInto], or [mergeFinally].
 class ControlFlowState {
   /// A stack entry contains either:
   /// - null, if the branch cannot complete normally, or
   /// - a set of variables that may be uninitialized at the end of the branch
-  final List<Set<VariableDeclaration>> stack = <Set<VariableDeclaration>>[
+  final List<Set<VariableDeclaration>> _stack = <Set<VariableDeclaration>>[
     new Set<VariableDeclaration>()
   ];
 
-  int get current => stack.length - 1;
+  /// Identifier for the current branch.
+  int get current => _stack.length - 1;
 
   void declareUninitializedVariable(VariableDeclaration node) {
-    stack.last?.add(node);
+    _stack.last?.add(node);
   }
 
   void setInitialized(VariableDeclaration node) {
-    stack.last?.remove(node);
+    _stack.last?.remove(node);
   }
 
   void terminateBranch() {
-    stack[current] = null;
+    _stack[current] = null;
   }
 
   bool isDefinitelyInitialized(VariableDeclaration variable) {
-    var uninitializedSet = stack.last;
+    var uninitializedSet = _stack.last;
     return uninitializedSet == null || !uninitializedSet.contains(variable);
   }
 
-  bool get isReachable => stack.last != null;
+  /// Returns true if the end of the current branch is potentially reachable.
+  bool get isReachable => _stack.last != null;
 
+  /// Starts a new branch as a copy of [base].
   void branchFrom(int base) {
-    var uninitializedSet = stack[base];
+    var uninitializedSet = _stack[base];
     if (uninitializedSet != null) {
       uninitializedSet = new Set<VariableDeclaration>.from(uninitializedSet);
     }
-    stack.add(uninitializedSet);
+    _stack.add(uninitializedSet);
   }
 
   /// Return to the [base] branch and merge the abstract state from its children
   /// assuming at least one of them has completed normally.
   void mergeInto(int base) {
     if (base == current) return;
-    stack[base]?.removeWhere((v) {
-      // If it is still uninitialized in one of the branches, keep it as
-      // uninitialized in the parent.
-      for (int i = base + 1; i < stack.length; ++i) {
-        var uninitialized = stack[i];
+    _stack[base]?.removeWhere((v) {
+      // If the variable is still uninitialized in one of the branches, it
+      // remains uninitialized in the parent.
+      for (int i = base + 1; i < _stack.length; ++i) {
+        var uninitialized = _stack[i];
         if (uninitialized != null && uninitialized.contains(v)) {
           return false;
         }
@@ -58,29 +66,29 @@ class ControlFlowState {
       return true;
     });
     bool allTerminate = true;
-    for (int i = base + 1; i < stack.length; ++i) {
-      if (stack[i] != null) {
+    for (int i = base + 1; i < _stack.length; ++i) {
+      if (_stack[i] != null) {
         allTerminate = false;
         break;
       }
     }
     if (allTerminate) {
-      stack[base] = null;
+      _stack[base] = null;
     }
-    stack.removeRange(base + 1, stack.length);
+    _stack.removeRange(base + 1, _stack.length);
   }
 
   /// Return to the [base] branch and merge the abstract state from its children
   /// assuming all of them have completed normally.
   ///
-  /// This is used try/finally blocks.
+  /// This is used in try/finally blocks.
   void mergeFinally(int base) {
     if (base == current) return;
-    stack[base]?.removeWhere((v) {
+    _stack[base]?.removeWhere((v) {
       // If the variable was initialized in any branch, it is initialized after
       // finally.
-      for (int i = base + 1; i < stack.length; ++i) {
-        var uninitialized = stack[i];
+      for (int i = base + 1; i < _stack.length; ++i) {
+        var uninitialized = _stack[i];
         if (uninitialized == null || !uninitialized.contains(v)) {
           return true;
         }
@@ -88,18 +96,18 @@ class ControlFlowState {
       return false;
     });
     // If one child cannot complete normally, neither can the parent.
-    for (int i = base + 1; i < stack.length; ++i) {
-      if (stack[i] == null) {
-        stack[base] = null;
+    for (int i = base + 1; i < _stack.length; ++i) {
+      if (_stack[i] == null) {
+        _stack[base] = null;
         break;
       }
     }
-    stack.removeRange(base + 1, stack.length);
+    _stack.removeRange(base + 1, _stack.length);
   }
 
   /// Return to the [base] branch without merging any state from its children.
   void resumeBranch(int base) {
     if (base == current) return;
-    stack.removeRange(base + 1, stack.length);
+    _stack.removeRange(base + 1, _stack.length);
   }
 }
