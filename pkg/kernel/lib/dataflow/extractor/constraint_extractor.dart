@@ -250,7 +250,11 @@ class ConstraintExtractor {
       var superMemberType = getterType(host, superMember);
       if (externalModel.forceExternal(superMember) &&
           host.enclosingLibrary.importUri.scheme == 'dart') {
-        superMemberType = new ProtectType().protectType(superMemberType);
+        // Remove all value sinks from the super member to avoid polluting its
+        // return type (which should be based on the external model).
+        // We still need to generate constraints from its arguments to the
+        // overridden member, to ensure its body can be compiled soundly.
+        superMemberType = new ProtectSinks().convertType(superMemberType);
       }
       checkAssignable(ownMember, ownMemberType, superMemberType,
           new GlobalScope(binding), ownMember.fileOffset);
@@ -1966,40 +1970,32 @@ class AllocationVisitor extends ATypeVisitor {
   visitTypeParameterAType(TypeParameterAType type) {}
 }
 
-class ProtectType extends ATypeVisitor<AType> {
-  final bool covariant;
+abstract class SourceSinkConverter extends ATypeVisitor<AType> {
+  ValueSource convertSource(ValueSource source);
 
-  ProtectType([this.covariant = true]);
+  ValueSink convertSink(ValueSink sink);
 
-  ProtectType get inverse => new ProtectType(!covariant);
+  AType convertType(AType type) => type.accept(this);
 
-  AType protectType(AType type) => type.accept(this);
-
-  List<AType> protectTypeList(List<AType> types) =>
-      types.map(protectType).toList(growable: false);
-
-  ValueSource protectSource(ValueSource source) {
-    return source;
-  }
-
-  ValueSink protectSink(ValueSink sink) {
-    return ValueSink.nowhere;
-  }
+  List<AType> convertTypeList(List<AType> types) =>
+      types.map(convertType).toList(growable: false);
 
   @override
-  AType visitBottomAType(BottomAType type) => type;
+  AType visitBottomAType(BottomAType type) {
+    return new BottomAType(convertSource(type.source), convertSink(type.sink));
+  }
 
   @override
   AType visitFunctionAType(FunctionAType type) {
     return new FunctionAType(
-        protectSource(type.source),
-        protectSink(type.sink),
-        inverse.protectTypeList(type.typeParameterBounds),
+        convertSource(type.source),
+        convertSink(type.sink),
+        convertTypeList(type.typeParameterBounds),
         type.requiredParameterCount,
-        inverse.protectTypeList(type.positionalParameters),
+        convertTypeList(type.positionalParameters),
         type.namedParameterNames,
-        inverse.protectTypeList(type.namedParameters),
-        protectType(type.returnType));
+        convertTypeList(type.namedParameters),
+        convertType(type.returnType));
   }
 
   @override
@@ -2010,15 +2006,27 @@ class ProtectType extends ATypeVisitor<AType> {
   @override
   AType visitInterfaceAType(InterfaceAType type) {
     return new InterfaceAType(
-        protectSource(type.source),
-        protectSink(type.sink),
+        convertSource(type.source),
+        convertSink(type.sink),
         type.classNode,
-        protectTypeList(type.typeArguments));
+        convertTypeList(type.typeArguments));
   }
 
   @override
   AType visitTypeParameterAType(TypeParameterAType type) {
     return new TypeParameterAType(
-        protectSource(type.source), protectSink(type.sink), type.parameter);
+        convertSource(type.source), convertSink(type.sink), type.parameter);
+  }
+}
+
+class ProtectSinks extends SourceSinkConverter {
+  @override
+  ValueSink convertSink(ValueSink sink) {
+    return ValueSink.nowhere;
+  }
+
+  @override
+  ValueSource convertSource(ValueSource source) {
+    return source;
   }
 }
