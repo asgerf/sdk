@@ -5,6 +5,7 @@ library kernel.dataflow.extractor.external_model;
 
 import '../../ast.dart';
 import '../../core_types.dart';
+import 'package:kernel/dataflow/extractor/constraint_extractor.dart';
 
 abstract class ExternalModel {
   /// True if the given external [member] does not return `null` and does not
@@ -54,12 +55,32 @@ class VmExternalModel extends ExternalModel {
     forceExternals
         .addAll(coreTypes.getClass('dart:core', '_StringBase').members);
 
+    // Add some members of _IntegerImplementation as entry points to compensate
+    // for the special treatment of arithmetic.
+    extraEntryPoints.addAll(coreTypes
+        .getClass('dart:core', '_IntegerImplementation')
+        .procedures
+        .where((m) => overloadedArithmeticOperatorNames.contains(m.name.name)));
+
+    // Helper methods used by kernel->vm translation.
+    // TODO: Mark these as entry point?
     extraEntryPoints
         .add(coreTypes.getMember('dart:core', '_StringBase', '_interpolate'));
+    extraEntryPoints
+        .add(coreTypes.getMember('dart:core', 'List', '_fromLiteral'));
+    extraEntryPoints
+        .add(coreTypes.getMember('dart:core', 'Map', '_fromLiteral'));
+
+    // Add entry points that are defined by the VM itself, not the embedder.
+    // TODO: Put these in a manifest file.
     extraEntryPoints.add(coreTypes.getTopLevelMember(
         'dart:async', '_setScheduleImmediateClosure'));
     extraEntryPoints
-        .add(coreTypes.getMember('dart:core', 'List', '_fromLiteral'));
+        .add(coreTypes.getTopLevelMember('dart:isolate', '_startMainIsolate'));
+    extraEntryPoints.add(coreTypes.getMember(
+        'dart:isolate', '_RawReceivePortImpl', '_lookupHandler'));
+    extraEntryPoints.add(coreTypes.getMember(
+        'dart:isolate', '_RawReceivePortImpl', '_handleMessage'));
   }
 
   ConstructorInvocation getAnnotation(

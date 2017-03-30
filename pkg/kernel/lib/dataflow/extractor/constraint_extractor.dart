@@ -23,6 +23,14 @@ import 'value_source.dart';
 
 typedef void TypeErrorCallback(TreeNode where, String message);
 
+final List<String> overloadedArithmeticOperatorNames = <String>[
+  '+',
+  '-',
+  '*',
+  'remainder',
+  '%',
+];
+
 /// Generates constraints from an AST.
 ///
 /// This follows like the type checking, where each subtyping judgement gives
@@ -1246,11 +1254,7 @@ class ConstraintExtractorVisitor
     Class class_ = member.enclosingClass;
     if (class_ == coreTypes.intClass || class_ == coreTypes.numClass) {
       String name = member.name.name;
-      return name == '+' ||
-          name == '-' ||
-          name == '*' ||
-          name == 'remainder' ||
-          name == '%';
+      return overloadedArithmeticOperatorNames.contains(name);
     }
     return false;
   }
