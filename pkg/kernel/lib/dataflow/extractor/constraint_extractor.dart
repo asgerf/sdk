@@ -1556,11 +1556,11 @@ class ConstraintExtractorVisitor
     // TODO(asgerf): Store interface targets on for-in loops or desugar them,
     // instead of doing the ad-hoc resolution here.
     if (node.isAsync) {
-      checkAssignable(
-          node, getStreamElementType(iterable), getVariableType(node.variable));
+      checkAssignable(node, getStreamElementType(iterable),
+          getVariableType(node.variable), node.fileOffset);
     } else {
       checkAssignable(node, getIterableElementType(iterable),
-          getVariableType(node.variable));
+          getVariableType(node.variable), node.fileOffset);
     }
     int base = controlFlow.current;
     controlFlow.branchFrom(base);
