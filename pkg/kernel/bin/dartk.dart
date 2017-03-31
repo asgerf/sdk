@@ -100,7 +100,10 @@ ArgParser parser = new ArgParser(allowTrailingOptions: true)
   ..addOption('dump-after-<step>',
       valueHelp: 'path',
       help: 'Write the IR to <path> after <step>.\n'
-          'Valid steps are ${HookNames.values.join(', ')}');
+          'Valid steps are ${HookNames.values.join(', ')}')
+  ..addOption('lab-report',
+      valueHelp: 'path',
+      help: 'Write a report that can be loaded into the Laboratory web UI');
 
 String getUsage() => """
 Usage: dartk [options] FILE
@@ -346,6 +349,13 @@ Future<CompilerOutcome> batchMain(
         }
       }
     }
+  }
+
+  String laboratoryReportPath = options['lab-report'];
+  if (laboratoryReportPath != null) {
+    hooks.beforeHook(HookNames.dataflow, (Program program) {
+      flushIOTasks.add(writeProgramToBinary(program, laboratoryReportPath));
+    });
   }
 
   var program = new Program();
