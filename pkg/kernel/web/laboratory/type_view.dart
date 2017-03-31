@@ -230,7 +230,7 @@ class TypeView {
   }
 
   bool showTypeOfExpression(
-      Reference owner, TreeNode node, int inferredValueOffset) {
+      Reference owner, TreeNode node, int dataflowValueOffset) {
     if (constraintSystem == null) return false;
     expressionKindElement.text = '${node.runtimeType}';
     if (isDynamicCall(node)) {
@@ -240,7 +240,7 @@ class TypeView {
       warningElement.style.display = 'none';
     }
     tableElement.children.clear();
-    if (inferredValueOffset == -1) {
+    if (dataflowValueOffset == -1) {
       storageLocationNameElement.text = '';
       var row = new TableRowElement();
       row.append(new TableCellElement()
@@ -250,7 +250,7 @@ class TypeView {
       unsetRelatedElements();
     } else {
       var location =
-          constraintSystem.getStorageLocation(owner, inferredValueOffset);
+          constraintSystem.getStorageLocation(owner, dataflowValueOffset);
       _showLocation(location);
       var locationName = 'v${location.index}';
       storageLocationNameElement.text = locationName;

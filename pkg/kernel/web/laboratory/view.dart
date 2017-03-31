@@ -187,7 +187,7 @@ bool isDynamicCall(TreeNode node) {
       node is PropertySet && node.interfaceTarget == null;
 }
 
-int getInferredValueOffset(TreeNode node) {
+int getDataflowValueOffset(TreeNode node) {
   if (node is Expression) {
     return node.dataflowValueOffset;
   } else if (node is VariableDeclaration) {

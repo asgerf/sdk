@@ -425,16 +425,16 @@ class BinaryPrinter extends Visitor {
     _switchCaseIndexer = oldCases;
     _typeParameterIndexer.exit(node.typeParameters);
     _variableIndexer.popScope();
-    writeInferredValueOffset(node.returnDataflowValueOffset);
+    writeDataflowValueOffset(node.returnDataflowValueOffset);
   }
 
-  void writeInferredValueOffset(int offset) {
+  void writeDataflowValueOffset(int offset) {
     writeUInt30(1 + offset);
   }
 
   visitInvalidExpression(InvalidExpression node) {
     writeByte(Tag.InvalidExpression);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitVariableGet(VariableGet node) {
@@ -451,7 +451,7 @@ class BinaryPrinter extends Visitor {
       writeUInt30(_variableIndexer[node.variable]);
       writeOptionalNode(node.promotedType);
     }
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitVariableSet(VariableSet node) {
@@ -467,7 +467,7 @@ class BinaryPrinter extends Visitor {
       writeUInt30(_variableIndexer[node.variable]);
       writeNode(node.value);
     }
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitPropertyGet(PropertyGet node) {
@@ -476,7 +476,7 @@ class BinaryPrinter extends Visitor {
     writeNode(node.receiver);
     writeName(node.name);
     writeReference(node.interfaceTargetReference);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitPropertySet(PropertySet node) {
@@ -486,14 +486,14 @@ class BinaryPrinter extends Visitor {
     writeName(node.name);
     writeNode(node.value);
     writeReference(node.interfaceTargetReference);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitSuperPropertyGet(SuperPropertyGet node) {
     writeByte(Tag.SuperPropertyGet);
     writeName(node.name);
     writeReference(node.interfaceTargetReference);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitSuperPropertySet(SuperPropertySet node) {
@@ -501,7 +501,7 @@ class BinaryPrinter extends Visitor {
     writeName(node.name);
     writeNode(node.value);
     writeReference(node.interfaceTargetReference);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitDirectPropertyGet(DirectPropertyGet node) {
@@ -509,7 +509,7 @@ class BinaryPrinter extends Visitor {
     writeOffset(node.fileOffset);
     writeNode(node.receiver);
     writeReference(node.targetReference);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitDirectPropertySet(DirectPropertySet node) {
@@ -518,14 +518,14 @@ class BinaryPrinter extends Visitor {
     writeNode(node.receiver);
     writeReference(node.targetReference);
     writeNode(node.value);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitStaticGet(StaticGet node) {
     writeByte(Tag.StaticGet);
     writeOffset(node.fileOffset);
     writeReference(node.targetReference);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitStaticSet(StaticSet node) {
@@ -533,7 +533,7 @@ class BinaryPrinter extends Visitor {
     writeOffset(node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.value);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitMethodInvocation(MethodInvocation node) {
@@ -543,7 +543,7 @@ class BinaryPrinter extends Visitor {
     writeName(node.name);
     writeNode(node.arguments);
     writeReference(node.interfaceTargetReference);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitSuperMethodInvocation(SuperMethodInvocation node) {
@@ -552,7 +552,7 @@ class BinaryPrinter extends Visitor {
     writeName(node.name);
     writeNode(node.arguments);
     writeReference(node.interfaceTargetReference);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitDirectMethodInvocation(DirectMethodInvocation node) {
@@ -560,7 +560,7 @@ class BinaryPrinter extends Visitor {
     writeNode(node.receiver);
     writeReference(node.targetReference);
     writeNode(node.arguments);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitStaticInvocation(StaticInvocation node) {
@@ -568,7 +568,7 @@ class BinaryPrinter extends Visitor {
     writeOffset(node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.arguments);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitConstructorInvocation(ConstructorInvocation node) {
@@ -578,14 +578,14 @@ class BinaryPrinter extends Visitor {
     writeOffset(node.fileOffset);
     writeReference(node.targetReference);
     writeNode(node.arguments);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitArguments(Arguments node) {
     writeNodeList(node.types);
     writeNodeList(node.positional);
     writeNodeList(node.named);
-    writeInferredValueOffset(node.typeDataflowValueOffset);
+    writeDataflowValueOffset(node.typeDataflowValueOffset);
   }
 
   visitNamedExpression(NamedExpression node) {
@@ -596,7 +596,7 @@ class BinaryPrinter extends Visitor {
   visitNot(Not node) {
     writeByte(Tag.Not);
     writeNode(node.operand);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   int logicalOperatorIndex(String operator) {
@@ -614,7 +614,7 @@ class BinaryPrinter extends Visitor {
     writeNode(node.left);
     writeByte(logicalOperatorIndex(node.operator));
     writeNode(node.right);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitConditionalExpression(ConditionalExpression node) {
@@ -623,14 +623,14 @@ class BinaryPrinter extends Visitor {
     writeNode(node.then);
     writeNode(node.otherwise);
     writeOptionalNode(node.staticType);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitStringConcatenation(StringConcatenation node) {
     writeByte(Tag.StringConcatenation);
     writeOffset(node.fileOffset);
     writeNodeList(node.expressions);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitIsExpression(IsExpression node) {
@@ -638,7 +638,7 @@ class BinaryPrinter extends Visitor {
     writeOffset(node.fileOffset);
     writeNode(node.operand);
     writeNode(node.type);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitAsExpression(AsExpression node) {
@@ -646,13 +646,13 @@ class BinaryPrinter extends Visitor {
     writeOffset(node.fileOffset);
     writeNode(node.operand);
     writeNode(node.type);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitStringLiteral(StringLiteral node) {
     writeByte(Tag.StringLiteral);
     writeStringReference(node.value);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitIntLiteral(IntLiteral node) {
@@ -674,54 +674,54 @@ class BinaryPrinter extends Visitor {
       writeByte(Tag.BigIntLiteral);
       writeStringReference('${node.value}');
     }
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitDoubleLiteral(DoubleLiteral node) {
     // TODO: Pick a better format for double literals.
     writeByte(Tag.DoubleLiteral);
     writeStringReference('${node.value}');
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitBoolLiteral(BoolLiteral node) {
     writeByte(node.value ? Tag.TrueLiteral : Tag.FalseLiteral);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitNullLiteral(NullLiteral node) {
     writeByte(Tag.NullLiteral);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitSymbolLiteral(SymbolLiteral node) {
     writeByte(Tag.SymbolLiteral);
     writeStringReference(node.value);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitTypeLiteral(TypeLiteral node) {
     writeByte(Tag.TypeLiteral);
     writeNode(node.type);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitThisExpression(ThisExpression node) {
     writeByte(Tag.ThisExpression);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitRethrow(Rethrow node) {
     writeByte(Tag.Rethrow);
     writeOffset(node.fileOffset);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitThrow(Throw node) {
     writeByte(Tag.Throw);
     writeOffset(node.fileOffset);
     writeNode(node.expression);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitListLiteral(ListLiteral node) {
@@ -729,8 +729,8 @@ class BinaryPrinter extends Visitor {
     writeOffset(node.fileOffset);
     writeNode(node.typeArgument);
     writeNodeList(node.expressions);
-    writeInferredValueOffset(node.typeDataflowValueOffset);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.typeDataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitMapLiteral(MapLiteral node) {
@@ -739,8 +739,8 @@ class BinaryPrinter extends Visitor {
     writeNode(node.keyType);
     writeNode(node.valueType);
     writeNodeList(node.entries);
-    writeInferredValueOffset(node.typeDataflowValueOffset);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.typeDataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitMapEntry(MapEntry node) {
@@ -752,13 +752,13 @@ class BinaryPrinter extends Visitor {
   visitAwaitExpression(AwaitExpression node) {
     writeByte(Tag.AwaitExpression);
     writeNode(node.operand);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitFunctionExpression(FunctionExpression node) {
     writeByte(Tag.FunctionExpression);
     writeNode(node.function);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitLet(Let node) {
@@ -766,19 +766,19 @@ class BinaryPrinter extends Visitor {
     writeVariableDeclaration(node.variable);
     writeNode(node.body);
     --_variableIndexer.stackHeight;
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitLoadLibrary(LoadLibrary node) {
     writeByte(Tag.LoadLibrary);
     writeDeferredImportReference(node.import);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitCheckLibraryIsLoaded(CheckLibraryIsLoaded node) {
     writeByte(Tag.CheckLibraryIsLoaded);
     writeDeferredImportReference(node.import);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   visitVectorCreation(VectorCreation node) {
@@ -965,7 +965,7 @@ class BinaryPrinter extends Visitor {
     // Declare the variable after its initializer. It is not in scope in its
     // own initializer.
     _variableIndexer.declare(node);
-    writeInferredValueOffset(node.dataflowValueOffset);
+    writeDataflowValueOffset(node.dataflowValueOffset);
   }
 
   void writeVariableDeclarationList(List<VariableDeclaration> nodes) {

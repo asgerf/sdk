@@ -44,11 +44,11 @@ class CheckDataflow {
     var function = member.function;
     var body = function?.body;
     if (body != null) {
-      var inferredValues = dataflowResults.getResultsForMember(member);
+      var memberResults = dataflowResults.getResultsForMember(member);
       List<Statement> checks = <Statement>[];
       for (int i = 0; i < function.positionalParameters.length; ++i) {
         var parameter = function.positionalParameters[i];
-        var value = inferredValues.getValueOfVariable(parameter);
+        var value = memberResults.getValueOfVariable(parameter);
         checks.add(generateCheck(value, parameter, member));
       }
       if (body is Block) {

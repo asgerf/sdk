@@ -58,10 +58,10 @@ class CodeView extends UIComponent {
       hideTypeView();
     } else if (target != ui.typeView.highlightedElement) {
       var astNode = view.astNodes[index];
-      var inferredValueOffset = getInferredValueOffset(astNode);
+      var dataflowValueOffset = getDataflowValueOffset(astNode);
       if (astNode != null &&
           ui.typeView.showTypeOfExpression(
-              view.reference, astNode, inferredValueOffset)) {
+              view.reference, astNode, dataflowValueOffset)) {
         ui.typeView.setHighlightedElement(target);
       } else {
         hideTypeView();
@@ -282,7 +282,7 @@ class CodeView extends UIComponent {
     if (index != -1) {
       element.dataset['id'] = '$index';
       var astNode = view.astNodes[index];
-      int locationIndex = getInferredValueOffset(astNode);
+      int locationIndex = getDataflowValueOffset(astNode);
       if (locationIndex != -1) {
         element.classes.add('v$locationIndex');
         var location =
