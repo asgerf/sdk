@@ -5,6 +5,7 @@ library kernel.dataflow.extractor.external_model;
 
 import '../../ast.dart';
 import '../../core_types.dart';
+import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/dataflow/extractor/constraint_extractor.dart';
 
 abstract class ExternalModel {
@@ -32,12 +33,13 @@ abstract class ExternalModel {
 
 class VmExternalModel extends ExternalModel {
   final CoreTypes coreTypes;
+  final ClassHierarchy classHierarchy;
   final Set<Member> entryPointMembers = new Set<Member>();
   Class externalNameAnnotation;
   final Set<Member> forceExternals = new Set<Member>();
   final Set<Member> extraEntryPoints = new Set<Member>();
 
-  VmExternalModel(Program program, this.coreTypes) {
+  VmExternalModel(Program program, this.coreTypes, this.classHierarchy) {
     externalNameAnnotation =
         coreTypes.getClass('dart:_internal', 'ExternalName');
     forceExternals.addAll(coreTypes.numClass.members);
@@ -54,6 +56,16 @@ class VmExternalModel extends ExternalModel {
 
     forceExternals
         .addAll(coreTypes.getClass('dart:core', '_StringBase').members);
+
+    // Ensure methods overriding a forced external are also forced external.
+    for (var class_ in classHierarchy.classes) {
+      if (class_.enclosingLibrary.importUri.scheme != 'dart') continue;
+      classHierarchy.forEachOverridePair(class_, (own, super_, isSetter) {
+        if (forceExternals.contains(super_)) {
+          forceExternals.add(own);
+        }
+      });
+    }
 
     // Add some members of _IntegerImplementation as entry points to compensate
     // for the special treatment of arithmetic.

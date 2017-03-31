@@ -20,7 +20,7 @@ class _DataflowResults extends DataflowResults {
 
     _top = new Value(coreTypes.objectClass, ValueFlags.all);
 
-    var externalModel = new VmExternalModel(program, coreTypes);
+    var externalModel = new VmExternalModel(program, coreTypes, hierarchy);
     _extractor = new ConstraintExtractor(externalModel)
       ..typeErrorCallback = diagnostic?._onTypeError
       ..extractFromProgram(program);
