@@ -14,6 +14,7 @@ import '../transformations/mixin_full_resolution.dart' as mix;
 import '../transformations/sanitize_for_vm.dart';
 import '../transformations/setup_builtin_library.dart' as setup_builtin_library;
 import '../transformations/treeshaker.dart';
+import 'package:kernel/kernel.dart';
 import 'targets.dart';
 
 /// Specializes the kernel IR to the Dart VM.
@@ -76,30 +77,40 @@ class VmTarget extends Target {
     var coreTypes = new CoreTypes(program);
 
     if (strongMode) {
-      new InsertTypeChecks(hierarchy: _hierarchy, coreTypes: coreTypes)
-          .transformProgram(program);
+      doStep(TargetHooks.typeCheck, program, () {
+        new InsertTypeChecks(hierarchy: _hierarchy, coreTypes: coreTypes)
+            .transformProgram(program);
+      });
       // new InsertCovarianceChecks(hierarchy: _hierarchy, coreTypes: coreTypes)
       //     .transformProgram(program);
     }
 
     if (flags.treeShake) {
-      performTreeShaking(program);
+      doStep(TargetHooks.treeShake, program, () {
+        performTreeShaking(program);
+      });
     }
+
+    doStep(TargetHooks.dataflow, program, () {});
 
     if (flags.checkDataflow) {
       new CheckDataflow().transformProgram(program);
     }
 
-    cont.transformProgram(program);
+    doStep(TargetHooks.async_, program, () {
+      cont.transformProgram(program);
+    });
 
     // Repair `_getMainClosure()` function in dart:_builtin.
     setup_builtin_library.transformProgram(program);
 
-    if (strongMode && !flags.noErase) {
+    doStep(TargetHooks.erase, program, () {
       performErasure(program);
-    }
+    });
 
-    new SanitizeForVM().transform(program);
+    doStep(TargetHooks.sanitize, program, () {
+      new SanitizeForVM().transform(program);
+    });
   }
 
   void performTreeShaking(Program program) {
@@ -115,5 +126,25 @@ class VmTarget extends Target {
 
   void performErasure(Program program) {
     new Erasure().transform(program);
+  }
+
+  void doStep(String name, Program program, void step()) {
+    fireHookBefore(name, program);
+    step();
+    fireHookAfter(name, program);
+  }
+
+  void fireHookBefore(String name, Program program) {
+    var hook = flags.hooksBefore[name];
+    if (hook != null) {
+      hook(program);
+    }
+  }
+
+  void fireHookAfter(String name, Program program) {
+    var hook = flags.hooksAfter[name];
+    if (hook != null) {
+      hook(program);
+    }
   }
 }

@@ -12,6 +12,26 @@ import 'vmreify.dart';
 
 final List<String> targetNames = targets.keys.toList();
 
+typedef void TargetHook(Program program);
+
+class TargetHooks {
+  static final String typeCheck = 'typecheck';
+  static final String treeShake = 'treeshake';
+  static final String dataflow = 'dataflow';
+  static final String async_ = 'async';
+  static final String erase = 'erase';
+  static final String sanitize = 'sanitize';
+
+  static final List<String> values = [
+    typeCheck,
+    treeShake,
+    dataflow,
+    async_,
+    erase,
+    sanitize
+  ];
+}
+
 class TargetFlags {
   bool strongMode;
   bool treeShake;
@@ -19,6 +39,8 @@ class TargetFlags {
   bool noErase;
   bool forceTreeShake;
   Uri kernelRuntime;
+  final Map<String, TargetHook> hooksBefore;
+  final Map<String, TargetHook> hooksAfter;
 
   TargetFlags(
       {this.strongMode: false,
@@ -26,7 +48,11 @@ class TargetFlags {
       this.forceTreeShake: false,
       this.checkDataflow,
       this.noErase,
-      this.kernelRuntime});
+      this.kernelRuntime,
+      Map<String, TargetHook> hooksBefore,
+      Map<String, TargetHook> hooksAfter})
+      : this.hooksBefore = hooksBefore ?? <String, TargetHook>{},
+        this.hooksAfter = hooksAfter ?? <String, TargetHook>{};
 }
 
 typedef Target _TargetBuilder(TargetFlags flags);

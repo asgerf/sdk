@@ -93,7 +93,13 @@ ArgParser parser = new ArgParser(allowTrailingOptions: true)
           'Only for internal use. Generates very slow code.')
   ..addFlag('no-erase',
       negatable: false,
-      help: 'Do not erase types at end of transformation step.');
+      help: 'Do not erase types at end of transformation step.')
+  ..addOption('dump-before-<step>',
+      valueHelp: 'path', help: 'Write the IR to <path> before <step>.')
+  ..addOption('dump-after-<step>',
+      valueHelp: 'path',
+      help: 'Write the IR to <path> after <step>.\n'
+          'Valid steps are ${TargetHooks.values.join(', ')}');
 
 String getUsage() => """
 Usage: dartk [options] FILE
@@ -185,6 +191,13 @@ void dumpString(String value, [String filename]) {
   }
 }
 
+void addHookOptions() {
+  for (var hook in TargetHooks.values) {
+    parser.addOption('dump-before-$hook', hide: true);
+    parser.addOption('dump-after-$hook', hide: true);
+  }
+}
+
 Map<Uri, Uri> parseCustomUriMappings(List<String> mappings) {
   Map<Uri, Uri> customUriMappings = <Uri, Uri>{};
 
@@ -223,6 +236,7 @@ class BatchModeState {
 }
 
 main(List<String> args) async {
+  addHookOptions();
   if (args.isNotEmpty && args[0] == '--batch') {
     if (args.length != 1) {
       return fail('--batch cannot be used with other arguments');
@@ -314,6 +328,21 @@ Future<CompilerOutcome> batchMain(
   List<String> urlMapping = options['url-mapping'] as List<String>;
   var customUriMappings = parseCustomUriMappings(urlMapping);
 
+  List<Future> flushIOTasks = <Future>[];
+  Map<String, TargetHook> hooksBefore = <String, TargetHook>{};
+  Map<String, TargetHook> hooksAfter = <String, TargetHook>{};
+  for (var beforeAfter in ['before', 'after']) {
+    var hookMap = beforeAfter == 'before' ? hooksBefore : hooksAfter;
+    for (var hookName in TargetHooks.values) {
+      var path = options['dump-$beforeAfter-$hookName'];
+      if (path != null) {
+        hookMap[hookName] = (Program program) {
+          flushIOTasks.add(writeProgramGuessExtension(program, path));
+        };
+      }
+    }
+  }
+
   var program = new Program();
 
   var watch = new Stopwatch()..start();
@@ -324,6 +353,8 @@ Future<CompilerOutcome> batchMain(
       forceTreeShake: options['force-tree-shake'],
       checkDataflow: options['check-dataflow'],
       noErase: options['no-erase'],
+      hooksBefore: hooksBefore,
+      hooksAfter: hooksAfter,
       kernelRuntime: Platform.script.resolve('../runtime/'));
   Target target = getTarget(options['target'], targetFlags);
 
@@ -439,7 +470,6 @@ Future<CompilerOutcome> batchMain(
 
   watch.reset();
 
-  Future ioFuture;
   if (canContinueCompilation) {
     switch (format) {
       case 'text':
@@ -449,7 +479,7 @@ Future<CompilerOutcome> batchMain(
             showOffsets: options['show-offsets']);
         break;
       case 'bin':
-        ioFuture = writeProgramToBinary(program, outputFile);
+        flushIOTasks.add(writeProgramToBinary(program, outputFile));
         break;
     }
   }
@@ -459,7 +489,7 @@ Future<CompilerOutcome> batchMain(
     print('writer.time = $time ms');
   }
 
-  await ioFuture;
+  await Future.wait(flushIOTasks);
 
   if (shouldReportMetrics) {
     int flushTime = watch.elapsedMilliseconds - time;
@@ -471,4 +501,16 @@ Future<CompilerOutcome> batchMain(
   }
 
   return errors.length > 0 ? CompilerOutcome.Fail : CompilerOutcome.Ok;
+}
+
+Future writeProgramGuessExtension(Program program, String path) {
+  if (path.endsWith('.txt')) {
+    writeProgramToText(program,
+        path: path,
+        showExternal: options['show-external'],
+        showOffsets: options['show-offsets']);
+    return null;
+  } else {
+    return writeProgramToBinary(program, path);
+  }
 }
