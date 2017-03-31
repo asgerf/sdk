@@ -13,6 +13,7 @@ import 'package:kernel/kernel.dart';
 import 'package:kernel/log.dart';
 import 'package:kernel/program_root.dart';
 import 'package:kernel/program_root_parser.dart';
+import 'package:kernel/target/hooks.dart';
 import 'package:kernel/target/targets.dart';
 import 'package:kernel/verifier.dart';
 import 'package:path/path.dart' as path;
@@ -99,7 +100,7 @@ ArgParser parser = new ArgParser(allowTrailingOptions: true)
   ..addOption('dump-after-<step>',
       valueHelp: 'path',
       help: 'Write the IR to <path> after <step>.\n'
-          'Valid steps are ${TargetHooks.values.join(', ')}');
+          'Valid steps are ${HookNames.values.join(', ')}');
 
 String getUsage() => """
 Usage: dartk [options] FILE
@@ -192,7 +193,7 @@ void dumpString(String value, [String filename]) {
 }
 
 void addHookOptions() {
-  for (var hook in TargetHooks.values) {
+  for (var hook in HookNames.values) {
     parser.addOption('dump-before-$hook', hide: true);
     parser.addOption('dump-after-$hook', hide: true);
   }
@@ -329,16 +330,20 @@ Future<CompilerOutcome> batchMain(
   var customUriMappings = parseCustomUriMappings(urlMapping);
 
   List<Future> flushIOTasks = <Future>[];
-  Map<String, TargetHook> hooksBefore = <String, TargetHook>{};
-  Map<String, TargetHook> hooksAfter = <String, TargetHook>{};
+  var hooks = new HookCallbacks();
   for (var beforeAfter in ['before', 'after']) {
-    var hookMap = beforeAfter == 'before' ? hooksBefore : hooksAfter;
-    for (var hookName in TargetHooks.values) {
+    for (var hookName in HookNames.values) {
       var path = options['dump-$beforeAfter-$hookName'];
       if (path != null) {
-        hookMap[hookName] = (Program program) {
+        callback(Program program) {
           flushIOTasks.add(writeProgramGuessExtension(program, path));
-        };
+        }
+
+        if (beforeAfter == 'before') {
+          hooks.beforeHook(hookName, callback);
+        } else {
+          hooks.afterHook(hookName, callback);
+        }
       }
     }
   }
@@ -353,8 +358,7 @@ Future<CompilerOutcome> batchMain(
       forceTreeShake: options['force-tree-shake'],
       checkDataflow: options['check-dataflow'],
       noErase: options['no-erase'],
-      hooksBefore: hooksBefore,
-      hooksAfter: hooksAfter,
+      hooks: hooks,
       kernelRuntime: Platform.script.resolve('../runtime/'));
   Target target = getTarget(options['target'], targetFlags);
 

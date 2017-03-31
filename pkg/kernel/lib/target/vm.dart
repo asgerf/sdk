@@ -15,6 +15,7 @@ import '../transformations/sanitize_for_vm.dart';
 import '../transformations/setup_builtin_library.dart' as setup_builtin_library;
 import '../transformations/treeshaker.dart';
 import 'package:kernel/kernel.dart';
+import 'package:kernel/target/hooks.dart';
 import 'targets.dart';
 
 /// Specializes the kernel IR to the Dart VM.
@@ -77,7 +78,7 @@ class VmTarget extends Target {
     var coreTypes = new CoreTypes(program);
 
     if (strongMode) {
-      doStep(TargetHooks.typeCheck, program, () {
+      doStep(HookNames.typeCheck, program, () {
         new InsertTypeChecks(hierarchy: _hierarchy, coreTypes: coreTypes)
             .transformProgram(program);
       });
@@ -86,29 +87,29 @@ class VmTarget extends Target {
     }
 
     if (flags.treeShake) {
-      doStep(TargetHooks.treeShake, program, () {
+      doStep(HookNames.treeShake, program, () {
         performTreeShaking(program);
       });
     }
 
-    doStep(TargetHooks.dataflow, program, () {});
+    doStep(HookNames.dataflow, program, () {});
 
     if (flags.checkDataflow) {
       new CheckDataflow().transformProgram(program);
     }
 
-    doStep(TargetHooks.async_, program, () {
+    doStep(HookNames.async_, program, () {
       cont.transformProgram(program);
     });
 
     // Repair `_getMainClosure()` function in dart:_builtin.
     setup_builtin_library.transformProgram(program);
 
-    doStep(TargetHooks.erase, program, () {
+    doStep(HookNames.erase, program, () {
       performErasure(program);
     });
 
-    doStep(TargetHooks.sanitize, program, () {
+    doStep(HookNames.sanitize, program, () {
       new SanitizeForVM().transform(program);
     });
   }
@@ -134,17 +135,11 @@ class VmTarget extends Target {
     fireHookAfter(name, program);
   }
 
-  void fireHookBefore(String name, Program program) {
-    var hook = flags.hooksBefore[name];
-    if (hook != null) {
-      hook(program);
-    }
+  void fireHookBefore(String hook, Program program) {
+    flags.hooks.fireBefore(hook, program);
   }
 
-  void fireHookAfter(String name, Program program) {
-    var hook = flags.hooksAfter[name];
-    if (hook != null) {
-      hook(program);
-    }
+  void fireHookAfter(String hook, Program program) {
+    flags.hooks.fireAfter(hook, program);
   }
 }
