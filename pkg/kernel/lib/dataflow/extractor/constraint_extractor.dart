@@ -474,7 +474,8 @@ class ConstraintExtractorVisitor
   }
 
   void checkConditionExpression(Expression condition) {
-    checkAssignableExpression(condition, extractor.conditionType);
+    // No constraints are needed, but do visit the expression subtree.
+    visitExpression(condition);
   }
 
   void fail(TreeNode node, String message) {
@@ -491,7 +492,9 @@ class ConstraintExtractorVisitor
       node.dataflowValueOffset = source.index;
     } else {
       var newKey = bank.newLocation();
-      builder.setFileOffset(node.fileOffset);
+      if (node.fileOffset != TreeNode.noOffset) {
+        builder.setFileOffset(node.fileOffset);
+      }
       builder.addAssignment(source, newKey, ValueFlags.all);
       type = type.withSource(newKey);
       node.dataflowValueOffset = newKey.index;
@@ -560,7 +563,7 @@ class ConstraintExtractorVisitor
     var fieldType = thisSubstitution.substituteType(bank.type);
     bool treatAsExternal = node.isExternal || externalModel.forceExternal(node);
     if (node.initializer != null && !treatAsExternal) {
-      checkAssignableExpression(node.initializer, fieldType);
+      checkAssignableExpression(node.initializer, fieldType, node.fileOffset);
       if (seenTypeError) {
         treatAsExternal = true;
       }
@@ -678,8 +681,9 @@ class ConstraintExtractorVisitor
     currentAsyncMarker = node.asyncMarker;
     node.positionalParameters
         .skip(node.requiredParameterCount)
-        .forEach(handleOptionalParameter);
-    node.namedParameters.forEach(handleOptionalParameter);
+        .forEach((p) => handleOptionalParameter(p, node.fileOffset));
+    node.namedParameters
+        .forEach((p) => handleOptionalParameter(p, node.fileOffset));
     if (node.body != null) {
       int base = controlFlow.current;
       controlFlow.branchFrom(base);
@@ -744,12 +748,13 @@ class ConstraintExtractorVisitor
     return scope.getTypeParameterBound(parameter);
   }
 
-  void handleOptionalParameter(VariableDeclaration parameter) {
+  void handleOptionalParameter(VariableDeclaration parameter, int fileOffset) {
+    fileOffset = getFileOffset(fileOffset, parameter.fileEqualsOffset);
     if (parameter.initializer != null) {
-      checkAssignableExpression(parameter.initializer,
-          getVariableType(parameter), parameter.fileEqualsOffset);
+      checkAssignableExpression(
+          parameter.initializer, getVariableType(parameter), fileOffset);
     } else {
-      builder.setFileOffset(parameter.fileOffset);
+      builder.setFileOffset(fileOffset);
       builder.addAssignment(extractor.nullValue,
           getVariableType(parameter).sink, ValueFlags.null_);
     }
@@ -802,6 +807,10 @@ class ConstraintExtractorVisitor
     }
   }
 
+  int getFileOffset(int fileOffset, int defaultFileOffset) {
+    return fileOffset == TreeNode.noOffset ? defaultFileOffset : fileOffset;
+  }
+
   AType handleCall(Arguments arguments, Member member, int fileOffset,
       {Substitution receiver: Substitution.empty}) {
     var function = member.function;
@@ -834,7 +843,9 @@ class ConstraintExtractorVisitor
     for (int i = 0; i < arguments.positional.length; ++i) {
       var expectedType =
           substitution.substituteType(target.positionalParameters[i]);
-      checkAssignableExpression(arguments.positional[i], expectedType);
+      var argument = arguments.positional[i];
+      checkAssignableExpression(argument, expectedType,
+          getFileOffset(argument.fileOffset, fileOffset));
     }
     for (int i = 0; i < arguments.named.length; ++i) {
       var argument = arguments.named[i];
@@ -844,7 +855,8 @@ class ConstraintExtractorVisitor
         if (argument.name == function.namedParameters[j].name) {
           var expectedType =
               substitution.substituteType(target.namedParameters[j]);
-          checkAssignableExpression(argument.value, expectedType);
+          checkAssignableExpression(argument.value, expectedType,
+              getFileOffset(argument.value.fileOffset, fileOffset));
           found = true;
           break;
         }
@@ -972,13 +984,14 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitConditionalExpression(ConditionalExpression node) {
+    int fileOffset = getFileOffset(node.fileOffset, node.condition.fileOffset);
     checkConditionExpression(node.condition);
     var type = augmentor.augmentType(node.staticType);
     int base = controlFlow.current;
     controlFlow.branchFrom(base);
-    checkAssignableExpression(node.then, type);
+    checkAssignableExpression(node.then, type, fileOffset);
     controlFlow.branchFrom(base);
-    checkAssignableExpression(node.otherwise, type);
+    checkAssignableExpression(node.otherwise, type, fileOffset);
     controlFlow.mergeInto(base);
     return type;
   }
@@ -1220,8 +1233,8 @@ class ConstraintExtractorVisitor
     }
   }
 
-  AType handleFunctionCall(
-      TreeNode where, FunctionAType function, Arguments arguments) {
+  AType handleFunctionCall(TreeNode where, FunctionAType function,
+      Arguments arguments, int fileOffset) {
     if (function.requiredParameterCount > arguments.positional.length) {
       fail(where, 'Too few positional arguments');
       return BottomAType.nonNullable;
@@ -1250,7 +1263,9 @@ class ConstraintExtractorVisitor
     for (int i = 0; i < arguments.positional.length; ++i) {
       var expectedType =
           instantiation.substituteType(function.positionalParameters[i]);
-      checkAssignableExpression(arguments.positional[i], expectedType);
+      var argument = arguments.positional[i];
+      checkAssignableExpression(argument, expectedType,
+          getFileOffset(argument.fileOffset, fileOffset));
     }
     for (int i = 0; i < arguments.named.length; ++i) {
       var argument = arguments.named[i];
@@ -1309,6 +1324,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitMethodInvocation(MethodInvocation node) {
+    int fileOffset = getFileOffset(node.fileOffset, node.receiver.fileOffset);
     var target = node.interfaceTarget;
     if (target == null) {
       var receiver = visitExpression(node.receiver);
@@ -1318,7 +1334,7 @@ class ConstraintExtractorVisitor
         return extractor.boolType;
       }
       if (node.name.name == 'call' && receiver is FunctionAType) {
-        return handleFunctionCall(node, receiver, node.arguments);
+        return handleFunctionCall(node, receiver, node.arguments, fileOffset);
       }
       return handleDynamicCall(node, receiver, node.name, node.arguments);
     } else if (isOverloadedArithmeticOperator(target)) {
@@ -1327,7 +1343,7 @@ class ConstraintExtractorVisitor
       var argument = visitExpression(node.arguments.positional[0]);
       return getTypeOfOverloadedArithmetic(receiver, argument);
     } else {
-      return handleCall(node.arguments, target, node.fileOffset,
+      return handleCall(node.arguments, target, fileOffset,
           receiver: getReceiverType(node, node.receiver, node.interfaceTarget));
     }
   }
@@ -1350,7 +1366,8 @@ class ConstraintExtractorVisitor
     if (node.interfaceTarget != null) {
       var receiver = getReceiverType(node, node.receiver, node.interfaceTarget);
       var setterType = binding.getSetterType(node.interfaceTarget);
-      checkAssignable(node.value, value, receiver.substituteType(setterType));
+      checkAssignable(node.value, value, receiver.substituteType(setterType),
+          getFileOffset(node.value.fileOffset, node.fileOffset));
     } else {
       handleEscapingExpression(node.receiver);
       handleEscapingType(value);
@@ -1474,7 +1491,8 @@ class ConstraintExtractorVisitor
   AType visitVariableSet(VariableSet node) {
     var value = visitExpression(node.value);
     var variable = node.variable;
-    checkAssignable(node.value, value, getVariableType(variable));
+    checkAssignable(
+        node.value, value, getVariableType(variable), node.fileOffset);
     controlFlow.setInitialized(variable);
     return value;
   }
@@ -1704,7 +1722,7 @@ class ConstraintExtractorVisitor
     node.dataflowValueOffset = bank.nextIndex;
     var type = scope.variables[node] = augmentor.augmentType(node.type);
     if (node.initializer != null) {
-      checkAssignableExpression(node.initializer, type);
+      checkAssignableExpression(node.initializer, type, node.fileEqualsOffset);
     } else {
       controlFlow.declareUninitializedVariable(node);
     }
