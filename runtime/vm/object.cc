@@ -113,6 +113,7 @@ Instance* Object::null_instance_ = NULL;
 TypeArguments* Object::null_type_arguments_ = NULL;
 Array* Object::empty_array_ = NULL;
 Array* Object::zero_array_ = NULL;
+Context* Object::empty_context_ = NULL;
 ContextScope* Object::empty_context_scope_ = NULL;
 ObjectPool* Object::empty_object_pool_ = NULL;
 PcDescriptors* Object::empty_descriptors_ = NULL;
@@ -516,6 +517,7 @@ void Object::InitOnce(Isolate* isolate) {
   null_type_arguments_ = TypeArguments::ReadOnlyHandle();
   empty_array_ = Array::ReadOnlyHandle();
   zero_array_ = Array::ReadOnlyHandle();
+  empty_context_ = Context::ReadOnlyHandle();
   empty_context_scope_ = ContextScope::ReadOnlyHandle();
   empty_object_pool_ = ObjectPool::ReadOnlyHandle();
   empty_descriptors_ = PcDescriptors::ReadOnlyHandle();
@@ -777,6 +779,17 @@ void Object::InitOnce(Isolate* isolate) {
     zero_array_->SetCanonical();
   }
 
+  // Allocate and initialize the empty context object.
+  {
+    uword address = heap->Allocate(Context::InstanceSize(0), Heap::kOld);
+    InitializeObject(address, kContextCid, Context::InstanceSize(0), true);
+    Context::initializeHandle(empty_context_, reinterpret_cast<RawContext*>(
+                                                  address + kHeapObjectTag));
+    empty_context_->StoreNonPointer(&empty_context_->raw_ptr()->num_variables_,
+                                    0);
+    empty_context_->SetCanonical();
+  }
+
   // Allocate and initialize the canonical empty context scope object.
   {
     uword address = heap->Allocate(ContextScope::InstanceSize(0), Heap::kOld);
@@ -922,6 +935,8 @@ void Object::InitOnce(Isolate* isolate) {
   ASSERT(empty_array_->IsArray());
   ASSERT(!zero_array_->IsSmi());
   ASSERT(zero_array_->IsArray());
+  ASSERT(!empty_context_->IsSmi());
+  ASSERT(empty_context_->IsContext());
   ASSERT(!empty_context_scope_->IsSmi());
   ASSERT(empty_context_scope_->IsContextScope());
   ASSERT(!empty_descriptors_->IsSmi());
@@ -1268,9 +1283,6 @@ RawError* Object::Init(Isolate* isolate, kernel::Program* kernel_program) {
         GrowableObjectArray::Handle(zone, GrowableObjectArray::New());
     object_store->set_pending_classes(pending_classes);
 
-    Context& context = Context::Handle(zone, Context::New(0, Heap::kOld));
-    object_store->set_empty_context(context);
-
     // Now that the symbol table is initialized and that the core dictionary as
     // well as the core implementation dictionary have been setup, preallocate
     // remaining classes and register them by name in the dictionaries.
@@ -1609,6 +1621,15 @@ RawError* Object::Init(Isolate* isolate, kernel::Program* kernel_program) {
     object_store->set_int_type(type);
 
     cls = Class::New<Instance>(kIllegalCid);
+    RegisterPrivateClass(cls, Symbols::Int64(), core_lib);
+    cls.set_num_type_arguments(0);
+    cls.set_num_own_type_arguments(0);
+    cls.set_is_prefinalized();
+    pending_classes.Add(cls);
+    type = Type::NewNonParameterizedType(cls);
+    object_store->set_int64_type(type);
+
+    cls = Class::New<Instance>(kIllegalCid);
     RegisterClass(cls, Symbols::Double(), core_lib);
     cls.set_num_type_arguments(0);
     cls.set_num_own_type_arguments(0);
@@ -1787,9 +1808,6 @@ RawError* Object::Init(Isolate* isolate, kernel::Program* kernel_program) {
 
     cls = Class::New<MirrorReference>();
     cls = Class::New<UserTag>();
-
-    const Context& context = Context::Handle(zone, Context::New(0, Heap::kOld));
-    object_store->set_empty_context(context);
   }
   return Error::null();
 }
@@ -6930,12 +6948,8 @@ void Function::BuildSignatureParameters(
 
 RawInstance* Function::ImplicitStaticClosure() const {
   if (implicit_static_closure() == Instance::null()) {
-    Thread* thread = Thread::Current();
-    Isolate* isolate = thread->isolate();
-    Zone* zone = thread->zone();
-    ObjectStore* object_store = isolate->object_store();
-    const Context& context =
-        Context::Handle(zone, object_store->empty_context());
+    Zone* zone = Thread::Current()->zone();
+    const Context& context = Object::empty_context();
     const TypeArguments& instantiator = TypeArguments::Handle(zone);
     Instance& closure = Instance::Handle(
         zone, Closure::New(instantiator, *this, context, Heap::kOld));
@@ -10774,6 +10788,7 @@ bool Library::ImportsCorelib() const {
 void Library::DropDependencies() const {
   StorePointer(&raw_ptr()->imports_, Object::empty_array().raw());
   StorePointer(&raw_ptr()->exports_, Object::empty_array().raw());
+  StoreNonPointer(&raw_ptr()->num_imports_, 0);
 }
 
 
@@ -16442,6 +16457,12 @@ bool AbstractType::IsIntType() const {
 }
 
 
+bool AbstractType::IsInt64Type() const {
+  return !IsFunctionType() && HasResolvedTypeClass() &&
+         (type_class() == Type::Handle(Type::Int64Type()).type_class());
+}
+
+
 bool AbstractType::IsDoubleType() const {
   return !IsFunctionType() && HasResolvedTypeClass() &&
          (type_class() == Type::Handle(Type::Double()).type_class());
@@ -16684,6 +16705,11 @@ RawType* Type::BoolType() {
 
 RawType* Type::IntType() {
   return Isolate::Current()->object_store()->int_type();
+}
+
+
+RawType* Type::Int64Type() {
+  return Isolate::Current()->object_store()->int64_type();
 }
 
 

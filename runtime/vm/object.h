@@ -374,6 +374,11 @@ class Object {
     return *zero_array_;
   }
 
+  static const Context& empty_context() {
+    ASSERT(empty_context_ != NULL);
+    return *empty_context_;
+  }
+
   static const ContextScope& empty_context_scope() {
     ASSERT(empty_context_scope_ != NULL);
     return *empty_context_scope_;
@@ -785,6 +790,7 @@ class Object {
   static TypeArguments* null_type_arguments_;
   static Array* empty_array_;
   static Array* zero_array_;
+  static Context* empty_context_;
   static ContextScope* empty_context_scope_;
   static ObjectPool* empty_object_pool_;
   static PcDescriptors* empty_descriptors_;
@@ -5110,6 +5116,7 @@ class Context : public Object {
 
   FINAL_HEAP_OBJECT_IMPLEMENTATION(Context, Object);
   friend class Class;
+  friend class Object;
 };
 
 
@@ -5812,6 +5819,9 @@ class AbstractType : public Instance {
   // Check if this type represents the 'int' type.
   bool IsIntType() const;
 
+  // Check if this type represents the '_int64' type.
+  bool IsInt64Type() const;
+
   // Check if this type represents the 'double' type.
   bool IsDoubleType() const;
 
@@ -5965,6 +5975,9 @@ class Type : public AbstractType {
 
   // The 'int' type.
   static RawType* IntType();
+
+  // The '_int64' type.
+  static RawType* Int64Type();
 
   // The 'Smi' type.
   static RawType* SmiType();

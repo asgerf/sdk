@@ -361,6 +361,8 @@ class ActivationFrame : public ZoneAllocated {
   RawObject* GetAsyncCompleter();
   void ExtractTokenPositionFromAsyncClosure();
 
+  bool IsAsyncMachinery() const;
+
   static const char* KindToCString(Kind kind) {
     switch (kind) {
       case kRegular:
@@ -605,6 +607,8 @@ class Debugger {
   // Callback to the debugger to continue frame rewind, post-deoptimization.
   void RewindPostDeopt();
 
+  static DebuggerStackTrace* CollectAwaiterReturnStackTrace();
+
  private:
   RawError* PauseRequest(ServiceEvent::EventKind kind);
 
@@ -679,7 +683,6 @@ class Debugger {
                                Array* deopt_frame);
   static DebuggerStackTrace* CollectStackTrace();
   static DebuggerStackTrace* CollectAsyncCausalStackTrace();
-  static DebuggerStackTrace* CollectAwaiterReturnStackTrace();
   void SignalPausedEvent(ActivationFrame* top_frame, Breakpoint* bpt);
 
   intptr_t nextId() { return next_id_++; }
@@ -713,6 +716,12 @@ class Debugger {
   void RewindToOptimizedFrame(StackFrame* frame,
                               const Code& code,
                               intptr_t post_deopt_frame_index);
+
+  void ResetSteppingFramePointers();
+  bool SteppedForSyntheticAsyncBreakpoint() const;
+  void CleanupSyntheticAsyncBreakpoint();
+  void RememberTopFrameAwaiter();
+  void SetAsyncSteppingFramePointer();
 
   Isolate* isolate_;
   Dart_Port isolate_id_;  // A unique ID for the isolate in the debugger.
@@ -753,6 +762,9 @@ class Debugger {
   // frame corresponds to this fp value, or if the top frame is
   // lower on the stack.
   uword stepping_fp_;
+  // Used to track the current async/async* function.
+  uword async_stepping_fp_;
+  RawObject* top_frame_awaiter_;
 
   // If we step while at a breakpoint, we would hit the same pc twice.
   // We use this field to let us skip the next single-step after a
