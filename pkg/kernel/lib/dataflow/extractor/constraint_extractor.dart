@@ -848,22 +848,14 @@ class ConstraintExtractorVisitor
     }
     for (int i = 0; i < arguments.named.length; ++i) {
       var argument = arguments.named[i];
-      bool found = false;
-      // TODO: exploit that named parameters are sorted.
-      for (int j = 0; j < function.namedParameters.length; ++j) {
-        if (argument.name == function.namedParameters[j].name) {
-          var expectedType =
-              substitution.substituteType(target.namedParameters[j]);
-          checkAssignableExpression(argument.value, expectedType,
-              getFileOffset(argument.value.fileOffset, fileOffset));
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
+      var parameterType = target.type.getNamedParameterType(argument.name);
+      if (parameterType == null) {
         fail(argument.value, 'Unexpected named parameter: ${argument.name}');
         break;
       }
+      var expectedType = substitution.substituteType(parameterType);
+      checkAssignableExpression(argument.value, expectedType,
+          getFileOffset(argument.value.fileOffset, fileOffset));
     }
     return substitution.substituteType(target.returnType);
   }
