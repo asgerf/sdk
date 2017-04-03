@@ -1803,23 +1803,28 @@ class ConstraintExtractorVisitor
   }
 
   @override
-  visitVectorCopy(VectorCopy node) {
+  AType visitVectorCopy(VectorCopy node) {
     throw 'Code with vectors not supported';
   }
 
   @override
-  visitVectorCreation(VectorCreation node) {
+  AType visitVectorCreation(VectorCreation node) {
     throw 'Code with vectors not supported';
   }
 
   @override
-  visitVectorGet(VectorGet node) {
+  AType visitVectorGet(VectorGet node) {
     throw 'Code with vectors not supported';
   }
 
   @override
-  visitVectorSet(VectorSet node) {
+  AType visitVectorSet(VectorSet node) {
     throw 'Code with vectors not supported';
+  }
+
+  @override
+  AType visitClosureCreation(ClosureCreation node) {
+    throw 'Code with closures converted not supported';
   }
 }
 
