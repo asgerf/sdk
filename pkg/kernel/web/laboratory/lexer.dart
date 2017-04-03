@@ -34,7 +34,7 @@ class Lexer extends Scanner {
 Token tryTokenizeSource(Source source) {
   if (source == null) return null;
   try {
-    return new Lexer.fromCharCodes(source.source).tokenize();
+    return new Lexer(source.text).tokenize();
   } catch (e) {
     // Ignore exception.
   }

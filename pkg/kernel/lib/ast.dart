@@ -50,6 +50,7 @@
 ///
 library kernel.ast;
 
+import 'dart:convert';
 import 'visitor.dart';
 export 'visitor.dart';
 
@@ -4275,6 +4276,9 @@ class Source {
 
   Source(this.lineStarts, this.source);
 
+  String _text;
+  String get text => _text ??= UTF8.decode(source, allowMalformed: true);
+
   int getLineFromOffset(int offset) {
     int low = 0, high = lineStarts.length - 1;
     while (low < high) {
@@ -4290,13 +4294,13 @@ class Source {
   }
 
   int getEndOfLine(int lineIndex) {
-    if (lineIndex + 1 >= lineStarts.length) return source.length;
+    if (lineIndex + 1 >= lineStarts.length) return text.length;
     return lineStarts[lineIndex + 1];
   }
 
   String getSubstring(int begin, [int end]) {
-    end ??= source.length;
-    return new String.fromCharCodes(source, begin, end);
+    end ??= text.length;
+    return text.substring(begin, end);
   }
 }
 
