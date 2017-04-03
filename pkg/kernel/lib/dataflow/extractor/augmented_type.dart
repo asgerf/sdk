@@ -316,6 +316,15 @@ class FunctionAType extends AType {
     printer.writeSymbol(') => ');
     returnType.printTo(printer);
   }
+
+  int indexOfNamedParameter(String name) {
+    return namedParameterNames.indexOf(name);
+  }
+
+  AType getNamedParameterType(String name) {
+    int index = indexOfNamedParameter(name);
+    return index == -1 ? null : namedParameters[index];
+  }
 }
 
 /// Reference to a type parameter declared on an enclosing function type.

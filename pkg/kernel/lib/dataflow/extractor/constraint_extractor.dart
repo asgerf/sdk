@@ -666,9 +666,8 @@ class ConstraintExtractorVisitor
       scope.variables[variable] = type;
       variable.dataflowValueOffset = getStorageOffsetFromType(type);
     }
-    for (int i = 0; i < function.namedParameters.length; ++i) {
-      var variable = function.namedParameters[i];
-      var type = bank.namedParameters[i];
+    for (var variable in function.namedParameters) {
+      var type = bank.type.getNamedParameterType(variable.name);
       scope.variables[variable] = type;
       variable.dataflowValueOffset = getStorageOffsetFromType(type);
     }
@@ -1189,9 +1188,8 @@ class ConstraintExtractorVisitor
       }
       for (int i = 0; i < named.length; ++i) {
         var name = names[i];
-        int index = targetType.type.namedParameterNames.indexOf(name);
-        var expectedType =
-            substitution.substituteType(targetType.namedParameters[index]);
+        var parameterType = targetType.type.getNamedParameterType(name);
+        var expectedType = substitution.substituteType(parameterType);
         checkAssignable(where, named[i], expectedType);
       }
       return substitution.substituteType(targetType.returnType);
