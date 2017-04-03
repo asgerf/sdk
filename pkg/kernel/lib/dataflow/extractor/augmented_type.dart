@@ -410,6 +410,24 @@ class TypeParameterAType extends AType {
     bound.generateSubtypeConstraints(supertype, scope);
   }
 
+  /// Generates constraints to ensure this bound is more specific than
+  /// [superbound].
+  void generateSubBoundConstraint(AType superbound, SubtypingScope scope) {
+    if (superbound.source is StorageLocation) {
+      StorageLocation superSource = superbound.source as StorageLocation;
+      scope.constraints.addAssignment(source, superSource, ValueFlags.all);
+    }
+    if (superbound.sink is StorageLocation) {
+      StorageLocation superSink = superbound.sink as StorageLocation;
+      scope.constraints.addAssignment(superSink, sink, ValueFlags.all);
+    }
+    if (superbound is TypeParameterAType && superbound.parameter == parameter) {
+      return;
+    }
+    var bound = scope.scope.getTypeParameterBound(parameter);
+    bound.generateSubBoundConstraint(superbound, scope);
+  }
+
   AType substitute(Substitution substitution, int shift) {
     return substitution.getSubstitute(this);
   }
