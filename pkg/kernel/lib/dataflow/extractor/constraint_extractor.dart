@@ -1559,26 +1559,28 @@ class ConstraintExtractorVisitor
   }
 
   static final Name iteratorName = new Name('iterator');
-  static final Name nextName = new Name('next');
+  static final Name iteratorCurrentName = new Name('current');
+
+  AType lookupMember(AType type, Name name) {
+    if (type is InterfaceAType) {
+      var member = baseHierarchy.getInterfaceMember(type.classNode, name);
+      if (member == null) return null;
+      var upcastType =
+          hierarchy.getTypeAsInstanceOf(type, member.enclosingClass);
+      return Substitution
+          .fromInterfaceType(upcastType)
+          .substituteType(binding.getGetterType(member));
+    } else {
+      return null;
+    }
+  }
 
   AType getIterableElementType(AType iterable) {
-    if (iterable is InterfaceAType) {
-      var iteratorGetter =
-          baseHierarchy.getInterfaceMember(iterable.classNode, iteratorName);
-      if (iteratorGetter == null) return extractor.topType;
-      var iteratorType = Substitution
-          .fromInterfaceType(iterable)
-          .substituteType(binding.getGetterType(iteratorGetter));
-      if (iteratorType is InterfaceAType) {
-        var nextGetter =
-            baseHierarchy.getInterfaceMember(iteratorType.classNode, nextName);
-        if (nextGetter == null) return extractor.topType;
-        return Substitution
-            .fromInterfaceType(iteratorType)
-            .substituteType(binding.getGetterType(nextGetter));
-      }
-    }
-    return extractor.topType;
+    var iteratorType = lookupMember(iterable, iteratorName);
+    if (iteratorType == null) return extractor.topType;
+    var elementType = lookupMember(iteratorType, iteratorCurrentName);
+    if (elementType == null) return extractor.topType;
+    return elementType;
   }
 
   AType getStreamElementType(AType stream) {
