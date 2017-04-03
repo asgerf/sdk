@@ -38,6 +38,8 @@ abstract class TestTarget extends Target {
   List<String> performGlobalTransformations(Program program);
 }
 
+final String focusedTest = const String.fromEnvironment('BASELINE_TEST');
+
 void runBaselineTests(String folderName, TestTarget target) {
   Uri outputDirectory = testcaseDirectory.resolve('$folderName/');
   var batch = new DartLoaderBatch();
@@ -46,6 +48,10 @@ void runBaselineTests(String folderName, TestTarget target) {
   for (FileSystemEntity file in directory.listSync()) {
     if (file is File && file.path.endsWith('.dart')) {
       String name = pathlib.basename(file.path);
+      if (focusedTest != null && focusedTest != name) {
+        print('Skipping $name');
+        continue;
+      }
       test(name, () async {
         Uri dartPath =
             new Uri(scheme: 'file', path: pathlib.absolute(file.path));
