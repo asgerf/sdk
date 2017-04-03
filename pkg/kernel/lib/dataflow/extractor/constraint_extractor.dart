@@ -1576,6 +1576,7 @@ class ConstraintExtractorVisitor
   }
 
   AType getIterableElementType(AType iterable) {
+    // TODO: Avoid getting the nullable return type of Iterator.current.
     var iteratorType = lookupMember(iterable, iteratorName);
     if (iteratorType == null) return extractor.topType;
     var elementType = lookupMember(iteratorType, iteratorCurrentName);
