@@ -63,12 +63,12 @@ class DefaultValueField extends core::Object {
     : this self::DefaultValueField::inner()
     ;
 }
-class NullableArgOnThis<T extends core::int!?&core::Object/Null> extends core::Object {
-  field self::NullableArgOnThis::T field;
+class NullableArgOnThis<T extends core::int!&core::Object/Bottom> extends core::Object {
+  field self::NullableArgOnThis::T? field;
   constructor •(self::NullableArgOnThis::T field) → Bottom
     : self::NullableArgOnThis::field = field, super core::Object::•()
     ;
-  method nullableArg(self::NullableArgOnThis::T arg) → Null {
+  method nullableArg(self::NullableArgOnThis::T? arg) → Null {
     this.{self::NullableArgOnThis::field} = arg;
   }
   method defaultNullable([self::NullableArgOnThis::T? arg]) → Null {}
@@ -88,7 +88,7 @@ class NullableArgOnThis2<T extends core::int!?&core::Object/Null> extends core::
   method doSomething() → Null {
     this.{self::NullableArgOnThis2::getThis}().{self::NullableArgOnThis2::nullableArg}(null);
   }
-  method getThis() → self::NullableArgOnThis2!<self::NullableArgOnThis2::T/>
+  method getThis() → self::NullableArgOnThis2!<self::NullableArgOnThis2::T/Null>
     return this;
 }
 class OverrideBase extends core::Object {
@@ -325,7 +325,7 @@ static method subtypeCallback((self::Subtype!&self::Foo) => Null&core::Object ca
 static method nullableCallback((Null&self::Foo) => Null&core::Object callback) → Null&core::Object
   return callback.call(null);
 static method testNullableArgOnThis() → Null {
-  self::NullableArgOnThis!<core::int!?/> first = new self::NullableArgOnThis::•<core::int!?>(5);
+  self::NullableArgOnThis!<core::int!/> first = new self::NullableArgOnThis::•<core::int!>(5);
   first.{self::NullableArgOnThis::doSomething}();
   core::int!? nullableFirst = first.{self::NullableArgOnThis::field};
   self::NullableArgOnThis2!<core::int!?/> second = new self::NullableArgOnThis2::•<core::int!?>(5);
@@ -350,7 +350,7 @@ static method testGenericDowncast() → Null {
   core::List!&core::Object upcastList = list;
   core::List!<Bottom&core::int/Null> downcastList = upcastList as core::List<core::int>;
   downcastList.{core::List::add}(null);
-  core::int!? nullableIntFromList = list.{core::Iterable::last};
+  core::int! nullableIntFromList = list.{core::Iterable::last};
   core::Map!<core::int!/, core::int!/> kmap = <core::int!, core::int!>{5: 6};
   core::Map!&core::Object upcastKMap = kmap;
   core::Map!<Bottom&core::int/Null, Bottom&core::int/core::int!> downcastKMap = upcastKMap as core::Map<core::int, core::int>;
@@ -370,7 +370,7 @@ static method testGenericDynamic() → Null {
   core::List!<core::int!/> list = <core::int!>[5];
   core::List!&core::Object dynamicList = list;
   dynamicList.add(null);
-  core::int!? nullableIntFromList = list.{core::Iterable::last};
+  core::int! nullableIntFromList = list.{core::Iterable::last};
   core::Map!<core::int!/, core::int!/> kmap = <core::int!, core::int!>{5: 6};
   core::Map!&core::Object dynamicKMap = kmap;
   dynamicKMap.[]=(null, 3);
@@ -435,10 +435,10 @@ static method testEscapeNonGeneric() → Null {
 }
 static method testCombinators() → Null {
   core::List!<core::String!/> nonNullable = <core::String!>["foo", "bar", "baz"];
-  nonNullable.{core::Iterable::forEach}((core::String!? x) → core::Null {
+  nonNullable.{core::Iterable::forEach}((core::String! x) → core::Null {
     core::print(x);
   });
-  core::String!? nonNullableMapped = nonNullable.{core::Iterable::map}<core::String>((core::String!? x) → core::String => x).{core::Iterable::first};
+  core::String! nonNullableMapped = nonNullable.{core::Iterable::map}<core::String>((core::String! x) → core::String => x).{core::Iterable::first};
   core::List!<core::String!?/> nullable = <core::String!?>["foo", "bar", null, "baz"];
   nullable.{core::Iterable::forEach}((core::String!? x) → core::Null {
     core::print(x);

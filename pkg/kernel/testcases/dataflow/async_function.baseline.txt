@@ -10,7 +10,7 @@ static method asyncString() → Bottom&asy::Future<Bottom&core::String/core::Str
 static method asyncString2() → Bottom&asy::Future<Bottom&core::String/> async {
   return self::asyncString();
 }
-static method syncStarString() → Bottom&core::Iterable<Bottom&core::String/core::String!?> sync* {
+static method syncStarString() → Bottom&core::Iterable<Bottom&core::String/core::String!> sync* {
   yield "foo";
   yield* self::syncStarString2();
   yield* self::stringList;

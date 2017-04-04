@@ -2,7 +2,7 @@ library;
 import self as self;
 import "dart:core" as core;
 
-class Super<T extends core::int!&core::Object/core::int!> extends core::Object {
+class Super<T extends core::int!&core::Object/Bottom> extends core::Object {
   constructor •() → Bottom
     : super core::Object::•()
     ;

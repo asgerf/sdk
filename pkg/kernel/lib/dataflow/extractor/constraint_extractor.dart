@@ -768,6 +768,23 @@ class ConstraintExtractorVisitor
     if (superclass.supertype == null) {
       return Substitution.empty; // Members on Object are always accessible.
     }
+    if (receiver is ThisExpression) {
+      // Treat access on 'this' specially.  Note that this is not necessary for
+      // soundness but has a large impact on precision.
+      //
+      // Normally we prefer to adjust the type arguments on of the receiver type
+      // before changing the type of a member, but when the receiver is 'this',
+      // its type can only be affected by changing the bounds on the class
+      // type parameters, which is incredibly bad for precision.
+      //
+      // By treating 'this' specially, we cover a lot of common cases that would
+      // pollute the type parameter bounds.
+      //
+      // TODO: Wrap type parameter lower bounds in a ValueSink that protects it
+      //       from changes whenever possible.
+      return hierarchy.getClassAsInstanceOf(currentClass, superclass) ??
+          Substitution.bottomForClass(superclass);
+    }
     while (type is TypeParameterAType) {
       type = getTypeParameterBound((type as TypeParameterAType).parameter);
     }
