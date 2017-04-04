@@ -415,11 +415,11 @@ class TypeParameterAType extends AType {
   void generateSubBoundConstraint(AType superbound, SubtypingScope scope) {
     if (superbound.source is StorageLocation) {
       StorageLocation superSource = superbound.source as StorageLocation;
-      scope.constraints.addAssignment(source, superSource, ValueFlags.all);
+      scope.constraints.addAssignment(source, superSource, ValueFlags.null_);
     }
     if (superbound.sink is StorageLocation) {
       StorageLocation superSink = superbound.sink as StorageLocation;
-      scope.constraints.addAssignment(superSink, sink, ValueFlags.all);
+      scope.constraints.addAssignment(superSink, sink, ValueFlags.null_);
     }
     if (superbound is TypeParameterAType && superbound.parameter == parameter) {
       return;
