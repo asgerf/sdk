@@ -107,6 +107,7 @@ abstract class ConstraintVisitor<T> {
   T visitValueConstraint(ValueConstraint constraint);
   T visitEscapeConstraint(EscapeConstraint constraint);
   T visitGuardedValueConstraint(GuardedValueConstraint constraint);
+  T visitFilterConstraint(FilterConstraint constraint);
 }
 
 /// Any value in [source] matching [mask] can flow into [destination].
@@ -119,7 +120,7 @@ abstract class ConstraintVisitor<T> {
 class AssignConstraint extends Constraint {
   final StorageLocation source;
   final StorageLocation destination;
-  final int mask;
+  final int mask; // TODO: Remove
 
   AssignConstraint(this.source, this.destination,
       [this.mask = ValueFlags.all]) {
@@ -246,5 +247,30 @@ class EscapeConstraint extends Constraint {
 
   T accept<T>(ConstraintVisitor<T> visitor) {
     return visitor.visitEscapeConstraint(this);
+  }
+}
+
+class FilterConstraint extends Constraint {
+  final StorageLocation source;
+  final StorageLocation destination;
+  final Class interfaceClass;
+  final int mask;
+
+  FilterConstraint(
+      this.source, this.destination, this.interfaceClass, this.mask);
+
+  @override
+  T accept<T>(ConstraintVisitor<T> visitor) {
+    return visitor.visitFilterConstraint(this);
+  }
+
+  @override
+  void register(ConstraintSolver solver) {
+    solver.registerFilterConstraint(this);
+  }
+
+  @override
+  void transfer(ConstraintSolver solver) {
+    solver.transferFilterConstraint(this);
   }
 }

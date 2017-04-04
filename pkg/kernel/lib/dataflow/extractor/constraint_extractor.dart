@@ -38,6 +38,7 @@ final List<String> overloadedArithmeticOperatorNames = <String>[
 class ConstraintExtractor {
   TypeErrorCallback typeErrorCallback;
 
+  ValueLattice lattice;
   CoreTypes coreTypes;
   Binding binding;
   ClassHierarchy baseHierarchy;
@@ -85,7 +86,8 @@ class ConstraintExtractor {
     binding ??= new Binding(constraintSystem, coreTypes);
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
     externalModel ??= new VmExternalModel(program, coreTypes, baseHierarchy);
-    builder ??= new ConstraintBuilder(hierarchy, constraintSystem);
+    var lattice = new ValueLattice(baseHierarchy);
+    builder ??= new ConstraintBuilder(hierarchy, constraintSystem, lattice);
 
     intValue = new Value(coreTypes.intClass, ValueFlags.integer);
     doubleValue = new Value(coreTypes.doubleClass, ValueFlags.double_);
@@ -287,6 +289,27 @@ class ConstraintExtractor {
     if (typeErrorCallback != null) {
       typeErrorCallback(where, message);
     }
+  }
+
+  int getValueSetFlagsFromInterfaceType(DartType type) {
+    if (type is InterfaceType) {
+      return getValueSetFlagsFromInterfaceClass(type.classNode);
+    } else if (type is FunctionType) {
+      return ValueFlags.null_ | ValueFlags.other;
+    } else {
+      return ValueFlags.null_;
+    }
+  }
+
+  int getValueSetFlagsFromInterfaceClass(Class classNode) {
+    if (classNode == coreTypes.intClass) return nullableIntValue.flags;
+    if (classNode == coreTypes.doubleClass) return nullableDoubleValue.flags;
+    if (classNode == coreTypes.numClass) return nullableNumValue.flags;
+    if (classNode == coreTypes.stringClass) return nullableStringValue.flags;
+    if (classNode == coreTypes.boolClass) return nullableBoolValue.flags;
+    if (classNode == coreTypes.nullClass) return nullValue.flags;
+    if (classNode == coreTypes.objectClass) return anyValue.flags;
+    return ValueFlags.allValueSets;
   }
 
   Value getWorstCaseValueForType(AType type, {bool isClean: false}) {
@@ -965,8 +988,12 @@ class ConstraintExtractorVisitor
     var input = visitExpression(node.operand);
     var output = augmentor.augmentType(node.type);
     builder.setFileOffset(node.fileOffset);
-    builder.addAssignment(input.source, output.sink, ValueFlags.all);
-    if (isTaintingDowncast(node.type)) {
+    var type = node.type;
+    Class interfaceClass = type is InterfaceType ? type.classNode : null;
+    int mask = extractor.getValueSetFlagsFromInterfaceType(node.type) |
+        ValueFlags.nonValueSetFlags;
+    builder.addAssignment(input.source, output.sink, mask, interfaceClass);
+    if (isTaintingDowncast(type)) {
       builder.setFileOffset(node.fileOffset);
       builder.addEscape(input.source);
       taintSubterms(output);

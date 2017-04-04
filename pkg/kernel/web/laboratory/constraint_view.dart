@@ -237,6 +237,23 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..pop()
       ..append(titleCell('Value'));
   }
+
+  @override
+  visitFilterConstraint(FilterConstraint constraint) {
+    buffer
+      ..appendPush(rightAlignedCell())
+      ..appendLocation(constraint.destination)
+      ..pop()
+      ..append(separator())
+      ..appendPush(new TableCellElement())
+      ..appendLocation(constraint.source)
+      ..appendPush(new SpanElement()..classes.add(CssClass.constraintGuard))
+      ..appendText(' filtered by ')
+      ..appendReference(constraint.interfaceClass.reference)
+      ..pop()
+      ..pop()
+      ..append(titleCell('Filter'));
+  }
 }
 
 class SourceRange {

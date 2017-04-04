@@ -97,7 +97,7 @@ class ConstraintSolver {
     var destination = constraint.destination;
     propagateValue(destination, source.value.masked(constraint.mask));
     if (constraint.canEscape && destination.leadsToEscape) {
-      propagateEscapingLocation(constraint.source);
+      propagateEscapingLocation(source);
     }
   }
 
@@ -111,6 +111,18 @@ class ConstraintSolver {
   void transferEscapeConstraint(EscapeConstraint constraint) {
     if (constraint.guard == null || constraint.guard.value.isEscaping) {
       propagateEscapingLocation(constraint.escaping);
+    }
+  }
+
+  void transferFilterConstraint(FilterConstraint constraint) {
+    var source = constraint.source;
+    var interfaceClass = constraint.interfaceClass;
+    var destination = constraint.destination;
+    int mask = constraint.mask;
+    propagateValue(destination,
+        lattice.restrictValueToInterface(source.value, interfaceClass, mask));
+    if (destination.leadsToEscape) {
+      propagateEscapingLocation(source);
     }
   }
 
@@ -141,6 +153,11 @@ class ConstraintSolver {
     if (constraint.guard != null) {
       addForwardDependency(constraint.guard, constraint);
     }
+  }
+
+  void registerFilterConstraint(FilterConstraint constraint) {
+    addForwardDependency(constraint.source, constraint);
+    addBackwardDependency(constraint.destination, constraint);
   }
 
   void doTransfer(Constraint constraint) {

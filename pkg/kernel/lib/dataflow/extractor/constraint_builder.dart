@@ -15,11 +15,12 @@ import 'hierarchy.dart';
 class ConstraintBuilder {
   final ConstraintSystem constraintSystem;
   final AugmentedHierarchy hierarchy;
+  final ValueLattice lattice;
 
   NamedNode currentOwner;
   int currentFileOffset = -1;
 
-  ConstraintBuilder(this.hierarchy, this.constraintSystem);
+  ConstraintBuilder(this.hierarchy, this.constraintSystem, this.lattice);
 
   void setOwner(NamedNode owner) {
     currentOwner = owner;
@@ -38,12 +39,16 @@ class ConstraintBuilder {
         constraint, currentOwner.reference, currentFileOffset);
   }
 
-  void addAssignment(ValueSource source, ValueSink sink, int mask) {
-    sink.acceptSink(new AssignmentToValueSink(this, source, mask));
+  void addAssignment(ValueSource source, ValueSink sink, int mask,
+      [Class interfaceClass]) {
+    sink.acceptSink(
+        new AssignmentToValueSink(this, source, mask, interfaceClass));
   }
 
-  void addAssignmentToKey(ValueSource source, StorageLocation sink, int mask) {
-    source.acceptSource(new AssignmentFromValueSource(this, sink, mask));
+  void addAssignmentToKey(ValueSource source, StorageLocation sink, int mask,
+      [Class interfaceClass]) {
+    source.acceptSource(
+        new AssignmentFromValueSource(this, sink, mask, interfaceClass));
   }
 
   void addEscape(ValueSource source, {StorageLocation guard}) {
@@ -55,8 +60,10 @@ class AssignmentToValueSink extends ValueSinkVisitor {
   final ConstraintBuilder builder;
   final ValueSource source;
   final int mask;
+  final Class interfaceClass;
 
-  AssignmentToValueSink(this.builder, this.source, this.mask);
+  AssignmentToValueSink(
+      this.builder, this.source, this.mask, this.interfaceClass);
 
   @override
   visitEscapingSink(EscapingSink sink) {
@@ -65,7 +72,7 @@ class AssignmentToValueSink extends ValueSinkVisitor {
 
   @override
   visitStorageLocation(StorageLocation key) {
-    builder.addAssignmentToKey(source, key, mask);
+    builder.addAssignmentToKey(source, key, mask, interfaceClass);
   }
 
   @override
@@ -81,23 +88,36 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
   final ConstraintBuilder builder;
   final StorageLocation sink;
   final int mask;
+  final Class interfaceClass;
 
-  AssignmentFromValueSource(this.builder, this.sink, this.mask);
+  AssignmentFromValueSource(
+      this.builder, this.sink, this.mask, this.interfaceClass);
 
   AssignmentFromValueSource get nullabilityVisitor {
     if (mask & ~ValueFlags.null_ == 0) return this;
-    return new AssignmentFromValueSource(builder, sink, ValueFlags.null_);
+    return new AssignmentFromValueSource(builder, sink, ValueFlags.null_, null);
   }
 
   @override
   visitStorageLocation(StorageLocation key) {
-    builder.addConstraint(new AssignConstraint(key, sink, mask));
+    if (interfaceClass != null) {
+      builder
+          .addConstraint(new FilterConstraint(key, sink, interfaceClass, mask));
+    } else {
+      builder.addConstraint(new AssignConstraint(key, sink, mask));
+    }
   }
 
   @override
   visitValue(Value value) {
     if (value.flags & mask == 0) return;
-    builder.addConstraint(new ValueConstraint(sink, value.masked(mask)));
+    if (interfaceClass != null) {
+      value =
+          builder.lattice.restrictValueToInterface(value, interfaceClass, mask);
+    } else {
+      value = value.masked(mask);
+    }
+    builder.addConstraint(new ValueConstraint(sink, value));
   }
 
   @override

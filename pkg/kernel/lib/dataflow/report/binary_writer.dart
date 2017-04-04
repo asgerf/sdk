@@ -132,6 +132,10 @@ class BinaryReportWriter {
     writer.writeOptionalCanonicalName(value.baseClassReference?.canonicalName);
     writer.writeFixedUInt32(value.flags);
   }
+
+  void writeClassReference(Class class_) {
+    writer.writeOptionalCanonicalName(class_?.canonicalName);
+  }
 }
 
 class BinaryWriterConstraintVisitor extends ConstraintVisitor {
@@ -167,5 +171,14 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
     writer.writeByte(ConstraintTag.ValueConstraint);
     writer.writeLocationReference(constraint.destination);
     writer.writeValue(constraint.value);
+  }
+
+  @override
+  visitFilterConstraint(FilterConstraint constraint) {
+    writer.writeByte(ConstraintTag.FilterConstraint);
+    writer.writeLocationReference(constraint.destination);
+    writer.writeLocationReference(constraint.source);
+    writer.writeClassReference(constraint.interfaceClass);
+    writer.writer.writeFixedUInt32(constraint.mask);
   }
 }

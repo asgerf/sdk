@@ -250,6 +250,18 @@ class ClassHierarchy {
     return new ClassSet(this, _infoFor[class_].subclassIntervalList);
   }
 
+  /// Returns a [ClassSet] containing only the given class.
+  ClassSet getSingletonSet(Class class_) {
+    int index = _infoFor[class_].topDownIndex;
+    var intervalList = new Uint32List(2)
+      ..[0] = index
+      ..[1] = index + 1;
+    return new ClassSet(this, intervalList);
+  }
+
+  /// Returns the most specific common base class of [first] and [second].
+  ///
+  /// Never returns null as the root class is always a common base class.
   Class getCommonBaseClass(Class first, Class second) {
     int index1 = getClassIndex(first);
     int index2 = getClassIndex(second);
@@ -261,6 +273,19 @@ class ClassHierarchy {
       }
     }
     return classes[index1];
+  }
+
+  /// If either class is a subclass of the other, returns the subclass,
+  /// otherwise returns `null`.
+  Class getIntersectionBaseClass(Class first, Class second) {
+    if (identical(first, second)) return first;
+    var info1 = _infoFor[first];
+    var info2 = _infoFor[second];
+    if (info1.topologicalIndex < info2.topologicalIndex) {
+      return info2.isSubclassOf(info1) ? second : null;
+    } else {
+      return info1.isSubclassOf(info2) ? first : null;
+    }
   }
 
   ClassHierarchy._internal(Program program, int numberOfClasses)
@@ -683,7 +708,11 @@ class _IntervalListBuilder {
     }
   }
 
-  List<int> buildIntervalList() {
+  /// Builds the union of all the intervals added to the build so far.
+  ///
+  /// If [requiredIntervalCount] is given, at least this number of intervals
+  /// must overlap at a given point for that to be included in the set.
+  List<int> buildIntervalList([int requiredIntervalCount = 1]) {
     // Sort the event points and sweep left to right while tracking how many
     // intervals we are currently inside.  Record an interval end point when the
     // number of intervals drop to zero or increase from zero to one.
@@ -697,16 +726,16 @@ class _IntervalListBuilder {
       if (event & 1 == 0) {
         // Start point
         ++insideCount;
-        if (insideCount == 1) {
+        if (insideCount == requiredIntervalCount) {
           // Store the results temporarily back in the event array.
           events[storeIndex++] = event >> 1;
         }
       } else {
         // End point
-        --insideCount;
-        if (insideCount == 0) {
+        if (insideCount == requiredIntervalCount) {
           events[storeIndex++] = event >> 1;
         }
+        --insideCount;
       }
     }
     // Copy the results over to a typed array of the correct length.
@@ -920,6 +949,15 @@ class ClassSet {
     builder.addIntervalList(_intervalList);
     builder.addIntervalList(other._intervalList);
     return new ClassSet(_hierarchy, builder.buildIntervalList());
+  }
+
+  ClassSet intersection(ClassSet other) {
+    assert(_hierarchy == other._hierarchy);
+    if (identical(_intervalList, other._intervalList)) return this;
+    _IntervalListBuilder builder = new _IntervalListBuilder();
+    builder.addIntervalList(_intervalList);
+    builder.addIntervalList(other._intervalList);
+    return new ClassSet(_hierarchy, builder.buildIntervalList(2));
   }
 
   Class getCommonBaseClass() {
