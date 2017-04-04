@@ -270,6 +270,8 @@ class ConstraintExtractor {
     // assert(!from.containsPlaceholder);
     // assert(!to.containsPlaceholder);
     // TODO: Expose type parameters in 'scope' and check closedness
+    assert(from != null);
+    assert(to != null);
     try {
       builder.setFileOffset(fileOffset);
       from.generateSubtypeConstraints(to, new SubtypingScope(builder, scope));

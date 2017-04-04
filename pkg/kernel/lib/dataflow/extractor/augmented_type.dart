@@ -208,7 +208,14 @@ class FunctionAType extends AType {
       this.namedParameterNames,
       this.namedParameters,
       this.returnType)
-      : super(source, sink);
+      : super(source, sink) {
+    assert(!typeParameterBounds.contains(null));
+    assert(requiredParameterCount != null);
+    assert(!positionalParameters.contains(null));
+    assert(!namedParameterNames.contains(null));
+    assert(!namedParameters.contains(null));
+    assert(returnType != null);
+  }
 
   accept(ATypeVisitor visitor) => visitor.visitFunctionAType(this);
 
@@ -429,7 +436,7 @@ class TypeParameterAType extends AType {
   }
 
   AType substitute(Substitution substitution, int shift) {
-    return substitution.getSubstitute(this);
+    return substitution.getSubstitute(this) ?? this;
   }
 
   AType withSource(ValueSource newSource) {
