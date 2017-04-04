@@ -296,7 +296,7 @@ class ConstraintExtractor {
     if (type is FunctionAType) {
       return isClean ? functionValue : nullableFunctionValue;
     }
-    if (type is TypeParameterAType) {
+    if (type is TypeParameterAType || type is FunctionTypeParameterAType) {
       return isClean ? Value.bottom : nullValue;
     }
     return new Value(coreTypes.objectClass, ValueFlags.all);
