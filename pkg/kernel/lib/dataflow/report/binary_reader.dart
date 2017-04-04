@@ -67,24 +67,13 @@ class BinaryReportReader {
       int numberOfConstraints = reader.readUInt();
       var cluster = constraintSystem.getCluster(owner);
       cluster.constraints.length = numberOfConstraints;
-      for (int i = 0; i < numberOfConstraints; ++i) {
-        cluster.constraints[i] = readConstraint()
+      for (int j = 0; j < numberOfConstraints; ++j) {
+        cluster.constraints[j] = readConstraint()
           ..owner = owner
-          ..index = i;
+          ..index = j;
       }
     }
     return constraintSystem;
-  }
-
-  List<Constraint> readConstraintList(Reference owner) {
-    int length = reader.readUInt();
-    var list = new List<Constraint>(length);
-    for (int i = 0; i < length; ++i) {
-      list[i] = readConstraint()
-        ..owner = owner
-        ..index = i;
-    }
-    return list;
   }
 
   int readFileOffset() {

@@ -176,8 +176,8 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
   @override
   visitFilterConstraint(FilterConstraint constraint) {
     writer.writeByte(ConstraintTag.FilterConstraint);
-    writer.writeLocationReference(constraint.destination);
     writer.writeLocationReference(constraint.source);
+    writer.writeLocationReference(constraint.destination);
     writer.writeClassReference(constraint.interfaceClass);
     writer.writer.writeFixedUInt32(constraint.mask);
   }

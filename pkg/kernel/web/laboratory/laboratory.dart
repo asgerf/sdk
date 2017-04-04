@@ -67,7 +67,7 @@ Future onProgramLoaded() async {
   libraryIndex = new LibraryIndex.all(program);
   coreTypes = new CoreTypes(program);
   classHierarchy = new ClassHierarchy(program);
-  valueLattice = new ValueLattice(classHierarchy);
+  valueLattice = new ValueLattice(coreTypes, classHierarchy);
   await showProgress('Running dataflow analysis...');
   var reporter = new DataflowReporter();
   DataflowEngine.analyzeWholeProgram(program, diagnostic: reporter);

@@ -9,6 +9,7 @@ import '../storage_location.dart';
 import '../value.dart';
 import 'constraint_builder.dart';
 import 'constraint_extractor.dart';
+import 'package:kernel/core_types.dart';
 import 'substitution.dart';
 import 'value_sink.dart';
 import 'value_source.dart';
@@ -36,8 +37,20 @@ class ASupertype implements Printable {
 class SubtypingScope {
   final ConstraintBuilder constraints;
   final TypeParameterScope scope;
+  final CoreTypes coreTypes;
 
-  SubtypingScope(this.constraints, this.scope);
+  ValueLattice get lattice => constraints.lattice;
+
+  SubtypingScope(this.constraints, this.scope, this.coreTypes);
+}
+
+class TypeFilter {
+  final Class interfaceClass;
+  final int mask;
+
+  TypeFilter(this.interfaceClass, this.mask);
+
+  static final TypeFilter none = new TypeFilter(null, ValueFlags.all);
 }
 
 abstract class AType implements Printable {
@@ -73,6 +86,8 @@ abstract class AType implements Printable {
 
   accept(ATypeVisitor visitor);
 
+  TypeFilter getTypeFilter(SubtypingScope scope);
+
   AType substitute(Substitution substitution, int shift);
 
   /// Returns a copy of this type with its value source replaced.
@@ -81,26 +96,30 @@ abstract class AType implements Printable {
   /// Generates constraints to ensure this type is more specific than
   /// [supertype].
   void generateSubtypeConstraints(AType supertype, SubtypingScope scope) {
-    scope.constraints.addAssignment(source, supertype.sink, ValueFlags.all);
-    _generateSubtypeConstraintsForSubterms(supertype, scope);
+    bool ok = _generateSubtypeConstraintsForSubterms(supertype, scope);
+    TypeFilter filter = ok ? TypeFilter.none : supertype.getTypeFilter(scope);
+    scope.constraints.addAssignmentWithFilter(source, supertype.sink, filter);
   }
 
   /// Generates constraints to ensure this bound is more specific than
   /// [superbound].
   void generateSubBoundConstraint(AType superbound, SubtypingScope scope) {
+    bool ok = _generateSubtypeConstraintsForSubterms(superbound, scope);
+    var superFilter = superbound.getTypeFilter(scope);
     if (superbound.source is StorageLocation) {
+      TypeFilter filter =
+          ok ? TypeFilter.none : superbound.getTypeFilter(scope);
       StorageLocation superSource = superbound.source as StorageLocation;
-      scope.constraints.addAssignment(source, superSource, ValueFlags.all);
+      scope.constraints.addAssignmentWithFilter(source, superSource, filter);
     }
     if (superbound.sink is StorageLocation) {
       StorageLocation superSink = superbound.sink as StorageLocation;
-      scope.constraints.addAssignment(superSink, sink, ValueFlags.all);
+      scope.constraints.addAssignmentWithFilter(superSink, sink, superFilter);
     }
-    _generateSubtypeConstraintsForSubterms(superbound, scope);
   }
 
   /// Generates subtyping constraints specific to a subclass.
-  void _generateSubtypeConstraintsForSubterms(
+  bool _generateSubtypeConstraintsForSubterms(
       AType supertype, SubtypingScope scope);
 
   /// True if this type or any of its subterms match [predicate].
@@ -141,17 +160,25 @@ class InterfaceAType extends AType {
 
   accept(ATypeVisitor visitor) => visitor.visitInterfaceAType(this);
 
-  void _generateSubtypeConstraintsForSubterms(
+  TypeFilter getTypeFilter(SubtypingScope scope) {
+    return new TypeFilter(
+        classNode, scope.lattice.getValueSetFlagsForInterface(classNode));
+  }
+
+  bool _generateSubtypeConstraintsForSubterms(
       AType supertype, SubtypingScope scope) {
     if (supertype is InterfaceAType) {
       var casted =
           scope.constraints.getTypeAsInstanceOf(this, supertype.classNode);
-      if (casted == null) return;
+      if (casted == null) return false;
       for (int i = 0; i < casted.typeArguments.length; ++i) {
         var subtypeArgument = casted.typeArguments[i];
         var supertypeArgument = supertype.typeArguments[i];
         subtypeArgument.generateSubBoundConstraint(supertypeArgument, scope);
       }
+      return true;
+    } else {
+      return false;
     }
   }
 
@@ -219,8 +246,13 @@ class FunctionAType extends AType {
 
   accept(ATypeVisitor visitor) => visitor.visitFunctionAType(this);
 
+  TypeFilter getTypeFilter(SubtypingScope scope) {
+    // TODO: filter value flags
+    return new TypeFilter(scope.coreTypes.functionClass, ValueFlags.all);
+  }
+
   @override
-  void _generateSubtypeConstraintsForSubterms(
+  bool _generateSubtypeConstraintsForSubterms(
       AType supertype, SubtypingScope scope) {
     if (supertype is FunctionAType) {
       for (int i = 0; i < typeParameterBounds.length; ++i) {
@@ -244,6 +276,9 @@ class FunctionAType extends AType {
         }
       }
       returnType.generateSubtypeConstraints(supertype.returnType, scope);
+      return true;
+    } else {
+      return false;
     }
   }
 
@@ -356,9 +391,15 @@ class FunctionTypeParameterAType extends AType {
 
   accept(ATypeVisitor visitor) => visitor.visitFunctionTypeParameterAType(this);
 
+  TypeFilter getTypeFilter(SubtypingScope scope) {
+    return TypeFilter.none;
+  }
+
   @override
-  void _generateSubtypeConstraintsForSubterms(
-      AType supertype, SubtypingScope scope) {}
+  bool _generateSubtypeConstraintsForSubterms(
+      AType supertype, SubtypingScope scope) {
+    return true;
+  }
 
   AType substitute(Substitution substitution, int shift) {
     return substitution.getInstantiation(this, shift) ?? this;
@@ -379,9 +420,15 @@ class BottomAType extends AType {
 
   accept(ATypeVisitor visitor) => visitor.visitBottomAType(this);
 
+  TypeFilter getTypeFilter(SubtypingScope scope) {
+    return TypeFilter.none;
+  }
+
   @override
-  void _generateSubtypeConstraintsForSubterms(
-      AType supertype, SubtypingScope scope) {}
+  bool _generateSubtypeConstraintsForSubterms(
+      AType supertype, SubtypingScope scope) {
+    return true;
+  }
 
   BottomAType substitute(Substitution substitution, int shift) => this;
 
@@ -407,14 +454,19 @@ class TypeParameterAType extends AType {
 
   accept(ATypeVisitor visitor) => visitor.visitTypeParameterAType(this);
 
+  TypeFilter getTypeFilter(SubtypingScope scope) {
+    return TypeFilter.none;
+  }
+
   @override
-  void _generateSubtypeConstraintsForSubterms(
+  bool _generateSubtypeConstraintsForSubterms(
       AType supertype, SubtypingScope scope) {
     if (supertype is TypeParameterAType && supertype.parameter == parameter) {
-      return;
+      return true;
     }
     var bound = scope.scope.getTypeParameterBound(parameter);
     bound.generateSubtypeConstraints(supertype, scope);
+    return true;
   }
 
   /// Generates constraints to ensure this bound is more specific than

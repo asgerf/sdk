@@ -39,6 +39,11 @@ class ConstraintBuilder {
         constraint, currentOwner.reference, currentFileOffset);
   }
 
+  void addAssignmentWithFilter(
+      ValueSource source, ValueSink sink, TypeFilter filter) {
+    addAssignment(source, sink, filter.mask, filter.interfaceClass);
+  }
+
   void addAssignment(ValueSource source, ValueSink sink, int mask,
       [Class interfaceClass]) {
     sink.acceptSink(

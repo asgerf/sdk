@@ -86,7 +86,7 @@ class ConstraintExtractor {
     binding ??= new Binding(constraintSystem, coreTypes);
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
     externalModel ??= new VmExternalModel(program, coreTypes, baseHierarchy);
-    var lattice = new ValueLattice(baseHierarchy);
+    var lattice = new ValueLattice(coreTypes, baseHierarchy);
     builder ??= new ConstraintBuilder(hierarchy, constraintSystem, lattice);
 
     intValue = new Value(coreTypes.intClass, ValueFlags.integer);
@@ -216,7 +216,7 @@ class ConstraintExtractor {
         var bound = superBank.typeParameterBounds[i];
         typeArgument.generateSubBoundConstraint(
             substitution.substituteBound(bound),
-            new SubtypingScope(builder, new GlobalScope(binding)));
+            new SubtypingScope(builder, new GlobalScope(binding), coreTypes));
       }
     }
   }
@@ -276,7 +276,8 @@ class ConstraintExtractor {
     assert(to != null);
     try {
       builder.setFileOffset(fileOffset);
-      from.generateSubtypeConstraints(to, new SubtypingScope(builder, scope));
+      from.generateSubtypeConstraints(
+          to, new SubtypingScope(builder, scope, coreTypes));
     } on UnassignableSinkError catch (e) {
       e.assignmentLocation = where.location;
       print('$from <: $to');
@@ -477,7 +478,8 @@ class ConstraintExtractorVisitor
   void checkTypeBound(TreeNode where, AType type, AType bound,
       [int fileOffset = TreeNode.noOffset]) {
     builder.setFileOffset(fileOffset);
-    type.generateSubBoundConstraint(bound, new SubtypingScope(builder, scope));
+    type.generateSubBoundConstraint(
+        bound, new SubtypingScope(builder, scope, coreTypes));
   }
 
   void checkAssignable(TreeNode where, AType from, AType to,

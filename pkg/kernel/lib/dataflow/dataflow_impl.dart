@@ -26,8 +26,8 @@ class _DataflowResults extends DataflowResults {
       ..extractFromProgram(program);
     diagnostic?._constraintSystem = _extractor.constraintSystem;
     diagnostic?._binding = _extractor.binding;
-    _solver = new ConstraintSolver(
-        hierarchy, _extractor.constraintSystem, diagnostic?._solverListener);
+    _solver = new ConstraintSolver(coreTypes, hierarchy,
+        _extractor.constraintSystem, diagnostic?._solverListener);
     diagnostic?._onBeginSolve();
     _solver.solve();
     diagnostic?._onEndSolve();

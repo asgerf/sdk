@@ -26,6 +26,13 @@ main(List<String> args) async {
   print('Number of changes = ${report.numberOfChangeEvents}');
   print('Number of transfers = ${report.numberOfTransferEvents}');
 
+  Map constraintTypes = {};
+  constraints.forEachConstraint((c) {
+    constraintTypes[c.runtimeType] ??= 0;
+    constraintTypes[c.runtimeType]++;
+  });
+  print(constraintTypes);
+
   program.computeCanonicalNames();
   var file = new File('report.bin').openWrite();
   var buffer = new Writer(file);

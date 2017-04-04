@@ -7,6 +7,7 @@ import '../ast.dart';
 import '../text/printable.dart';
 import 'extractor/value_source.dart';
 import 'package:kernel/class_hierarchy.dart';
+import 'package:kernel/core_types.dart';
 
 /// An abstract value, denoting a set of possible concrete values.
 ///
@@ -186,9 +187,10 @@ class ValueFlags {
 }
 
 class ValueLattice {
+  final CoreTypes coreTypes;
   final ClassHierarchy hierarchy;
 
-  ValueLattice(this.hierarchy);
+  ValueLattice(this.coreTypes, this.hierarchy);
 
   /// Returns the least upper bound of two base classes, where `null` represents
   /// bottom.
@@ -258,5 +260,24 @@ class ValueLattice {
       flags &= ~ValueFlags.inexactBaseClass;
     }
     return new Value(newBaseClass, flags);
+  }
+
+  /// Does not include the `null` value unless [classNode] is `Null`.
+  int getValueSetFlagsForNonNullableInterface(Class classNode) {
+    if (classNode == coreTypes.nullClass) return ValueFlags.none;
+    if (classNode == coreTypes.intClass) return ValueFlags.integer;
+    if (classNode == coreTypes.doubleClass) return ValueFlags.double_;
+    if (classNode == coreTypes.numClass) {
+      return ValueFlags.integer | ValueFlags.double_;
+    }
+    if (classNode == coreTypes.stringClass) return ValueFlags.string;
+    if (classNode == coreTypes.boolClass) return ValueFlags.boolean;
+    if (classNode == coreTypes.objectClass) return ValueFlags.allValueSets;
+    return ValueFlags.other;
+  }
+
+  int getValueSetFlagsForInterface(Class classNode) {
+    return ValueFlags.null_ |
+        getValueSetFlagsForNonNullableInterface(classNode);
   }
 }

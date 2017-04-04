@@ -7,6 +7,7 @@ import '../../class_hierarchy.dart';
 import '../constraints.dart';
 import '../storage_location.dart';
 import '../value.dart';
+import 'package:kernel/core_types.dart';
 
 /// A base class for [StorageLocation] with some fields that are owned by the
 /// constraint solver.
@@ -40,8 +41,10 @@ class ConstraintSolver {
   final List<WorkItem> worklist = <WorkItem>[];
   final SolverListener report;
 
-  ConstraintSolver(ClassHierarchy hierarchy, this.constraints, [this.report])
-      : lattice = new ValueLattice(hierarchy);
+  ConstraintSolver(
+      CoreTypes coreTypes, ClassHierarchy hierarchy, this.constraints,
+      [this.report])
+      : lattice = new ValueLattice(coreTypes, hierarchy);
 
   void propagateValue(StorageLocation location, Value inputValue) {
     Value oldValue = location.value;
