@@ -20,6 +20,7 @@ import 'substitution.dart';
 import 'type_augmentor.dart';
 import 'value_sink.dart';
 import 'value_source.dart';
+import 'common_values.dart';
 
 typedef void TypeErrorCallback(TreeNode where, String message);
 
@@ -48,32 +49,7 @@ class ConstraintExtractor {
   ExternalModel externalModel;
   DynamicIndex dynamicIndex;
 
-  AType conditionType;
-  AType escapingType;
-  AType boolType;
-  AType intType;
-  AType doubleType;
-  AType numType;
-  AType stringType;
-  AType symbolType;
-  AType typeType;
-  AType topType;
-
-  Value intValue;
-  Value doubleValue;
-  Value numValue;
-  Value stringValue;
-  Value boolValue;
-  Value nullValue;
-  Value functionValue;
-
-  Value anyValue;
-  Value nullableIntValue;
-  Value nullableDoubleValue;
-  Value nullableNumValue;
-  Value nullableStringValue;
-  Value nullableBoolValue;
-  Value nullableFunctionValue;
+  CommonValues common;
 
   ConstraintExtractor(this.externalModel);
 
@@ -86,68 +62,9 @@ class ConstraintExtractor {
     binding ??= new Binding(constraintSystem, coreTypes);
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
     externalModel ??= new VmExternalModel(program, coreTypes, baseHierarchy);
-    var lattice = new ValueLattice(coreTypes, baseHierarchy);
+    lattice ??= new ValueLattice(coreTypes, baseHierarchy);
     builder ??= new ConstraintBuilder(hierarchy, constraintSystem, lattice);
-
-    intValue = new Value(coreTypes.intClass, ValueFlags.integer);
-    doubleValue = new Value(coreTypes.doubleClass, ValueFlags.double_);
-    numValue = new Value(coreTypes.numClass,
-        ValueFlags.integer | ValueFlags.double_ | ValueFlags.inexactBaseClass);
-    stringValue = new Value(coreTypes.stringClass, ValueFlags.string);
-    boolValue = new Value(coreTypes.boolClass, ValueFlags.boolean);
-    nullValue = new Value(null, ValueFlags.null_);
-    functionValue = new Value(coreTypes.functionClass,
-        ValueFlags.other | ValueFlags.inexactBaseClass);
-
-    anyValue = new Value(coreTypes.objectClass, ValueFlags.all);
-    nullableIntValue =
-        new Value(coreTypes.intClass, ValueFlags.null_ | ValueFlags.integer);
-    nullableDoubleValue =
-        new Value(coreTypes.doubleClass, ValueFlags.null_ | ValueFlags.double_);
-    nullableNumValue = new Value(
-        coreTypes.numClass,
-        ValueFlags.null_ |
-            ValueFlags.integer |
-            ValueFlags.double_ |
-            ValueFlags.inexactBaseClass);
-    nullableStringValue =
-        new Value(coreTypes.stringClass, ValueFlags.null_ | ValueFlags.string);
-    nullableBoolValue = new Value(coreTypes.boolClass, ValueFlags.boolean);
-    nullableFunctionValue = new Value(coreTypes.functionClass,
-        ValueFlags.null_ | ValueFlags.other | ValueFlags.inexactBaseClass);
-
-    conditionType = new InterfaceAType(
-        Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
-    escapingType = new BottomAType(Value.bottom, ValueSink.escape);
-    boolType = new InterfaceAType(
-        boolValue, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
-    intType = new InterfaceAType(
-        intValue, ValueSink.nowhere, coreTypes.intClass, const <AType>[]);
-    doubleType = new InterfaceAType(
-        doubleValue, ValueSink.nowhere, coreTypes.doubleClass, const <AType>[]);
-    stringType = new InterfaceAType(
-        stringValue, ValueSink.nowhere, coreTypes.stringClass, const <AType>[]);
-    topType = new InterfaceAType(
-        new Value(coreTypes.objectClass, ValueFlags.all),
-        ValueSink.nowhere,
-        coreTypes.objectClass, const <AType>[]);
-    numType = new InterfaceAType(
-        new Value(
-            coreTypes.numClass,
-            ValueFlags.integer |
-                ValueFlags.double_ |
-                ValueFlags.inexactBaseClass),
-        ValueSink.nowhere,
-        coreTypes.numClass,
-        const <AType>[]);
-    symbolType = new InterfaceAType(
-        new Value(coreTypes.symbolClass, ValueFlags.other),
-        ValueSink.nowhere,
-        coreTypes.symbolClass, const <AType>[]);
-    typeType = new InterfaceAType(
-        new Value(coreTypes.typeClass, ValueFlags.other),
-        ValueSink.nowhere,
-        coreTypes.typeClass, const <AType>[]);
+    common ??= new CommonValues(coreTypes);
 
     generateMainEntryPoint(program);
 
@@ -184,7 +101,7 @@ class ConstraintExtractor {
       var value = new Value(
           coreTypes.listClass, ValueFlags.inexactBaseClass | ValueFlags.other);
       var stringListType = new InterfaceAType(
-          value, ValueSink.nowhere, coreTypes.listClass, [stringType]);
+          value, ValueSink.nowhere, coreTypes.listClass, [common.stringType]);
       builder.setOwner(program.mainMethod);
       checkAssignable(
           program.mainMethod,
@@ -303,14 +220,7 @@ class ConstraintExtractor {
   }
 
   int getValueSetFlagsFromInterfaceClass(Class classNode) {
-    if (classNode == coreTypes.intClass) return nullableIntValue.flags;
-    if (classNode == coreTypes.doubleClass) return nullableDoubleValue.flags;
-    if (classNode == coreTypes.numClass) return nullableNumValue.flags;
-    if (classNode == coreTypes.stringClass) return nullableStringValue.flags;
-    if (classNode == coreTypes.boolClass) return nullableBoolValue.flags;
-    if (classNode == coreTypes.nullClass) return nullValue.flags;
-    if (classNode == coreTypes.objectClass) return anyValue.flags;
-    return ValueFlags.allValueSets;
+    return lattice.getValueSetFlagsForInterface(classNode);
   }
 
   Value getWorstCaseValueForType(AType type, {bool isClean: false}) {
@@ -318,23 +228,23 @@ class ConstraintExtractor {
       return getWorstCaseValue(type.classNode, isClean: isClean);
     }
     if (type is FunctionAType) {
-      return isClean ? functionValue : nullableFunctionValue;
+      return isClean ? common.functionValue : common.nullableFunctionValue;
     }
     if (type is TypeParameterAType || type is FunctionTypeParameterAType) {
-      return isClean ? Value.bottom : nullValue;
+      return isClean ? Value.bottom : common.nullValue;
     }
     return new Value(coreTypes.objectClass, ValueFlags.all);
   }
 
   Value getWorstCaseValue(Class classNode, {bool isClean: false}) {
     if (isClean) return getCleanValue(classNode);
-    if (classNode == coreTypes.intClass) return nullableIntValue;
-    if (classNode == coreTypes.doubleClass) return nullableDoubleValue;
-    if (classNode == coreTypes.numClass) return nullableNumValue;
-    if (classNode == coreTypes.stringClass) return nullableStringValue;
-    if (classNode == coreTypes.boolClass) return nullableBoolValue;
-    if (classNode == coreTypes.nullClass) return nullValue;
-    if (classNode == coreTypes.objectClass) return anyValue;
+    if (classNode == coreTypes.intClass) return common.nullableIntValue;
+    if (classNode == coreTypes.doubleClass) return common.nullableDoubleValue;
+    if (classNode == coreTypes.numClass) return common.nullableNumValue;
+    if (classNode == coreTypes.stringClass) return common.nullableStringValue;
+    if (classNode == coreTypes.boolClass) return common.nullableBoolValue;
+    if (classNode == coreTypes.nullClass) return common.nullValue;
+    if (classNode == coreTypes.objectClass) return common.anyValue;
 
     ClassSet classSet = baseHierarchy.getSubtypesOf(classNode);
     Class baseClass = classSet.getCommonBaseClass();
@@ -345,16 +255,16 @@ class ConstraintExtractor {
   }
 
   Value getCleanValue(Class classNode) {
-    if (classNode == coreTypes.intClass) return intValue;
-    if (classNode == coreTypes.doubleClass) return doubleValue;
-    if (classNode == coreTypes.numClass) return numValue;
-    if (classNode == coreTypes.stringClass) return stringValue;
-    if (classNode == coreTypes.boolClass) return boolValue;
-    if (classNode == coreTypes.nullClass) return nullValue;
+    if (classNode == coreTypes.intClass) return common.intValue;
+    if (classNode == coreTypes.doubleClass) return common.doubleValue;
+    if (classNode == coreTypes.numClass) return common.numValue;
+    if (classNode == coreTypes.stringClass) return common.stringValue;
+    if (classNode == coreTypes.boolClass) return common.boolValue;
+    if (classNode == coreTypes.nullClass) return common.nullValue;
 
     // As a special case, a type annotation of 'Object' is treated as nullable,
     // even for clean externals.
-    if (classNode == coreTypes.objectClass) return anyValue;
+    if (classNode == coreTypes.objectClass) return common.anyValue;
 
     ClassSet classSet = baseHierarchy.getSubtypesOf(classNode);
     Class baseClass = classSet.getCommonBaseClass();
@@ -455,6 +365,7 @@ class ConstraintExtractorVisitor
   ConstraintBuilder get builder => extractor.builder;
   ExternalModel get externalModel => extractor.externalModel;
   Class get currentClass => currentMember.enclosingClass;
+  CommonValues get common => extractor.common;
 
   Uri get currentUri => currentMember.enclosingLibrary.importUri;
   bool get isFileUri => currentUri.scheme == 'file';
@@ -648,8 +559,8 @@ class ConstraintExtractorVisitor
     recordParameterTypes(bank, node.function);
     bool treatAsExternal = node.isExternal || externalModel.forceExternal(node);
     if (treatAsExternal) {
-      returnType = extractor.topType;
-      yieldType = extractor.topType;
+      returnType = common.topType;
+      yieldType = common.topType;
     }
     handleFunctionBody(node.function);
     if (treatAsExternal || seenTypeError) {
@@ -717,7 +628,7 @@ class ConstraintExtractorVisitor
       if (controlFlow.isReachable && returnType != null) {
         builder.setFileOffset(node.fileEndOffset);
         builder.addAssignment(
-            extractor.nullValue, returnType.sink, ValueFlags.null_);
+            common.nullValue, returnType.sink, ValueFlags.null_);
       }
       controlFlow.resumeBranch(base);
     }
@@ -752,7 +663,7 @@ class ConstraintExtractorVisitor
         node.namedParameters.map(getVariableType).toList(growable: false),
         augmentedReturnType);
     addAllocationConstraints(
-        functionObject, extractor.functionValue, type, node.fileOffset);
+        functionObject, common.functionValue, type, node.fileOffset);
     if (selfReference != null) {
       scope.variables[selfReference] = type;
     }
@@ -781,8 +692,8 @@ class ConstraintExtractorVisitor
           parameter.initializer, getVariableType(parameter), fileOffset);
     } else {
       builder.setFileOffset(fileOffset);
-      builder.addAssignment(extractor.nullValue,
-          getVariableType(parameter).sink, ValueFlags.null_);
+      builder.addAssignment(
+          common.nullValue, getVariableType(parameter).sink, ValueFlags.null_);
     }
   }
 
@@ -914,7 +825,7 @@ class ConstraintExtractorVisitor
         if (returnType is InterfaceAType && returnType.classNode == container) {
           return returnType.typeArguments.single;
         }
-        return extractor.escapingType;
+        return common.escapingType;
 
       case AsyncMarker.SyncStar:
       case AsyncMarker.AsyncStar:
@@ -940,7 +851,7 @@ class ConstraintExtractorVisitor
         if (returnType is InterfaceAType && returnType.classNode == container) {
           return returnType.typeArguments.single;
         }
-        return extractor.escapingType;
+        return common.escapingType;
 
       case AsyncMarker.SyncYielding:
         return returnType;
@@ -1018,7 +929,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitBoolLiteral(BoolLiteral node) {
-    return extractor.boolType;
+    return common.boolType;
   }
 
   @override
@@ -1099,7 +1010,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitDoubleLiteral(DoubleLiteral node) {
-    return extractor.doubleType;
+    return common.doubleType;
   }
 
   @override
@@ -1109,7 +1020,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitIntLiteral(IntLiteral node) {
-    return extractor.intType;
+    return common.intType;
   }
 
   @override
@@ -1120,7 +1031,7 @@ class ConstraintExtractorVisitor
   @override
   AType visitIsExpression(IsExpression node) {
     visitExpression(node.operand);
-    return extractor.boolType;
+    return common.boolType;
   }
 
   @override
@@ -1163,7 +1074,7 @@ class ConstraintExtractorVisitor
     controlFlow.branchFrom(base);
     checkConditionExpression(node.right);
     controlFlow.resumeBranch(base);
-    return extractor.boolType;
+    return common.boolType;
   }
 
   @override
@@ -1204,7 +1115,7 @@ class ConstraintExtractorVisitor
       List<AType> named,
       List<String> names) {
     if (target is Field) {
-      return extractor.topType;
+      return common.topType;
     } else {
       var function = target.function;
       // Check for arity errors
@@ -1220,7 +1131,7 @@ class ConstraintExtractorVisitor
         }
       }
       var targetType = binding.getFunctionBank(target);
-      var substitution = Substitution.erasing(extractor.topType);
+      var substitution = Substitution.erasing(common.topType);
       for (int i = 0; i < positional.length; ++i) {
         var expectedType =
             substitution.substituteType(targetType.positionalParameters[i]);
@@ -1267,7 +1178,7 @@ class ConstraintExtractorVisitor
       for (var argument in arguments.named) {
         handleEscapingExpression(argument.value);
       }
-      return extractor.topType;
+      return common.topType;
     }
   }
 
@@ -1351,13 +1262,13 @@ class ConstraintExtractorVisitor
       // Note that the result cannot be null because that would fail at runtime,
       // so do not return 'type1' or 'type2'.
       if (class1 == coreTypes.intClass && class2 == coreTypes.intClass) {
-        return extractor.intType;
+        return common.intType;
       }
       if (class1 == coreTypes.doubleClass || class2 == coreTypes.doubleClass) {
-        return extractor.doubleType;
+        return common.doubleType;
       }
     }
-    return extractor.numType;
+    return common.numType;
   }
 
   @override
@@ -1369,7 +1280,7 @@ class ConstraintExtractorVisitor
       if (node.name.name == '==') {
         // TODO: Handle value escaping through == operator.
         visitExpression(node.arguments.positional.single);
-        return extractor.boolType;
+        return common.boolType;
       }
       if (node.name.name == 'call' && receiver is FunctionAType) {
         return handleFunctionCall(node, receiver, node.arguments, fileOffset);
@@ -1390,7 +1301,7 @@ class ConstraintExtractorVisitor
   AType visitPropertyGet(PropertyGet node) {
     if (node.interfaceTarget == null) {
       handleEscapingExpression(node.receiver);
-      return extractor.topType;
+      return common.topType;
     } else {
       var receiver = getReceiverType(node, node.receiver, node.interfaceTarget);
       var getterType = binding.getGetterType(node.interfaceTarget);
@@ -1416,7 +1327,7 @@ class ConstraintExtractorVisitor
   @override
   AType visitNot(Not node) {
     checkConditionExpression(node.operand);
-    return extractor.boolType;
+    return common.boolType;
   }
 
   @override
@@ -1451,12 +1362,12 @@ class ConstraintExtractorVisitor
   @override
   AType visitStringConcatenation(StringConcatenation node) {
     node.expressions.forEach(visitExpression);
-    return extractor.stringType;
+    return common.stringType;
   }
 
   @override
   AType visitStringLiteral(StringLiteral node) {
-    return extractor.stringType;
+    return common.stringType;
   }
 
   @override
@@ -1472,7 +1383,7 @@ class ConstraintExtractorVisitor
   @override
   AType visitSuperPropertyGet(SuperPropertyGet node) {
     if (node.interfaceTarget == null) {
-      return extractor.topType;
+      return common.topType;
     } else {
       var receiver = getSuperReceiverType(node.interfaceTarget);
       var getterType = binding.getGetterType(node.interfaceTarget);
@@ -1493,7 +1404,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitSymbolLiteral(SymbolLiteral node) {
-    return extractor.symbolType;
+    return common.symbolType;
   }
 
   @override
@@ -1511,7 +1422,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitTypeLiteral(TypeLiteral node) {
-    return extractor.typeType;
+    return common.typeType;
   }
 
   @override
@@ -1626,9 +1537,9 @@ class ConstraintExtractorVisitor
   AType getIterableElementType(AType iterable) {
     // TODO: Avoid getting the nullable return type of Iterator.current.
     var iteratorType = lookupMember(iterable, iteratorName);
-    if (iteratorType == null) return extractor.topType;
+    if (iteratorType == null) return common.topType;
     var elementType = lookupMember(iteratorType, iteratorCurrentName);
-    if (elementType == null) return extractor.topType;
+    if (elementType == null) return common.topType;
     return elementType;
   }
 
@@ -1636,7 +1547,7 @@ class ConstraintExtractorVisitor
     if (stream is InterfaceAType) {
       var asStream = hierarchy.getClassAsInstanceOf(
           stream.classNode, coreTypes.streamClass);
-      if (asStream == null) return extractor.topType;
+      if (asStream == null) return common.topType;
       var parameter = coreTypes.streamClass.typeParameters[0];
       var substitution = Substitution.sequence(
           asStream, Substitution.fromInterfaceType(stream));
@@ -1644,7 +1555,7 @@ class ConstraintExtractorVisitor
       assert(result != null);
       return result;
     }
-    return extractor.topType;
+    return common.topType;
   }
 
   @override
@@ -1737,9 +1648,9 @@ class ConstraintExtractorVisitor
     visitStatement(node.body);
     for (var catchClause in node.catches) {
       // TODO: Set precise types on catch parameters
-      scope.variables[catchClause.exception] = extractor.topType;
+      scope.variables[catchClause.exception] = common.topType;
       if (catchClause.stackTrace != null) {
-        scope.variables[catchClause.stackTrace] = extractor.topType;
+        scope.variables[catchClause.stackTrace] = common.topType;
       }
       controlFlow.branchFrom(base);
       visitStatement(catchClause.body);
@@ -1831,7 +1742,7 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitCheckLibraryIsLoaded(CheckLibraryIsLoaded node) {
-    return extractor.topType;
+    return common.topType;
   }
 
   @override
@@ -1840,7 +1751,7 @@ class ConstraintExtractorVisitor
         new Value(coreTypes.futureClass, ValueFlags.other),
         ValueSink.unassignable('return value of expression', node),
         coreTypes.futureClass,
-        [extractor.topType]);
+        [common.topType]);
   }
 
   @override
