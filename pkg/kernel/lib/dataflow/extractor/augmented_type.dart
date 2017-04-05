@@ -46,11 +46,13 @@ class SubtypingScope {
 
 class TypeFilter {
   final Class interfaceClass;
-  final int mask;
+  final int valueSets;
 
-  TypeFilter(this.interfaceClass, this.mask);
+  TypeFilter(this.interfaceClass, this.valueSets);
 
-  static final TypeFilter none = new TypeFilter(null, ValueFlags.all);
+  int get mask => valueSets | ValueFlags.nonValueSetFlags;
+
+  static final TypeFilter none = new TypeFilter(null, ValueFlags.allValueSets);
 }
 
 abstract class AType implements Printable {

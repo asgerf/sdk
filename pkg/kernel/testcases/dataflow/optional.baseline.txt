@@ -19,7 +19,7 @@ abstract class External extends core::Object {
     : super core::Object::•()
     ;
   abstract method externalMethod(core::int! x, [core::int!? y, core::int!? z]) → Bottom&core::String;
-  abstract method listen(core::Object+&self::Listener listener) → Bottom;
+  abstract method listen(self::Listener+ listener) → Bottom;
 }
 abstract class Listener extends core::Object {
   constructor •() → Bottom

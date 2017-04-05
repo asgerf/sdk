@@ -14,7 +14,7 @@ class Bar extends core::Object {
     : super core::Object::•()
     ;
 }
-static method useCallback(core::Function+&core::Object callback) → Null&core::Object {
+static method useCallback(core::Function!&core::Object callback) → Null&core::Object {
   core::Object+? _ = callback.call();
 }
 static method main() → core::Object+? {
