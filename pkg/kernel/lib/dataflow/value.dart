@@ -224,14 +224,17 @@ class ValueLattice {
     return oldValue;
   }
 
+  Class getIntersectionBaseClass(Class first, Class second) {
+    if (first == null || second == null) return null;
+    return hierarchy.getIntersectionBaseClass(first, second);
+  }
+
   /// Returns the greatest lower bound of [first] and [second].
   Value intersectValues(Value first, Value second) {
     int flags = first.flags & second.flags;
     Class firstBase = first.baseClass;
     Class secondBase = second.baseClass;
-    Class base = firstBase == null || secondBase == null
-        ? null
-        : hierarchy.getIntersectionBaseClass(firstBase, secondBase);
+    Class base = getIntersectionBaseClass(firstBase, secondBase);
     if (base == null) {
       // Null is the only flag that makes sense without a base class.
       flags &= ValueFlags.null_;
