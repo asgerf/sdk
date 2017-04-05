@@ -69,6 +69,9 @@ class Value extends ValueSource implements Printable {
     return new Value(baseClass, maskedFlags);
   }
 
+  Value get asNullable =>
+      canBeNull ? this : new Value(baseClass, flags | ValueFlags.null_);
+
   bool isBottom([int mask = ValueFlags.allValueSets]) {
     return flags & mask == 0;
   }

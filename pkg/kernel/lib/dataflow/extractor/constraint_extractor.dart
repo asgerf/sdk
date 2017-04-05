@@ -10,7 +10,9 @@ import '../constraints.dart';
 import '../storage_location.dart';
 import '../value.dart';
 import 'augmented_type.dart';
+import 'backend_core_types.dart';
 import 'binding.dart';
+import 'common_values.dart';
 import 'constraint_builder.dart';
 import 'control_flow_state.dart';
 import 'dynamic_index.dart';
@@ -20,7 +22,6 @@ import 'substitution.dart';
 import 'type_augmentor.dart';
 import 'value_sink.dart';
 import 'value_source.dart';
-import 'common_values.dart';
 
 typedef void TypeErrorCallback(TreeNode where, String message);
 
@@ -48,6 +49,7 @@ class ConstraintExtractor {
   ConstraintBuilder builder;
   ExternalModel externalModel;
   DynamicIndex dynamicIndex;
+  BackendApi backendApi;
 
   CommonValues common;
 
@@ -58,13 +60,14 @@ class ConstraintExtractor {
     baseHierarchy ??= new ClassHierarchy(program);
     dynamicIndex ??= new DynamicIndex(program);
 
+    backendApi ??= new VmApi(coreTypes);
     constraintSystem ??= new ConstraintSystem();
     binding ??= new Binding(constraintSystem, coreTypes);
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
     externalModel ??= new VmExternalModel(program, coreTypes, baseHierarchy);
     lattice ??= new ValueLattice(coreTypes, baseHierarchy);
     builder ??= new ConstraintBuilder(hierarchy, constraintSystem, lattice);
-    common ??= new CommonValues(coreTypes);
+    common ??= new CommonValues(coreTypes, backendApi, lattice);
 
     generateMainEntryPoint(program);
 
@@ -98,8 +101,7 @@ class ConstraintExtractor {
     var function = program.mainMethod?.function;
     if (function != null && function.positionalParameters.isNotEmpty) {
       var bank = binding.getFunctionBank(program.mainMethod);
-      var value = new Value(
-          coreTypes.listClass, ValueFlags.inexactBaseClass | ValueFlags.other);
+      var value = common.fixedListValue;
       var stringListType = new InterfaceAType(
           value, ValueSink.nowhere, coreTypes.listClass, [common.stringType]);
       builder.setOwner(program.mainMethod);
@@ -233,7 +235,7 @@ class ConstraintExtractor {
     if (type is TypeParameterAType || type is FunctionTypeParameterAType) {
       return isClean ? Value.bottom : common.nullValue;
     }
-    return new Value(coreTypes.objectClass, ValueFlags.all);
+    return common.anyValue;
   }
 
   Value getWorstCaseValue(Class classNode, {bool isClean: false}) {
@@ -357,6 +359,7 @@ class ConstraintExtractorVisitor
   final StorageLocationBank bank;
   final ClassBank classBank;
   TypeAugmentor augmentor;
+  Reference defaultListFactoryReference;
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ClassHierarchy get baseHierarchy => extractor.baseHierarchy;
@@ -384,7 +387,9 @@ class ConstraintExtractorVisitor
   final bool isUncheckedLibrary;
 
   ConstraintExtractorVisitor(this.extractor, this.currentMember, this.bank,
-      this.classBank, this.isUncheckedLibrary);
+      this.classBank, this.isUncheckedLibrary) {
+    defaultListFactoryReference = extractor.backendApi.listFactory.reference;
+  }
 
   void checkTypeBound(TreeNode where, AType type, AType bound,
       [int fileOffset = TreeNode.noOffset]) {
@@ -1057,7 +1062,7 @@ class ConstraintExtractorVisitor
       checkAssignableExpression(item, typeArgument);
     }
     var createdObject = bank.newLocation();
-    var value = new Value(coreTypes.listClass, ValueFlags.other);
+    var value = node.isConst ? common.constListValue : common.growableListValue;
     var type = new InterfaceAType(
         createdObject,
         ValueSink.unassignable('result of an expression', node),
@@ -1087,7 +1092,8 @@ class ConstraintExtractorVisitor
       checkAssignableExpression(entry.value, valueType);
     }
     var createdObject = bank.newLocation();
-    var value = new Value(coreTypes.mapClass, ValueFlags.other);
+    var value =
+        node.isConst ? common.constLiteralMapValue : common.literalMapValue;
     var type = new InterfaceAType(
         createdObject,
         ValueSink.unassignable('result of an expression', node),
@@ -1348,7 +1354,14 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitStaticInvocation(StaticInvocation node) {
-    return handleCall(node.arguments, node.target, node.fileOffset);
+    var type = handleCall(node.arguments, node.target, node.fileOffset);
+    // Special case the List factory to detect growability.
+    if (node.targetReference == defaultListFactoryReference) {
+      return node.arguments.positional.length == 0
+          ? type.withSource(common.growableListValue)
+          : type.withSource(common.fixedListValue);
+    }
+    return type;
   }
 
   @override
@@ -1476,6 +1489,10 @@ class ConstraintExtractorVisitor
   }
 
   bool isTrueConstant(Expression node) {
+    return node is BoolLiteral && node.value == true;
+  }
+
+  bool isFalseConstant(Expression node) {
     return node is BoolLiteral && node.value == true;
   }
 

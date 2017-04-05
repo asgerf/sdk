@@ -2,8 +2,8 @@ library;
 import self as self;
 import "dart:core" as core;
 
-static method main(core::List+<core::String!/> args) → Null {
-  core::int! x = args.{core::List::length};
+static method main(core::_List!&core::List<core::_StringBase+&core::String/> args) → Null {
+  core::_IntegerImplementation+&core::int x = args.{core::List::length};
   #L1:
   switch(x) {
     #L2:

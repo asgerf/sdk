@@ -33,5 +33,5 @@ class Forwarding extends core::Object {
     ;
 }
 static field Null&core::int uninitializedTopLevel = null;
-static field core::int! initializedTopLevel = 4;
+static field core::_IntegerImplementation+&core::int initializedTopLevel = 4;
 static method main() → Null&core::Object {}

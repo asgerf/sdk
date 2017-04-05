@@ -3,13 +3,13 @@ import self as self;
 import "dart:core" as core;
 
 abstract class FooBase<Tf extends Bottom&core::Object/Bottom> extends core::Object {
-  abstract get x() → core::int!;
+  abstract get x() → core::_IntegerImplementation+&core::int;
 }
 abstract class Foo<T extends Bottom&core::Object/Bottom> extends core::Object implements self::FooBase<Bottom&core::Object> {
 }
 class Bar<Sb extends Bottom&core::Object/Bottom, Tb extends Bottom&core::Object/Bottom> extends core::Object implements self::Foo<self::Bar::Tb> {
-  field core::int! x;
-  constructor •(core::int! x) → Bottom
+  field core::_IntegerImplementation+&core::int x;
+  constructor •(core::_IntegerImplementation+&core::int x) → Bottom
     : self::Bar::x = x, super core::Object::•() {
     core::print("Bar<${self::Bar::Sb},${self::Bar::Tb}>");
   }

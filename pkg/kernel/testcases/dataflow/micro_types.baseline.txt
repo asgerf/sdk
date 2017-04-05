@@ -17,7 +17,7 @@ class Subtype extends core::Object implements self::Foo {
     : super core::Object::•()
     ;
 }
-class Box<T extends core::int!?&core::Object/Bottom> extends core::Object {
+class Box<T extends core::_IntegerImplementation+?&core::Object/Bottom> extends core::Object {
   final field self::Box::T field;
   constructor •(self::Box::T field) → Bottom
     : self::Box::field = field, super core::Object::•()
@@ -63,7 +63,7 @@ class DefaultValueField extends core::Object {
     : this self::DefaultValueField::inner()
     ;
 }
-class NullableArgOnThis<T extends core::int!&core::Object/Bottom> extends core::Object {
+class NullableArgOnThis<T extends core::_IntegerImplementation+&core::Object/Bottom> extends core::Object {
   field self::NullableArgOnThis::T? field;
   constructor •(self::NullableArgOnThis::T field) → Bottom
     : self::NullableArgOnThis::field = field, super core::Object::•()
@@ -77,7 +77,7 @@ class NullableArgOnThis<T extends core::int!&core::Object/Bottom> extends core::
     this.{self::NullableArgOnThis::nullableArg}(null);
   }
 }
-class NullableArgOnThis2<T extends core::int!?&core::Object/Null> extends core::Object {
+class NullableArgOnThis2<T extends core::_IntegerImplementation+?&core::Object/Null> extends core::Object {
   field self::NullableArgOnThis2::T field;
   constructor •(self::NullableArgOnThis2::T field) → Bottom
     : self::NullableArgOnThis2::field = field, super core::Object::•()
@@ -132,7 +132,7 @@ class GenericSubclass<E extends Bottom&core::Object/Bottom> extends self::Generi
     return callback.call(this.{self::GenericBase::value});
   }
 }
-class MutableBox<T extends core::int!&core::Object/Bottom> extends core::Object {
+class MutableBox<T extends core::_IntegerImplementation+&core::Object/Bottom> extends core::Object {
   field self::MutableBox::T field;
   constructor •(self::MutableBox::T field) → Bottom
     : self::MutableBox::field = field, super core::Object::•()
@@ -148,9 +148,9 @@ class Generic<T extends Null&core::Object/Bottom> extends core::Object {
   }
 }
 class Escaping extends core::Object {
-  static field core::int! globalVar = 0;
-  field core::int! escapingField = 0;
-  field core::int! dependentField = 0;
+  static field core::_IntegerImplementation+&core::int globalVar = 0;
+  field core::_IntegerImplementation+&core::int escapingField = 0;
+  field core::_IntegerImplementation+&core::int dependentField = 0;
   constructor •() → Bottom
     : super core::Object::•()
     ;
@@ -159,17 +159,17 @@ class Escaping extends core::Object {
     x.escapingMethod(null);
     x.escapingIdentity(null);
   }
-  method escapingMethod(core::int! x) → Null {
+  method escapingMethod(core::_IntegerImplementation+&core::int x) → Null {
     self::Escaping::globalVar = x;
     this.{self::Escaping::dependentField} = this.{self::Escaping::escapingField};
   }
-  method escapingIdentity(core::int! x) → core::int!
+  method escapingIdentity(core::_IntegerImplementation+&core::int x) → core::_IntegerImplementation+&core::int
     return x;
-  method identity(core::int! x) → core::int!
+  method identity(core::_IntegerImplementation+&core::int x) → core::_IntegerImplementation+&core::int
     return x;
 }
 class EscapingThis extends core::Object {
-  field core::int! escapingField2 = 5;
+  field core::_IntegerImplementation+&core::int escapingField2 = 5;
   constructor •() → Bottom
     : super core::Object::•()
     ;
@@ -181,7 +181,7 @@ class EscapingThis extends core::Object {
   }
 }
 class EscapingBaseClass extends core::Object {
-  field core::int! escapingField3 = 7;
+  field core::_IntegerImplementation+&core::int escapingField3 = 7;
   constructor •() → Bottom
     : super core::Object::•()
     ;
@@ -194,8 +194,8 @@ class EscapingSubclass extends self::EscapingBaseClass {
     x.escapingField3 = null;
   }
 }
-static field core::int! unknownInt = 0;
-static method main(core::List+<core::String!/> args) → Null&core::Object {
+static field core::_IntegerImplementation+&core::int unknownInt = 0;
+static method main(core::_List!&core::List<core::_StringBase+&core::String/> args) → Null&core::Object {
   self::unknownInt = args.{core::List::length};
   self::testBasic(args.{core::List::length});
   self::testListMutation();
@@ -225,7 +225,7 @@ static method takeExact2(self::Foo! foo) → Null {}
 static method takeSubclass2(self::Subclass!&self::Foo foo) → Null {}
 static method takeSubtype2(self::Subtype!&self::Foo foo) → Null {}
 static method takeNullable2(self::Foo!? foo) → Null {}
-static method testBasic(core::int! n) → Null {
+static method testBasic(core::_IntegerImplementation+&core::int n) → Null {
   Null&self::Foo nullableFoo = null;
   self::takeExact(new self::Foo::•());
   self::takeSubclass(new self::Subclass::•());
@@ -235,39 +235,39 @@ static method testBasic(core::int! n) → Null {
   self::takeNullable(t);
 }
 static method testListMutation() → Null {
-  core::List!<core::String!/core::String!> nonNullable = <core::String!>[];
+  core::_GrowableList!&core::List<core::_StringBase+&core::String/core::_StringBase+> nonNullable = <core::_StringBase+&core::String>[];
   nonNullable.{core::List::add}("dfg");
-  core::String! fromNonNullable = nonNullable.{core::List::[]}(0);
-  core::List!<core::String!?/core::String!?> nullable = <core::String!?>[];
+  core::_StringBase+&core::String fromNonNullable = nonNullable.{core::List::[]}(0);
+  core::_GrowableList!&core::List<core::_StringBase+?&core::String/core::_StringBase+?> nullable = <core::_StringBase+?&core::String>[];
   nullable.{core::List::add}("dfg");
   nullable.{core::List::add}(null);
-  core::String!? fromNullable = nullable.{core::List::[]}(1);
-  core::List!<self::Foo!/self::Foo!> exactList = <self::Foo!>[];
+  core::_StringBase+?&core::String fromNullable = nullable.{core::List::[]}(1);
+  core::_GrowableList!&core::List<self::Foo!/self::Foo!> exactList = <self::Foo!>[];
   exactList.{core::List::add}(new self::Foo::•());
   self::joinSubclassList(exactList);
-  core::List!<self::Subclass!&self::Foo/self::Subclass!> subclassList = <self::Subclass!&self::Foo>[];
+  core::_GrowableList!&core::List<self::Subclass!&self::Foo/self::Subclass!> subclassList = <self::Subclass!&self::Foo>[];
   subclassList.{core::List::add}(new self::Subclass::•());
   self::joinSubclassList(subclassList);
-  core::List!<self::Subtype!&self::Foo/self::Subtype!> subtypeList = <self::Subtype!&self::Foo>[];
+  core::_GrowableList!&core::List<self::Subtype!&self::Foo/self::Subtype!> subtypeList = <self::Subtype!&self::Foo>[];
   subtypeList.{core::List::add}(new self::Subtype::•());
 }
-static method joinSubclassList(core::List!<self::Foo+/> list) → Null {}
+static method joinSubclassList(core::_GrowableList!&core::List<self::Foo+/> list) → Null {}
 static method testUpcasting() → Null {
-  core::List!<Bottom&self::Subclass/> subclassList = <Bottom&self::Subclass>[];
-  core::List!<Bottom&self::Foo/> upcastedSubclassList = subclassList;
+  core::_GrowableList!&core::List<Bottom&self::Subclass/> subclassList = <Bottom&self::Subclass>[];
+  core::_GrowableList!&core::List<Bottom&self::Foo/> upcastedSubclassList = subclassList;
 }
 static method testUpcastAndAddNull() → Null {
-  core::List!<Null&self::Subclass/Null> list = <Null&self::Subclass>[];
-  core::List!<Null&self::Foo/Null> upcastedList = list;
+  core::_GrowableList!&core::List<Null&self::Subclass/Null> list = <Null&self::Subclass>[];
+  core::_GrowableList!&core::List<Null&self::Foo/Null> upcastedList = list;
   upcastedList.{core::List::add}(null);
 }
 static method testBox() → Null {
   {
-    self::Box!<core::int!/> box = new self::Box::•<core::int!>(5);
-    core::int!? nullableInt1 = box.{self::Box::getNull}();
-    core::int!? nullableInt2 = box.{self::Box::getThis}().{self::Box::getNull}();
-    core::int! nonNullableInt1 = box.{self::Box::field};
-    core::int! nonNullableInt2 = box.{self::Box::getThis}().{self::Box::field};
+    self::Box!<core::_IntegerImplementation+&core::int/> box = new self::Box::•<core::_IntegerImplementation+&core::int>(5);
+    core::_IntegerImplementation+?&core::int nullableInt1 = box.{self::Box::getNull}();
+    core::_IntegerImplementation+?&core::int nullableInt2 = box.{self::Box::getThis}().{self::Box::getNull}();
+    core::_IntegerImplementation+&core::int nonNullableInt1 = box.{self::Box::field};
+    core::_IntegerImplementation+&core::int nonNullableInt2 = box.{self::Box::getThis}().{self::Box::field};
   }
   {
     self::Box!<Null&core::int/> boxWithNull = new self::Box::•<Null&core::int>(null);
@@ -277,11 +277,11 @@ static method testBox() → Null {
     Null&core::int alwaysNull4 = boxWithNull.{self::Box::getThis}().{self::Box::field};
   }
   {
-    self::Box!<core::int!?/> boxWithMaybeNull = new self::Box::•<core::int!?>(let final core::int #t1 = 5 in #t1.==(null) ? null : #t1);
-    core::int!? nullableInt1 = boxWithMaybeNull.{self::Box::getNull}();
-    core::int!? nullableInt2 = boxWithMaybeNull.{self::Box::field};
-    core::int!? nullableInt3 = boxWithMaybeNull.{self::Box::getThis}().{self::Box::getNull}();
-    core::int!? nullableInt4 = boxWithMaybeNull.{self::Box::getThis}().{self::Box::field};
+    self::Box!<core::_IntegerImplementation+?&core::int/> boxWithMaybeNull = new self::Box::•<core::_IntegerImplementation+?&core::int>(let final core::int #t1 = 5 in #t1.==(null) ? null : #t1);
+    core::_IntegerImplementation+?&core::int nullableInt1 = boxWithMaybeNull.{self::Box::getNull}();
+    core::_IntegerImplementation+?&core::int nullableInt2 = boxWithMaybeNull.{self::Box::field};
+    core::_IntegerImplementation+?&core::int nullableInt3 = boxWithMaybeNull.{self::Box::getThis}().{self::Box::getNull}();
+    core::_IntegerImplementation+?&core::int nullableInt4 = boxWithMaybeNull.{self::Box::getThis}().{self::Box::field};
   }
 }
 static method testInitializers() → Null&core::Object {
@@ -292,23 +292,23 @@ static method testInitializers() → Null&core::Object {
   new self::DefaultValueField::•();
 }
 static method testArithmetic() → Null {
-  core::int! x = 4;
-  core::int! y = 7;
-  core::int! add = x.{core::num::+}(y);
-  core::int! subtract = x.{core::num::-}(y);
-  core::int! multiply = x.{core::num::*}(y);
-  core::double!&core::num nx = 4.5;
-  core::int!&core::num ny = 7;
-  core::num+ n1 = nx.{core::num::+}(ny);
-  core::num+ n2 = x.{core::num::+}(ny);
-  core::num+ n3 = nx.{core::num::+}(y);
-  core::double! dx = 4.0;
-  core::double! dy = 7.0;
-  core::double! d1 = dx.{core::double::+}(dy);
-  core::double! d2 = x.{core::num::+}(dy);
-  core::double! d3 = dx.{core::double::+}(y);
-  core::double! d4 = nx.{core::num::+}(dy);
-  core::double! d5 = dx.{core::double::+}(ny);
+  core::_IntegerImplementation+&core::int x = 4;
+  core::_IntegerImplementation+&core::int y = 7;
+  core::_IntegerImplementation+&core::int add = x.{core::num::+}(y);
+  core::_IntegerImplementation+&core::int subtract = x.{core::num::-}(y);
+  core::_IntegerImplementation+&core::int multiply = x.{core::num::*}(y);
+  core::_Double!&core::num nx = 4.5;
+  core::_IntegerImplementation+&core::num ny = 7;
+  core::Object+&core::num n1 = nx.{core::num::+}(ny);
+  core::Object+&core::num n2 = x.{core::num::+}(ny);
+  core::Object+&core::num n3 = nx.{core::num::+}(y);
+  core::_Double!&core::double dx = 4.0;
+  core::_Double!&core::double dy = 7.0;
+  core::_Double!&core::double d1 = dx.{core::double::+}(dy);
+  core::_Double!&core::double d2 = x.{core::num::+}(dy);
+  core::_Double!&core::double d3 = dx.{core::double::+}(y);
+  core::_Double!&core::double d4 = nx.{core::num::+}(dy);
+  core::_Double!&core::double d5 = dx.{core::double::+}(ny);
 }
 static method testCallbacks() → Null {
   self::exactCallback((self::Foo! foo) → core::Null {});
@@ -325,12 +325,12 @@ static method subtypeCallback((self::Subtype!&self::Foo) => Null&core::Object ca
 static method nullableCallback((Null&self::Foo) => Null&core::Object callback) → Null&core::Object
   return callback.call(null);
 static method testNullableArgOnThis() → Null {
-  self::NullableArgOnThis!<core::int!/> first = new self::NullableArgOnThis::•<core::int!>(5);
+  self::NullableArgOnThis!<core::_IntegerImplementation+&core::int/> first = new self::NullableArgOnThis::•<core::_IntegerImplementation+&core::int>(5);
   first.{self::NullableArgOnThis::doSomething}();
-  core::int!? nullableFirst = first.{self::NullableArgOnThis::field};
-  self::NullableArgOnThis2!<core::int!?/> second = new self::NullableArgOnThis2::•<core::int!?>(5);
+  core::_IntegerImplementation+?&core::int nullableFirst = first.{self::NullableArgOnThis::field};
+  self::NullableArgOnThis2!<core::_IntegerImplementation+?&core::int/> second = new self::NullableArgOnThis2::•<core::_IntegerImplementation+?&core::int>(5);
   second.{self::NullableArgOnThis2::doSomething}();
-  core::int!? nullableSecond = second.{self::NullableArgOnThis2::field};
+  core::_IntegerImplementation+?&core::int nullableSecond = second.{self::NullableArgOnThis2::field};
 }
 static method testOverride() → Null {
   new self::OverrideSub::•().{self::OverrideSub::takeNullInSubclass}(null);
@@ -341,65 +341,65 @@ static method testOverride() → Null {
   Null&core::Object ws = new self::OverrideSub::•().{self::OverrideSub::returnNullFromSubclass}();
 }
 static method testGenericDowncast() → Null {
-  self::MutableBox!<core::int!/> box = new self::MutableBox::•<core::int!>(5);
+  self::MutableBox!<core::_IntegerImplementation+&core::int/> box = new self::MutableBox::•<core::_IntegerImplementation+&core::int>(5);
   self::MutableBox!&core::Object upcastBox = box;
   self::MutableBox!<Bottom&core::int/Null> downcastBox = upcastBox as self::MutableBox<core::int>;
   downcastBox.{self::MutableBox::field} = null;
-  core::int! nullableIntFromBox = box.{self::MutableBox::field};
-  core::List!<core::int!/> list = <core::int!>[5];
-  core::List!&core::Object upcastList = list;
-  core::List!<Bottom&core::int/Null> downcastList = upcastList as core::List<core::int>;
+  core::_IntegerImplementation+&core::int nullableIntFromBox = box.{self::MutableBox::field};
+  core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/> list = <core::_IntegerImplementation+&core::int>[5];
+  core::_GrowableList!&core::Object upcastList = list;
+  core::_GrowableList!&core::List<Bottom&core::int/Null> downcastList = upcastList as core::List<core::int>;
   downcastList.{core::List::add}(null);
-  core::int! nullableIntFromList = list.{core::Iterable::last};
-  core::Map!<core::int!/, core::int!/> kmap = <core::int!, core::int!>{5: 6};
-  core::Map!&core::Object upcastKMap = kmap;
-  core::Map!<Bottom&core::int/Null, Bottom&core::int/core::int!> downcastKMap = upcastKMap as core::Map<core::int, core::int>;
+  core::_IntegerImplementation+&core::int nullableIntFromList = list.{core::Iterable::last};
+  dart.collection::LinkedHashMap!&core::Map<core::_IntegerImplementation+&core::int/, core::_IntegerImplementation+&core::int/> kmap = <core::_IntegerImplementation+&core::int, core::_IntegerImplementation+&core::int>{5: 6};
+  dart.collection::LinkedHashMap!&core::Object upcastKMap = kmap;
+  dart.collection::LinkedHashMap!&core::Map<Bottom&core::int/Null, Bottom&core::int/core::_IntegerImplementation+> downcastKMap = upcastKMap as core::Map<core::int, core::int>;
   downcastKMap.{core::Map::[]=}(null, 3);
-  core::int! nullableIntFromKMap = kmap.{core::Map::keys}.{core::Iterable::first};
-  core::Map!<core::int!/, core::int!/> vmap = <core::int!, core::int!>{5: 6};
-  core::Map!&core::Object upcastVMap = vmap;
-  core::Map!<Bottom&core::int/core::int!, Bottom&core::int/Null> downcastVMap = upcastVMap as core::Map<core::int, core::int>;
+  core::_IntegerImplementation+&core::int nullableIntFromKMap = kmap.{core::Map::keys}.{core::Iterable::first};
+  dart.collection::LinkedHashMap!&core::Map<core::_IntegerImplementation+&core::int/, core::_IntegerImplementation+&core::int/> vmap = <core::_IntegerImplementation+&core::int, core::_IntegerImplementation+&core::int>{5: 6};
+  dart.collection::LinkedHashMap!&core::Object upcastVMap = vmap;
+  dart.collection::LinkedHashMap!&core::Map<Bottom&core::int/core::_IntegerImplementation+, Bottom&core::int/Null> downcastVMap = upcastVMap as core::Map<core::int, core::int>;
   downcastVMap.{core::Map::[]=}(5, null);
-  core::int! nullableIntFromVMap = vmap.{core::Map::[]}(5);
+  core::_IntegerImplementation+&core::int nullableIntFromVMap = vmap.{core::Map::[]}(5);
 }
 static method testGenericDynamic() → Null {
-  self::MutableBox!<core::int!/> box = new self::MutableBox::•<core::int!>(5);
+  self::MutableBox!<core::_IntegerImplementation+&core::int/> box = new self::MutableBox::•<core::_IntegerImplementation+&core::int>(5);
   self::MutableBox!&core::Object dynamicBox = box;
   dynamicBox.field = null;
-  core::int! nullableIntFromBox = box.{self::MutableBox::field};
-  core::List!<core::int!/> list = <core::int!>[5];
-  core::List!&core::Object dynamicList = list;
+  core::_IntegerImplementation+&core::int nullableIntFromBox = box.{self::MutableBox::field};
+  core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/> list = <core::_IntegerImplementation+&core::int>[5];
+  core::_GrowableList!&core::Object dynamicList = list;
   dynamicList.add(null);
-  core::int! nullableIntFromList = list.{core::Iterable::last};
-  core::Map!<core::int!/, core::int!/> kmap = <core::int!, core::int!>{5: 6};
-  core::Map!&core::Object dynamicKMap = kmap;
+  core::_IntegerImplementation+&core::int nullableIntFromList = list.{core::Iterable::last};
+  dart.collection::LinkedHashMap!&core::Map<core::_IntegerImplementation+&core::int/, core::_IntegerImplementation+&core::int/> kmap = <core::_IntegerImplementation+&core::int, core::_IntegerImplementation+&core::int>{5: 6};
+  dart.collection::LinkedHashMap!&core::Object dynamicKMap = kmap;
   dynamicKMap.[]=(null, 3);
-  core::int! nullableIntFromKMap = kmap.{core::Map::keys}.{core::Iterable::first};
-  core::Map!<core::int!/, core::int!/> vmap = <core::int!, core::int!>{5: 6};
-  core::Map!&core::Object dynamicVMap = vmap;
+  core::_IntegerImplementation+&core::int nullableIntFromKMap = kmap.{core::Map::keys}.{core::Iterable::first};
+  dart.collection::LinkedHashMap!&core::Map<core::_IntegerImplementation+&core::int/, core::_IntegerImplementation+&core::int/> vmap = <core::_IntegerImplementation+&core::int, core::_IntegerImplementation+&core::int>{5: 6};
+  dart.collection::LinkedHashMap!&core::Object dynamicVMap = vmap;
   dynamicVMap.[]=(5, null);
-  core::int! nullableIntFromVMap = vmap.{core::Map::[]}(5);
+  core::_IntegerImplementation+&core::int nullableIntFromVMap = vmap.{core::Map::[]}(5);
 }
 static method testCurry() → Null {
-  function takeInt(core::int! x) → void {}
+  function takeInt(core::_IntegerImplementation+&core::int x) → void {}
   takeInt.call(5);
-  (core::int!) => Null&core::Null closure = (core::int! x) → core::Null {};
+  (core::_IntegerImplementation+&core::int) => Null&core::Null closure = (core::_IntegerImplementation+&core::int x) → core::Null {};
   closure.call(5);
   function curryNonNullable() → (core::int) → void
-    return (core::int! x) → core::Null {};
+    return (core::_IntegerImplementation+&core::int x) → core::Null {};
   curryNonNullable.call().call(5);
   function curryNullable() → (core::int) → void
-    return (core::int!? x) → core::Null {};
+    return (core::_IntegerImplementation+?&core::int x) → core::Null {};
   curryNullable.call().call(5);
   curryNullable.call().call(null);
 }
 static method testCallbackEscapeDynamic() → Null {
-  function takeNullable(core::int!? x) → void {}
+  function takeNullable(core::_IntegerImplementation+?&core::int x) → void {}
   core::Function!&core::Object dynamicTakeNullable = takeNullable;
   dynamicTakeNullable.call(5);
   dynamicTakeNullable.call(null);
   function curryNullable() → (core::int) → void
-    return (core::int!? x) → core::Null {};
+    return (core::_IntegerImplementation+?&core::int x) → core::Null {};
   core::Function!&core::Object dynamicCurryNullable = curryNullable;
   dynamicCurryNullable.call().call(5);
   dynamicCurryNullable.call().call(null);
@@ -412,71 +412,71 @@ static method testGenericCasts() → Null {
 static method testEscapeNonGeneric() → Null {
   self::Escaping! escaped = new self::Escaping::•();
   self::Escaping::escape(escaped);
-  core::int! nullableInt1 = escaped.{self::Escaping::escapingField};
-  core::int! nullableInt2 = self::Escaping::globalVar;
-  core::int! nonNullableInt3 = escaped.{self::Escaping::escapingIdentity}(3);
-  core::int! nullableInt4 = escaped.{self::Escaping::dependentField};
+  core::_IntegerImplementation+&core::int nullableInt1 = escaped.{self::Escaping::escapingField};
+  core::_IntegerImplementation+&core::int nullableInt2 = self::Escaping::globalVar;
+  core::_IntegerImplementation+&core::int nonNullableInt3 = escaped.{self::Escaping::escapingIdentity}(3);
+  core::_IntegerImplementation+&core::int nullableInt4 = escaped.{self::Escaping::dependentField};
   self::Escaping! nonEscaped = new self::Escaping::•();
   nonEscaped.{self::Escaping::escapingMethod}(5);
-  core::int! nonNullableInt5 = nonEscaped.{self::Escaping::escapingField};
-  core::int! nonNullableInt6 = nonEscaped.{self::Escaping::escapingIdentity}(5);
-  core::int! nonNullableInt7 = nonEscaped.{self::Escaping::identity}(6);
-  core::int! nonNullableInt8 = escaped.{self::Escaping::dependentField};
+  core::_IntegerImplementation+&core::int nonNullableInt5 = nonEscaped.{self::Escaping::escapingField};
+  core::_IntegerImplementation+&core::int nonNullableInt6 = nonEscaped.{self::Escaping::escapingIdentity}(5);
+  core::_IntegerImplementation+&core::int nonNullableInt7 = nonEscaped.{self::Escaping::identity}(6);
+  core::_IntegerImplementation+&core::int nonNullableInt8 = escaped.{self::Escaping::dependentField};
   self::EscapingThis! escapedThis = new self::EscapingThis::•();
   escapedThis.{self::EscapingThis::escapeThis}();
-  core::int! nullableInt9 = escapedThis.{self::EscapingThis::escapingField2};
+  core::_IntegerImplementation+&core::int nullableInt9 = escapedThis.{self::EscapingThis::escapingField2};
   self::EscapingThis! nonEscapedThis = new self::EscapingThis::•();
-  core::int! nonNullableInt10 = nonEscapedThis.{self::EscapingThis::escapingField2};
+  core::_IntegerImplementation+&core::int nonNullableInt10 = nonEscapedThis.{self::EscapingThis::escapingField2};
   self::EscapingSubclass! escapedSubclass = new self::EscapingSubclass::•();
   self::EscapingSubclass::escape(escapedSubclass);
-  core::int! nullableInt11 = escapedSubclass.{self::EscapingBaseClass::escapingField3};
+  core::_IntegerImplementation+&core::int nullableInt11 = escapedSubclass.{self::EscapingBaseClass::escapingField3};
   self::EscapingSubclass! nonEscapedSubclass = new self::EscapingSubclass::•();
-  core::int! nonNullableInt12 = nonEscapedSubclass.{self::EscapingBaseClass::escapingField3};
+  core::_IntegerImplementation+&core::int nonNullableInt12 = nonEscapedSubclass.{self::EscapingBaseClass::escapingField3};
 }
 static method testCombinators() → Null {
-  core::List!<core::String!/> nonNullable = <core::String!>["foo", "bar", "baz"];
-  nonNullable.{core::Iterable::forEach}((core::String! x) → core::Null {
+  core::_GrowableList!&core::List<core::_StringBase+&core::String/> nonNullable = <core::_StringBase+&core::String>["foo", "bar", "baz"];
+  nonNullable.{core::Iterable::forEach}((core::_StringBase+&core::String x) → core::Null {
     core::print(x);
   });
-  core::String! nonNullableMapped = nonNullable.{core::Iterable::map}<core::String>((core::String! x) → core::String => x).{core::Iterable::first};
-  core::List!<core::String!?/> nullable = <core::String!?>["foo", "bar", null, "baz"];
-  nullable.{core::Iterable::forEach}((core::String!? x) → core::Null {
+  core::_StringBase+&core::String nonNullableMapped = nonNullable.{core::Iterable::map}<core::String>((core::_StringBase+&core::String x) → core::String => x).{core::Iterable::first};
+  core::_GrowableList!&core::List<core::_StringBase+?&core::String/> nullable = <core::_StringBase+?&core::String>["foo", "bar", null, "baz"];
+  nullable.{core::Iterable::forEach}((core::_StringBase+?&core::String x) → core::Null {
     core::print(x);
   });
-  core::String!? nullableMapped = nullable.{core::Iterable::map}<core::String>((core::String!? x) → core::String => x).{core::Iterable::first};
+  core::_StringBase+?&core::String nullableMapped = nullable.{core::Iterable::map}<core::String>((core::_StringBase+?&core::String x) → core::String => x).{core::Iterable::first};
 }
 static method testDefaultNulls() → Null {
   Null&core::int nullable1 = self::testReturnUninitializedVar();
   Null&core::Object nullable2 = self::testFallOverEnd();
-  core::int! nonNullableInt1 = self::testReturnLateInitializedVar();
-  core::int! nonNullableInt2 = self::testInitializedVarInBranches();
-  core::int! nonNullableInt3 = self::testInitializedInSwitch();
-  core::int!? nullableInt1 = self::testUninitializedInSwitch();
-  core::int!? nullableInt2 = self::testReturnMaybeInitializedVar();
-  core::int!? nullableInt3 = self::testMaybeAssignedInLogicalOr();
-  core::int!? nullableInt4 = self::testMaybeAssignedInLogicalAnd();
-  core::int!? nonNullableInt4 = self::testGuardedByLogicalAnd();
-  core::int!? nullableInt5 = self::testNotGuardedByLogicalOr();
-  core::int!? nonNullableInt5 = self::testGuardedByLogicalOr();
+  core::_IntegerImplementation+&core::int nonNullableInt1 = self::testReturnLateInitializedVar();
+  core::_IntegerImplementation+&core::int nonNullableInt2 = self::testInitializedVarInBranches();
+  core::_IntegerImplementation+&core::int nonNullableInt3 = self::testInitializedInSwitch();
+  core::_IntegerImplementation+?&core::int nullableInt1 = self::testUninitializedInSwitch();
+  core::_IntegerImplementation+?&core::int nullableInt2 = self::testReturnMaybeInitializedVar();
+  core::_IntegerImplementation+?&core::int nullableInt3 = self::testMaybeAssignedInLogicalOr();
+  core::_IntegerImplementation+?&core::int nullableInt4 = self::testMaybeAssignedInLogicalAnd();
+  core::_IntegerImplementation+?&core::int nonNullableInt4 = self::testGuardedByLogicalAnd();
+  core::_IntegerImplementation+?&core::int nullableInt5 = self::testNotGuardedByLogicalOr();
+  core::_IntegerImplementation+?&core::int nonNullableInt5 = self::testGuardedByLogicalOr();
 }
 static method testReturnUninitializedVar() → Null&core::int {
   Null&core::Object uninitialized;
   return uninitialized;
 }
-static method testReturnLateInitializedVar() → core::int! {
-  core::int!&core::Object v;
+static method testReturnLateInitializedVar() → core::_IntegerImplementation+&core::int {
+  core::_IntegerImplementation+&core::Object v;
   v = 45;
   return v;
 }
-static method testReturnMaybeInitializedVar() → core::int!? {
-  core::int!?&core::Object v;
+static method testReturnMaybeInitializedVar() → core::_IntegerImplementation+?&core::int {
+  core::_IntegerImplementation+?&core::Object v;
   if(self::unknownInt.{core::num::>}(1)) {
     v = 45;
   }
   return v;
 }
-static method testInitializedVarInBranches() → core::int! {
-  core::int!&core::Object v;
+static method testInitializedVarInBranches() → core::_IntegerImplementation+&core::int {
+  core::_IntegerImplementation+&core::Object v;
   if(self::unknownInt.{core::num::>}(10)) {
     v = 45;
   }
@@ -497,8 +497,8 @@ static method testInitializedVarInBranches() → core::int! {
         }
   return v;
 }
-static method testInitializedInSwitch() → core::int! {
-  core::int! v;
+static method testInitializedInSwitch() → core::_IntegerImplementation+&core::int {
+  core::_IntegerImplementation+&core::int v;
   #L1:
   switch(self::unknownInt) {
     #L2:
@@ -522,8 +522,8 @@ static method testInitializedInSwitch() → core::int! {
   }
   return v;
 }
-static method testUninitializedInSwitch() → core::int!? {
-  core::int!? v;
+static method testUninitializedInSwitch() → core::_IntegerImplementation+?&core::int {
+  core::_IntegerImplementation+?&core::int v;
   #L5:
   switch(self::unknownInt) {
     #L6:
@@ -541,32 +541,32 @@ static method testUninitializedInSwitch() → core::int!? {
   }
   return v;
 }
-static method testMaybeAssignedInLogicalOr() → core::int!? {
-  core::int!? v;
+static method testMaybeAssignedInLogicalOr() → core::_IntegerImplementation+?&core::int {
+  core::_IntegerImplementation+?&core::int v;
   self::unknownInt.{core::num::==}(0) || (v = 3).{core::num::>}(0);
   return v;
 }
-static method testMaybeAssignedInLogicalAnd() → core::int!? {
-  core::int!? v;
+static method testMaybeAssignedInLogicalAnd() → core::_IntegerImplementation+?&core::int {
+  core::_IntegerImplementation+?&core::int v;
   self::unknownInt.{core::num::==}(0) && (v = 3).{core::num::>}(0);
   return v;
 }
-static method testGuardedByLogicalAnd() → core::int!? {
-  core::int!? v;
+static method testGuardedByLogicalAnd() → core::_IntegerImplementation+?&core::int {
+  core::_IntegerImplementation+?&core::int v;
   if(self::unknownInt.{core::num::==}(0) && (v = 3).{core::num::>}(0)) {
     return v;
   }
   return 0;
 }
-static method testNotGuardedByLogicalOr() → core::int!? {
-  core::int!? v;
+static method testNotGuardedByLogicalOr() → core::_IntegerImplementation+?&core::int {
+  core::_IntegerImplementation+?&core::int v;
   if(self::unknownInt.{core::num::==}(0) || (v = 3).{core::num::>}(0)) {
     return v;
   }
   return 0;
 }
-static method testGuardedByLogicalOr() → core::int!? {
-  core::int!? v;
+static method testGuardedByLogicalOr() → core::_IntegerImplementation+?&core::int {
+  core::_IntegerImplementation+?&core::int v;
   if(self::unknownInt.{core::num::==}(0) || (v = 3).{core::num::>}(0)) {
     return 0;
   }

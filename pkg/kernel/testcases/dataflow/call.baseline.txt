@@ -11,7 +11,7 @@ class Callable extends core::Object {
   constructor •() → Bottom
     : super core::Object::•()
     ;
-  method call(core::int!&core::Object x) → core::String!&core::Object {
+  method call(core::_IntegerImplementation+&core::Object x) → core::_StringBase+&core::Object {
     return "string";
   }
 }
@@ -23,15 +23,15 @@ class CallableGetter extends core::Object {
     return new self::Callable::•();
 }
 static method main() → core::Object+? {
-  (core::int!&core::Object) => core::Object+? closure = (core::Object+? x) → dynamic => x;
+  (core::_IntegerImplementation+&core::Object) => core::Object+? closure = (core::Object+? x) → dynamic => x;
   core::Object+? int1 = closure.call(1);
   core::Object+? int2 = closure.call(1);
   core::Object+? int3 = closure.call.call(1);
   core::Object+? int4 = closure.call.call.call(1);
   self::Callable! callable = new self::Callable::•();
-  core::String!&core::Object string1 = callable.{self::Callable::call}(1);
-  core::String!&core::Object string2 = callable.{self::Callable::call}(1);
-  core::String!&core::Object string3 = callable.{self::Callable::call}.call(1);
+  core::_StringBase+&core::Object string1 = callable.{self::Callable::call}(1);
+  core::_StringBase+&core::Object string2 = callable.{self::Callable::call}(1);
+  core::_StringBase+&core::Object string3 = callable.{self::Callable::call}.call(1);
   core::Object+? string4 = callable.{self::Callable::call}.call.call(1);
   self::CallableGetter! callableGetter = new self::CallableGetter::•();
   core::Object+? string5 = callableGetter.call(1);

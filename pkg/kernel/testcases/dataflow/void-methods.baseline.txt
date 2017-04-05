@@ -3,13 +3,13 @@ import self as self;
 import "dart:core" as core;
 
 class Foo extends core::Object {
-  field core::List!<core::int!&core::Object/core::int!> list = <core::int!&core::Object>[1, 2, 3];
+  field core::_GrowableList!&core::List<core::_IntegerImplementation+&core::Object/core::_IntegerImplementation+> list = <core::_IntegerImplementation+&core::Object>[1, 2, 3];
   constructor •() → Bottom
     : super core::Object::•()
     ;
-  set first(core::int!&core::Object x) → Null
+  set first(core::_IntegerImplementation+&core::Object x) → Null
     this.{self::Foo::list}.{core::List::[]=}(0, x);
-  operator []=(core::int!&core::Object x, core::int!&core::Object y) → Null&core::Object
+  operator []=(core::_IntegerImplementation+&core::Object x, core::_IntegerImplementation+&core::Object y) → Null&core::Object
     this.{self::Foo::list}.{core::List::[]=}(x as core::int, y);
   method clear() → Null
     this.{self::Foo::list}.{core::List::clear}();

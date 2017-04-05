@@ -2,6 +2,7 @@ library kernel.dataflow.extractor.common_values;
 
 import 'package:kernel/core_types.dart';
 import 'package:kernel/dataflow/extractor/augmented_type.dart';
+import 'package:kernel/dataflow/extractor/backend_core_types.dart';
 import 'package:kernel/dataflow/extractor/value_sink.dart';
 import 'package:kernel/dataflow/value.dart';
 
@@ -24,6 +25,11 @@ class CommonValues {
   Value boolValue;
   Value nullValue;
   Value functionValue;
+  Value growableListValue;
+  Value fixedListValue;
+  Value constListValue;
+  Value literalMapValue;
+  Value constLiteralMapValue;
 
   Value anyValue;
   Value nullableIntValue;
@@ -33,33 +39,32 @@ class CommonValues {
   Value nullableBoolValue;
   Value nullableFunctionValue;
 
-  CommonValues(CoreTypes coreTypes) {
-    intValue = new Value(coreTypes.intClass, ValueFlags.integer);
-    doubleValue = new Value(coreTypes.doubleClass, ValueFlags.double_);
-    numValue = new Value(coreTypes.numClass,
-        ValueFlags.integer | ValueFlags.double_ | ValueFlags.inexactBaseClass);
-    stringValue = new Value(coreTypes.stringClass, ValueFlags.string);
-    boolValue = new Value(coreTypes.boolClass, ValueFlags.boolean);
+  CommonValues(CoreTypes coreTypes, BackendApi backend, ValueLattice lattice) {
+    // Copy over the values redeclared by this class.
+    intValue = backend.intValue;
+    doubleValue = backend.doubleValue;
+    stringValue = backend.stringValue;
+    boolValue = backend.boolValue;
+    growableListValue = backend.growableListValue;
+    fixedListValue = backend.fixedListValue;
+    constListValue = backend.constListValue;
+    literalMapValue = backend.literalMapValue;
+    constLiteralMapValue = backend.constLiteralMapValue;
+
+    // Build other commonly used values that are not defined by the backend.
+    numValue = lattice.joinValues(intValue, doubleValue);
     nullValue = new Value(null, ValueFlags.null_);
+    // TODO: Do not treat functions as base classes.
     functionValue = new Value(coreTypes.functionClass,
         ValueFlags.other | ValueFlags.inexactBaseClass);
 
     anyValue = new Value(coreTypes.objectClass, ValueFlags.all);
-    nullableIntValue =
-        new Value(coreTypes.intClass, ValueFlags.null_ | ValueFlags.integer);
-    nullableDoubleValue =
-        new Value(coreTypes.doubleClass, ValueFlags.null_ | ValueFlags.double_);
-    nullableNumValue = new Value(
-        coreTypes.numClass,
-        ValueFlags.null_ |
-            ValueFlags.integer |
-            ValueFlags.double_ |
-            ValueFlags.inexactBaseClass);
-    nullableStringValue =
-        new Value(coreTypes.stringClass, ValueFlags.null_ | ValueFlags.string);
-    nullableBoolValue = new Value(coreTypes.boolClass, ValueFlags.boolean);
-    nullableFunctionValue = new Value(coreTypes.functionClass,
-        ValueFlags.null_ | ValueFlags.other | ValueFlags.inexactBaseClass);
+    nullableIntValue = intValue.asNullable;
+    nullableDoubleValue = doubleValue.asNullable;
+    nullableNumValue = numValue.asNullable;
+    nullableStringValue = stringValue.asNullable;
+    nullableBoolValue = boolValue.asNullable;
+    nullableFunctionValue = functionValue.asNullable;
 
     conditionType = new InterfaceAType(
         Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);
@@ -73,18 +78,9 @@ class CommonValues {
     stringType = new InterfaceAType(
         stringValue, ValueSink.nowhere, coreTypes.stringClass, const <AType>[]);
     topType = new InterfaceAType(
-        new Value(coreTypes.objectClass, ValueFlags.all),
-        ValueSink.nowhere,
-        coreTypes.objectClass, const <AType>[]);
+        anyValue, ValueSink.nowhere, coreTypes.objectClass, const <AType>[]);
     numType = new InterfaceAType(
-        new Value(
-            coreTypes.numClass,
-            ValueFlags.integer |
-                ValueFlags.double_ |
-                ValueFlags.inexactBaseClass),
-        ValueSink.nowhere,
-        coreTypes.numClass,
-        const <AType>[]);
+        numValue, ValueSink.nowhere, coreTypes.numClass, const <AType>[]);
     symbolType = new InterfaceAType(
         new Value(coreTypes.symbolClass, ValueFlags.other),
         ValueSink.nowhere,

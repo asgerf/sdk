@@ -11,7 +11,7 @@ class Foo extends core::Object {
 static method identity(self::Foo!&core::Object x) → self::Foo!&core::Object
   return x;
 static method use(core::Object+? x) → Null {}
-static method main(core::List+<core::String!/> args) → Null&core::Object {
+static method main(core::_List!&core::List<core::_StringBase+&core::String/> args) → Null&core::Object {
   self::Foo!&core::Object foo = self::identity(new self::Foo::•());
   if(args.{core::List::length}.{core::num::>}(1)) {
     foo.field = "string";

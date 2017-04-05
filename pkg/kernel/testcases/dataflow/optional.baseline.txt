@@ -10,7 +10,7 @@ class Foo extends core::Object {
   constructor •() → Bottom
     : super core::Object::•()
     ;
-  method method(core::int!&core::Object x, [core::int!?&core::Object y, core::int!?&core::Object z]) → core::String!&core::Object {
+  method method(core::_IntegerImplementation+&core::Object x, [core::_IntegerImplementation+?&core::Object y, core::_IntegerImplementation+?&core::Object z]) → core::_StringBase+&core::Object {
     return "string";
   }
 }
@@ -18,7 +18,7 @@ abstract class External extends core::Object {
   constructor •() → Bottom
     : super core::Object::•()
     ;
-  abstract method externalMethod(core::int! x, [core::int!? y, core::int!? z]) → Bottom&core::String;
+  abstract method externalMethod(core::_IntegerImplementation+&core::int x, [core::_IntegerImplementation+?&core::int y, core::_IntegerImplementation+?&core::int z]) → Bottom&core::String;
   abstract method listen(self::Listener+ listener) → Bottom;
 }
 abstract class Listener extends core::Object {
@@ -48,9 +48,9 @@ class InvalidListener extends core::Object {
 external static method createExternal() → self::External!?;
 static method main() → core::Object+? {
   self::Foo! foo = new self::Foo::•();
-  core::String!&core::Object string1 = foo.{self::Foo::method}(1);
-  core::String!&core::Object string2 = foo.{self::Foo::method}(1, 2);
-  core::String!&core::Object string3 = foo.{self::Foo::method}(1, 2, 3);
+  core::_StringBase+&core::Object string1 = foo.{self::Foo::method}(1);
+  core::_StringBase+&core::Object string2 = foo.{self::Foo::method}(1, 2);
+  core::_StringBase+&core::Object string3 = foo.{self::Foo::method}(1, 2, 3);
   self::External!? extern = self::createExternal();
   Bottom&core::String string4 = extern.{self::External::externalMethod}(1);
   Bottom&core::String string5 = extern.{self::External::externalMethod}(1, 2);

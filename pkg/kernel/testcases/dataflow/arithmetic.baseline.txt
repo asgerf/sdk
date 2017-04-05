@@ -2,17 +2,17 @@ library;
 import self as self;
 import "dart:core" as core;
 
-static method foo(core::int! x, core::int! y) → core::int! {
-  core::int! z = x.{core::num::+}(y);
+static method foo(core::_IntegerImplementation+&core::int x, core::_IntegerImplementation+&core::int y) → core::_IntegerImplementation+&core::int {
+  core::_IntegerImplementation+&core::int z = x.{core::num::+}(y);
   return z.{core::int::<<}(4);
 }
-static method loop(core::List!<core::String!&core::Object/> xs) → Null {
-  core::int! _ = xs.{core::List::length};
-  for (core::int! i = 0; i.{core::num::<}(xs.{core::List::length}); i = i.{core::num::+}(1)) {
+static method loop(core::_GrowableList!&core::List<core::_StringBase+&core::Object/> xs) → Null {
+  core::_IntegerImplementation+&core::int _ = xs.{core::List::length};
+  for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(xs.{core::List::length}); i = i.{core::num::+}(1)) {
   }
 }
 static method main() → Null&core::Object {
   self::foo(4, 5);
   self::foo(6, 7);
-  self::loop(<core::String!&core::Object>["dfg"]);
+  self::loop(<core::_StringBase+&core::Object>["dfg"]);
 }

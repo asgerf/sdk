@@ -6,7 +6,7 @@ class Foo extends core::Object {
   constructor •() → Bottom
     : super core::Object::•()
     ;
-  method instanceMethod() → core::int!&core::Object {
+  method instanceMethod() → core::_IntegerImplementation+&core::Object {
     return 123;
   }
 }
@@ -22,19 +22,19 @@ abstract class Bar extends core::Object {
   abstract method externalInstanceMethod() → Bottom&self::ExternalValue;
 }
 class Box extends core::Object {
-  field core::String!?&core::Object field = null;
+  field core::_StringBase+?&core::Object field = null;
   constructor •() → Bottom
     : super core::Object::•()
     ;
 }
 class FinalBox extends core::Object {
-  final field core::String!&core::Object finalField;
-  constructor •(core::String!&core::Object finalField) → Bottom
+  final field core::_StringBase+&core::Object finalField;
+  constructor •(core::_StringBase+&core::Object finalField) → Bottom
     : self::FinalBox::finalField = finalField, super core::Object::•()
     ;
 }
 class SubFinalBox extends self::FinalBox {
-  constructor •(core::String!&core::Object value) → Bottom
+  constructor •(core::_StringBase+&core::Object value) → Bottom
     : super self::FinalBox::•(value)
     ;
 }
@@ -50,32 +50,32 @@ class DynamicReceiver2 extends core::Object {
     ;
   method dynamicallyCalled(Bottom&core::Object x) → Null&core::Object {}
 }
-static method staticMethod() → core::String!&core::Object {
+static method staticMethod() → core::_StringBase+&core::Object {
   return "sdfg";
 }
-external static method externalStatic() → core::bool!;
+external static method externalStatic() → core::bool!?;
 external static method createBar() → self::Bar!?;
-static method stringArgument(core::String!&core::Object x) → Null&core::Object {}
-static method intArgument(core::int!&core::Object x) → Null&core::Object {}
+static method stringArgument(core::_StringBase+&core::Object x) → Null&core::Object {}
+static method intArgument(core::_IntegerImplementation+&core::Object x) → Null&core::Object {}
 static method makeDynamicCall(core::Object+ receiver) → Null {
   receiver.dynamicallyCalled("sdfg");
 }
 static method main() → Null&core::Object {
-  core::String!&core::Object x = self::staticMethod();
-  core::int!&core::Object y = new self::Foo::•().{self::Foo::instanceMethod}();
-  core::bool! z = self::externalStatic();
+  core::_StringBase+&core::Object x = self::staticMethod();
+  core::_IntegerImplementation+&core::Object y = new self::Foo::•().{self::Foo::instanceMethod}();
+  core::bool!? z = self::externalStatic();
   Bottom&self::ExternalValue w = self::createBar().{self::Bar::externalInstanceMethod}();
   self::stringArgument("sdfg");
   self::intArgument(42);
   self::Box! box = new self::Box::•();
   box.{self::Box::field} = "sdfg";
-  core::String!?&core::Object a = box.{self::Box::field};
+  core::_StringBase+?&core::Object a = box.{self::Box::field};
   self::FinalBox! finalBox = new self::FinalBox::•("dfg");
-  core::String!&core::Object b = finalBox.{self::FinalBox::finalField};
+  core::_StringBase+&core::Object b = finalBox.{self::FinalBox::finalField};
   self::SubFinalBox! subBox = new self::SubFinalBox::•("dfg");
-  core::String!&core::Object c = subBox.{self::FinalBox::finalField};
+  core::_StringBase+&core::Object c = subBox.{self::FinalBox::finalField};
   self::makeDynamicCall(new self::DynamicReceiver1::•());
   self::makeDynamicCall(new self::DynamicReceiver2::•());
-  core::List!<core::String!/> list = <core::String!>["string"];
-  core::String! d = list.{core::List::[]}(0);
+  core::_GrowableList!&core::List<core::_StringBase+&core::String/> list = <core::_StringBase+&core::String>["string"];
+  core::_StringBase+&core::String d = list.{core::List::[]}(0);
 }

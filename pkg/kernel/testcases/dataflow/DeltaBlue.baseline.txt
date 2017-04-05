@@ -12,9 +12,9 @@ class DeltaBlue extends core::Object {
   }
 }
 class Strength extends core::Object {
-  final field core::int! value;
-  final field core::String! name;
-  const constructor •(core::int! value, core::String! name) → Bottom
+  final field core::_IntegerImplementation+&core::int value;
+  final field core::_StringBase+&core::String name;
+  const constructor •(core::_IntegerImplementation+&core::int value, core::_StringBase+&core::String name) → Bottom
     : self::Strength::value = value, self::Strength::name = name, super core::Object::•()
     ;
   method nextWeaker() → self::Strength!
@@ -41,9 +41,9 @@ abstract class Constraint extends core::Object {
   abstract method markUnsatisfied() → Null;
   abstract method addToGraph() → Null;
   abstract method removeFromGraph() → Null;
-  abstract method chooseMethod(core::int! mark) → Null;
-  abstract method markInputs(core::int! mark) → Null;
-  abstract method inputsKnown(core::int! mark) → core::bool!;
+  abstract method chooseMethod(core::_IntegerImplementation+&core::int mark) → Null;
+  abstract method markInputs(core::_IntegerImplementation+&core::int mark) → Null;
+  abstract method inputsKnown(core::_IntegerImplementation+&core::int mark) → core::bool!;
   abstract method output() → self::Variable!?;
   abstract method execute() → Null;
   abstract method recalculate() → Null;
@@ -51,7 +51,7 @@ abstract class Constraint extends core::Object {
     this.{self::Constraint::addToGraph}();
     self::planner.{self::Planner::incrementalAdd}(this);
   }
-  method satisfy(core::int!&core::Object mark) → self::Constraint!? {
+  method satisfy(core::_IntegerImplementation+&core::Object mark) → self::Constraint!? {
     this.{self::Constraint::chooseMethod}(mark as core::int);
     if(!this.{self::Constraint::isSatisfied}()) {
       if(this.{self::Constraint::strength}.{core::Object::==}(self::REQUIRED)) {
@@ -89,12 +89,12 @@ abstract class UnaryConstraint extends self::Constraint {
     this.{self::UnaryConstraint::myOutput}.{self::Variable::addConstraint}(this);
     this.{self::UnaryConstraint::satisfied} = false;
   }
-  method chooseMethod(core::int! mark) → Null {
+  method chooseMethod(core::_IntegerImplementation+&core::int mark) → Null {
     this.{self::UnaryConstraint::satisfied} = !this.{self::UnaryConstraint::myOutput}.{self::Variable::mark}.{core::num::==}(mark) && self::Strength::stronger(this.{self::Constraint::strength}, this.{self::UnaryConstraint::myOutput}.{self::Variable::walkStrength});
   }
   method isSatisfied() → core::bool!
     return this.{self::UnaryConstraint::satisfied};
-  method markInputs(core::int! mark) → Null {}
+  method markInputs(core::_IntegerImplementation+&core::int mark) → Null {}
   method output() → self::Variable!?
     return this.{self::UnaryConstraint::myOutput};
   method recalculate() → Null {
@@ -106,7 +106,7 @@ abstract class UnaryConstraint extends self::Constraint {
   method markUnsatisfied() → Null {
     this.{self::UnaryConstraint::satisfied} = false;
   }
-  method inputsKnown(core::int! mark) → core::bool!
+  method inputsKnown(core::_IntegerImplementation+&core::int mark) → core::bool!
     return true;
   method removeFromGraph() → Null {
     if(!this.{self::UnaryConstraint::myOutput}.{core::Object::==}(null))
@@ -131,12 +131,12 @@ class EditConstraint extends self::UnaryConstraint {
 abstract class BinaryConstraint extends self::Constraint {
   field self::Variable!? v1;
   field self::Variable!? v2;
-  field core::int! direction = self::NONE;
+  field core::_IntegerImplementation+&core::int direction = self::NONE;
   constructor •(self::Variable!? v1, self::Variable!? v2, self::Strength! strength) → Bottom
     : self::BinaryConstraint::v1 = v1, self::BinaryConstraint::v2 = v2, super self::Constraint::•(strength) {
     this.{self::Constraint::addConstraint}();
   }
-  method chooseMethod(core::int! mark) → Null {
+  method chooseMethod(core::_IntegerImplementation+&core::int mark) → Null {
     if(this.{self::BinaryConstraint::v1}.{self::Variable::mark}.{core::num::==}(mark)) {
       this.{self::BinaryConstraint::direction} = !this.{self::BinaryConstraint::v2}.{self::Variable::mark}.{core::num::==}(mark) && self::Strength::stronger(this.{self::Constraint::strength}, this.{self::BinaryConstraint::v2}.{self::Variable::walkStrength}) ? self::FORWARD : self::NONE;
     }
@@ -157,7 +157,7 @@ abstract class BinaryConstraint extends self::Constraint {
   }
   method isSatisfied() → core::bool!
     return !this.{self::BinaryConstraint::direction}.{core::num::==}(self::NONE);
-  method markInputs(core::int! mark) → Null {
+  method markInputs(core::_IntegerImplementation+&core::int mark) → Null {
     this.{self::BinaryConstraint::input}().{self::Variable::mark} = mark;
   }
   method input() → self::Variable!?
@@ -175,7 +175,7 @@ abstract class BinaryConstraint extends self::Constraint {
   method markUnsatisfied() → Null {
     this.{self::BinaryConstraint::direction} = self::NONE;
   }
-  method inputsKnown(core::int! mark) → core::bool! {
+  method inputsKnown(core::_IntegerImplementation+&core::int mark) → core::bool! {
     self::Variable!? i = this.{self::BinaryConstraint::input}();
     return i.{self::Variable::mark}.{core::num::==}(mark) || i.{self::Variable::stay} || i.{self::Variable::determinedBy}.{core::Object::==}(null);
   }
@@ -205,7 +205,7 @@ class ScaleConstraint extends self::BinaryConstraint {
     if(!this.{self::ScaleConstraint::offset}.{core::Object::==}(null))
       this.{self::ScaleConstraint::offset}.{self::Variable::removeConstraint}(this);
   }
-  method markInputs(core::int! mark) → Null {
+  method markInputs(core::_IntegerImplementation+&core::int mark) → Null {
     this.{=self::BinaryConstraint::markInputs}(mark);
     this.{self::ScaleConstraint::scale}.{self::Variable::mark} = this.{self::ScaleConstraint::offset}.{self::Variable::mark} = mark;
   }
@@ -235,14 +235,14 @@ class EqualityConstraint extends self::BinaryConstraint {
   }
 }
 class Variable extends core::Object {
-  field core::List!<self::Constraint+/self::Constraint+> constraints = <self::Constraint+>[];
+  field core::_GrowableList!&core::List<self::Constraint+/self::Constraint+> constraints = <self::Constraint+>[];
   field self::Constraint!? determinedBy = null;
-  field core::int! mark = 0;
+  field core::_IntegerImplementation+&core::int mark = 0;
   field self::Strength! walkStrength = self::WEAKEST;
   field core::bool! stay = true;
-  field core::int! value;
-  final field core::String! name;
-  constructor •(core::String! name, core::int! value) → Bottom
+  field core::_IntegerImplementation+&core::int value;
+  final field core::_StringBase+&core::String name;
+  constructor •(core::_StringBase+&core::String name, core::_IntegerImplementation+&core::int value) → Bottom
     : self::Variable::name = name, self::Variable::value = value, super core::Object::•()
     ;
   method addConstraint(self::Constraint+ c) → Null {
@@ -255,12 +255,12 @@ class Variable extends core::Object {
   }
 }
 class Planner extends core::Object {
-  field core::int! currentMark = 0;
+  field core::_IntegerImplementation+&core::int currentMark = 0;
   constructor •() → Bottom
     : super core::Object::•()
     ;
   method incrementalAdd(self::Constraint+ c) → Null {
-    core::int! mark = this.{self::Planner::newMark}();
+    core::_IntegerImplementation+&core::int mark = this.{self::Planner::newMark}();
     for (self::Constraint!? overridden = c.{self::Constraint::satisfy}(mark); !overridden.{core::Object::==}(null); overridden = overridden.{self::Constraint::satisfy}(mark))
       ;
   }
@@ -268,10 +268,10 @@ class Planner extends core::Object {
     self::Variable!? out = c.{self::Constraint::output}();
     c.{self::Constraint::markUnsatisfied}();
     c.{self::Constraint::removeFromGraph}();
-    core::List!<self::Constraint+/> unsatisfied = this.{self::Planner::removePropagateFrom}(out);
+    core::_GrowableList!&core::List<self::Constraint+/> unsatisfied = this.{self::Planner::removePropagateFrom}(out);
     self::Strength! strength = self::REQUIRED;
     do {
-      for (core::int! i = 0; i.{core::num::<}(unsatisfied.{core::List::length}); i = i.{core::num::+}(1)) {
+      for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(unsatisfied.{core::List::length}); i = i.{core::num::+}(1)) {
         self::Constraint+ u = unsatisfied.{core::List::[]}(i);
         if(u.{self::Constraint::strength}.{core::Object::==}(strength))
           this.{self::Planner::incrementalAdd}(u);
@@ -280,12 +280,12 @@ class Planner extends core::Object {
     }
     while (!strength.{core::Object::==}(self::WEAKEST))
   }
-  method newMark() → core::int!
+  method newMark() → core::_IntegerImplementation+&core::int
     return this.{self::Planner::currentMark} = this.{self::Planner::currentMark}.{core::num::+}(1);
-  method makePlan(core::List!<self::Constraint+/self::Constraint+> sources) → self::Plan! {
-    core::int! mark = this.{self::Planner::newMark}();
+  method makePlan(core::_GrowableList!&core::List<self::Constraint+/self::Constraint+> sources) → self::Plan! {
+    core::_IntegerImplementation+&core::int mark = this.{self::Planner::newMark}();
     self::Plan! plan = new self::Plan::•();
-    core::List!<self::Constraint+/self::Constraint+> todo = sources;
+    core::_GrowableList!&core::List<self::Constraint+/self::Constraint+> todo = sources;
     while (todo.{core::List::length}.{core::num::>}(0)) {
       self::Constraint+ c = todo.{core::List::removeLast}();
       if(!c.{self::Constraint::output}().{self::Variable::mark}.{core::num::==}(mark) && c.{self::Constraint::inputsKnown}(mark)) {
@@ -296,17 +296,17 @@ class Planner extends core::Object {
     }
     return plan;
   }
-  method extractPlanFromConstraints(core::List!<self::EditConstraint!&self::Constraint/> constraints) → self::Plan! {
-    core::List!<self::Constraint+/self::Constraint+> sources = <self::Constraint+>[];
-    for (core::int! i = 0; i.{core::num::<}(constraints.{core::List::length}); i = i.{core::num::+}(1)) {
+  method extractPlanFromConstraints(core::_GrowableList!&core::List<self::EditConstraint!&self::Constraint/> constraints) → self::Plan! {
+    core::_GrowableList!&core::List<self::Constraint+/self::Constraint+> sources = <self::Constraint+>[];
+    for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(constraints.{core::List::length}); i = i.{core::num::+}(1)) {
       self::EditConstraint!&self::Constraint c = constraints.{core::List::[]}(i);
       if(c.{self::Constraint::isInput}() && c.{self::Constraint::isSatisfied}())
         sources.{core::List::add}(c);
     }
     return this.{self::Planner::makePlan}(sources);
   }
-  method addPropagate(self::Constraint! c, core::int! mark) → core::bool! {
-    core::List!<self::Constraint+/self::Constraint+> todo = <self::Constraint+>[c];
+  method addPropagate(self::Constraint! c, core::_IntegerImplementation+&core::int mark) → core::bool! {
+    core::_GrowableList!&core::List<self::Constraint+/self::Constraint+> todo = <self::Constraint+>[c];
     while (todo.{core::List::length}.{core::num::>}(0)) {
       self::Constraint+ d = todo.{core::List::removeLast}();
       if(d.{self::Constraint::output}().{self::Variable::mark}.{core::num::==}(mark)) {
@@ -318,21 +318,21 @@ class Planner extends core::Object {
     }
     return true;
   }
-  method removePropagateFrom(self::Variable!? out) → core::List!<self::Constraint+/> {
+  method removePropagateFrom(self::Variable!? out) → core::_GrowableList!&core::List<self::Constraint+/> {
     out.{self::Variable::determinedBy} = null;
     out.{self::Variable::walkStrength} = self::WEAKEST;
     out.{self::Variable::stay} = true;
-    core::List!<self::Constraint+/self::Constraint+> unsatisfied = <self::Constraint+>[];
-    core::List!<self::Variable!?/self::Variable!?> todo = <self::Variable!?>[out];
+    core::_GrowableList!&core::List<self::Constraint+/self::Constraint+> unsatisfied = <self::Constraint+>[];
+    core::_GrowableList!&core::List<self::Variable!?/self::Variable!?> todo = <self::Variable!?>[out];
     while (todo.{core::List::length}.{core::num::>}(0)) {
       self::Variable!? v = todo.{core::List::removeLast}();
-      for (core::int! i = 0; i.{core::num::<}(v.{self::Variable::constraints}.{core::List::length}); i = i.{core::num::+}(1)) {
+      for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(v.{self::Variable::constraints}.{core::List::length}); i = i.{core::num::+}(1)) {
         self::Constraint+ c = v.{self::Variable::constraints}.{core::List::[]}(i);
         if(!c.{self::Constraint::isSatisfied}())
           unsatisfied.{core::List::add}(c);
       }
       self::Constraint!? determining = v.{self::Variable::determinedBy};
-      for (core::int! i = 0; i.{core::num::<}(v.{self::Variable::constraints}.{core::List::length}); i = i.{core::num::+}(1)) {
+      for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(v.{self::Variable::constraints}.{core::List::length}); i = i.{core::num::+}(1)) {
         self::Constraint+ next = v.{self::Variable::constraints}.{core::List::[]}(i);
         if(!next.{core::Object::==}(determining) && next.{self::Constraint::isSatisfied}()) {
           next.{self::Constraint::recalculate}();
@@ -342,9 +342,9 @@ class Planner extends core::Object {
     }
     return unsatisfied;
   }
-  method addConstraintsConsumingTo(self::Variable!? v, core::List!<self::Constraint+/self::Constraint+> coll) → Null {
+  method addConstraintsConsumingTo(self::Variable!? v, core::_GrowableList!&core::List<self::Constraint+/self::Constraint+> coll) → Null {
     self::Constraint!? determining = v.{self::Variable::determinedBy};
-    for (core::int! i = 0; i.{core::num::<}(v.{self::Variable::constraints}.{core::List::length}); i = i.{core::num::+}(1)) {
+    for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(v.{self::Variable::constraints}.{core::List::length}); i = i.{core::num::+}(1)) {
       self::Constraint+ c = v.{self::Variable::constraints}.{core::List::[]}(i);
       if(!c.{core::Object::==}(determining) && c.{self::Constraint::isSatisfied}())
         coll.{core::List::add}(c);
@@ -352,17 +352,17 @@ class Planner extends core::Object {
   }
 }
 class Plan extends core::Object {
-  field core::List!<self::Constraint+/self::Constraint+> list = <self::Constraint+>[];
+  field core::_GrowableList!&core::List<self::Constraint+/self::Constraint+> list = <self::Constraint+>[];
   constructor •() → Bottom
     : super core::Object::•()
     ;
   method addConstraint(self::Constraint+ c) → Null {
     this.{self::Plan::list}.{core::List::add}(c);
   }
-  method size() → core::int!
+  method size() → core::_IntegerImplementation+&core::int
     return this.{self::Plan::list}.{core::List::length};
   method execute() → Null {
-    for (core::int! i = 0; i.{core::num::<}(this.{self::Plan::list}.{core::List::length}); i = i.{core::num::+}(1)) {
+    for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(this.{self::Plan::list}.{core::List::length}); i = i.{core::num::+}(1)) {
       this.{self::Plan::list}.{core::List::[]}(i).{self::Constraint::execute}();
     }
   }
@@ -374,19 +374,19 @@ static const field self::Strength! STRONG_DEFAULT = const self::Strength::•(3,
 static const field self::Strength! NORMAL = const self::Strength::•(4, "normal");
 static const field self::Strength! WEAK_DEFAULT = const self::Strength::•(5, "weakDefault");
 static const field self::Strength! WEAKEST = const self::Strength::•(6, "weakest");
-static const field core::int! NONE = 1;
-static const field core::int! FORWARD = 2;
-static const field core::int! BACKWARD = 0;
+static const field core::_IntegerImplementation+&core::int NONE = 1;
+static const field core::_IntegerImplementation+&core::int FORWARD = 2;
+static const field core::_IntegerImplementation+&core::int BACKWARD = 0;
 static field self::Planner!? planner = null;
 static method main() → Null&core::Object {
   new self::DeltaBlue::•().{self::DeltaBlue::run}();
 }
-static method chainTest(core::int! n) → Null {
+static method chainTest(core::_IntegerImplementation+&core::int n) → Null {
   self::planner = new self::Planner::•();
   self::Variable!? prev = null;
   self::Variable!? first = null;
   self::Variable!? last = null;
-  for (core::int! i = 0; i.{core::num::<=}(n); i = i.{core::num::+}(1)) {
+  for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<=}(n); i = i.{core::num::+}(1)) {
     self::Variable! v = new self::Variable::•("v${i}", 0);
     if(!prev.{core::Object::==}(null))
       new self::EqualityConstraint::•(prev, v, self::REQUIRED);
@@ -399,7 +399,7 @@ static method chainTest(core::int! n) → Null {
   new self::StayConstraint::•(last, self::STRONG_DEFAULT);
   self::EditConstraint! edit = new self::EditConstraint::•(first, self::PREFERRED);
   self::Plan! plan = self::planner.{self::Planner::extractPlanFromConstraints}(<self::EditConstraint!&self::Constraint>[edit]);
-  for (core::int! i = 0; i.{core::num::<}(100); i = i.{core::num::+}(1)) {
+  for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(100); i = i.{core::num::+}(1)) {
     first.{self::Variable::value} = i;
     plan.{self::Plan::execute}();
     if(!last.{self::Variable::value}.{core::num::==}(i)) {
@@ -408,14 +408,14 @@ static method chainTest(core::int! n) → Null {
     }
   }
 }
-static method projectionTest(core::int! n) → Null {
+static method projectionTest(core::_IntegerImplementation+&core::int n) → Null {
   self::planner = new self::Planner::•();
   self::Variable! scale = new self::Variable::•("scale", 10);
   self::Variable! offset = new self::Variable::•("offset", 1000);
   self::Variable!? src = null;
   self::Variable!? dst = null;
-  core::List!<self::Variable!?/self::Variable!?> dests = <self::Variable!?>[];
-  for (core::int! i = 0; i.{core::num::<}(n); i = i.{core::num::+}(1)) {
+  core::_GrowableList!&core::List<self::Variable!?/self::Variable!?> dests = <self::Variable!?>[];
+  for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(n); i = i.{core::num::+}(1)) {
     src = new self::Variable::•("src", i);
     dst = new self::Variable::•("dst", i);
     dests.{core::List::add}(dst);
@@ -429,20 +429,20 @@ static method projectionTest(core::int! n) → Null {
   if(!src.{self::Variable::value}.{core::num::==}(5))
     core::print("Projection 2 failed");
   self::change(scale, 5);
-  for (core::int! i = 0; i.{core::num::<}(n.{core::num::-}(1)); i = i.{core::num::+}(1)) {
+  for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(n.{core::num::-}(1)); i = i.{core::num::+}(1)) {
     if(!dests.{core::List::[]}(i).{self::Variable::value}.{core::num::==}(i.{core::num::*}(5).{core::num::+}(1000)))
       core::print("Projection 3 failed");
   }
   self::change(offset, 2000);
-  for (core::int! i = 0; i.{core::num::<}(n.{core::num::-}(1)); i = i.{core::num::+}(1)) {
+  for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(n.{core::num::-}(1)); i = i.{core::num::+}(1)) {
     if(!dests.{core::List::[]}(i).{self::Variable::value}.{core::num::==}(i.{core::num::*}(5).{core::num::+}(2000)))
       core::print("Projection 4 failed");
   }
 }
-static method change(self::Variable!? v, core::int! newValue) → Null {
+static method change(self::Variable!? v, core::_IntegerImplementation+&core::int newValue) → Null {
   self::EditConstraint! edit = new self::EditConstraint::•(v, self::PREFERRED);
   self::Plan! plan = self::planner.{self::Planner::extractPlanFromConstraints}(<self::EditConstraint!>[edit]);
-  for (core::int! i = 0; i.{core::num::<}(10); i = i.{core::num::+}(1)) {
+  for (core::_IntegerImplementation+&core::int i = 0; i.{core::num::<}(10); i = i.{core::num::+}(1)) {
     v.{self::Variable::value} = newValue;
     plan.{self::Plan::execute}();
   }

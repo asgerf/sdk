@@ -9,7 +9,7 @@ static method onData(core::Object+? x) → Null {
   self::subscription.cancel();
 }
 static method main() → Null&core::Object {
-  core::String! string = core::String::fromCharCode(65);
+  core::_StringBase+&core::String string = core::String::fromCharCode(65);
   iso::_ReceivePortImpl!&iso::ReceivePort port = new iso::_ReceivePortImpl::•();
   self::subscription = port.{iso::ReceivePort::listen}(self::onData);
   port.{iso::ReceivePort::sendPort}.{iso::SendPort::send}(string);

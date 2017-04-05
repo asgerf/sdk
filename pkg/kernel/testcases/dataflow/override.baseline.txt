@@ -28,7 +28,7 @@ class Sub extends self::Base {
     return new self::Bar::•();
   }
 }
-static method main(core::List+<core::String!/> args) → Null&core::Object {
+static method main(core::_List!&core::List<core::_StringBase+&core::String/> args) → Null&core::Object {
   self::Base+ object = args.{core::List::length}.{core::num::==}(0) ? new self::Base::•() : new self::Sub::•();
   self::Foo+ a = object.{self::Base::method}();
   core::print(a);
