@@ -1207,7 +1207,6 @@ class ConstraintExtractorVisitor
       return BottomAType.nonNullable;
     }
     List<AType> typeArguments = augmentor.augmentTypeList(arguments.types);
-    // var instantiation = Substitution.empty;
     var instantiation = Substitution.instantiate(typeArguments);
     for (int i = 0; i < typeArguments.length; ++i) {
       checkTypeBound(
