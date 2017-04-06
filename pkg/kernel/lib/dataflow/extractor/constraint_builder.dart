@@ -119,7 +119,7 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
       // _GrowableArrayMarker implements 'int', so use a value filter constraint
       // for those two cases.
       // For the other built-in types we also use value filters, but this is
-      // mainly for performance and ensuring that the escape bit remains false.
+      // for performance and ensuring that the escape bit is set correctly.
       Value valueFilter;
       if (interfaceClass == coreTypes.intClass) {
         valueFilter = common.nullableIntValue;
