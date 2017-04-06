@@ -56,7 +56,8 @@ class ConstraintBuilder {
         new AssignmentToValueSink(this, source, mask, interfaceClass));
   }
 
-  void addAssignmentToKey(ValueSource source, StorageLocation sink, int mask,
+  void addAssignmentToLocation(
+      ValueSource source, StorageLocation sink, int mask,
       [Class interfaceClass]) {
     source.acceptSource(
         new AssignmentFromValueSource(this, sink, mask, interfaceClass));
@@ -82,8 +83,8 @@ class AssignmentToValueSink extends ValueSinkVisitor {
   }
 
   @override
-  visitStorageLocation(StorageLocation key) {
-    builder.addAssignmentToKey(source, key, mask, interfaceClass);
+  visitStorageLocation(StorageLocation sink) {
+    builder.addAssignmentToLocation(source, sink, mask, interfaceClass);
   }
 
   @override
@@ -113,7 +114,7 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
   }
 
   @override
-  visitStorageLocation(StorageLocation key) {
+  visitStorageLocation(StorageLocation source) {
     if (interfaceClass != null && interfaceClass != coreTypes.objectClass) {
       // Type filters do not work well for 'int' and 'num' because the class
       // _GrowableArrayMarker implements 'int', so use a value filter constraint
@@ -135,14 +136,14 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
         valueFilter = common.nullableEscapingFunctionValue;
       }
       if (valueFilter != null) {
-        builder
-            .addConstraint(new ValueFilterConstraint(key, sink, valueFilter));
+        builder.addConstraint(
+            new ValueFilterConstraint(source, sink, valueFilter));
       } else {
         builder.addConstraint(
-            new TypeFilterConstraint(key, sink, interfaceClass, mask));
+            new TypeFilterConstraint(source, sink, interfaceClass, mask));
       }
     } else {
-      builder.addConstraint(new AssignConstraint(key, sink, mask));
+      builder.addConstraint(new AssignConstraint(source, sink, mask));
     }
   }
 
@@ -172,8 +173,8 @@ class EscapeVisitor extends ValueSourceVisitor {
   EscapeVisitor(this.builder, this.guard);
 
   @override
-  visitStorageLocation(StorageLocation key) {
-    builder.addConstraint(new EscapeConstraint(key, guard: guard));
+  visitStorageLocation(StorageLocation source) {
+    builder.addConstraint(new EscapeConstraint(source, guard: guard));
   }
 
   @override
