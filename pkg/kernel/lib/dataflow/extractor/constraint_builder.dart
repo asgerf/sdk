@@ -101,6 +101,9 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
   final int mask;
   final Class interfaceClass;
 
+  CommonValues get common => builder.common;
+  CoreTypes get coreTypes => builder.coreTypes;
+
   AssignmentFromValueSource(
       this.builder, this.sink, this.mask, this.interfaceClass);
 
@@ -111,19 +114,29 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
 
   @override
   visitStorageLocation(StorageLocation key) {
-    if (interfaceClass != null) {
+    if (interfaceClass != null && interfaceClass != coreTypes.objectClass) {
       // Type filters do not work well for 'int' and 'num' because the class
       // _GrowableArrayMarker implements 'int', so use a value filter constraint
       // for those two cases.
-      if (interfaceClass == builder.coreTypes.intClass) {
-        builder.addConstraint(new ValueFilterConstraint(
-            key, sink, builder.common.nullableIntValue));
-      } else if (interfaceClass == builder.coreTypes.numClass) {
-        builder.addConstraint(new ValueFilterConstraint(
-            key, sink, builder.common.nullableNumValue));
-      } else if (interfaceClass == builder.coreTypes.functionClass) {
-        builder.addConstraint(new ValueFilterConstraint(
-            key, sink, builder.common.nullableEscapingFunctionValue));
+      // For the other built-in types we also use value filters, but this is
+      // mainly for performance and ensuring that the escape bit remains false.
+      Value valueFilter;
+      if (interfaceClass == coreTypes.intClass) {
+        valueFilter = common.nullableIntValue;
+      } else if (interfaceClass == coreTypes.numClass) {
+        valueFilter = common.nullableNumValue;
+      } else if (interfaceClass == coreTypes.doubleClass) {
+        valueFilter = common.nullableDoubleValue;
+      } else if (interfaceClass == coreTypes.stringClass) {
+        valueFilter = common.nullableStringValue;
+      } else if (interfaceClass == coreTypes.boolClass) {
+        valueFilter = common.nullableBoolValue;
+      } else if (interfaceClass == coreTypes.functionClass) {
+        valueFilter = common.nullableEscapingFunctionValue;
+      }
+      if (valueFilter != null) {
+        builder
+            .addConstraint(new ValueFilterConstraint(key, sink, valueFilter));
       } else {
         builder.addConstraint(
             new TypeFilterConstraint(key, sink, interfaceClass, mask));
