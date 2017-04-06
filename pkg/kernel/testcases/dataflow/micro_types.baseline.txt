@@ -395,12 +395,12 @@ static method testCurry() → Null {
 }
 static method testCallbackEscapeDynamic() → Null {
   function takeNullable(core::_IntegerImplementation+?&core::int x) → void {}
-  core::Function!&core::Object dynamicTakeNullable = takeNullable;
+  core::Function+&core::Object dynamicTakeNullable = takeNullable;
   dynamicTakeNullable.call(5);
   dynamicTakeNullable.call(null);
   function curryNullable() → (core::int) → void
     return (core::_IntegerImplementation+?&core::int x) → core::Null {};
-  core::Function!&core::Object dynamicCurryNullable = curryNullable;
+  core::Function+&core::Object dynamicCurryNullable = curryNullable;
   dynamicCurryNullable.call().call(5);
   dynamicCurryNullable.call().call(null);
 }
