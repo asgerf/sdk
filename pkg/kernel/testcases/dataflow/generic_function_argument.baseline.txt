@@ -1,0 +1,32 @@
+// generic_function_argument.dart:11:32: Function type arguments not yet supported
+// generic_function_argument.dart:12:29: Function type arguments not yet supported
+// generic_function_argument.dart:14:26: Function type arguments not yet supported
+// generic_function_argument.dart:15:23: Function type arguments not yet supported
+// generic_function_argument.dart:19:32: Function type arguments not yet supported
+// generic_function_argument.dart:20:29: Function type arguments not yet supported
+// generic_function_argument.dart:22:26: Function type arguments not yet supported
+// generic_function_argument.dart:23:23: Function type arguments not yet supported
+library;
+import self as self;
+import "dart:core" as core;
+
+static method identity<T extends Bottom&core::Object/Bottom>(self::identity::T x) → self::identity::T
+  return x;
+static method nullifier<T extends Bottom&core::Object/Bottom>(self::nullifier::T x) → self::nullifier::T?
+  return null;
+static method main() → Null&core::Object {
+  self::takeIdentityFunction(self::identity as <T extends core::Object>(dynamic) → dynamic, true);
+  self::takeNullifier(self::nullifier as <T extends core::Object>(dynamic) → dynamic, true);
+}
+static method takeIdentityFunction(<core::Object+?>(core::Object+?) => Bottom&core::Object id, core::bool! b) → core::Object+? {
+  Bottom&core::String nonNullableString = id.call<core::String>("string") as core::String;
+  Bottom&core::String nullableString = id.call<core::String>(b ? null : "hello") as core::String;
+  Bottom&core::int nonNullableInt = id.call<core::int>(45) as core::int;
+  Bottom&core::int nullableInt = id.call<core::int>(b ? null : 45) as core::int;
+}
+static method takeNullifier(<core::Object+?>(core::Object+?) => Bottom&core::Object nu, core::bool! b) → core::Object+? {
+  Bottom&core::String nonNullableString = nu.call<core::String>("string") as core::String;
+  Bottom&core::String nullableString = nu.call<core::String>(b ? null : "hello") as core::String;
+  Bottom&core::int nonNullableInt = nu.call<core::int>(45) as core::int;
+  Bottom&core::int nullableInt = nu.call<core::int>(b ? null : 45) as core::int;
+}
