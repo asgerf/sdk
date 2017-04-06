@@ -11,16 +11,22 @@ import '../../dataflow/value.dart';
 import '../constraints.dart';
 import 'augmented_type.dart';
 import 'hierarchy.dart';
+import 'package:kernel/core_types.dart';
+import 'package:kernel/dataflow/extractor/common_values.dart';
 
 class ConstraintBuilder {
   final ConstraintSystem constraintSystem;
   final AugmentedHierarchy hierarchy;
   final ValueLattice lattice;
+  final CommonValues common;
+
+  CoreTypes get coreTypes => lattice.coreTypes;
 
   NamedNode currentOwner;
   int currentFileOffset = -1;
 
-  ConstraintBuilder(this.hierarchy, this.constraintSystem, this.lattice);
+  ConstraintBuilder(
+      this.hierarchy, this.constraintSystem, this.lattice, this.common);
 
   void setOwner(NamedNode owner) {
     currentOwner = owner;
@@ -106,8 +112,19 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
   @override
   visitStorageLocation(StorageLocation key) {
     if (interfaceClass != null) {
-      builder
-          .addConstraint(new FilterConstraint(key, sink, interfaceClass, mask));
+      // Type filters do not work well for 'int' and 'num' because the class
+      // _GrowableArrayMarker implements 'int', so use an intersection
+      // constraint for those two cases.
+      if (interfaceClass == builder.coreTypes.intClass) {
+        builder.addConstraint(new IntersectionConstraint(
+            key, sink, builder.common.nullableIntValue));
+      } else if (interfaceClass == builder.coreTypes.numClass) {
+        builder.addConstraint(new IntersectionConstraint(
+            key, sink, builder.common.nullableNumValue));
+      } else {
+        builder.addConstraint(
+            new FilterConstraint(key, sink, interfaceClass, mask));
+      }
     } else {
       builder.addConstraint(new AssignConstraint(key, sink, mask));
     }

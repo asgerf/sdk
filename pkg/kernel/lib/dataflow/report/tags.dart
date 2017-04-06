@@ -3,7 +3,8 @@ class ConstraintTag {
   static const int AssignConstraint = 1;
   static const int GuardedValueConstraint = 2;
   static const int ValueConstraint = 3;
-  static const int FilterConstraint = 3;
+  static const int FilterConstraint = 4;
+  static const int IntersectionConstraint = 5;
 }
 
 class DebugTag {

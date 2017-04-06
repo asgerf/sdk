@@ -108,6 +108,7 @@ abstract class ConstraintVisitor<T> {
   T visitEscapeConstraint(EscapeConstraint constraint);
   T visitGuardedValueConstraint(GuardedValueConstraint constraint);
   T visitFilterConstraint(FilterConstraint constraint);
+  T visitIntersectionConstraint(IntersectionConstraint constraint);
 }
 
 /// Any value in [source] matching [mask] can flow into [destination].
@@ -272,5 +273,28 @@ class FilterConstraint extends Constraint {
   @override
   void transfer(ConstraintSolver solver) {
     solver.transferFilterConstraint(this);
+  }
+}
+
+class IntersectionConstraint extends Constraint {
+  final StorageLocation source;
+  final StorageLocation destination;
+  final Value guard;
+
+  IntersectionConstraint(this.source, this.destination, this.guard);
+
+  @override
+  T accept<T>(ConstraintVisitor<T> visitor) {
+    return visitor.visitIntersectionConstraint(this);
+  }
+
+  @override
+  void register(ConstraintSolver solver) {
+    solver.registerIntersectionConstraint(this);
+  }
+
+  @override
+  void transfer(ConstraintSolver solver) {
+    solver.transferIntersectionConstraint(this);
   }
 }

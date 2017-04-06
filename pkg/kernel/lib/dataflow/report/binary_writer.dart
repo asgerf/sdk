@@ -181,4 +181,12 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
     writer.writeClassReference(constraint.interfaceClass);
     writer.writer.writeFixedUInt32(constraint.mask);
   }
+
+  @override
+  visitIntersectionConstraint(IntersectionConstraint constraint) {
+    writer.writeByte(ConstraintTag.IntersectionConstraint);
+    writer.writeLocationReference(constraint.source);
+    writer.writeLocationReference(constraint.destination);
+    writer.writeValue(constraint.guard);
+  }
 }

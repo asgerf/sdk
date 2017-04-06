@@ -122,11 +122,27 @@ class ConstraintSolver {
     var interfaceClass = constraint.interfaceClass;
     var destination = constraint.destination;
     int mask = constraint.mask;
-    propagateValue(destination,
-        lattice.restrictValueToInterface(source.value, interfaceClass, mask));
-    if (destination.leadsToEscape) {
+    var output =
+        lattice.restrictValueToInterface(source.value, interfaceClass, mask);
+    propagateValue(destination, output);
+    if (destination.leadsToEscape && canEscape(output)) {
       propagateEscapingLocation(source);
     }
+  }
+
+  void transferIntersectionConstraint(IntersectionConstraint constraint) {
+    var source = constraint.source;
+    var destination = constraint.destination;
+    var guard = constraint.guard;
+    var output = lattice.intersectValues(source.value, guard);
+    propagateValue(destination, output);
+    if (destination.leadsToEscape && canEscape(output)) {
+      propagateEscapingLocation(source);
+    }
+  }
+
+  bool canEscape(Value value) {
+    return value.flags & ValueFlags.other != 0;
   }
 
   /// The [constraint] must be executed whenever the forward properties of
@@ -159,6 +175,11 @@ class ConstraintSolver {
   }
 
   void registerFilterConstraint(FilterConstraint constraint) {
+    addForwardDependency(constraint.source, constraint);
+    addBackwardDependency(constraint.destination, constraint);
+  }
+
+  void registerIntersectionConstraint(IntersectionConstraint constraint) {
     addForwardDependency(constraint.source, constraint);
     addBackwardDependency(constraint.destination, constraint);
   }

@@ -254,6 +254,23 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..pop()
       ..append(titleCell('Filter'));
   }
+
+  @override
+  visitIntersectionConstraint(IntersectionConstraint constraint) {
+    buffer
+      ..appendPush(rightAlignedCell())
+      ..appendLocation(constraint.destination)
+      ..pop()
+      ..append(separator())
+      ..appendPush(new TableCellElement())
+      ..appendLocation(constraint.source)
+      ..appendPush(new SpanElement()..classes.add(CssClass.constraintGuard))
+      ..appendText(' filtered by ')
+      ..appendValue(constraint.guard)
+      ..pop()
+      ..pop()
+      ..append(titleCell('Intersection'));
+  }
 }
 
 class SourceRange {

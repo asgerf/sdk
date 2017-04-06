@@ -66,8 +66,9 @@ class ConstraintExtractor {
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
     externalModel ??= new VmExternalModel(program, coreTypes, baseHierarchy);
     lattice ??= new ValueLattice(coreTypes, baseHierarchy);
-    builder ??= new ConstraintBuilder(hierarchy, constraintSystem, lattice);
     common ??= new CommonValues(coreTypes, backendApi, lattice);
+    builder ??=
+        new ConstraintBuilder(hierarchy, constraintSystem, lattice, common);
 
     generateMainEntryPoint(program);
 
