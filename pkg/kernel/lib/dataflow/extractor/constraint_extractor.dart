@@ -1207,11 +1207,8 @@ class ConstraintExtractorVisitor
       return BottomAType.nonNullable;
     }
     List<AType> typeArguments = augmentor.augmentTypeList(arguments.types);
-    if (typeArguments.isNotEmpty) {
-      fail(where, 'Function type arguments not yet supported');
-    }
-    var instantiation = Substitution.empty;
-    // var instantiation = Substitution.instantiateFunctionType(typeArguments);
+    // var instantiation = Substitution.empty;
+    var instantiation = Substitution.instantiate(typeArguments);
     for (int i = 0; i < typeArguments.length; ++i) {
       checkTypeBound(
           where,
