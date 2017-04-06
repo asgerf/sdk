@@ -117,7 +117,7 @@ class ConstraintSolver {
     }
   }
 
-  void transferFilterConstraint(FilterConstraint constraint) {
+  void transferTypeFilterConstraint(TypeFilterConstraint constraint) {
     var source = constraint.source;
     var interfaceClass = constraint.interfaceClass;
     var destination = constraint.destination;
@@ -130,7 +130,7 @@ class ConstraintSolver {
     }
   }
 
-  void transferIntersectionConstraint(IntersectionConstraint constraint) {
+  void transferValueFilterConstraint(ValueFilterConstraint constraint) {
     var source = constraint.source;
     var destination = constraint.destination;
     var guard = constraint.guard;
@@ -174,12 +174,12 @@ class ConstraintSolver {
     }
   }
 
-  void registerFilterConstraint(FilterConstraint constraint) {
+  void registerTypeFilterConstraint(TypeFilterConstraint constraint) {
     addForwardDependency(constraint.source, constraint);
     addBackwardDependency(constraint.destination, constraint);
   }
 
-  void registerIntersectionConstraint(IntersectionConstraint constraint) {
+  void registerValueFilterConstraint(ValueFilterConstraint constraint) {
     addForwardDependency(constraint.source, constraint);
     addBackwardDependency(constraint.destination, constraint);
   }

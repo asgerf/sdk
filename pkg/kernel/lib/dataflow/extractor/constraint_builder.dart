@@ -113,17 +113,17 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
   visitStorageLocation(StorageLocation key) {
     if (interfaceClass != null) {
       // Type filters do not work well for 'int' and 'num' because the class
-      // _GrowableArrayMarker implements 'int', so use an intersection
-      // constraint for those two cases.
+      // _GrowableArrayMarker implements 'int', so use a value filter constraint
+      // for those two cases.
       if (interfaceClass == builder.coreTypes.intClass) {
-        builder.addConstraint(new IntersectionConstraint(
+        builder.addConstraint(new ValueFilterConstraint(
             key, sink, builder.common.nullableIntValue));
       } else if (interfaceClass == builder.coreTypes.numClass) {
-        builder.addConstraint(new IntersectionConstraint(
+        builder.addConstraint(new ValueFilterConstraint(
             key, sink, builder.common.nullableNumValue));
       } else {
         builder.addConstraint(
-            new FilterConstraint(key, sink, interfaceClass, mask));
+            new TypeFilterConstraint(key, sink, interfaceClass, mask));
       }
     } else {
       builder.addConstraint(new AssignConstraint(key, sink, mask));

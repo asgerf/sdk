@@ -239,7 +239,7 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
   }
 
   @override
-  visitFilterConstraint(FilterConstraint constraint) {
+  visitTypeFilterConstraint(TypeFilterConstraint constraint) {
     buffer
       ..appendPush(rightAlignedCell())
       ..appendLocation(constraint.destination)
@@ -252,11 +252,11 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..appendReference(constraint.interfaceClass.reference)
       ..pop()
       ..pop()
-      ..append(titleCell('Filter'));
+      ..append(titleCell('TypeFilter'));
   }
 
   @override
-  visitIntersectionConstraint(IntersectionConstraint constraint) {
+  visitValueFilterConstraint(ValueFilterConstraint constraint) {
     buffer
       ..appendPush(rightAlignedCell())
       ..appendLocation(constraint.destination)
@@ -269,7 +269,7 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..appendValue(constraint.guard)
       ..pop()
       ..pop()
-      ..append(titleCell('Intersection'));
+      ..append(titleCell('ValueFilter'));
   }
 }
 

@@ -107,8 +107,8 @@ abstract class ConstraintVisitor<T> {
   T visitValueConstraint(ValueConstraint constraint);
   T visitEscapeConstraint(EscapeConstraint constraint);
   T visitGuardedValueConstraint(GuardedValueConstraint constraint);
-  T visitFilterConstraint(FilterConstraint constraint);
-  T visitIntersectionConstraint(IntersectionConstraint constraint);
+  T visitTypeFilterConstraint(TypeFilterConstraint constraint);
+  T visitValueFilterConstraint(ValueFilterConstraint constraint);
 }
 
 /// Any value in [source] matching [mask] can flow into [destination].
@@ -251,50 +251,50 @@ class EscapeConstraint extends Constraint {
   }
 }
 
-class FilterConstraint extends Constraint {
+class TypeFilterConstraint extends Constraint {
   final StorageLocation source;
   final StorageLocation destination;
   final Class interfaceClass;
   final int mask;
 
-  FilterConstraint(
+  TypeFilterConstraint(
       this.source, this.destination, this.interfaceClass, this.mask);
 
   @override
   T accept<T>(ConstraintVisitor<T> visitor) {
-    return visitor.visitFilterConstraint(this);
+    return visitor.visitTypeFilterConstraint(this);
   }
 
   @override
   void register(ConstraintSolver solver) {
-    solver.registerFilterConstraint(this);
+    solver.registerTypeFilterConstraint(this);
   }
 
   @override
   void transfer(ConstraintSolver solver) {
-    solver.transferFilterConstraint(this);
+    solver.transferTypeFilterConstraint(this);
   }
 }
 
-class IntersectionConstraint extends Constraint {
+class ValueFilterConstraint extends Constraint {
   final StorageLocation source;
   final StorageLocation destination;
   final Value guard;
 
-  IntersectionConstraint(this.source, this.destination, this.guard);
+  ValueFilterConstraint(this.source, this.destination, this.guard);
 
   @override
   T accept<T>(ConstraintVisitor<T> visitor) {
-    return visitor.visitIntersectionConstraint(this);
+    return visitor.visitValueFilterConstraint(this);
   }
 
   @override
   void register(ConstraintSolver solver) {
-    solver.registerIntersectionConstraint(this);
+    solver.registerValueFilterConstraint(this);
   }
 
   @override
   void transfer(ConstraintSolver solver) {
-    solver.transferIntersectionConstraint(this);
+    solver.transferValueFilterConstraint(this);
   }
 }

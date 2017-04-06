@@ -104,7 +104,7 @@ class BinaryReportReader {
           ..fileOffset = fileOffset;
 
       case ConstraintTag.FilterConstraint:
-        return new FilterConstraint(
+        return new TypeFilterConstraint(
             readLocationReference(),
             readLocationReference(),
             readClassReference(),
