@@ -54,7 +54,7 @@ static method staticMethod() → core::_StringBase+&core::Object {
   return "sdfg";
 }
 external static method externalStatic() → core::bool!?;
-external static method createBar() → self::Bar!?;
+external static method createBar() → Null&self::Bar;
 static method stringArgument(core::_StringBase+&core::Object x) → Null&core::Object {}
 static method intArgument(core::_IntegerImplementation+&core::Object x) → Null&core::Object {}
 static method makeDynamicCall(core::Object+ receiver) → Null {

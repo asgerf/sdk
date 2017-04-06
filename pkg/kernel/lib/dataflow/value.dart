@@ -8,6 +8,7 @@ import '../text/printable.dart';
 import 'extractor/value_source.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
+import 'package:kernel/util/class_set.dart';
 
 /// An abstract value, denoting a set of possible concrete values.
 ///
@@ -192,8 +193,13 @@ class ValueFlags {
 class ValueLattice {
   final CoreTypes coreTypes;
   final ClassHierarchy hierarchy;
+  final ClassSetDomain instantiatedClasses;
 
-  ValueLattice(this.coreTypes, this.hierarchy);
+  ValueLattice(this.coreTypes, this.hierarchy,
+      [ClassSetDomain instantiatedClasses])
+      : this.instantiatedClasses = instantiatedClasses ??
+            hierarchy.getClassSetDomainWhere(
+                (c) => !c.isAbstract || c == coreTypes.functionClass);
 
   /// Returns the least upper bound of two base classes, where `null` represents
   /// bottom.
@@ -258,8 +264,8 @@ class ValueLattice {
         return new Value(baseClass, flags);
       }
     }
-    var baseClassTypes = hierarchy.getSubclassesOf(baseClass);
-    var interfaceTypes = hierarchy.getSubtypesOf(interfaceClass);
+    var baseClassTypes = instantiatedClasses.getSubclassesOf(baseClass);
+    var interfaceTypes = instantiatedClasses.getSubtypesOf(interfaceClass);
     var intersection = baseClassTypes.intersection(interfaceTypes);
     var newBaseClass = intersection.getCommonBaseClass();
     if (intersection.isSingleton) {

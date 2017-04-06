@@ -18,6 +18,7 @@ import 'control_flow_state.dart';
 import 'dynamic_index.dart';
 import 'external_model.dart';
 import 'hierarchy.dart';
+import 'package:kernel/util/class_set.dart';
 import 'substitution.dart';
 import 'type_augmentor.dart';
 import 'value_sink.dart';
@@ -50,6 +51,7 @@ class ConstraintExtractor {
   ExternalModel externalModel;
   DynamicIndex dynamicIndex;
   BackendApi backendApi;
+  ClassSetDomain instantiatedClasses;
 
   CommonValues common;
 
@@ -66,6 +68,7 @@ class ConstraintExtractor {
     hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
     externalModel ??= new VmExternalModel(program, coreTypes, baseHierarchy);
     lattice ??= new ValueLattice(coreTypes, baseHierarchy);
+    instantiatedClasses = lattice.instantiatedClasses;
     common ??= new CommonValues(coreTypes, backendApi, lattice);
     builder ??=
         new ConstraintBuilder(hierarchy, constraintSystem, lattice, common);
@@ -249,7 +252,7 @@ class ConstraintExtractor {
     if (classNode == coreTypes.nullClass) return common.nullValue;
     if (classNode == coreTypes.objectClass) return common.anyValue;
 
-    ClassSet classSet = baseHierarchy.getSubtypesOf(classNode);
+    ClassSet classSet = instantiatedClasses.getSubtypesOf(classNode);
     Class baseClass = classSet.getCommonBaseClass();
     int exactness = classSet.isSingleton ? 0 : ValueFlags.inexactBaseClass;
 
@@ -269,7 +272,7 @@ class ConstraintExtractor {
     // even for clean externals.
     if (classNode == coreTypes.objectClass) return common.anyValue;
 
-    ClassSet classSet = baseHierarchy.getSubtypesOf(classNode);
+    ClassSet classSet = instantiatedClasses.getSubtypesOf(classNode);
     Class baseClass = classSet.getCommonBaseClass();
     int exactness = classSet.isSingleton ? 0 : ValueFlags.inexactBaseClass;
 

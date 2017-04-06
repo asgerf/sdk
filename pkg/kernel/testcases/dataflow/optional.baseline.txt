@@ -45,13 +45,13 @@ class InvalidListener extends core::Object {
     ;
   method event(Bottom&core::Object input, [Null&core::Object x]) → Null {}
 }
-external static method createExternal() → self::External!?;
+external static method createExternal() → Null&self::External;
 static method main() → core::Object+? {
   self::Foo! foo = new self::Foo::•();
   core::_StringBase+&core::Object string1 = foo.{self::Foo::method}(1);
   core::_StringBase+&core::Object string2 = foo.{self::Foo::method}(1, 2);
   core::_StringBase+&core::Object string3 = foo.{self::Foo::method}(1, 2, 3);
-  self::External!? extern = self::createExternal();
+  Null&self::External extern = self::createExternal();
   Bottom&core::String string4 = extern.{self::External::externalMethod}(1);
   Bottom&core::String string5 = extern.{self::External::externalMethod}(1, 2);
   Bottom&core::String string6 = extern.{self::External::externalMethod}(1, 2, 3);

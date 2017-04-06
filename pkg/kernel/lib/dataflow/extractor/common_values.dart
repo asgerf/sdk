@@ -38,6 +38,7 @@ class CommonValues {
   Value nullableStringValue;
   Value nullableBoolValue;
   Value nullableFunctionValue;
+  Value nullableEscapingFunctionValue;
 
   CommonValues(CoreTypes coreTypes, BackendApi backend, ValueLattice lattice) {
     // Copy over the values redeclared by this class.
@@ -65,6 +66,12 @@ class CommonValues {
     nullableStringValue = stringValue.asNullable;
     nullableBoolValue = boolValue.asNullable;
     nullableFunctionValue = functionValue.asNullable;
+    nullableEscapingFunctionValue = new Value(
+        coreTypes.functionClass,
+        ValueFlags.other |
+            ValueFlags.inexactBaseClass |
+            ValueFlags.null_ |
+            ValueFlags.escaping);
 
     conditionType = new InterfaceAType(
         Value.bottom, ValueSink.nowhere, coreTypes.boolClass, const <AType>[]);

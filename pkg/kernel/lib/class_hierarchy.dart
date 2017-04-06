@@ -3,10 +3,13 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.class_hierarchy;
 
-import 'ast.dart';
 import 'dart:math';
 import 'dart:typed_data';
+
+import 'ast.dart';
+import 'package:kernel/util/class_set.dart';
 import 'type_algebra.dart';
+import 'util/interval_list.dart';
 
 /// Data structure for answering various subclassing queries.
 class ClassHierarchy {
@@ -18,6 +21,8 @@ class ClassHierarchy {
   final List<Class> _topDownIndexToClass;
 
   final Map<Class, _ClassInfo> _infoFor = <Class, _ClassInfo>{};
+
+  ClassSetDomain _domain;
 
   ClassHierarchy(Program program)
       : this._internal(program, _countClasses(program));
@@ -62,6 +67,27 @@ class ClassHierarchy {
   /// True if the given class is used in an `implements` clause.
   bool isUsedAsSuperInterface(Class class_) {
     return _infoFor[class_].directImplementers.isNotEmpty;
+  }
+
+  /// Returns the classes that directly extend the given class.
+  ///
+  /// The classes are returned in topological order.
+  Iterable<Class> getDirectExtendersOf(Class class_) {
+    return _infoFor[class_].directExtenders.map((o) => o.classNode);
+  }
+
+  /// Returns the classes that directly mix-in the given class.
+  ///
+  /// The classes are returned in topological order.
+  Iterable<Class> getDirectMixersOf(Class class_) {
+    return _infoFor[class_].directMixers.map((o) => o.classNode);
+  }
+
+  /// Returns the classes that directly implement the given class.
+  ///
+  /// The classes are returned in topological order.
+  Iterable<Class> getDirectImplementersOf(Class class_) {
+    return _infoFor[class_].directImplementers.map((o) => o.classNode);
   }
 
   /// Returns the instantiation of [superclass] that is implemented by [class_],
@@ -242,12 +268,12 @@ class ClassHierarchy {
 
   /// Returns the subtypes of [class_], including itself, as a class set.
   ClassSet getSubtypesOf(Class class_) {
-    return new ClassSet(this, _infoFor[class_].subtypeIntervalList);
+    return new ClassSet(_domain, _infoFor[class_].subtypeIntervalList);
   }
 
   /// Returns the subclasses of [class_], including itself, as a class set.
   ClassSet getSubclassesOf(Class class_) {
-    return new ClassSet(this, _infoFor[class_].subclassIntervalList);
+    return new ClassSet(_domain, _infoFor[class_].subclassIntervalList);
   }
 
   /// Returns a [ClassSet] containing only the given class.
@@ -256,7 +282,16 @@ class ClassHierarchy {
     var intervalList = new Uint32List(2)
       ..[0] = index
       ..[1] = index + 1;
-    return new ClassSet(this, intervalList);
+    return new ClassSet(_domain, intervalList);
+  }
+
+  /// Returns the class hierarchy as a [ClassSetDomain].  This is a constant
+  /// time operation.
+  ClassSetDomain get classSetDomain => _domain;
+
+  /// Builds a class set domain for all classes matching the given predicate.
+  ClassSetDomain getClassSetDomainWhere(bool predicate(Class class_)) {
+    return new FilteredClassSetDomain(this, predicate);
   }
 
   /// Returns the most specific common base class of [first] and [second].
@@ -291,6 +326,8 @@ class ClassHierarchy {
   ClassHierarchy._internal(Program program, int numberOfClasses)
       : classes = new List<Class>(numberOfClasses),
         _topDownIndexToClass = new List<Class>(numberOfClasses) {
+    _domain = new _HierarchyClassSetDomain(this);
+
     // Build the class ordering based on a topological sort.
     for (var library in program.libraries) {
       for (var classNode in library.classes) {
@@ -598,10 +635,10 @@ class ClassHierarchy {
     int index = _topDownSortIndex++;
     info.topDownIndex = index;
     _topDownIndexToClass[index] = info.classNode;
-    var subclassSetBuilder = new _IntervalListBuilder()..addSingleton(index);
+    var subclassSetBuilder = new IntervalListBuilder()..addSingleton(index);
     var submixtureSetBuilder =
-        isMixedIn ? (new _IntervalListBuilder()..addSingleton(index)) : null;
-    var subtypeSetBuilder = new _IntervalListBuilder()..addSingleton(index);
+        isMixedIn ? (new IntervalListBuilder()..addSingleton(index)) : null;
+    var subtypeSetBuilder = new IntervalListBuilder()..addSingleton(index);
     for (var subtype in info.directExtenders) {
       _topDownSortVisit(subtype);
       subclassSetBuilder.addIntervalList(subtype.subclassIntervalList);
@@ -668,8 +705,8 @@ class ClassHierarchy {
       intervals += (info.subclassIntervalList.length +
               info.subtypeIntervalList.length) ~/
           2;
-      sizes += _intervalListSize(info.subclassIntervalList) +
-          _intervalListSize(info.subtypeIntervalList);
+      sizes += intervalListSize(info.subclassIntervalList) +
+          intervalListSize(info.subtypeIntervalList);
     }
     return sizes == 0 ? 1.0 : intervals / sizes;
   }
@@ -685,95 +722,6 @@ class ClassHierarchy {
     }
     return sum;
   }
-}
-
-class _IntervalListBuilder {
-  final List<int> events = <int>[];
-
-  void addInterval(int start, int end) {
-    // Add an event point for each interval end point, using the low bit to
-    // distinguish opening from closing end points. Closing end points should
-    // have the high bit to ensure they occur after an opening end point.
-    events.add(start << 1);
-    events.add((end << 1) + 1);
-  }
-
-  void addSingleton(int x) {
-    addInterval(x, x + 1);
-  }
-
-  void addIntervalList(Uint32List intervals) {
-    for (int i = 0; i < intervals.length; i += 2) {
-      addInterval(intervals[i], intervals[i + 1]);
-    }
-  }
-
-  /// Builds the union of all the intervals added to the build so far.
-  ///
-  /// If [requiredIntervalCount] is given, at least this number of intervals
-  /// must overlap at a given point for that to be included in the set.
-  List<int> buildIntervalList([int requiredIntervalCount = 1]) {
-    // Sort the event points and sweep left to right while tracking how many
-    // intervals we are currently inside.  Record an interval end point when the
-    // number of intervals drop to zero or increase from zero to one.
-    // Event points are encoded so that an opening end point occur before a
-    // closing end point at the same value.
-    events.sort();
-    int insideCount = 0; // The number of intervals we are currently inside.
-    int storeIndex = 0;
-    for (int i = 0; i < events.length; ++i) {
-      int event = events[i];
-      if (event & 1 == 0) {
-        // Start point
-        ++insideCount;
-        if (insideCount == requiredIntervalCount) {
-          // Store the results temporarily back in the event array.
-          events[storeIndex++] = event >> 1;
-        }
-      } else {
-        // End point
-        if (insideCount == requiredIntervalCount) {
-          events[storeIndex++] = event >> 1;
-        }
-        --insideCount;
-      }
-    }
-    // Copy the results over to a typed array of the correct length.
-    var result = new Uint32List(storeIndex);
-    for (int i = 0; i < storeIndex; ++i) {
-      result[i] = events[i];
-    }
-    return result;
-  }
-}
-
-bool _intervalListContains(Uint32List intervalList, int x) {
-  int low = 0, high = intervalList.length - 1;
-  if (high == -1 || x < intervalList[0] || intervalList[high] <= x) {
-    return false;
-  }
-  // Find the lower bound of x in the list.
-  // If the lower bound is at an even index, the lower bound is an opening point
-  // of an interval that contains x, otherwise it is a closing point of an
-  // interval below x and there is no interval containing x.
-  while (low < high) {
-    int mid = high - ((high - low) >> 1); // Get middle, rounding up.
-    int pivot = intervalList[mid];
-    if (pivot <= x) {
-      low = mid;
-    } else {
-      high = mid - 1;
-    }
-  }
-  return low == high && (low & 1) == 0;
-}
-
-int _intervalListSize(Uint32List intervalList) {
-  int size = 0;
-  for (int i = 0; i < intervalList.length; i += 2) {
-    size += intervalList[i + 1] - intervalList[i];
-  }
-  return size;
 }
 
 /// Returns the member with the given name, or `null` if no member has the
@@ -857,15 +805,15 @@ class _ClassInfo {
   Uint32List subtypeIntervalList;
 
   bool isSubclassOf(_ClassInfo other) {
-    return _intervalListContains(other.subclassIntervalList, topDownIndex);
+    return intervalListContains(other.subclassIntervalList, topDownIndex);
   }
 
   bool isSubmixtureOf(_ClassInfo other) {
-    return _intervalListContains(other.submixtureIntervalList, topDownIndex);
+    return intervalListContains(other.submixtureIntervalList, topDownIndex);
   }
 
   bool isSubtypeOf(_ClassInfo other) {
-    return _intervalListContains(other.subtypeIntervalList, topDownIndex);
+    return intervalListContains(other.subtypeIntervalList, topDownIndex);
   }
 
   /// Maps generic supertype classes to the instantiation implemented by this
@@ -918,69 +866,36 @@ class _ClassInfo {
   _ClassInfo(this.classNode);
 }
 
-/// An immutable set of classes, internally represented as an interval list.
-class ClassSet {
+class _HierarchyClassSetDomain extends ClassSetDomain {
   final ClassHierarchy _hierarchy;
-  final Uint32List _intervalList;
 
-  ClassSet(this._hierarchy, this._intervalList);
+  _HierarchyClassSetDomain(this._hierarchy);
 
-  bool get isEmpty => _intervalList.isEmpty;
-
-  bool get isSingleton {
-    var list = _intervalList;
-    return list.length == 2 && list[0] + 1 == list[1];
+  @override
+  Class getClassFromIndex(int index) {
+    return _hierarchy._topDownIndexToClass[index];
   }
 
-  bool contains(Class class_) {
-    return _intervalListContains(
-        _intervalList, _hierarchy._infoFor[class_].topDownIndex);
+  @override
+  int getClassIndex(Class class_) {
+    return _hierarchy._infoFor[class_].topDownIndex;
   }
 
-  bool containsAll(ClassSet other) {
-    var joined = union(other);
-    return _listEquals(_intervalList, joined._intervalList);
+  @override
+  ClassSet getSingleton(Class class_) {
+    return _hierarchy.getSingletonSet(class_);
   }
 
-  ClassSet union(ClassSet other) {
-    assert(_hierarchy == other._hierarchy);
-    if (identical(_intervalList, other._intervalList)) return this;
-    _IntervalListBuilder builder = new _IntervalListBuilder();
-    builder.addIntervalList(_intervalList);
-    builder.addIntervalList(other._intervalList);
-    return new ClassSet(_hierarchy, builder.buildIntervalList());
+  @override
+  ClassSet getSubclassesOf(Class class_) {
+    return _hierarchy.getSubclassesOf(class_);
   }
 
-  ClassSet intersection(ClassSet other) {
-    assert(_hierarchy == other._hierarchy);
-    if (identical(_intervalList, other._intervalList)) return this;
-    _IntervalListBuilder builder = new _IntervalListBuilder();
-    builder.addIntervalList(_intervalList);
-    builder.addIntervalList(other._intervalList);
-    return new ClassSet(_hierarchy, builder.buildIntervalList(2));
+  @override
+  ClassSet getSubtypesOf(Class class_) {
+    return _hierarchy.getSubtypesOf(class_);
   }
 
-  Class getCommonBaseClass() {
-    var list = _intervalList;
-    if (list.isEmpty) return null;
-    var hierarchy = _hierarchy;
-    Class candidate = hierarchy._topDownIndexToClass[list[0]];
-    while (candidate != hierarchy.rootClass) {
-      if (hierarchy.getSubclassesOf(candidate).containsAll(this)) {
-        return candidate;
-      }
-      candidate = candidate.superclass;
-    }
-    return hierarchy.rootClass;
-  }
-}
-
-bool _listEquals(List<int> first, List<int> second) {
-  if (first.length != second.length) return false;
-  for (int i = 0; i < first.length; ++i) {
-    if (first[i] != second[i]) {
-      return false;
-    }
-  }
-  return true;
+  @override
+  Class get rootClass => _hierarchy.rootClass;
 }

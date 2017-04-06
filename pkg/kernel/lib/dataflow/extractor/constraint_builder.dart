@@ -121,6 +121,9 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
       } else if (interfaceClass == builder.coreTypes.numClass) {
         builder.addConstraint(new ValueFilterConstraint(
             key, sink, builder.common.nullableNumValue));
+      } else if (interfaceClass == builder.coreTypes.functionClass) {
+        builder.addConstraint(new ValueFilterConstraint(
+            key, sink, builder.common.nullableEscapingFunctionValue));
       } else {
         builder.addConstraint(
             new TypeFilterConstraint(key, sink, interfaceClass, mask));
