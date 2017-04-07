@@ -74,6 +74,7 @@ class ConstraintExtractor {
     builder ??=
         new ConstraintBuilder(hierarchy, constraintSystem, lattice, common);
 
+    setLiteralClassTypeBounds();
     generateMainEntryPoint(program);
 
     for (var library in program.libraries) {
@@ -116,6 +117,27 @@ class ConstraintExtractor {
           bank.positionalParameters.first,
           new GlobalScope(binding),
           program.mainMethod.fileOffset);
+    }
+  }
+
+  void setLiteralClassTypeBounds() {
+    var literalValues = [
+      backendApi.growableListValue,
+      backendApi.fixedListValue,
+      backendApi.constListValue,
+      backendApi.literalMapValue,
+      backendApi.constLiteralMapValue,
+    ];
+    for (var value in literalValues) {
+      var class_ = value.baseClass;
+      if (class_.isInExternalLibrary) continue;
+      var bank = binding.getClassBank(value.baseClass);
+      for (var bound in bank.typeParameterBounds) {
+        var upperBound = bound.source as StorageLocation;
+        builder.setOwner(class_);
+        builder.setFileOffset(class_.fileOffset);
+        builder.addAssignment(common.anyValue, upperBound, ValueFlags.all);
+      }
     }
   }
 
@@ -1357,11 +1379,16 @@ class ConstraintExtractorVisitor
   @override
   AType visitStaticInvocation(StaticInvocation node) {
     var type = handleCall(node.arguments, node.target, node.fileOffset);
-    // Special case the List factory to detect growability.
+    // Special case the List factory to detect growability and fill fixed-length
+    // lists with nulls.
     if (node.targetReference == defaultListFactoryReference) {
-      return node.arguments.positional.length == 0
-          ? type.withSource(common.growableListValue)
-          : type.withSource(common.fixedListValue);
+      if (node.arguments.positional.length == 0) {
+        return type.withSource(common.growableListValue);
+      }
+      InterfaceAType listType = type;
+      AType contentType = listType.typeArguments[0];
+      builder.addAssignment(Value.null_, contentType.sink, ValueFlags.all);
+      return type.withSource(common.fixedListValue);
     }
     return type;
   }
