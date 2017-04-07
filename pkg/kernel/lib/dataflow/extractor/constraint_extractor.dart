@@ -48,7 +48,7 @@ class ConstraintExtractor {
   AugmentedHierarchy hierarchy;
   ConstraintSystem constraintSystem;
   ConstraintBuilder builder;
-  ExternalModel externalModel;
+  final ExternalModel externalModel;
   DynamicIndex dynamicIndex;
   BackendApi backendApi;
   ClassSetDomain instantiatedClasses;
@@ -63,13 +63,14 @@ class ConstraintExtractor {
     dynamicIndex ??= new DynamicIndex(program);
 
     backendApi ??= new VmApi(coreTypes);
-    constraintSystem ??= new ConstraintSystem();
-    binding ??= new Binding(constraintSystem, coreTypes);
-    hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
-    externalModel ??= new VmExternalModel(program, coreTypes, baseHierarchy);
     lattice ??= new ValueLattice(coreTypes, baseHierarchy);
-    instantiatedClasses = lattice.instantiatedClasses;
     common ??= new CommonValues(coreTypes, backendApi, lattice);
+    constraintSystem ??= new ConstraintSystem();
+    var protector = new ProtectCleanSupertype(coreTypes, common);
+    binding ??= new Binding(constraintSystem, coreTypes, externalModel,
+        cleanTypeConverter: protector.convertSupertype);
+    hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
+    instantiatedClasses = lattice.instantiatedClasses;
     builder ??=
         new ConstraintBuilder(hierarchy, constraintSystem, lattice, common);
 
@@ -130,6 +131,7 @@ class ConstraintExtractor {
   void addSupertypeConstraints(Class class_) {
     builder.setOwner(class_);
     builder.setFileOffset(class_.fileOffset);
+    if (externalModel.forceCleanSupertypes(class_)) return;
     var bank = binding.getClassBank(class_);
     for (var supertype in bank.supertypes) {
       var substitution = Substitution.fromSupertype(supertype);
@@ -1968,25 +1970,30 @@ class AllocationVisitor extends ATypeVisitor {
 /// The subclass must override [convertSource] and [convertSink] to determine
 /// how sources and sinks are converted.
 abstract class SourceSinkConverter extends ATypeVisitor<AType> {
-  ValueSource convertSource(ValueSource source);
+  ValueSource convertSource(ValueSource source, AType type);
 
-  ValueSink convertSink(ValueSink sink);
+  ValueSink convertSink(ValueSink sink, AType type);
 
   AType convertType(AType type) => type.accept(this);
+
+  ASupertype convertSupertype(ASupertype type) {
+    return new ASupertype(type.classNode, convertTypeList(type.typeArguments));
+  }
 
   List<AType> convertTypeList(List<AType> types) =>
       types.map(convertType).toList(growable: false);
 
   @override
   AType visitBottomAType(BottomAType type) {
-    return new BottomAType(convertSource(type.source), convertSink(type.sink));
+    return new BottomAType(
+        convertSource(type.source, type), convertSink(type.sink, type));
   }
 
   @override
   AType visitFunctionAType(FunctionAType type) {
     return new FunctionAType(
-        convertSource(type.source),
-        convertSink(type.sink),
+        convertSource(type.source, type),
+        convertSink(type.sink, type),
         convertTypeList(type.typeParameterBounds),
         type.requiredParameterCount,
         convertTypeList(type.positionalParameters),
@@ -2003,28 +2010,53 @@ abstract class SourceSinkConverter extends ATypeVisitor<AType> {
   @override
   AType visitInterfaceAType(InterfaceAType type) {
     return new InterfaceAType(
-        convertSource(type.source),
-        convertSink(type.sink),
+        convertSource(type.source, type),
+        convertSink(type.sink, type),
         type.classNode,
         convertTypeList(type.typeArguments));
   }
 
   @override
   AType visitTypeParameterAType(TypeParameterAType type) {
-    return new TypeParameterAType(
-        convertSource(type.source), convertSink(type.sink), type.parameter);
+    return new TypeParameterAType(convertSource(type.source, type),
+        convertSink(type.sink, type), type.parameter);
   }
 }
 
 /// Replaces all sinks in a type with [ValueSink.nowhere].
 class ProtectSinks extends SourceSinkConverter {
   @override
-  ValueSink convertSink(ValueSink sink) {
+  ValueSink convertSink(ValueSink sink, AType type) {
     return ValueSink.nowhere;
   }
 
   @override
-  ValueSource convertSource(ValueSource source) {
+  ValueSource convertSource(ValueSource source, AType type) {
+    return source;
+  }
+}
+
+class ProtectCleanSupertype extends SourceSinkConverter {
+  final CoreTypes coreTypes;
+  final CommonValues common;
+
+  ProtectCleanSupertype(this.coreTypes, this.common);
+
+  @override
+  ValueSink convertSink(ValueSink sink, AType type) {
+    return sink;
+  }
+
+  @override
+  ValueSource convertSource(ValueSource source, AType type) {
+    if (type is InterfaceAType) {
+      var class_ = type.classNode;
+      if (class_ == coreTypes.intClass) return common.intValue;
+      if (class_ == coreTypes.doubleClass) return common.doubleValue;
+      if (class_ == coreTypes.numClass) return common.numValue;
+      if (class_ == coreTypes.stringClass) return common.stringValue;
+      if (class_ == coreTypes.boolClass) return common.boolValue;
+    }
     return source;
   }
 }

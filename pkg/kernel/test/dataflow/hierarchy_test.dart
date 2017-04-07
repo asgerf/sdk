@@ -6,16 +6,25 @@ import 'package:kernel/core_types.dart';
 import 'package:kernel/dataflow/constraints.dart';
 import 'package:kernel/dataflow/extractor/augmented_type.dart';
 import 'package:kernel/dataflow/extractor/binding.dart';
+import 'package:kernel/dataflow/extractor/external_model.dart';
 import 'package:kernel/dataflow/extractor/hierarchy.dart';
 import 'package:kernel/kernel.dart';
 import 'package:test/test.dart';
+
+class NullExternalModel extends ExternalModel {
+  bool forceCleanSupertypes(Class class_) => false;
+  bool forceExternal(Member member) => false;
+  bool isCleanExternal(Member member) => false;
+  bool isEntryPoint(Member member) => false;
+}
 
 main(List<String> args) {
   var program = loadProgramFromBinary(args[0]);
   var hierarchy = new ClassHierarchy(program);
   var coreTypes = new CoreTypes(program);
   var constraintSystem = new ConstraintSystem();
-  var bindings = new Binding(constraintSystem, coreTypes);
+  var externalModel = new NullExternalModel();
+  var bindings = new Binding(constraintSystem, coreTypes, externalModel);
   var augmentedHierarchy = new AugmentedHierarchy(hierarchy, bindings);
   test('All-pairs augmented class hierarchy tests', () {
     for (Class class_ in hierarchy.classes) {

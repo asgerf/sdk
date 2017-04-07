@@ -8,7 +8,12 @@ import '../../core_types.dart';
 import '../constraints.dart';
 import '../storage_location.dart';
 import 'augmented_type.dart';
+import 'external_model.dart';
 import 'type_augmentor.dart';
+
+typedef ASupertype TypeConverter(ASupertype type);
+
+ASupertype _identity(ASupertype type) => type;
 
 /// Constructs augmented types and generates storage location banks.
 class Binding {
@@ -16,10 +21,13 @@ class Binding {
   final ConstraintSystem constraintSystem;
   final Map<Class, ClassBank> classBanks = <Class, ClassBank>{};
   final Map<Member, MemberBank> memberBanks = <Member, MemberBank>{};
+  final ExternalModel externalModel;
+  final TypeConverter cleanTypeConverter;
 
   GlobalAugmentorScope _augmentorScope;
 
-  Binding(this.constraintSystem, this.coreTypes) {
+  Binding(this.constraintSystem, this.coreTypes, this.externalModel,
+      {this.cleanTypeConverter: _identity}) {
     _augmentorScope = new GlobalAugmentorScope(this);
   }
 
@@ -70,6 +78,11 @@ class Binding {
     bank.supertypes = class_.supers
         .map((s) => augmentor.augmentSuper(s))
         .toList(growable: false);
+    if (externalModel.forceCleanSupertypes(class_)) {
+      for (int i = 0; i < bank.supertypes.length; ++i) {
+        bank.supertypes[i] = cleanTypeConverter(bank.supertypes[i]);
+      }
+    }
     for (int i = 0; i < class_.typeParameters.length; ++i) {
       StorageLocation location = bank.typeParameterBounds[i].source;
       bank.typeParameters[i].indexOfBound = location.index;

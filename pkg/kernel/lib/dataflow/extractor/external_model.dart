@@ -29,6 +29,10 @@ abstract class ExternalModel {
   /// The arguments will be based on worst-case assumptions based on the static
   /// types of its parameters.  The return value is considered escaping.
   bool isEntryPoint(Member member);
+
+  /// Force the type argument provided in the extends/implements clause of
+  /// the given class to be treated as non-nullable.
+  bool forceCleanSupertypes(Class class_);
 }
 
 class VmExternalModel extends ExternalModel {
@@ -38,8 +42,10 @@ class VmExternalModel extends ExternalModel {
   Class externalNameAnnotation;
   final Set<Member> forceExternals = new Set<Member>();
   final Set<Member> extraEntryPoints = new Set<Member>();
+  Library _typedDataLibrary;
 
   VmExternalModel(Program program, this.coreTypes, this.classHierarchy) {
+    _typedDataLibrary = coreTypes.getLibrary('dart:typed_data');
     externalNameAnnotation =
         coreTypes.getClass('dart:_internal', 'ExternalName');
     forceExternals.addAll(coreTypes.numClass.members);
@@ -125,6 +131,11 @@ class VmExternalModel extends ExternalModel {
 
   bool forceExternal(Member member) {
     return forceExternals.contains(member);
+  }
+
+  bool forceCleanSupertypes(Class class_) {
+    // Ensure that typed data lists implement List with a non-nullable type.
+    return class_.enclosingLibrary == _typedDataLibrary;
   }
 }
 
