@@ -4,9 +4,9 @@
 library kernel.dataflow.extractor.external_model;
 
 import '../../ast.dart';
+import '../../class_hierarchy.dart';
 import '../../core_types.dart';
-import 'package:kernel/class_hierarchy.dart';
-import 'package:kernel/dataflow/extractor/constraint_extractor.dart';
+import 'constraint_extractor.dart';
 
 abstract class ExternalModel {
   /// True if the given external [member] does not return `null` and does not
