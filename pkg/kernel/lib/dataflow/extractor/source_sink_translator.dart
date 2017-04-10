@@ -15,8 +15,7 @@ import 'package:kernel/core_types.dart';
 import 'package:kernel/dataflow/extractor/common_values.dart';
 import 'package:kernel/dataflow/extractor/constraint_builder.dart';
 
-/// Generates constraints from [ValueSource]/[ValueSink] assignments, and
-/// attaches source information to constraints.
+/// Generates constraints from [ValueSource]/[ValueSink] assignments.
 class SourceSinkTranslator extends ConstraintBuilder {
   final AugmentedHierarchy hierarchy;
   final ValueLattice lattice;
