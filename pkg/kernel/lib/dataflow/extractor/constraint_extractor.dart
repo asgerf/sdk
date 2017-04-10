@@ -97,7 +97,7 @@ class ConstraintExtractor {
     handleLiteralClassTypeBounds();
     handleMainEntryPoint(program);
 
-    // Build constriants from inheritance and member overrides.
+    // Build constraints from inheritance and member overrides.
     for (var library in program.libraries) {
       for (var class_ in library.classes) {
         handleClassInheritance(class_);
@@ -187,7 +187,7 @@ class ConstraintExtractor {
     }
   }
 
-  /// Generates constriants to account for the fact that an interface call to
+  /// Generates constraints to account for the fact that an interface call to
   /// [superMember] may concretely target [ownMember] or one of its overriders.
   ///
   /// This is not called for transitive overrides. Even if [ownMember] is

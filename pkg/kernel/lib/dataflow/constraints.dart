@@ -85,7 +85,7 @@ class ConstraintCluster {
 }
 
 abstract class Constraint {
-  /// The constraint cluster to which this constriant belongs.
+  /// The constraint cluster to which this constraint belongs.
   Reference owner;
 
   /// The index of the constraint in its cluster.
