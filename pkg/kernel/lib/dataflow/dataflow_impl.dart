@@ -22,8 +22,8 @@ class _DataflowResults extends DataflowResults {
 
     var externalModel = new VmExternalModel(program, coreTypes, hierarchy);
     var backendTypes = new VmCoreTypes(coreTypes);
-    _extractor = new ConstraintExtractor(externalModel, backendTypes)
-      ..typeErrorCallback = diagnostic?._onTypeError
+    _extractor = new ConstraintExtractor(externalModel, backendTypes,
+        typeErrorCallback: diagnostic?._onTypeError)
       ..extractFromProgram(program);
     diagnostic?._constraintSystem = _extractor.constraintSystem;
     diagnostic?._binding = _extractor.binding;

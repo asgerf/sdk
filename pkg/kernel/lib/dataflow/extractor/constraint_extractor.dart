@@ -39,7 +39,9 @@ final List<String> overloadedArithmeticOperatorNames = <String>[
 /// This follows like the type checking, where each subtyping judgement gives
 /// rise to constraints.
 class ConstraintExtractor {
-  TypeErrorCallback typeErrorCallback;
+  final ExternalModel externalModel;
+  final BackendCoreTypes backendCoreTypes;
+  final TypeErrorCallback typeErrorCallback;
 
   ValueLattice lattice;
   CoreTypes coreTypes;
@@ -48,14 +50,13 @@ class ConstraintExtractor {
   AugmentedHierarchy hierarchy;
   ConstraintSystem constraintSystem;
   ConstraintBuilder builder;
-  final ExternalModel externalModel;
   DynamicIndex _dynamicIndex;
-  BackendCoreTypes backendCoreTypes;
   ClassSetDomain instantiatedClasses;
 
   CommonValues common;
 
-  ConstraintExtractor(this.externalModel, this.backendCoreTypes);
+  ConstraintExtractor(this.externalModel, this.backendCoreTypes,
+      {this.typeErrorCallback});
 
   void extractFromProgram(Program program) {
     coreTypes ??= new CoreTypes(program);
