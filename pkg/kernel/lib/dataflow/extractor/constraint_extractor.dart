@@ -123,10 +123,10 @@ class ConstraintExtractor {
   void setLiteralClassTypeBounds() {
     var literalValues = [
       backendApi.growableListValue,
-      backendApi.fixedListValue,
-      backendApi.constListValue,
-      backendApi.literalMapValue,
-      backendApi.constLiteralMapValue,
+      backendApi.fixedLengthListValue,
+      backendApi.immutableListValue,
+      backendApi.linkedHashMapValue,
+      backendApi.immutableMapValue,
     ];
     for (var value in literalValues) {
       var class_ = value.baseClass;

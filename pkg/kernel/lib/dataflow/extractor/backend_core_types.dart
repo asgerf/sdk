@@ -13,10 +13,10 @@ abstract class BackendApi {
   Value get stringValue;
   Value get boolValue;
   Value get growableListValue;
-  Value get fixedListValue;
-  Value get constListValue;
-  Value get literalMapValue;
-  Value get constLiteralMapValue;
+  Value get fixedLengthListValue;
+  Value get immutableListValue;
+  Value get linkedHashMapValue;
+  Value get immutableMapValue;
 
   Procedure get listFactory;
 }
@@ -27,10 +27,10 @@ class VmApi extends BackendApi {
   final Value stringValue;
   final Value boolValue;
   final Value growableListValue;
-  final Value fixedListValue;
-  final Value constListValue;
-  final Value literalMapValue;
-  final Value constLiteralMapValue;
+  final Value fixedLengthListValue;
+  final Value immutableListValue;
+  final Value linkedHashMapValue;
+  final Value immutableMapValue;
 
   final Procedure listFactory;
 
@@ -45,15 +45,15 @@ class VmApi extends BackendApi {
         boolValue = new Value(coreTypes.boolClass, ValueFlags.boolean),
         growableListValue = new Value(
             coreTypes.getClass('dart:core', '_GrowableList'), ValueFlags.other),
-        fixedListValue = new Value(
+        fixedLengthListValue = new Value(
             coreTypes.getClass('dart:core', '_List'), ValueFlags.other),
-        constListValue = new Value(
+        immutableListValue = new Value(
             coreTypes.getClass('dart:core', '_ImmutableList'),
             ValueFlags.other),
-        literalMapValue = new Value(
+        linkedHashMapValue = new Value(
             coreTypes.getClass('dart:collection', 'LinkedHashMap'),
             ValueFlags.other),
-        constLiteralMapValue = new Value(
+        immutableMapValue = new Value(
             coreTypes.getClass('dart:core', '_ImmutableMap'), ValueFlags.other),
         listFactory = coreTypes.getMember('dart:core', 'List', '_internal');
 }
