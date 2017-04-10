@@ -45,10 +45,8 @@ class ExtractionResult {
   ExtractionResult(this.constraintSystem, this.binding);
 }
 
-/// Generates constraints from an AST.
-///
-/// This follows like the type checking, where each subtyping judgement gives
-/// rise to constraints.
+/// Extracts subtyping judgements from the program, which are then translated
+/// into constraints.
 class ConstraintExtractor {
   final ExternalModel externalModel;
   final BackendCoreTypes backendCoreTypes;
