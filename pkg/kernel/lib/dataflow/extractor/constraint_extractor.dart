@@ -27,6 +27,8 @@ import 'value_source.dart';
 
 typedef void TypeErrorCallback(TreeNode where, String message);
 
+/// Method names which are treated specially for numbers, in that the return
+/// type is determined based on both receiver and argument type.
 final List<String> overloadedArithmeticOperatorNames = <String>[
   '+',
   '-',
