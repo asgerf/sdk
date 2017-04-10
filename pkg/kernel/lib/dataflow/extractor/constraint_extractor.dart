@@ -35,6 +35,7 @@ final List<String> overloadedArithmeticOperatorNames = <String>[
   '%',
 ];
 
+/// The result of extracting a constraint system from a set of libaries.
 class ExtractionResult {
   final ConstraintSystem constraintSystem;
   final Binding binding;
@@ -93,7 +94,7 @@ class ConstraintExtractor {
         _augmentedHierarchy, _constraintSystem, lattice, common);
     _instantiatedClasses = lattice.instantiatedClasses;
 
-    // Build constraints for the entry point and
+    // Build the constraint system.
     handleLiteralClassTypeBounds();
     handleMainEntryPoint(program);
 
