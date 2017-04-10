@@ -4,197 +4,28 @@
 library kernel.dataflow.extractor.constraint_builder;
 
 import '../../ast.dart';
-import '../../dataflow/extractor/value_sink.dart';
-import '../../dataflow/extractor/value_source.dart';
-import '../../dataflow/storage_location.dart';
-import '../../dataflow/value.dart';
 import '../constraints.dart';
-import 'augmented_type.dart';
-import 'hierarchy.dart';
-import 'package:kernel/core_types.dart';
-import 'package:kernel/dataflow/extractor/common_values.dart';
 
-/// Generates constraints from [ValueSource]/[ValueSink] assignments, and
-/// attaches source information to constraints.
+/// Attaches source information to constraints and adds a constraint to the
+/// proper cluster in the constraint system.
 class ConstraintBuilder {
   final ConstraintSystem constraintSystem;
-  final AugmentedHierarchy hierarchy;
-  final ValueLattice lattice;
-  final CommonValues common;
 
-  CoreTypes get coreTypes => lattice.coreTypes;
+  NamedNode _currentOwner;
+  int _currentFileOffset = -1;
 
-  NamedNode currentOwner;
-  int currentFileOffset = -1;
-
-  ConstraintBuilder(
-      this.hierarchy, this.constraintSystem, this.lattice, this.common);
+  ConstraintBuilder(this.constraintSystem);
 
   void setOwner(NamedNode owner) {
-    currentOwner = owner;
+    _currentOwner = owner;
   }
 
   void setFileOffset(int fileOffset) {
-    currentFileOffset = fileOffset;
-  }
-
-  InterfaceAType getTypeAsInstanceOf(InterfaceAType subtype, Class superclass) {
-    return hierarchy.getTypeAsInstanceOf(subtype, superclass);
+    _currentFileOffset = fileOffset;
   }
 
   void addConstraint(Constraint constraint) {
     constraintSystem.addConstraint(
-        constraint, currentOwner.reference, currentFileOffset);
+        constraint, _currentOwner.reference, _currentFileOffset);
   }
-
-  void addAssignmentWithFilter(
-      ValueSource source, ValueSink sink, TypeFilter filter) {
-    addAssignment(source, sink, filter.mask, filter.interfaceClass);
-  }
-
-  void addAssignment(ValueSource source, ValueSink sink, int mask,
-      [Class interfaceClass]) {
-    sink.acceptSink(
-        new AssignmentToValueSink(this, source, mask, interfaceClass));
-  }
-
-  void addAssignmentToLocation(
-      ValueSource source, StorageLocation sink, int mask,
-      [Class interfaceClass]) {
-    source.acceptSource(
-        new AssignmentFromValueSource(this, sink, mask, interfaceClass));
-  }
-
-  void addEscape(ValueSource source, {StorageLocation guard}) {
-    source.acceptSource(new EscapeVisitor(this, guard));
-  }
-}
-
-class AssignmentToValueSink extends ValueSinkVisitor {
-  final ConstraintBuilder builder;
-  final ValueSource source;
-  final int mask;
-  final Class interfaceClass;
-
-  AssignmentToValueSink(
-      this.builder, this.source, this.mask, this.interfaceClass);
-
-  @override
-  visitEscapingSink(EscapingSink sink) {
-    builder.addEscape(source);
-  }
-
-  @override
-  visitStorageLocation(StorageLocation sink) {
-    builder.addAssignmentToLocation(source, sink, mask, interfaceClass);
-  }
-
-  @override
-  visitNowhereSink(NowhereSink sink) {}
-
-  @override
-  visitUnassignableSink(UnassignableSink sink) {
-    throw new UnassignableSinkError(sink);
-  }
-}
-
-class AssignmentFromValueSource extends ValueSourceVisitor {
-  final ConstraintBuilder builder;
-  final StorageLocation sink;
-  final int mask;
-  final Class interfaceClass;
-
-  CommonValues get common => builder.common;
-  CoreTypes get coreTypes => builder.coreTypes;
-
-  AssignmentFromValueSource(
-      this.builder, this.sink, this.mask, this.interfaceClass);
-
-  AssignmentFromValueSource get nullabilityVisitor {
-    if (mask & ~ValueFlags.null_ == 0) return this;
-    return new AssignmentFromValueSource(builder, sink, ValueFlags.null_, null);
-  }
-
-  @override
-  visitStorageLocation(StorageLocation source) {
-    if (interfaceClass != null && interfaceClass != coreTypes.objectClass) {
-      // Type filters do not work well for 'int' and 'num' because the class
-      // _GrowableArrayMarker implements 'int', so use a value filter constraint
-      // for those two cases.
-      // For the other built-in types we also use value filters, but this is
-      // for performance and ensuring that the escape bit is set correctly.
-      Value valueFilter;
-      if (interfaceClass == coreTypes.intClass) {
-        valueFilter = common.nullableIntValue;
-      } else if (interfaceClass == coreTypes.numClass) {
-        valueFilter = common.nullableNumValue;
-      } else if (interfaceClass == coreTypes.doubleClass) {
-        valueFilter = common.nullableDoubleValue;
-      } else if (interfaceClass == coreTypes.stringClass) {
-        valueFilter = common.nullableStringValue;
-      } else if (interfaceClass == coreTypes.boolClass) {
-        valueFilter = common.nullableBoolValue;
-      } else if (interfaceClass == coreTypes.functionClass) {
-        valueFilter = common.nullableEscapingFunctionValue;
-      }
-      if (valueFilter != null) {
-        builder.addConstraint(
-            new ValueFilterConstraint(source, sink, valueFilter));
-      } else {
-        builder.addConstraint(
-            new TypeFilterConstraint(source, sink, interfaceClass, mask));
-      }
-    } else {
-      builder.addConstraint(new AssignConstraint(source, sink, mask));
-    }
-  }
-
-  @override
-  visitValue(Value value) {
-    if (value.flags & mask == 0) return;
-    if (interfaceClass != null) {
-      value =
-          builder.lattice.restrictValueToInterface(value, interfaceClass, mask);
-    } else {
-      value = value.masked(mask);
-    }
-    builder.addConstraint(new ValueConstraint(sink, value));
-  }
-
-  @override
-  visitValueSourceWithNullability(ValueSourceWithNullability source) {
-    source.nullability.acceptSource(nullabilityVisitor);
-    source.base.acceptSource(this);
-  }
-}
-
-class EscapeVisitor extends ValueSourceVisitor {
-  final ConstraintBuilder builder;
-  final StorageLocation guard;
-
-  EscapeVisitor(this.builder, this.guard);
-
-  @override
-  visitStorageLocation(StorageLocation source) {
-    builder.addConstraint(new EscapeConstraint(source, guard: guard));
-  }
-
-  @override
-  visitValue(Value value) {}
-
-  @override
-  visitValueSourceWithNullability(ValueSourceWithNullability source) {
-    source.base.acceptSource(this);
-  }
-}
-
-class TypeFilter {
-  final Class interfaceClass;
-  final int valueSets;
-
-  TypeFilter(this.interfaceClass, this.valueSets);
-
-  int get mask => valueSets | ValueFlags.nonValueSetFlags;
-
-  static final TypeFilter none = new TypeFilter(null, ValueFlags.allValueSets);
 }

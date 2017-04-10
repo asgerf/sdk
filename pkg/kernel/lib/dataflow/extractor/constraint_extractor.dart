@@ -13,7 +13,7 @@ import 'augmented_type.dart';
 import 'backend_core_types.dart';
 import 'binding.dart';
 import 'common_values.dart';
-import 'constraint_builder.dart';
+import 'package:kernel/dataflow/extractor/source_sink_translator.dart';
 import 'subtype_translator.dart';
 import 'control_flow_state.dart';
 import 'dynamic_index.dart';
@@ -63,7 +63,7 @@ class ConstraintExtractor {
 
   AugmentedHierarchy _augmentedHierarchy;
   ClassSetDomain _instantiatedClasses;
-  ConstraintBuilder _builder;
+  SourceSinkTranslator _builder;
   DynamicIndex _dynamicIndex;
 
   ConstraintExtractor(
@@ -91,8 +91,8 @@ class ConstraintExtractor {
     // Build internal data structures used by for extraction.
     _dynamicIndex = new DynamicIndex(program);
     _augmentedHierarchy = new AugmentedHierarchy(hierarchy, _binding);
-    _builder = new ConstraintBuilder(
-        _augmentedHierarchy, _constraintSystem, lattice, common);
+    _builder = new SourceSinkTranslator(
+        _constraintSystem, _augmentedHierarchy, lattice, common);
     _instantiatedClasses = lattice.instantiatedClasses;
 
     // Build the constraint system.
@@ -164,7 +164,8 @@ class ConstraintExtractor {
         var upperBound = bound.source as StorageLocation;
         _builder.setOwner(class_);
         _builder.setFileOffset(class_.fileOffset);
-        _builder.addAssignment(common.anyValue, upperBound, ValueFlags.all);
+        _builder
+            .addConstraint(new ValueConstraint(upperBound, common.anyValue));
       }
     }
   }
@@ -424,7 +425,7 @@ class ConstraintExtractorVisitor
   ClassHierarchy get hierarchy => extractor.hierarchy;
   AugmentedHierarchy get augmentedHierarchy => extractor._augmentedHierarchy;
   Binding get binding => extractor._binding;
-  ConstraintBuilder get builder => extractor._builder;
+  SourceSinkTranslator get builder => extractor._builder;
   ExternalModel get externalModel => extractor.externalModel;
   Class get currentClass => currentMember.enclosingClass;
   CommonValues get common => extractor.common;
@@ -451,10 +452,14 @@ class ConstraintExtractorVisitor
         extractor.backendCoreTypes.listFactory.reference;
   }
 
+  SubtypeTranslator getSubtypeTranslator(TypeParameterScope scope) {
+    return new SubtypeTranslator(builder, scope, coreTypes);
+  }
+
   void checkTypeBound(TreeNode where, AType type, AType bound,
       [int fileOffset = TreeNode.noOffset]) {
     builder.setFileOffset(fileOffset);
-    new SubtypeTranslator(builder, scope, coreTypes).addSubBound(type, bound);
+    getSubtypeTranslator(scope).addSubBound(type, bound);
   }
 
   void checkAssignable(TreeNode where, AType from, AType to,
@@ -1871,7 +1876,7 @@ class ExternalVisitor extends ATypeVisitor {
   final bool isClean;
 
   CoreTypes get coreTypes => extractor.coreTypes;
-  ConstraintBuilder get builder => extractor._builder;
+  SourceSinkTranslator get builder => extractor._builder;
 
   ExternalVisitor(this.extractor,
       {this.isClean, this.isCovariant, this.isContravariant}) {
@@ -1970,7 +1975,7 @@ class AllocationVisitor extends ATypeVisitor {
   final StorageLocation object;
   bool isCovariant;
 
-  ConstraintBuilder get builder => extractor._builder;
+  SourceSinkTranslator get builder => extractor._builder;
 
   AllocationVisitor(this.extractor, this.object, {this.isCovariant: true});
 

@@ -7,9 +7,6 @@ import '../../ast.dart';
 import '../../text/printable.dart';
 import '../storage_location.dart';
 import '../value.dart';
-import 'constraint_builder.dart';
-import 'constraint_extractor.dart';
-import 'package:kernel/core_types.dart';
 import 'substitution.dart';
 import 'value_sink.dart';
 import 'value_source.dart';
@@ -32,16 +29,6 @@ class ASupertype implements Printable {
   }
 
   String toString() => Printable.show(this);
-}
-
-class SubtypingScope {
-  final ConstraintBuilder builder;
-  final TypeParameterScope scope;
-  final CoreTypes coreTypes;
-
-  ValueLattice get lattice => builder.lattice;
-
-  SubtypingScope(this.builder, this.scope, this.coreTypes);
 }
 
 abstract class AType implements Printable {

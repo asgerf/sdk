@@ -5,20 +5,22 @@ library kernel.dataflow.extractor.constraints_from_subtyping;
 
 import 'package:kernel/core_types.dart';
 import 'package:kernel/dataflow/extractor/augmented_type.dart';
-import 'package:kernel/dataflow/extractor/constraint_builder.dart';
 import 'package:kernel/dataflow/extractor/constraint_extractor.dart';
+import 'package:kernel/dataflow/extractor/hierarchy.dart';
+import 'package:kernel/dataflow/extractor/source_sink_translator.dart';
 import 'package:kernel/dataflow/storage_location.dart';
 import 'package:kernel/dataflow/value.dart';
 
 /// Translates subtyping judgements into constraints.
-class SubtypeTranslator implements SubtypingScope {
-  final ConstraintBuilder builder;
+class SubtypeTranslator {
+  final SourceSinkTranslator builder;
   final TypeParameterScope scope;
   final CoreTypes coreTypes;
 
   SubtypeTranslator(this.builder, this.scope, this.coreTypes);
 
   ValueLattice get lattice => builder.lattice;
+  AugmentedHierarchy get hierarchy => builder.hierarchy;
 
   /// Generates constraints to ensure [subtype] is subtype of [supertype],
   /// which includes all the derived subtyping judgements that arise from
@@ -77,7 +79,7 @@ class SubtypeTranslator implements SubtypingScope {
   /// this judgement.
   bool _checkSubtypeStructure(AType subtype, AType supertype) {
     if (subtype is InterfaceAType && supertype is InterfaceAType) {
-      var casted = builder.getTypeAsInstanceOf(subtype, supertype.classNode);
+      var casted = hierarchy.getTypeAsInstanceOf(subtype, supertype.classNode);
       if (casted == null) return false;
       for (int i = 0; i < casted.typeArguments.length; ++i) {
         var subtypeArgument = casted.typeArguments[i];
