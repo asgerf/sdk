@@ -6,6 +6,7 @@ library kernel.dataflow.extract_bench;
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
 import 'package:kernel/dataflow/constraints.dart';
+import 'package:kernel/dataflow/extractor/backend_core_types.dart';
 import 'package:kernel/dataflow/extractor/constraint_extractor.dart';
 import 'package:kernel/dataflow/extractor/external_model.dart';
 import 'package:kernel/dataflow/solver/solver.dart';
@@ -18,7 +19,8 @@ main(List<String> args) {
 
   ConstraintSystem extractConstraints() {
     var externalModel = new VmExternalModel(program, coreTypes, hierarchy);
-    var extractor = new ConstraintExtractor(externalModel);
+    var backendTypes = new VmCoreTypes(coreTypes);
+    var extractor = new ConstraintExtractor(externalModel, backendTypes);
     extractor.extractFromProgram(program);
     return extractor.constraintSystem;
   }

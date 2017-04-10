@@ -49,20 +49,19 @@ class ConstraintExtractor {
   ConstraintSystem constraintSystem;
   ConstraintBuilder builder;
   final ExternalModel externalModel;
-  DynamicIndex dynamicIndex;
+  DynamicIndex _dynamicIndex;
   BackendCoreTypes backendApi;
   ClassSetDomain instantiatedClasses;
 
   CommonValues common;
 
-  ConstraintExtractor(this.externalModel);
+  ConstraintExtractor(this.externalModel, this.backendApi);
 
   void extractFromProgram(Program program) {
     coreTypes ??= new CoreTypes(program);
     baseHierarchy ??= new ClassHierarchy(program);
-    dynamicIndex ??= new DynamicIndex(program);
+    _dynamicIndex = new DynamicIndex(program);
 
-    backendApi ??= new VmCoreTypes(coreTypes);
     lattice ??= new ValueLattice(coreTypes, baseHierarchy);
     common ??= new CommonValues(coreTypes, backendApi, lattice);
     constraintSystem ??= new ConstraintSystem();
@@ -1184,7 +1183,7 @@ class ConstraintExtractorVisitor
   AType handleDynamicCall(
       TreeNode where, AType receiver, Name name, Arguments arguments) {
     if (name.isPrivate) {
-      var targets = extractor.dynamicIndex.getGetters(name);
+      var targets = extractor._dynamicIndex.getGetters(name);
       var types = augmentor.augmentTypeList(arguments.types);
       var positional =
           arguments.positional.map(visitExpression).toList(growable: false);
