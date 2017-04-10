@@ -10,6 +10,7 @@ import 'extractor/binding.dart';
 import 'extractor/constraint_extractor.dart';
 import 'package:kernel/dataflow/constraints.dart';
 import 'package:kernel/dataflow/extractor/backend_core_types.dart';
+import 'package:kernel/dataflow/extractor/common_values.dart';
 import 'package:kernel/dataflow/extractor/external_model.dart';
 import 'package:kernel/dataflow/report/report.dart';
 import 'solver/solver.dart';

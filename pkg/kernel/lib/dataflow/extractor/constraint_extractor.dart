@@ -19,6 +19,7 @@ import 'dynamic_index.dart';
 import 'external_model.dart';
 import 'hierarchy.dart';
 import 'package:kernel/util/class_set.dart';
+import 'package:meta/meta.dart';
 import 'substitution.dart';
 import 'type_augmentor.dart';
 import 'value_sink.dart';
@@ -34,6 +35,13 @@ final List<String> overloadedArithmeticOperatorNames = <String>[
   '%',
 ];
 
+class ExtractionResult {
+  final ConstraintSystem constraintSystem;
+  final Binding binding;
+
+  ExtractionResult(this.constraintSystem, this.binding);
+}
+
 /// Generates constraints from an AST.
 ///
 /// This follows like the type checking, where each subtyping judgement gives
@@ -43,40 +51,47 @@ class ConstraintExtractor {
   final BackendCoreTypes backendCoreTypes;
   final TypeErrorCallback typeErrorCallback;
 
-  ValueLattice lattice;
-  CoreTypes coreTypes;
-  Binding binding;
   ClassHierarchy hierarchy;
-  AugmentedHierarchy augmentedHierarchy;
-  ConstraintSystem constraintSystem;
-  ConstraintBuilder builder;
-  DynamicIndex _dynamicIndex;
-  ClassSetDomain instantiatedClasses;
-
   CommonValues common;
+  CoreTypes coreTypes;
+  ValueLattice lattice;
 
-  ConstraintExtractor(this.externalModel, this.backendCoreTypes,
-      {this.typeErrorCallback,
+  ConstraintSystem _constraintSystem;
+  Binding _binding;
+
+  AugmentedHierarchy _augmentedHierarchy;
+  ClassSetDomain _instantiatedClasses;
+  ConstraintBuilder _builder;
+  DynamicIndex _dynamicIndex;
+
+  ConstraintExtractor(
+      {@required this.externalModel,
+      @required this.backendCoreTypes,
+      this.typeErrorCallback,
       this.coreTypes,
       this.hierarchy,
       this.lattice,
       this.common});
 
-  void extractFromProgram(Program program) {
+  ExtractionResult extractFromProgram(Program program) {
+    // Build shared data structures if not provided.
     coreTypes ??= new CoreTypes(program);
     hierarchy ??= new ClassHierarchy(program);
-    _dynamicIndex = new DynamicIndex(program);
-
     lattice ??= new ValueLattice(coreTypes, hierarchy);
     common ??= new CommonValues(coreTypes, backendCoreTypes, lattice);
-    constraintSystem ??= new ConstraintSystem();
+
+    // Build output data structures.
+    _constraintSystem = new ConstraintSystem();
     var protector = new ProtectCleanSupertype(coreTypes, common);
-    binding ??= new Binding(constraintSystem, coreTypes, externalModel,
+    _binding = new Binding(_constraintSystem, coreTypes, externalModel,
         cleanTypeConverter: protector.convertSupertype);
-    augmentedHierarchy ??= new AugmentedHierarchy(hierarchy, binding);
-    instantiatedClasses = lattice.instantiatedClasses;
-    builder ??= new ConstraintBuilder(
-        augmentedHierarchy, constraintSystem, lattice, common);
+
+    // Build internal data structures used by for extraction.
+    _dynamicIndex = new DynamicIndex(program);
+    _augmentedHierarchy = new AugmentedHierarchy(hierarchy, _binding);
+    _builder = new ConstraintBuilder(
+        _augmentedHierarchy, _constraintSystem, lattice, common);
+    _instantiatedClasses = lattice.instantiatedClasses;
 
     setLiteralClassTypeBounds();
     generateMainEntryPoint(program);
@@ -105,20 +120,22 @@ class ConstraintExtractor {
         analyzeMember(field, isUncheckedLibrary);
       }
     }
+
+    return new ExtractionResult(_constraintSystem, _binding);
   }
 
   void generateMainEntryPoint(Program program) {
     var function = program.mainMethod?.function;
     if (function != null && function.positionalParameters.isNotEmpty) {
-      var bank = binding.getFunctionBank(program.mainMethod);
+      var bank = _binding.getFunctionBank(program.mainMethod);
       var stringListType = new InterfaceAType(common.fixedListValue,
           ValueSink.nowhere, coreTypes.listClass, [common.stringType]);
-      builder.setOwner(program.mainMethod);
+      _builder.setOwner(program.mainMethod);
       checkAssignable(
           program.mainMethod,
           stringListType,
           bank.positionalParameters.first,
-          new GlobalScope(binding),
+          new GlobalScope(_binding),
           program.mainMethod.fileOffset);
     }
   }
@@ -134,68 +151,68 @@ class ConstraintExtractor {
     for (var value in literalValues) {
       var class_ = value.baseClass;
       if (class_.isInExternalLibrary) continue;
-      var bank = binding.getClassBank(value.baseClass);
+      var bank = _binding.getClassBank(value.baseClass);
       for (var bound in bank.typeParameterBounds) {
         var upperBound = bound.source as StorageLocation;
-        builder.setOwner(class_);
-        builder.setFileOffset(class_.fileOffset);
-        builder.addAssignment(common.anyValue, upperBound, ValueFlags.all);
+        _builder.setOwner(class_);
+        _builder.setFileOffset(class_.fileOffset);
+        _builder.addAssignment(common.anyValue, upperBound, ValueFlags.all);
       }
     }
   }
 
   void analyzeMember(Member member, bool isUncheckedLibrary) {
-    builder.setOwner(member);
+    _builder.setOwner(member);
     var class_ = member.enclosingClass;
-    var classBank = class_ == null ? null : binding.getClassBank(class_);
+    var classBank = class_ == null ? null : _binding.getClassBank(class_);
     var visitor = new ConstraintExtractorVisitor(this, member,
-        binding.getMemberBank(member), classBank, isUncheckedLibrary);
+        _binding.getMemberBank(member), classBank, isUncheckedLibrary);
     visitor.analyzeMember();
   }
 
   void addSupertypeConstraints(Class class_) {
-    builder.setOwner(class_);
-    builder.setFileOffset(class_.fileOffset);
+    _builder.setOwner(class_);
+    _builder.setFileOffset(class_.fileOffset);
     if (externalModel.forceCleanSupertypes(class_)) return;
-    var bank = binding.getClassBank(class_);
+    var bank = _binding.getClassBank(class_);
     for (var supertype in bank.supertypes) {
       var substitution = Substitution.fromSupertype(supertype);
-      var superBank = binding.getClassBank(supertype.classNode);
+      var superBank = _binding.getClassBank(supertype.classNode);
       for (int i = 0; i < supertype.typeArguments.length; ++i) {
         var typeArgument = supertype.typeArguments[i];
         var bound = superBank.typeParameterBounds[i];
         typeArgument.generateSubBoundConstraint(
             substitution.substituteBound(bound),
-            new SubtypingScope(builder, new GlobalScope(binding), coreTypes));
+            new SubtypingScope(_builder, new GlobalScope(_binding), coreTypes));
       }
     }
   }
 
   AType getterType(Class host, Member member) {
     var substitution =
-        augmentedHierarchy.getClassAsInstanceOf(host, member.enclosingClass);
-    var type = substitution.substituteType(binding.getGetterType(member));
+        _augmentedHierarchy.getClassAsInstanceOf(host, member.enclosingClass);
+    var type = substitution.substituteType(_binding.getGetterType(member));
     assert(type.isClosed(host.typeParameters));
     return type;
   }
 
   AType setterType(Class host, Member member) {
     var substitution =
-        augmentedHierarchy.getClassAsInstanceOf(host, member.enclosingClass);
-    var type = substitution.substituteType(binding.getSetterType(member));
+        _augmentedHierarchy.getClassAsInstanceOf(host, member.enclosingClass);
+    var type = substitution.substituteType(_binding.getSetterType(member));
     assert(type.isClosed(host.typeParameters));
     return type;
   }
 
   void checkOverride(
       Class host, Member ownMember, Member superMember, bool isSetter) {
-    builder.setOwner(ownMember);
+    _builder.setOwner(ownMember);
     if (isSetter) {
       checkAssignable(
           ownMember,
           setterType(host, superMember),
           setterType(host, ownMember),
-          new GlobalScope(binding),
+          new GlobalScope(_binding),
           ownMember.fileOffset);
     } else {
       var ownMemberType = getterType(host, ownMember);
@@ -210,7 +227,7 @@ class ConstraintExtractor {
         superMemberType = new ProtectSinks().convertType(superMemberType);
       }
       checkAssignable(ownMember, ownMemberType, superMemberType,
-          new GlobalScope(binding), ownMember.fileOffset);
+          new GlobalScope(_binding), ownMember.fileOffset);
     }
   }
 
@@ -225,9 +242,9 @@ class ConstraintExtractor {
     assert(from != null);
     assert(to != null);
     try {
-      builder.setFileOffset(fileOffset);
+      _builder.setFileOffset(fileOffset);
       from.generateSubtypeConstraints(
-          to, new SubtypingScope(builder, scope, coreTypes));
+          to, new SubtypingScope(_builder, scope, coreTypes));
     } on UnassignableSinkError catch (e) {
       e.assignmentLocation = where.location;
       print('$from <: $to');
@@ -279,7 +296,7 @@ class ConstraintExtractor {
     if (classNode == coreTypes.nullClass) return common.nullValue;
     if (classNode == coreTypes.objectClass) return common.anyValue;
 
-    ClassSet classSet = instantiatedClasses.getSubtypesOf(classNode);
+    ClassSet classSet = _instantiatedClasses.getSubtypesOf(classNode);
     Class baseClass = classSet.getCommonBaseClass();
     int exactness = classSet.isSingleton ? 0 : ValueFlags.inexactBaseClass;
 
@@ -299,7 +316,7 @@ class ConstraintExtractor {
     // even for clean externals.
     if (classNode == coreTypes.objectClass) return common.anyValue;
 
-    ClassSet classSet = instantiatedClasses.getSubtypesOf(classNode);
+    ClassSet classSet = _instantiatedClasses.getSubtypesOf(classNode);
     Class baseClass = classSet.getCommonBaseClass();
     int exactness = classSet.isSingleton ? 0 : ValueFlags.inexactBaseClass;
 
@@ -388,9 +405,9 @@ class ConstraintExtractorVisitor
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ClassHierarchy get hierarchy => extractor.hierarchy;
-  AugmentedHierarchy get augmentedHierarchy => extractor.augmentedHierarchy;
-  Binding get binding => extractor.binding;
-  ConstraintBuilder get builder => extractor.builder;
+  AugmentedHierarchy get augmentedHierarchy => extractor._augmentedHierarchy;
+  Binding get binding => extractor._binding;
+  ConstraintBuilder get builder => extractor._builder;
   ExternalModel get externalModel => extractor.externalModel;
   Class get currentClass => currentMember.enclosingClass;
   CommonValues get common => extractor.common;
@@ -1837,7 +1854,7 @@ class ExternalVisitor extends ATypeVisitor {
   final bool isClean;
 
   CoreTypes get coreTypes => extractor.coreTypes;
-  ConstraintBuilder get builder => extractor.builder;
+  ConstraintBuilder get builder => extractor._builder;
 
   ExternalVisitor(this.extractor,
       {this.isClean, this.isCovariant, this.isContravariant}) {
@@ -1893,7 +1910,7 @@ class ExternalVisitor extends ATypeVisitor {
       // passed to it, so mark A as having worst-case values.
       var source = type.source;
       if (source is StorageLocation) {
-        extractor.builder.addConstraint(new ValueConstraint(
+        extractor._builder.addConstraint(new ValueConstraint(
             source, extractor.getWorstCaseValueForType(type, isClean: isClean),
             canEscape: !isClean));
       }
@@ -1936,7 +1953,7 @@ class AllocationVisitor extends ATypeVisitor {
   final StorageLocation object;
   bool isCovariant;
 
-  ConstraintBuilder get builder => extractor.builder;
+  ConstraintBuilder get builder => extractor._builder;
 
   AllocationVisitor(this.extractor, this.object, {this.isCovariant: true});
 
@@ -1961,7 +1978,7 @@ class AllocationVisitor extends ATypeVisitor {
       // passed to it, so mark A as having worst-case values.
       var sink = type.sink;
       if (sink is StorageLocation) {
-        extractor.builder.addConstraint(new GuardedValueConstraint(
+        extractor._builder.addConstraint(new GuardedValueConstraint(
             object, sink, extractor.getWorstCaseValueForType(type)));
       }
     }

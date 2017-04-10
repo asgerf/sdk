@@ -19,10 +19,11 @@ main(List<String> args) {
 
   ConstraintSystem extractConstraints() {
     var externalModel = new VmExternalModel(program, coreTypes, hierarchy);
-    var backendTypes = new VmCoreTypes(coreTypes);
-    var extractor = new ConstraintExtractor(externalModel, backendTypes);
-    extractor.extractFromProgram(program);
-    return extractor.constraintSystem;
+    var backendCoreTypes = new VmCoreTypes(coreTypes);
+    var extractor = new ConstraintExtractor(
+        externalModel: externalModel, backendCoreTypes: backendCoreTypes);
+    var result = extractor.extractFromProgram(program);
+    return result.constraintSystem;
   }
 
   var watch = new Stopwatch()..start();

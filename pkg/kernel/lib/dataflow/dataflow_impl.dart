@@ -8,7 +8,7 @@ class _DataflowResults extends DataflowResults {
   CoreTypes coreTypes;
   ClassHierarchy hierarchy;
 
-  ConstraintExtractor _extractor;
+  ExtractionResult _extractionResult;
   ConstraintSolver _solver;
 
   Value _top;
@@ -17,22 +17,25 @@ class _DataflowResults extends DataflowResults {
       {this.coreTypes, this.hierarchy, DataflowDiagnosticListener diagnostic}) {
     coreTypes ??= new CoreTypes(program);
     hierarchy ??= new ClassHierarchy(program);
-    var lattice = new ValueLattice(coreTypes, hierarchy);
-
-    _top = new Value(coreTypes.objectClass, ValueFlags.all);
-
     var externalModel = new VmExternalModel(program, coreTypes, hierarchy);
-    var backendTypes = new VmCoreTypes(coreTypes);
-    _extractor = new ConstraintExtractor(externalModel, backendTypes,
+    var backendCoreTypes = new VmCoreTypes(coreTypes);
+    var lattice = new ValueLattice(coreTypes, hierarchy);
+    var common = new CommonValues(coreTypes, backendCoreTypes, lattice);
+
+    _top = common.anyValue;
+
+    var extractor = new ConstraintExtractor(
+        externalModel: externalModel,
+        backendCoreTypes: backendCoreTypes,
         typeErrorCallback: diagnostic?._onTypeError,
         coreTypes: coreTypes,
         hierarchy: hierarchy,
         lattice: lattice);
-    _extractor.extractFromProgram(program);
-    diagnostic?._constraintSystem = _extractor.constraintSystem;
-    diagnostic?._binding = _extractor.binding;
+    _extractionResult = extractor.extractFromProgram(program);
+    diagnostic?._constraintSystem = _extractionResult.constraintSystem;
+    diagnostic?._binding = _extractionResult.binding;
     _solver = new ConstraintSolver(
-        coreTypes, hierarchy, _extractor.constraintSystem,
+        coreTypes, hierarchy, _extractionResult.constraintSystem,
         report: diagnostic?._solverListener, lattice: lattice);
     diagnostic?._onBeginSolve();
     _solver.solve();
@@ -40,7 +43,7 @@ class _DataflowResults extends DataflowResults {
   }
 
   MemberDataflowResults getResultsForMember(Member member) {
-    var binding = _extractor.binding;
+    var binding = _extractionResult.binding;
     return new _MemberDataflowResults(
         binding.getMemberBank(member), binding, _solver.lattice, _top);
   }
