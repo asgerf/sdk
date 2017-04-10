@@ -113,20 +113,22 @@ class ConstraintExtractor {
       bool isUncheckedLibrary = library.importUri.scheme == 'dart';
       for (var class_ in library.classes) {
         for (var member in class_.members) {
-          analyzeMember(member, isUncheckedLibrary);
+          handleMemberBody(member, isUncheckedLibrary);
         }
       }
       for (var procedure in library.procedures) {
-        analyzeMember(procedure, isUncheckedLibrary);
+        handleMemberBody(procedure, isUncheckedLibrary);
       }
       for (var field in library.fields) {
-        analyzeMember(field, isUncheckedLibrary);
+        handleMemberBody(field, isUncheckedLibrary);
       }
     }
 
     return new ExtractionResult(_constraintSystem, _binding);
   }
 
+  /// Generates constraints for the initial call to the program's main entry
+  /// point.
   void handleMainEntryPoint(Program program) {
     var function = program.mainMethod?.function;
     if (function != null && function.positionalParameters.isNotEmpty) {
@@ -143,8 +145,8 @@ class ConstraintExtractor {
     }
   }
 
-  /// Marks the upper bound of the type parameters to literal lists and maps
-  ///
+  /// Pollutes the upper bounds of the type parameters to literal lists and maps
+  /// so that we don't need to check the bounds at every literal.
   void handleLiteralClassTypeBounds() {
     var literalValues = [
       backendCoreTypes.growableListValue,
@@ -165,15 +167,8 @@ class ConstraintExtractor {
     }
   }
 
-  void analyzeMember(Member member, bool isUncheckedLibrary) {
-    _builder.setOwner(member);
-    var class_ = member.enclosingClass;
-    var classBank = class_ == null ? null : _binding.getClassBank(class_);
-    var visitor = new ConstraintExtractorVisitor(this, member,
-        _binding.getMemberBank(member), classBank, isUncheckedLibrary);
-    visitor.analyzeMember();
-  }
-
+  /// Generates constraints for the 'extends' and 'implements' clauses of the
+  /// given class to ensure dataflow between the type parameter bounds.
   void handleClassInheritance(Class class_) {
     _builder.setOwner(class_);
     _builder.setFileOffset(class_.fileOffset);
@@ -192,22 +187,13 @@ class ConstraintExtractor {
     }
   }
 
-  AType getterType(Class host, Member member) {
-    var substitution =
-        _augmentedHierarchy.getClassAsInstanceOf(host, member.enclosingClass);
-    var type = substitution.substituteType(_binding.getGetterType(member));
-    assert(type.isClosed(host.typeParameters));
-    return type;
-  }
-
-  AType setterType(Class host, Member member) {
-    var substitution =
-        _augmentedHierarchy.getClassAsInstanceOf(host, member.enclosingClass);
-    var type = substitution.substituteType(_binding.getSetterType(member));
-    assert(type.isClosed(host.typeParameters));
-    return type;
-  }
-
+  /// Generates constriants to account for the fact that an interface call to
+  /// [superMember] may concretely target [ownMember] or one of its overriders.
+  ///
+  /// This is not called for transitive overrides. Even if [ownMember] is
+  /// abstract, we must some generate constraints, so that the constraints
+  /// system as a whole connects the super member with every concrete
+  /// implementation.
   void handleMemberOverride(
       Class host, Member ownMember, Member superMember, bool isSetter) {
     _builder.setOwner(ownMember);
@@ -233,6 +219,33 @@ class ConstraintExtractor {
       checkAssignable(ownMember, ownMemberType, superMemberType,
           new GlobalScope(_binding), ownMember.fileOffset);
     }
+  }
+
+  AType getterType(Class host, Member member) {
+    var substitution =
+        _augmentedHierarchy.getClassAsInstanceOf(host, member.enclosingClass);
+    var type = substitution.substituteType(_binding.getGetterType(member));
+    assert(type.isClosed(host.typeParameters));
+    return type;
+  }
+
+  AType setterType(Class host, Member member) {
+    var substitution =
+        _augmentedHierarchy.getClassAsInstanceOf(host, member.enclosingClass);
+    var type = substitution.substituteType(_binding.getSetterType(member));
+    assert(type.isClosed(host.typeParameters));
+    return type;
+  }
+
+  /// Generates constraints for the body of the given member, possibly using
+  /// the external model.
+  void handleMemberBody(Member member, bool isUncheckedLibrary) {
+    _builder.setOwner(member);
+    var class_ = member.enclosingClass;
+    var classBank = class_ == null ? null : _binding.getClassBank(class_);
+    var visitor = new ConstraintExtractorVisitor(this, member,
+        _binding.getMemberBank(member), classBank, isUncheckedLibrary);
+    visitor.analyzeMember();
   }
 
   /// Check that [from] is a subtype of [to].
