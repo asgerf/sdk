@@ -44,17 +44,6 @@ class SubtypingScope {
   SubtypingScope(this.builder, this.scope, this.coreTypes);
 }
 
-class TypeFilter {
-  final Class interfaceClass;
-  final int valueSets;
-
-  TypeFilter(this.interfaceClass, this.valueSets);
-
-  int get mask => valueSets | ValueFlags.nonValueSetFlags;
-
-  static final TypeFilter none = new TypeFilter(null, ValueFlags.allValueSets);
-}
-
 abstract class AType implements Printable {
   /// Describes the abstract values one may obtain by reading from a storage
   /// location with this type.
@@ -87,8 +76,6 @@ abstract class AType implements Printable {
   }
 
   accept(ATypeVisitor visitor);
-
-  TypeFilter getTypeFilter(SubtypingScope scope);
 
   AType substitute(Substitution substitution, int shift);
 
@@ -132,11 +119,6 @@ class InterfaceAType extends AType {
       : super(source, sink);
 
   accept(ATypeVisitor visitor) => visitor.visitInterfaceAType(this);
-
-  TypeFilter getTypeFilter(SubtypingScope scope) {
-    return new TypeFilter(
-        classNode, scope.lattice.getValueSetFlagsForInterface(classNode));
-  }
 
   bool containsAny(bool predicate(AType type)) =>
       predicate(this) || AType.listContainsAny(typeArguments, predicate);
@@ -201,11 +183,6 @@ class FunctionAType extends AType {
   }
 
   accept(ATypeVisitor visitor) => visitor.visitFunctionAType(this);
-
-  TypeFilter getTypeFilter(SubtypingScope scope) {
-    // TODO: filter value flags
-    return new TypeFilter(scope.coreTypes.functionClass, ValueFlags.all);
-  }
 
   bool containsAny(bool predicate(AType type)) {
     return predicate(this) ||
@@ -316,10 +293,6 @@ class FunctionTypeParameterAType extends AType {
 
   accept(ATypeVisitor visitor) => visitor.visitFunctionTypeParameterAType(this);
 
-  TypeFilter getTypeFilter(SubtypingScope scope) {
-    return TypeFilter.none;
-  }
-
   AType substitute(Substitution substitution, int shift) {
     return substitution.getInstantiation(this, shift) ?? this;
   }
@@ -338,10 +311,6 @@ class BottomAType extends AType {
   BottomAType(ValueSource source, ValueSink sink) : super(source, sink);
 
   accept(ATypeVisitor visitor) => visitor.visitBottomAType(this);
-
-  TypeFilter getTypeFilter(SubtypingScope scope) {
-    return TypeFilter.none;
-  }
 
   BottomAType substitute(Substitution substitution, int shift) => this;
 
@@ -366,10 +335,6 @@ class TypeParameterAType extends AType {
       : super(source, sink);
 
   accept(ATypeVisitor visitor) => visitor.visitTypeParameterAType(this);
-
-  TypeFilter getTypeFilter(SubtypingScope scope) {
-    return TypeFilter.none;
-  }
 
   AType substitute(Substitution substitution, int shift) {
     return substitution.getSubstitute(this) ?? this;

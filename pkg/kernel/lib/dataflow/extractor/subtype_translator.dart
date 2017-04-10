@@ -10,6 +10,7 @@ import 'package:kernel/dataflow/extractor/constraint_extractor.dart';
 import 'package:kernel/dataflow/storage_location.dart';
 import 'package:kernel/dataflow/value.dart';
 
+/// Translates subtyping judgements into constraints.
 class SubtypeTranslator implements SubtypingScope {
   final ConstraintBuilder builder;
   final TypeParameterScope scope;
@@ -21,7 +22,7 @@ class SubtypeTranslator implements SubtypingScope {
 
   void addSubtype(AType subtype, AType supertype) {
     bool ok = _checkSubtypeStructure(subtype, supertype);
-    TypeFilter filter = ok ? TypeFilter.none : supertype.getTypeFilter(this);
+    TypeFilter filter = ok ? TypeFilter.none : getTypeFilter(supertype);
     builder.addAssignmentWithFilter(subtype.source, supertype.sink, filter);
   }
 
@@ -44,7 +45,7 @@ class SubtypeTranslator implements SubtypingScope {
       addSubBound(bound, superbound);
     } else {
       bool ok = _checkSubtypeStructure(subbound, superbound);
-      var superFilter = superbound.getTypeFilter(this);
+      var superFilter = getTypeFilter(superbound);
       if (superbound.source is StorageLocation) {
         TypeFilter filter = ok ? TypeFilter.none : superFilter;
         StorageLocation superSource = superbound.source as StorageLocation;
@@ -111,5 +112,18 @@ class SubtypeTranslator implements SubtypingScope {
       return true;
     }
     return false;
+  }
+
+  TypeFilter getTypeFilter(AType type) {
+    if (type is InterfaceAType) {
+      var classNode = type.classNode;
+      return new TypeFilter(
+          classNode, lattice.getValueSetFlagsForInterface(classNode));
+    }
+    if (type is FunctionAType) {
+      return new TypeFilter(
+          coreTypes.functionClass, ValueFlags.null_ | ValueFlags.other);
+    }
+    return TypeFilter.none;
   }
 }

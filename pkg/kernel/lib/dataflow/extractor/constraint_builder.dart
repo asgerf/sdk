@@ -187,3 +187,14 @@ class EscapeVisitor extends ValueSourceVisitor {
     source.base.acceptSource(this);
   }
 }
+
+class TypeFilter {
+  final Class interfaceClass;
+  final int valueSets;
+
+  TypeFilter(this.interfaceClass, this.valueSets);
+
+  int get mask => valueSets | ValueFlags.nonValueSetFlags;
+
+  static final TypeFilter none = new TypeFilter(null, ValueFlags.allValueSets);
+}
