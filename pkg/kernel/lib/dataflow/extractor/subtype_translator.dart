@@ -20,6 +20,9 @@ class SubtypeTranslator implements SubtypingScope {
 
   ValueLattice get lattice => builder.lattice;
 
+  /// Generates constraints to ensure [subtype] is subtype of [supertype],
+  /// which includes all the derived subtyping judgements that arise from
+  /// checking that judgement.
   void addSubtype(AType subtype, AType supertype) {
     bool isValidSubtype = _checkSubtypeStructure(subtype, supertype);
     // If the subtype check failed, insert a type filter to weed out spurious
@@ -30,6 +33,9 @@ class SubtypeTranslator implements SubtypingScope {
     builder.addAssignmentWithFilter(subtype.source, supertype.sink, filter);
   }
 
+  /// Generates constraints to ensure [subbound] is a subbound of [superbound],
+  /// that is, its upper bound is a subtype thereof and its lower bound is a
+  /// supertype thereof.
   void addSubBound(AType subbound, AType superbound) {
     if (subbound is TypeParameterAType) {
       // TODO: Clean this up.
@@ -66,6 +72,9 @@ class SubtypeTranslator implements SubtypingScope {
     }
   }
 
+  /// Determines if [subtype] is a subtype of [supertype], and recursively
+  /// generates constraints for the underlying subtyping judgements that from
+  /// this judgement.
   bool _checkSubtypeStructure(AType subtype, AType supertype) {
     if (subtype is InterfaceAType && supertype is InterfaceAType) {
       var casted = builder.getTypeAsInstanceOf(subtype, supertype.classNode);
