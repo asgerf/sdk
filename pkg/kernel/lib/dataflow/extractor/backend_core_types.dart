@@ -7,7 +7,7 @@ import 'package:kernel/ast.dart';
 import 'package:kernel/core_types.dart';
 import 'package:kernel/dataflow/value.dart';
 
-abstract class BackendApi {
+abstract class BackendCoreTypes {
   Value get intValue;
   Value get doubleValue;
   Value get stringValue;
@@ -21,7 +21,7 @@ abstract class BackendApi {
   Procedure get listFactory;
 }
 
-class VmApi extends BackendApi {
+class VmCoreTypes extends BackendCoreTypes {
   final Value intValue;
   final Value doubleValue;
   final Value stringValue;
@@ -34,7 +34,7 @@ class VmApi extends BackendApi {
 
   final Procedure listFactory;
 
-  VmApi(CoreTypes coreTypes)
+  VmCoreTypes(CoreTypes coreTypes)
       : intValue = new Value(
             coreTypes.getClass('dart:core', '_IntegerImplementation'),
             ValueFlags.integer | ValueFlags.inexactBaseClass),

@@ -50,7 +50,7 @@ class ConstraintExtractor {
   ConstraintBuilder builder;
   final ExternalModel externalModel;
   DynamicIndex dynamicIndex;
-  BackendApi backendApi;
+  BackendCoreTypes backendApi;
   ClassSetDomain instantiatedClasses;
 
   CommonValues common;
@@ -62,7 +62,7 @@ class ConstraintExtractor {
     baseHierarchy ??= new ClassHierarchy(program);
     dynamicIndex ??= new DynamicIndex(program);
 
-    backendApi ??= new VmApi(coreTypes);
+    backendApi ??= new VmCoreTypes(coreTypes);
     lattice ??= new ValueLattice(coreTypes, baseHierarchy);
     common ??= new CommonValues(coreTypes, backendApi, lattice);
     constraintSystem ??= new ConstraintSystem();

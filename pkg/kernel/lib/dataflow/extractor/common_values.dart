@@ -40,7 +40,8 @@ class CommonValues {
   Value nullableFunctionValue;
   Value nullableEscapingFunctionValue;
 
-  CommonValues(CoreTypes coreTypes, BackendApi backend, ValueLattice lattice) {
+  CommonValues(
+      CoreTypes coreTypes, BackendCoreTypes backend, ValueLattice lattice) {
     // Copy over the values redeclared by this class.
     intValue = backend.intValue;
     doubleValue = backend.doubleValue;
