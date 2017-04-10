@@ -26,10 +26,10 @@ class CommonValues {
   Value nullValue;
   Value functionValue;
   Value growableListValue;
-  Value fixedListValue;
-  Value constListValue;
-  Value literalMapValue;
-  Value constLiteralMapValue;
+  Value fixedLengthListValue;
+  Value immutableListValue;
+  Value linkedHashMapValue;
+  Value immutableMapValue;
 
   Value anyValue;
   Value nullableIntValue;
@@ -48,10 +48,10 @@ class CommonValues {
     stringValue = backend.stringValue;
     boolValue = backend.boolValue;
     growableListValue = backend.growableListValue;
-    fixedListValue = backend.fixedLengthListValue;
-    constListValue = backend.immutableListValue;
-    literalMapValue = backend.linkedHashMapValue;
-    constLiteralMapValue = backend.immutableMapValue;
+    fixedLengthListValue = backend.fixedLengthListValue;
+    immutableListValue = backend.immutableListValue;
+    linkedHashMapValue = backend.linkedHashMapValue;
+    immutableMapValue = backend.immutableMapValue;
 
     // Build other commonly used values that are not defined by the backend.
     numValue = lattice.joinValues(intValue, doubleValue);

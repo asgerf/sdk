@@ -93,19 +93,22 @@ class ConstraintExtractor {
         _augmentedHierarchy, _constraintSystem, lattice, common);
     _instantiatedClasses = lattice.instantiatedClasses;
 
-    setLiteralClassTypeBounds();
-    generateMainEntryPoint(program);
+    // Build constraints for the entry point and
+    handleLiteralClassTypeBounds();
+    handleMainEntryPoint(program);
 
+    // Build constriants from inheritance and member overrides.
     for (var library in program.libraries) {
       for (var class_ in library.classes) {
-        addSupertypeConstraints(class_);
+        handleClassInheritance(class_);
         hierarchy.forEachOverridePair(class_,
             (Member ownMember, Member superMember, bool isSetter) {
-          checkOverride(class_, ownMember, superMember, isSetter);
+          handleMemberOverride(class_, ownMember, superMember, isSetter);
         });
       }
     }
 
+    // Build constraints from member bodies.
     for (var library in program.libraries) {
       bool isUncheckedLibrary = library.importUri.scheme == 'dart';
       for (var class_ in library.classes) {
@@ -124,11 +127,11 @@ class ConstraintExtractor {
     return new ExtractionResult(_constraintSystem, _binding);
   }
 
-  void generateMainEntryPoint(Program program) {
+  void handleMainEntryPoint(Program program) {
     var function = program.mainMethod?.function;
     if (function != null && function.positionalParameters.isNotEmpty) {
       var bank = _binding.getFunctionBank(program.mainMethod);
-      var stringListType = new InterfaceAType(common.fixedListValue,
+      var stringListType = new InterfaceAType(common.fixedLengthListValue,
           ValueSink.nowhere, coreTypes.listClass, [common.stringType]);
       _builder.setOwner(program.mainMethod);
       checkAssignable(
@@ -140,10 +143,11 @@ class ConstraintExtractor {
     }
   }
 
-  void setLiteralClassTypeBounds() {
+  /// Marks the upper bound of the type parameters to literal lists and maps
+  ///
+  void handleLiteralClassTypeBounds() {
     var literalValues = [
       backendCoreTypes.growableListValue,
-      backendCoreTypes.fixedLengthListValue,
       backendCoreTypes.immutableListValue,
       backendCoreTypes.linkedHashMapValue,
       backendCoreTypes.immutableMapValue,
@@ -170,7 +174,7 @@ class ConstraintExtractor {
     visitor.analyzeMember();
   }
 
-  void addSupertypeConstraints(Class class_) {
+  void handleClassInheritance(Class class_) {
     _builder.setOwner(class_);
     _builder.setFileOffset(class_.fileOffset);
     if (externalModel.forceCleanSupertypes(class_)) return;
@@ -204,7 +208,7 @@ class ConstraintExtractor {
     return type;
   }
 
-  void checkOverride(
+  void handleMemberOverride(
       Class host, Member ownMember, Member superMember, bool isSetter) {
     _builder.setOwner(ownMember);
     if (isSetter) {
@@ -1107,7 +1111,8 @@ class ConstraintExtractorVisitor
       checkAssignableExpression(item, typeArgument);
     }
     var createdObject = bank.newLocation();
-    var value = node.isConst ? common.constListValue : common.growableListValue;
+    var value =
+        node.isConst ? common.immutableListValue : common.growableListValue;
     var type = new InterfaceAType(
         createdObject,
         ValueSink.unassignable('result of an expression', node),
@@ -1138,7 +1143,7 @@ class ConstraintExtractorVisitor
     }
     var createdObject = bank.newLocation();
     var value =
-        node.isConst ? common.constLiteralMapValue : common.literalMapValue;
+        node.isConst ? common.immutableMapValue : common.linkedHashMapValue;
     var type = new InterfaceAType(
         createdObject,
         ValueSink.unassignable('result of an expression', node),
@@ -1405,7 +1410,7 @@ class ConstraintExtractorVisitor
       InterfaceAType listType = type;
       AType contentType = listType.typeArguments[0];
       builder.addAssignment(Value.null_, contentType.sink, ValueFlags.all);
-      return type.withSource(common.fixedListValue);
+      return type.withSource(common.fixedLengthListValue);
     }
     return type;
   }
