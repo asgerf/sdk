@@ -14,6 +14,8 @@ import 'hierarchy.dart';
 import 'package:kernel/core_types.dart';
 import 'package:kernel/dataflow/extractor/common_values.dart';
 
+/// Generates constraints from [ValueSource]/[ValueSink] assignments, and
+/// attaches source information to constraints.
 class ConstraintBuilder {
   final ConstraintSystem constraintSystem;
   final AugmentedHierarchy hierarchy;
