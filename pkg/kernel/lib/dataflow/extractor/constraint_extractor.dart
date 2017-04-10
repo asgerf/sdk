@@ -330,12 +330,6 @@ class ConstraintExtractor {
     if (class_ == coreTypes.objectClass) return ValueFlags.allValueSets;
     return ValueFlags.other;
   }
-
-  final List<Function> analysisCompleteHooks = <Function>[];
-
-  void onAnalysisComplete(void hook()) {
-    analysisCompleteHooks.add(hook);
-  }
 }
 
 abstract class TypeParameterScope {

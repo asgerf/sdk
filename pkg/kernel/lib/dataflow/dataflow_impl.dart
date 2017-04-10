@@ -37,12 +37,6 @@ class _DataflowResults extends DataflowResults {
     diagnostic?._onBeginSolve();
     _solver.solve();
     diagnostic?._onEndSolve();
-    // Run debugging hooks after solving.  These are exclusively for debugging
-    // convenience in the extractor, and there should never be any hooks
-    // registered in production.
-    for (var hook in _extractor.analysisCompleteHooks) {
-      hook();
-    }
   }
 
   MemberDataflowResults getResultsForMember(Member member) {
