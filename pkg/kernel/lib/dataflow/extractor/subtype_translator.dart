@@ -21,8 +21,12 @@ class SubtypeTranslator implements SubtypingScope {
   ValueLattice get lattice => builder.lattice;
 
   void addSubtype(AType subtype, AType supertype) {
-    bool ok = _checkSubtypeStructure(subtype, supertype);
-    TypeFilter filter = ok ? TypeFilter.none : getTypeFilter(supertype);
+    bool isValidSubtype = _checkSubtypeStructure(subtype, supertype);
+    // If the subtype check failed, insert a type filter to weed out spurious
+    // value flow.  If the check passed, the filter is unnecessary, so we leave
+    // it out in order to save time for the solver (filters are expensive).
+    TypeFilter filter =
+        isValidSubtype ? TypeFilter.none : getTypeFilter(supertype);
     builder.addAssignmentWithFilter(subtype.source, supertype.sink, filter);
   }
 
@@ -47,11 +51,15 @@ class SubtypeTranslator implements SubtypingScope {
       bool ok = _checkSubtypeStructure(subbound, superbound);
       var superFilter = getTypeFilter(superbound);
       if (superbound.source is StorageLocation) {
+        // Add a type filter on the upper bound if the subtype checks failed.
         TypeFilter filter = ok ? TypeFilter.none : superFilter;
         StorageLocation superSource = superbound.source as StorageLocation;
         builder.addAssignmentWithFilter(subbound.source, superSource, filter);
       }
       if (superbound.sink is StorageLocation) {
+        // Because of covariant subtyping, the lower bound check is never safe,
+        // so we always use a type filter here.  The filter is sound because of
+        // the checks inserted for covariant subtyping.
         StorageLocation superSink = superbound.sink as StorageLocation;
         builder.addAssignmentWithFilter(superSink, subbound.sink, superFilter);
       }
