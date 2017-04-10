@@ -63,7 +63,7 @@ class ConstraintExtractor {
 
   AugmentedHierarchy _augmentedHierarchy;
   ClassSetDomain _instantiatedClasses;
-  SourceSinkTranslator _builder;
+  SubtypeTranslator _builder;
   DynamicIndex _dynamicIndex;
 
   ConstraintExtractor(
@@ -91,8 +91,8 @@ class ConstraintExtractor {
     // Build internal data structures used by for extraction.
     _dynamicIndex = new DynamicIndex(program);
     _augmentedHierarchy = new AugmentedHierarchy(hierarchy, _binding);
-    _builder = new SourceSinkTranslator(
-        _constraintSystem, _augmentedHierarchy, lattice, common);
+    _builder = new SubtypeTranslator(
+        _constraintSystem, _augmentedHierarchy, lattice, common, coreTypes);
     _instantiatedClasses = lattice.instantiatedClasses;
 
     // Build the constraint system.
@@ -175,9 +175,8 @@ class ConstraintExtractor {
   void handleClassInheritance(Class class_) {
     _builder.setOwner(class_);
     _builder.setFileOffset(class_.fileOffset);
-    var subtypeTranslator =
-        new SubtypeTranslator(_builder, new GlobalScope(_binding), coreTypes);
     if (externalModel.forceCleanSupertypes(class_)) return;
+    var scope = new GlobalScope(_binding);
     var bank = _binding.getClassBank(class_);
     for (var supertype in bank.supertypes) {
       var substitution = Substitution.fromSupertype(supertype);
@@ -185,8 +184,8 @@ class ConstraintExtractor {
       for (int i = 0; i < supertype.typeArguments.length; ++i) {
         var typeArgument = supertype.typeArguments[i];
         var bound = superBank.typeParameterBounds[i];
-        subtypeTranslator.addSubBound(
-            typeArgument, substitution.substituteBound(bound));
+        _builder.addSubBound(
+            typeArgument, substitution.substituteBound(bound), scope);
       }
     }
   }
@@ -263,7 +262,7 @@ class ConstraintExtractor {
     assert(to != null);
     try {
       _builder.setFileOffset(fileOffset);
-      new SubtypeTranslator(_builder, scope, coreTypes).addSubtype(from, to);
+      _builder.addSubtype(from, to, scope);
     } on UnassignableSinkError catch (e) {
       e.assignmentLocation = where.location;
       rethrow;
@@ -425,7 +424,7 @@ class ConstraintExtractorVisitor
   ClassHierarchy get hierarchy => extractor.hierarchy;
   AugmentedHierarchy get augmentedHierarchy => extractor._augmentedHierarchy;
   Binding get binding => extractor._binding;
-  SourceSinkTranslator get builder => extractor._builder;
+  SubtypeTranslator get builder => extractor._builder;
   ExternalModel get externalModel => extractor.externalModel;
   Class get currentClass => currentMember.enclosingClass;
   CommonValues get common => extractor.common;
@@ -452,14 +451,10 @@ class ConstraintExtractorVisitor
         extractor.backendCoreTypes.listFactory.reference;
   }
 
-  SubtypeTranslator getSubtypeTranslator(TypeParameterScope scope) {
-    return new SubtypeTranslator(builder, scope, coreTypes);
-  }
-
   void checkTypeBound(TreeNode where, AType type, AType bound,
       [int fileOffset = TreeNode.noOffset]) {
     builder.setFileOffset(fileOffset);
-    getSubtypeTranslator(scope).addSubBound(type, bound);
+    builder.addSubBound(type, bound, scope);
   }
 
   void checkAssignable(TreeNode where, AType from, AType to,

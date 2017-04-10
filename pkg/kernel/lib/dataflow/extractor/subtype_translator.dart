@@ -4,7 +4,9 @@
 library kernel.dataflow.extractor.constraints_from_subtyping;
 
 import 'package:kernel/core_types.dart';
+import 'package:kernel/dataflow/constraints.dart';
 import 'package:kernel/dataflow/extractor/augmented_type.dart';
+import 'package:kernel/dataflow/extractor/common_values.dart';
 import 'package:kernel/dataflow/extractor/constraint_extractor.dart';
 import 'package:kernel/dataflow/extractor/hierarchy.dart';
 import 'package:kernel/dataflow/extractor/source_sink_translator.dart';
@@ -12,64 +14,65 @@ import 'package:kernel/dataflow/storage_location.dart';
 import 'package:kernel/dataflow/value.dart';
 
 /// Translates subtyping judgements into constraints.
-class SubtypeTranslator {
-  final SourceSinkTranslator builder;
-  final TypeParameterScope scope;
+class SubtypeTranslator extends SourceSinkTranslator {
   final CoreTypes coreTypes;
 
-  SubtypeTranslator(this.builder, this.scope, this.coreTypes);
-
-  ValueLattice get lattice => builder.lattice;
-  AugmentedHierarchy get hierarchy => builder.hierarchy;
+  SubtypeTranslator(
+      ConstraintSystem constraintSystem,
+      AugmentedHierarchy hierarchy,
+      ValueLattice lattice,
+      CommonValues common,
+      this.coreTypes)
+      : super(constraintSystem, hierarchy, lattice, common);
 
   /// Generates constraints to ensure [subtype] is subtype of [supertype],
   /// which includes all the derived subtyping judgements that arise from
   /// checking that judgement.
-  void addSubtype(AType subtype, AType supertype) {
-    bool isValidSubtype = _checkSubtypeStructure(subtype, supertype);
+  void addSubtype(AType subtype, AType supertype, TypeParameterScope scope) {
+    bool isValidSubtype = _checkSubtypeStructure(subtype, supertype, scope);
     // If the subtype check failed, insert a type filter to weed out spurious
     // value flow.  If the check passed, the filter is unnecessary, so we leave
     // it out in order to save time for the solver (filters are expensive).
     TypeFilter filter =
         isValidSubtype ? TypeFilter.none : getTypeFilter(supertype);
-    builder.addAssignmentWithFilter(subtype.source, supertype.sink, filter);
+    addAssignmentWithFilter(subtype.source, supertype.sink, filter);
   }
 
   /// Generates constraints to ensure [subbound] is a subbound of [superbound],
   /// that is, its upper bound is a subtype thereof and its lower bound is a
   /// supertype thereof.
-  void addSubBound(AType subbound, AType superbound) {
+  void addSubBound(AType subbound, AType superbound, TypeParameterScope scope) {
     if (subbound is TypeParameterAType) {
       // TODO: Clean this up.
       if (superbound.source is StorageLocation) {
         StorageLocation superSource = superbound.source as StorageLocation;
-        builder.addAssignment(subbound.source, superSource, ValueFlags.null_);
+        addAssignment(subbound.source, superSource, ValueFlags.null_);
       }
       if (superbound.sink is StorageLocation) {
         StorageLocation superSink = superbound.sink as StorageLocation;
-        builder.addAssignment(superSink, subbound.sink, ValueFlags.null_);
+        addAssignment(superSink, subbound.sink, ValueFlags.null_);
       }
       if (superbound is TypeParameterAType &&
           superbound.parameter == subbound.parameter) {
         return;
       }
       var bound = scope.getTypeParameterBound(subbound.parameter);
-      addSubBound(bound, superbound);
+      addSubBound(bound, superbound, scope);
     } else {
-      bool ok = _checkSubtypeStructure(subbound, superbound);
+      bool ok = _checkSubtypeStructure(subbound, superbound, scope);
       var superFilter = getTypeFilter(superbound);
       if (superbound.source is StorageLocation) {
         // Add a type filter on the upper bound if the subtype checks failed.
         TypeFilter filter = ok ? TypeFilter.none : superFilter;
         StorageLocation superSource = superbound.source as StorageLocation;
-        builder.addAssignmentWithFilter(subbound.source, superSource, filter);
+        addAssignmentWithFilter(subbound.source, superSource, filter);
       }
       if (superbound.sink is StorageLocation) {
         // Because of covariant subtyping, the lower bound check is never safe,
         // so we always use a type filter here.  The filter is sound because of
         // the checks inserted for covariant subtyping.
         StorageLocation superSink = superbound.sink as StorageLocation;
-        builder.addAssignmentWithFilter(superSink, subbound.sink, superFilter);
+        addAssignmentWithFilter(superSink, subbound.sink, superFilter);
       }
     }
   }
@@ -77,14 +80,15 @@ class SubtypeTranslator {
   /// Determines if [subtype] is a subtype of [supertype], and recursively
   /// generates constraints for the underlying subtyping judgements that from
   /// this judgement.
-  bool _checkSubtypeStructure(AType subtype, AType supertype) {
+  bool _checkSubtypeStructure(
+      AType subtype, AType supertype, TypeParameterScope scope) {
     if (subtype is InterfaceAType && supertype is InterfaceAType) {
       var casted = hierarchy.getTypeAsInstanceOf(subtype, supertype.classNode);
       if (casted == null) return false;
       for (int i = 0; i < casted.typeArguments.length; ++i) {
         var subtypeArgument = casted.typeArguments[i];
         var supertypeArgument = supertype.typeArguments[i];
-        addSubBound(subtypeArgument, supertypeArgument);
+        addSubBound(subtypeArgument, supertypeArgument, scope);
       }
       return true;
     }
@@ -94,24 +98,25 @@ class SubtypeTranslator {
         if (i < supertype.typeParameterBounds.length) {
           // TODO: We should use sub bound check.
           // I'm not sure about which direction.
-          addSubtype(
-              supertype.typeParameterBounds[i], subtype.typeParameterBounds[i]);
+          addSubtype(supertype.typeParameterBounds[i],
+              subtype.typeParameterBounds[i], scope);
         }
       }
       for (int i = 0; i < subtype.positionalParameters.length; ++i) {
         if (i < supertype.positionalParameters.length) {
           addSubtype(supertype.positionalParameters[i],
-              subtype.positionalParameters[i]);
+              subtype.positionalParameters[i], scope);
         }
       }
       for (int i = 0; i < subtype.namedParameters.length; ++i) {
         String name = subtype.namedParameterNames[i];
         int j = supertype.namedParameterNames.indexOf(name);
         if (j != -1) {
-          addSubtype(supertype.namedParameters[j], subtype.namedParameters[i]);
+          addSubtype(
+              supertype.namedParameters[j], subtype.namedParameters[i], scope);
         }
       }
-      addSubtype(subtype.returnType, supertype.returnType);
+      addSubtype(subtype.returnType, supertype.returnType, scope);
       return true;
     }
     if (subtype is FunctionTypeParameterAType) {
@@ -124,7 +129,7 @@ class SubtypeTranslator {
         return true;
       }
       var bound = scope.getTypeParameterBound(subtype.parameter);
-      addSubtype(bound, supertype);
+      addSubtype(bound, supertype, scope);
       return true;
     }
     if (subtype is BottomAType) {
