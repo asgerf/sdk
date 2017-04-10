@@ -50,12 +50,12 @@ class ConstraintExtractor {
   ConstraintBuilder builder;
   final ExternalModel externalModel;
   DynamicIndex _dynamicIndex;
-  BackendCoreTypes backendApi;
+  BackendCoreTypes backendCoreTypes;
   ClassSetDomain instantiatedClasses;
 
   CommonValues common;
 
-  ConstraintExtractor(this.externalModel, this.backendApi);
+  ConstraintExtractor(this.externalModel, this.backendCoreTypes);
 
   void extractFromProgram(Program program) {
     coreTypes ??= new CoreTypes(program);
@@ -63,7 +63,7 @@ class ConstraintExtractor {
     _dynamicIndex = new DynamicIndex(program);
 
     lattice ??= new ValueLattice(coreTypes, baseHierarchy);
-    common ??= new CommonValues(coreTypes, backendApi, lattice);
+    common ??= new CommonValues(coreTypes, backendCoreTypes, lattice);
     constraintSystem ??= new ConstraintSystem();
     var protector = new ProtectCleanSupertype(coreTypes, common);
     binding ??= new Binding(constraintSystem, coreTypes, externalModel,
@@ -106,9 +106,8 @@ class ConstraintExtractor {
     var function = program.mainMethod?.function;
     if (function != null && function.positionalParameters.isNotEmpty) {
       var bank = binding.getFunctionBank(program.mainMethod);
-      var value = common.fixedListValue;
-      var stringListType = new InterfaceAType(
-          value, ValueSink.nowhere, coreTypes.listClass, [common.stringType]);
+      var stringListType = new InterfaceAType(common.fixedListValue,
+          ValueSink.nowhere, coreTypes.listClass, [common.stringType]);
       builder.setOwner(program.mainMethod);
       checkAssignable(
           program.mainMethod,
@@ -121,11 +120,11 @@ class ConstraintExtractor {
 
   void setLiteralClassTypeBounds() {
     var literalValues = [
-      backendApi.growableListValue,
-      backendApi.fixedLengthListValue,
-      backendApi.immutableListValue,
-      backendApi.linkedHashMapValue,
-      backendApi.immutableMapValue,
+      backendCoreTypes.growableListValue,
+      backendCoreTypes.fixedLengthListValue,
+      backendCoreTypes.immutableListValue,
+      backendCoreTypes.linkedHashMapValue,
+      backendCoreTypes.immutableMapValue,
     ];
     for (var value in literalValues) {
       var class_ = value.baseClass;
@@ -415,7 +414,8 @@ class ConstraintExtractorVisitor
 
   ConstraintExtractorVisitor(this.extractor, this.currentMember, this.bank,
       this.classBank, this.isUncheckedLibrary) {
-    defaultListFactoryReference = extractor.backendApi.listFactory.reference;
+    defaultListFactoryReference =
+        extractor.backendCoreTypes.listFactory.reference;
   }
 
   void checkTypeBound(TreeNode where, AType type, AType bound,
