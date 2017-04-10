@@ -56,7 +56,11 @@ class ConstraintExtractor {
   CommonValues common;
 
   ConstraintExtractor(this.externalModel, this.backendCoreTypes,
-      {this.typeErrorCallback, this.coreTypes, this.hierarchy});
+      {this.typeErrorCallback,
+      this.coreTypes,
+      this.hierarchy,
+      this.lattice,
+      this.common});
 
   void extractFromProgram(Program program) {
     coreTypes ??= new CoreTypes(program);

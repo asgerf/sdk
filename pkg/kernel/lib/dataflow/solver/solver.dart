@@ -43,8 +43,8 @@ class ConstraintSolver {
 
   ConstraintSolver(
       CoreTypes coreTypes, ClassHierarchy hierarchy, this.constraints,
-      [this.report])
-      : lattice = new ValueLattice(coreTypes, hierarchy);
+      {this.report, ValueLattice lattice})
+      : this.lattice = lattice ?? new ValueLattice(coreTypes, hierarchy);
 
   void propagateValue(StorageLocation location, Value inputValue) {
     Value oldValue = location.value;

@@ -17,6 +17,7 @@ class _DataflowResults extends DataflowResults {
       {this.coreTypes, this.hierarchy, DataflowDiagnosticListener diagnostic}) {
     coreTypes ??= new CoreTypes(program);
     hierarchy ??= new ClassHierarchy(program);
+    var lattice = new ValueLattice(coreTypes, hierarchy);
 
     _top = new Value(coreTypes.objectClass, ValueFlags.all);
 
@@ -25,12 +26,14 @@ class _DataflowResults extends DataflowResults {
     _extractor = new ConstraintExtractor(externalModel, backendTypes,
         typeErrorCallback: diagnostic?._onTypeError,
         coreTypes: coreTypes,
-        hierarchy: hierarchy);
+        hierarchy: hierarchy,
+        lattice: lattice);
     _extractor.extractFromProgram(program);
     diagnostic?._constraintSystem = _extractor.constraintSystem;
     diagnostic?._binding = _extractor.binding;
-    _solver = new ConstraintSolver(coreTypes, hierarchy,
-        _extractor.constraintSystem, diagnostic?._solverListener);
+    _solver = new ConstraintSolver(
+        coreTypes, hierarchy, _extractor.constraintSystem,
+        report: diagnostic?._solverListener, lattice: lattice);
     diagnostic?._onBeginSolve();
     _solver.solve();
     diagnostic?._onEndSolve();
