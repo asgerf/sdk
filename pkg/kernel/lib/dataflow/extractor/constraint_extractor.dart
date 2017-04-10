@@ -191,9 +191,8 @@ class ConstraintExtractor {
   /// [superMember] may concretely target [ownMember] or one of its overriders.
   ///
   /// This is not called for transitive overrides. Even if [ownMember] is
-  /// abstract, we must some generate constraints, so that the constraints
-  /// system as a whole connects the super member with every concrete
-  /// implementation.
+  /// abstract, we must generate constraints so that the constraints system as a
+  /// whole connects the super member with every concrete implementation.
   void handleMemberOverride(
       Class host, Member ownMember, Member superMember, bool isSetter) {
     _builder.setOwner(ownMember);
