@@ -46,8 +46,8 @@ class ConstraintExtractor {
   ValueLattice lattice;
   CoreTypes coreTypes;
   Binding binding;
-  ClassHierarchy baseHierarchy;
-  AugmentedHierarchy hierarchy;
+  ClassHierarchy hierarchy;
+  AugmentedHierarchy augmentedHierarchy;
   ConstraintSystem constraintSystem;
   ConstraintBuilder builder;
   DynamicIndex _dynamicIndex;
@@ -60,19 +60,19 @@ class ConstraintExtractor {
 
   void extractFromProgram(Program program) {
     coreTypes ??= new CoreTypes(program);
-    baseHierarchy ??= new ClassHierarchy(program);
+    hierarchy ??= new ClassHierarchy(program);
     _dynamicIndex = new DynamicIndex(program);
 
-    lattice ??= new ValueLattice(coreTypes, baseHierarchy);
+    lattice ??= new ValueLattice(coreTypes, hierarchy);
     common ??= new CommonValues(coreTypes, backendCoreTypes, lattice);
     constraintSystem ??= new ConstraintSystem();
     var protector = new ProtectCleanSupertype(coreTypes, common);
     binding ??= new Binding(constraintSystem, coreTypes, externalModel,
         cleanTypeConverter: protector.convertSupertype);
-    hierarchy ??= new AugmentedHierarchy(baseHierarchy, binding);
+    augmentedHierarchy ??= new AugmentedHierarchy(hierarchy, binding);
     instantiatedClasses = lattice.instantiatedClasses;
-    builder ??=
-        new ConstraintBuilder(hierarchy, constraintSystem, lattice, common);
+    builder ??= new ConstraintBuilder(
+        augmentedHierarchy, constraintSystem, lattice, common);
 
     setLiteralClassTypeBounds();
     generateMainEntryPoint(program);
@@ -80,7 +80,7 @@ class ConstraintExtractor {
     for (var library in program.libraries) {
       for (var class_ in library.classes) {
         addSupertypeConstraints(class_);
-        baseHierarchy.forEachOverridePair(class_,
+        hierarchy.forEachOverridePair(class_,
             (Member ownMember, Member superMember, bool isSetter) {
           checkOverride(class_, ownMember, superMember, isSetter);
         });
@@ -169,7 +169,7 @@ class ConstraintExtractor {
 
   AType getterType(Class host, Member member) {
     var substitution =
-        hierarchy.getClassAsInstanceOf(host, member.enclosingClass);
+        augmentedHierarchy.getClassAsInstanceOf(host, member.enclosingClass);
     var type = substitution.substituteType(binding.getGetterType(member));
     assert(type.isClosed(host.typeParameters));
     return type;
@@ -177,7 +177,7 @@ class ConstraintExtractor {
 
   AType setterType(Class host, Member member) {
     var substitution =
-        hierarchy.getClassAsInstanceOf(host, member.enclosingClass);
+        augmentedHierarchy.getClassAsInstanceOf(host, member.enclosingClass);
     var type = substitution.substituteType(binding.getSetterType(member));
     assert(type.isClosed(host.typeParameters));
     return type;
@@ -389,8 +389,8 @@ class ConstraintExtractorVisitor
   Reference defaultListFactoryReference;
 
   CoreTypes get coreTypes => extractor.coreTypes;
-  ClassHierarchy get baseHierarchy => extractor.baseHierarchy;
-  AugmentedHierarchy get hierarchy => extractor.hierarchy;
+  ClassHierarchy get hierarchy => extractor.hierarchy;
+  AugmentedHierarchy get augmentedHierarchy => extractor.augmentedHierarchy;
   Binding get binding => extractor.binding;
   ConstraintBuilder get builder => extractor.builder;
   ExternalModel get externalModel => extractor.externalModel;
@@ -751,7 +751,8 @@ class ConstraintExtractorVisitor
       //
       // TODO: Wrap type parameter lower bounds in a ValueSink that protects it
       //       from changes whenever possible.
-      return hierarchy.getClassAsInstanceOf(currentClass, superclass) ??
+      return augmentedHierarchy.getClassAsInstanceOf(
+              currentClass, superclass) ??
           Substitution.bottomForClass(superclass);
     }
     while (type is TypeParameterAType) {
@@ -764,7 +765,7 @@ class ConstraintExtractorVisitor
     if (type is InterfaceAType) {
       // The receiver type should implement the interface declaring the member.
       var superSubstitution =
-          hierarchy.getClassAsInstanceOf(type.classNode, superclass);
+          augmentedHierarchy.getClassAsInstanceOf(type.classNode, superclass);
       if (superSubstitution != null) {
         var ownSubstitution = Substitution.fromInterfaceType(type);
         return Substitution.sequence(superSubstitution, ownSubstitution);
@@ -782,7 +783,8 @@ class ConstraintExtractorVisitor
   }
 
   Substitution getSuperReceiverType(Member member) {
-    return hierarchy.getClassAsInstanceOf(currentClass, member.enclosingClass);
+    return augmentedHierarchy.getClassAsInstanceOf(
+        currentClass, member.enclosingClass);
   }
 
   void checkTypeParameterBounds(TreeNode where, List<AType> arguments,
@@ -1568,10 +1570,10 @@ class ConstraintExtractorVisitor
 
   AType lookupMember(AType type, Name name) {
     if (type is InterfaceAType) {
-      var member = baseHierarchy.getInterfaceMember(type.classNode, name);
+      var member = hierarchy.getInterfaceMember(type.classNode, name);
       if (member == null) return null;
       var upcastType =
-          hierarchy.getTypeAsInstanceOf(type, member.enclosingClass);
+          augmentedHierarchy.getTypeAsInstanceOf(type, member.enclosingClass);
       return Substitution
           .fromInterfaceType(upcastType)
           .substituteType(binding.getGetterType(member));
@@ -1591,7 +1593,7 @@ class ConstraintExtractorVisitor
 
   AType getStreamElementType(AType stream) {
     if (stream is InterfaceAType) {
-      var asStream = hierarchy.getClassAsInstanceOf(
+      var asStream = augmentedHierarchy.getClassAsInstanceOf(
           stream.classNode, coreTypes.streamClass);
       if (asStream == null) return common.topType;
       var parameter = coreTypes.streamClass.typeParameters[0];
@@ -1746,7 +1748,7 @@ class ConstraintExtractorVisitor
           : coreTypes.iterableClass;
       var type = visitExpression(node.expression);
       var asContainer = type is InterfaceAType
-          ? hierarchy.getTypeAsInstanceOf(type, container)
+          ? augmentedHierarchy.getTypeAsInstanceOf(type, container)
           : null;
       if (asContainer != null) {
         checkAssignable(
@@ -1774,7 +1776,7 @@ class ConstraintExtractorVisitor
   @override
   visitSuperInitializer(SuperInitializer node) {
     handleCall(node.arguments, node.target, node.fileOffset,
-        receiver: hierarchy.getClassAsInstanceOf(
+        receiver: augmentedHierarchy.getClassAsInstanceOf(
             currentClass, node.target.enclosingClass));
   }
 
