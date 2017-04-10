@@ -264,7 +264,6 @@ class ConstraintExtractor {
           to, new SubtypingScope(_builder, scope, coreTypes));
     } on UnassignableSinkError catch (e) {
       e.assignmentLocation = where.location;
-      print('$from <: $to');
       rethrow;
     }
   }
