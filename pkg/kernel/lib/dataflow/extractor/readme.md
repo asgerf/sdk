@@ -10,8 +10,8 @@ Extraction happens in four interleaved steps:
     while annotating AST nodes with an index where their computed value
     should be stored.
 
- 3. [AType] translates augmented subtyping judgements into source/sink
-    assignments.
+ 3. [SubtypeTranslator] translates augmented subtyping judgements into
+    source/sink assignments.
 
  4. [ConstraintBuilder] translates source/sink assignments into constraints.
 

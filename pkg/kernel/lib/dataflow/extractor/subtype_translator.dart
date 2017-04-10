@@ -1,0 +1,115 @@
+// Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
+// for details. All rights reserved. Use of this source code is governed by a
+// BSD-style license that can be found in the LICENSE file.
+library kernel.dataflow.extractor.constraints_from_subtyping;
+
+import 'package:kernel/core_types.dart';
+import 'package:kernel/dataflow/extractor/augmented_type.dart';
+import 'package:kernel/dataflow/extractor/constraint_builder.dart';
+import 'package:kernel/dataflow/extractor/constraint_extractor.dart';
+import 'package:kernel/dataflow/storage_location.dart';
+import 'package:kernel/dataflow/value.dart';
+
+class SubtypeTranslator implements SubtypingScope {
+  final ConstraintBuilder builder;
+  final TypeParameterScope scope;
+  final CoreTypes coreTypes;
+
+  SubtypeTranslator(this.builder, this.scope, this.coreTypes);
+
+  ValueLattice get lattice => builder.lattice;
+
+  void addSubtype(AType subtype, AType supertype) {
+    bool ok = _checkSubtypeStructure(subtype, supertype);
+    TypeFilter filter = ok ? TypeFilter.none : supertype.getTypeFilter(this);
+    builder.addAssignmentWithFilter(subtype.source, supertype.sink, filter);
+  }
+
+  void addSubBound(AType subbound, AType superbound) {
+    if (subbound is TypeParameterAType) {
+      // TODO: Clean this up.
+      if (superbound.source is StorageLocation) {
+        StorageLocation superSource = superbound.source as StorageLocation;
+        builder.addAssignment(subbound.source, superSource, ValueFlags.null_);
+      }
+      if (superbound.sink is StorageLocation) {
+        StorageLocation superSink = superbound.sink as StorageLocation;
+        builder.addAssignment(superSink, subbound.sink, ValueFlags.null_);
+      }
+      if (superbound is TypeParameterAType &&
+          superbound.parameter == subbound.parameter) {
+        return;
+      }
+      var bound = scope.getTypeParameterBound(subbound.parameter);
+      addSubBound(bound, superbound);
+    } else {
+      bool ok = _checkSubtypeStructure(subbound, superbound);
+      var superFilter = superbound.getTypeFilter(this);
+      if (superbound.source is StorageLocation) {
+        TypeFilter filter = ok ? TypeFilter.none : superFilter;
+        StorageLocation superSource = superbound.source as StorageLocation;
+        builder.addAssignmentWithFilter(subbound.source, superSource, filter);
+      }
+      if (superbound.sink is StorageLocation) {
+        StorageLocation superSink = superbound.sink as StorageLocation;
+        builder.addAssignmentWithFilter(superSink, subbound.sink, superFilter);
+      }
+    }
+  }
+
+  bool _checkSubtypeStructure(AType subtype, AType supertype) {
+    if (subtype is InterfaceAType && supertype is InterfaceAType) {
+      var casted = builder.getTypeAsInstanceOf(subtype, supertype.classNode);
+      if (casted == null) return false;
+      for (int i = 0; i < casted.typeArguments.length; ++i) {
+        var subtypeArgument = casted.typeArguments[i];
+        var supertypeArgument = supertype.typeArguments[i];
+        addSubBound(subtypeArgument, supertypeArgument);
+      }
+      return true;
+    }
+    if (subtype is FunctionAType && supertype is FunctionAType) {
+      // TODO: Instantiate one function to the other.
+      for (int i = 0; i < subtype.typeParameterBounds.length; ++i) {
+        if (i < supertype.typeParameterBounds.length) {
+          // TODO: We should use sub bound check.
+          // I'm not sure about which direction.
+          addSubtype(
+              supertype.typeParameterBounds[i], subtype.typeParameterBounds[i]);
+        }
+      }
+      for (int i = 0; i < subtype.positionalParameters.length; ++i) {
+        if (i < supertype.positionalParameters.length) {
+          addSubtype(supertype.positionalParameters[i],
+              subtype.positionalParameters[i]);
+        }
+      }
+      for (int i = 0; i < subtype.namedParameters.length; ++i) {
+        String name = subtype.namedParameterNames[i];
+        int j = supertype.namedParameterNames.indexOf(name);
+        if (j != -1) {
+          addSubtype(supertype.namedParameters[j], subtype.namedParameters[i]);
+        }
+      }
+      addSubtype(subtype.returnType, supertype.returnType);
+      return true;
+    }
+    if (subtype is FunctionTypeParameterAType) {
+      // TODO: Compare with bound.
+      return true;
+    }
+    if (subtype is TypeParameterAType) {
+      if (supertype is TypeParameterAType &&
+          subtype.parameter == supertype.parameter) {
+        return true;
+      }
+      var bound = scope.getTypeParameterBound(subtype.parameter);
+      addSubtype(bound, supertype);
+      return true;
+    }
+    if (subtype is BottomAType) {
+      return true;
+    }
+    return false;
+  }
+}

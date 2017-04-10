@@ -35,13 +35,13 @@ class ASupertype implements Printable {
 }
 
 class SubtypingScope {
-  final ConstraintBuilder constraints;
+  final ConstraintBuilder builder;
   final TypeParameterScope scope;
   final CoreTypes coreTypes;
 
-  ValueLattice get lattice => constraints.lattice;
+  ValueLattice get lattice => builder.lattice;
 
-  SubtypingScope(this.constraints, this.scope, this.coreTypes);
+  SubtypingScope(this.builder, this.scope, this.coreTypes);
 }
 
 class TypeFilter {
@@ -95,35 +95,6 @@ abstract class AType implements Printable {
   /// Returns a copy of this type with its value source replaced.
   AType withSource(ValueSource source);
 
-  /// Generates constraints to ensure this type is more specific than
-  /// [supertype].
-  void generateSubtypeConstraints(AType supertype, SubtypingScope scope) {
-    bool ok = _generateSubtypeConstraintsForSubterms(supertype, scope);
-    TypeFilter filter = ok ? TypeFilter.none : supertype.getTypeFilter(scope);
-    scope.constraints.addAssignmentWithFilter(source, supertype.sink, filter);
-  }
-
-  /// Generates constraints to ensure this bound is more specific than
-  /// [superbound].
-  void generateSubBoundConstraint(AType superbound, SubtypingScope scope) {
-    bool ok = _generateSubtypeConstraintsForSubterms(superbound, scope);
-    var superFilter = superbound.getTypeFilter(scope);
-    if (superbound.source is StorageLocation) {
-      TypeFilter filter =
-          ok ? TypeFilter.none : superbound.getTypeFilter(scope);
-      StorageLocation superSource = superbound.source as StorageLocation;
-      scope.constraints.addAssignmentWithFilter(source, superSource, filter);
-    }
-    if (superbound.sink is StorageLocation) {
-      StorageLocation superSink = superbound.sink as StorageLocation;
-      scope.constraints.addAssignmentWithFilter(superSink, sink, superFilter);
-    }
-  }
-
-  /// Generates subtyping constraints specific to a subclass.
-  bool _generateSubtypeConstraintsForSubterms(
-      AType supertype, SubtypingScope scope);
-
   /// True if this type or any of its subterms match [predicate].
   bool containsAny(bool predicate(AType type)) => predicate(this);
 
@@ -165,23 +136,6 @@ class InterfaceAType extends AType {
   TypeFilter getTypeFilter(SubtypingScope scope) {
     return new TypeFilter(
         classNode, scope.lattice.getValueSetFlagsForInterface(classNode));
-  }
-
-  bool _generateSubtypeConstraintsForSubterms(
-      AType supertype, SubtypingScope scope) {
-    if (supertype is InterfaceAType) {
-      var casted =
-          scope.constraints.getTypeAsInstanceOf(this, supertype.classNode);
-      if (casted == null) return false;
-      for (int i = 0; i < casted.typeArguments.length; ++i) {
-        var subtypeArgument = casted.typeArguments[i];
-        var supertypeArgument = supertype.typeArguments[i];
-        subtypeArgument.generateSubBoundConstraint(supertypeArgument, scope);
-      }
-      return true;
-    } else {
-      return false;
-    }
   }
 
   bool containsAny(bool predicate(AType type)) =>
@@ -251,37 +205,6 @@ class FunctionAType extends AType {
   TypeFilter getTypeFilter(SubtypingScope scope) {
     // TODO: filter value flags
     return new TypeFilter(scope.coreTypes.functionClass, ValueFlags.all);
-  }
-
-  @override
-  bool _generateSubtypeConstraintsForSubterms(
-      AType supertype, SubtypingScope scope) {
-    if (supertype is FunctionAType) {
-      for (int i = 0; i < typeParameterBounds.length; ++i) {
-        if (i < supertype.typeParameterBounds.length) {
-          supertype.typeParameterBounds[i]
-              .generateSubtypeConstraints(typeParameterBounds[i], scope);
-        }
-      }
-      for (int i = 0; i < positionalParameters.length; ++i) {
-        if (i < supertype.positionalParameters.length) {
-          supertype.positionalParameters[i]
-              .generateSubtypeConstraints(positionalParameters[i], scope);
-        }
-      }
-      for (int i = 0; i < namedParameters.length; ++i) {
-        String name = namedParameterNames[i];
-        int j = supertype.namedParameterNames.indexOf(name);
-        if (j != -1) {
-          supertype.namedParameters[j]
-              .generateSubtypeConstraints(namedParameters[i], scope);
-        }
-      }
-      returnType.generateSubtypeConstraints(supertype.returnType, scope);
-      return true;
-    } else {
-      return false;
-    }
   }
 
   bool containsAny(bool predicate(AType type)) {
@@ -397,12 +320,6 @@ class FunctionTypeParameterAType extends AType {
     return TypeFilter.none;
   }
 
-  @override
-  bool _generateSubtypeConstraintsForSubterms(
-      AType supertype, SubtypingScope scope) {
-    return true;
-  }
-
   AType substitute(Substitution substitution, int shift) {
     return substitution.getInstantiation(this, shift) ?? this;
   }
@@ -424,12 +341,6 @@ class BottomAType extends AType {
 
   TypeFilter getTypeFilter(SubtypingScope scope) {
     return TypeFilter.none;
-  }
-
-  @override
-  bool _generateSubtypeConstraintsForSubterms(
-      AType supertype, SubtypingScope scope) {
-    return true;
   }
 
   BottomAType substitute(Substitution substitution, int shift) => this;
@@ -458,35 +369,6 @@ class TypeParameterAType extends AType {
 
   TypeFilter getTypeFilter(SubtypingScope scope) {
     return TypeFilter.none;
-  }
-
-  @override
-  bool _generateSubtypeConstraintsForSubterms(
-      AType supertype, SubtypingScope scope) {
-    if (supertype is TypeParameterAType && supertype.parameter == parameter) {
-      return true;
-    }
-    var bound = scope.scope.getTypeParameterBound(parameter);
-    bound.generateSubtypeConstraints(supertype, scope);
-    return true;
-  }
-
-  /// Generates constraints to ensure this bound is more specific than
-  /// [superbound].
-  void generateSubBoundConstraint(AType superbound, SubtypingScope scope) {
-    if (superbound.source is StorageLocation) {
-      StorageLocation superSource = superbound.source as StorageLocation;
-      scope.constraints.addAssignment(source, superSource, ValueFlags.null_);
-    }
-    if (superbound.sink is StorageLocation) {
-      StorageLocation superSink = superbound.sink as StorageLocation;
-      scope.constraints.addAssignment(superSink, sink, ValueFlags.null_);
-    }
-    if (superbound is TypeParameterAType && superbound.parameter == parameter) {
-      return;
-    }
-    var bound = scope.scope.getTypeParameterBound(parameter);
-    bound.generateSubBoundConstraint(superbound, scope);
   }
 
   AType substitute(Substitution substitution, int shift) {

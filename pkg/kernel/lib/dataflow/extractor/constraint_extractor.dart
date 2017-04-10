@@ -14,6 +14,7 @@ import 'backend_core_types.dart';
 import 'binding.dart';
 import 'common_values.dart';
 import 'constraint_builder.dart';
+import 'subtype_translator.dart';
 import 'control_flow_state.dart';
 import 'dynamic_index.dart';
 import 'external_model.dart';
@@ -173,6 +174,8 @@ class ConstraintExtractor {
   void handleClassInheritance(Class class_) {
     _builder.setOwner(class_);
     _builder.setFileOffset(class_.fileOffset);
+    var subtypeTranslator =
+        new SubtypeTranslator(_builder, new GlobalScope(_binding), coreTypes);
     if (externalModel.forceCleanSupertypes(class_)) return;
     var bank = _binding.getClassBank(class_);
     for (var supertype in bank.supertypes) {
@@ -181,9 +184,8 @@ class ConstraintExtractor {
       for (int i = 0; i < supertype.typeArguments.length; ++i) {
         var typeArgument = supertype.typeArguments[i];
         var bound = superBank.typeParameterBounds[i];
-        typeArgument.generateSubBoundConstraint(
-            substitution.substituteBound(bound),
-            new SubtypingScope(_builder, new GlobalScope(_binding), coreTypes));
+        subtypeTranslator.addSubBound(
+            typeArgument, substitution.substituteBound(bound));
       }
     }
   }
@@ -260,8 +262,7 @@ class ConstraintExtractor {
     assert(to != null);
     try {
       _builder.setFileOffset(fileOffset);
-      from.generateSubtypeConstraints(
-          to, new SubtypingScope(_builder, scope, coreTypes));
+      new SubtypeTranslator(_builder, scope, coreTypes).addSubtype(from, to);
     } on UnassignableSinkError catch (e) {
       e.assignmentLocation = where.location;
       rethrow;
@@ -453,8 +454,7 @@ class ConstraintExtractorVisitor
   void checkTypeBound(TreeNode where, AType type, AType bound,
       [int fileOffset = TreeNode.noOffset]) {
     builder.setFileOffset(fileOffset);
-    type.generateSubBoundConstraint(
-        bound, new SubtypingScope(builder, scope, coreTypes));
+    new SubtypeTranslator(builder, scope, coreTypes).addSubBound(type, bound);
   }
 
   void checkAssignable(TreeNode where, AType from, AType to,
