@@ -16,6 +16,14 @@ import 'package:kernel/dataflow/extractor/common_values.dart';
 import 'package:kernel/dataflow/extractor/constraint_builder.dart';
 
 /// Generates constraints from [ValueSource]/[ValueSink] assignments.
+///
+/// The underlying constraint system does not understand sources and sinks,
+/// it only deals with storage locations and values.
+///
+/// The translator handles any combination of source and sink by means of
+/// a double dispatch.  It first dispatches over the sink, and if necessary,
+/// then dispatches over the source with some contextual information obtained
+/// from the sink.
 class SourceSinkTranslator extends ConstraintBuilder {
   final AugmentedHierarchy hierarchy;
   final ValueLattice lattice;
