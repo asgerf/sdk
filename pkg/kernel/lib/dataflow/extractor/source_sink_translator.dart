@@ -39,14 +39,14 @@ class SourceSinkTranslator extends ConstraintBuilder {
   void addAssignment(ValueSource source, ValueSink sink, int mask,
       [Class interfaceClass]) {
     sink.acceptSink(
-        new AssignmentSinkVisitor(this, source, mask, interfaceClass));
+        new _AssignmentSinkVisitor(this, source, mask, interfaceClass));
   }
 
   void addAssignmentToLocation(
       ValueSource source, StorageLocation sink, int mask,
       [Class interfaceClass]) {
     source.acceptSource(
-        new AssignmentSourceVisitor(this, sink, mask, interfaceClass));
+        new _AssignmentSourceVisitor(this, sink, mask, interfaceClass));
   }
 
   /// Mark values coming from [source] as escaping.
@@ -55,20 +55,20 @@ class SourceSinkTranslator extends ConstraintBuilder {
   /// escape.
   void addEscape(ValueSource source, {ValueSink guard}) {
     if (guard != null) {
-      guard.acceptSink(new EscapeSinkVisitor(this, source));
+      guard.acceptSink(new _EscapeSinkVisitor(this, source));
     } else {
-      source.acceptSource(new EscapeSourceVisitor(this));
+      source.acceptSource(new _EscapeSourceVisitor(this));
     }
   }
 }
 
-class AssignmentSinkVisitor extends ValueSinkVisitor {
+class _AssignmentSinkVisitor extends ValueSinkVisitor {
   final SourceSinkTranslator translator;
   final ValueSource source;
   final int mask;
   final Class interfaceClass;
 
-  AssignmentSinkVisitor(
+  _AssignmentSinkVisitor(
       this.translator, this.source, this.mask, this.interfaceClass);
 
   @override
@@ -96,7 +96,7 @@ class AssignmentSinkVisitor extends ValueSinkVisitor {
   }
 }
 
-class AssignmentSourceVisitor extends ValueSourceVisitor {
+class _AssignmentSourceVisitor extends ValueSourceVisitor {
   final SourceSinkTranslator translator;
   final StorageLocation sink;
   final int mask;
@@ -105,12 +105,12 @@ class AssignmentSourceVisitor extends ValueSourceVisitor {
   CommonValues get common => translator.common;
   CoreTypes get coreTypes => translator.coreTypes;
 
-  AssignmentSourceVisitor(
+  _AssignmentSourceVisitor(
       this.translator, this.sink, this.mask, this.interfaceClass);
 
-  AssignmentSourceVisitor get nullabilityVisitor {
+  _AssignmentSourceVisitor get nullabilityVisitor {
     if (mask & ~ValueFlags.null_ == 0) return this;
-    return new AssignmentSourceVisitor(
+    return new _AssignmentSourceVisitor(
         translator, sink, ValueFlags.null_, null);
   }
 
@@ -167,15 +167,15 @@ class AssignmentSourceVisitor extends ValueSourceVisitor {
   }
 }
 
-class EscapeSinkVisitor extends ValueSinkVisitor {
+class _EscapeSinkVisitor extends ValueSinkVisitor {
   final SourceSinkTranslator translator;
   final ValueSource source;
 
-  EscapeSinkVisitor(this.translator, this.source);
+  _EscapeSinkVisitor(this.translator, this.source);
 
   @override
   visitEscapingSink(EscapingSink sink) {
-    source.acceptSource(new EscapeSourceVisitor(translator));
+    source.acceptSource(new _EscapeSourceVisitor(translator));
   }
 
   @override
@@ -183,7 +183,7 @@ class EscapeSinkVisitor extends ValueSinkVisitor {
 
   @override
   visitStorageLocation(StorageLocation sink) {
-    source.acceptSource(new EscapeSourceVisitor(translator, guard: sink));
+    source.acceptSource(new _EscapeSourceVisitor(translator, guard: sink));
   }
 
   @override
@@ -196,11 +196,11 @@ class EscapeSinkVisitor extends ValueSinkVisitor {
   }
 }
 
-class EscapeSourceVisitor extends ValueSourceVisitor {
+class _EscapeSourceVisitor extends ValueSourceVisitor {
   final SourceSinkTranslator translator;
   final StorageLocation guard;
 
-  EscapeSourceVisitor(this.translator, {this.guard});
+  _EscapeSourceVisitor(this.translator, {this.guard});
 
   @override
   visitStorageLocation(StorageLocation source) {
