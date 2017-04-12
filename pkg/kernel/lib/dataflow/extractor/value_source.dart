@@ -37,7 +37,7 @@ abstract class ValueSource {
 ///       String_γ value = foo.value();
 ///     }
 ///
-/// The call to `box.value()` has a nullable return type in two cases:
+/// The call to `foo.value()` has a nullable return type in two cases:
 ///
 ///    - The type of foo is actually `Foo<String?>`, i.e `α` is nullable.
 ///    - The `Foo.value()` method actually returns `T?`, i.e. `β` is nullable.
