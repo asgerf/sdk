@@ -3,17 +3,18 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.dataflow.extractor.source_sink_translator;
 
-import '../../ast.dart';
-import '../../dataflow/extractor/value_sink.dart';
-import '../../dataflow/extractor/value_source.dart';
-import '../../dataflow/storage_location.dart';
-import '../../dataflow/value.dart';
-import '../constraints.dart';
-import 'augmented_type.dart';
-import 'augmented_hierarchy.dart';
+import 'package:kernel/ast.dart';
 import 'package:kernel/core_types.dart';
-import 'package:kernel/dataflow/extractor/common_values.dart';
-import 'package:kernel/dataflow/extractor/constraint_builder.dart';
+
+import '../constraints.dart';
+import '../storage_location.dart';
+import '../value.dart';
+import 'augmented_hierarchy.dart';
+import 'augmented_type.dart';
+import 'common_values.dart';
+import 'constraint_builder.dart';
+import 'value_sink.dart';
+import 'value_source.dart';
 
 /// Generates constraints from [ValueSource]/[ValueSink] assignments.
 ///
