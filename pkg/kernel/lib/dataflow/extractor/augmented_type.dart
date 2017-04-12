@@ -11,26 +11,6 @@ import 'substitution.dart';
 import 'value_sink.dart';
 import 'value_source.dart';
 
-class ASupertype implements Printable {
-  final Class classNode;
-  final List<AType> typeArguments;
-
-  ASupertype(this.classNode, this.typeArguments);
-
-  void printTo(Printer printer) {
-    printer.writeClassReference(classNode);
-    if (typeArguments.isNotEmpty) {
-      printer.writeSymbol('<');
-      printer.writeList(typeArguments, (AType argument) {
-        argument.printTo(printer);
-      });
-      printer.writeSymbol('>');
-    }
-  }
-
-  String toString() => Printable.show(this);
-}
-
 abstract class AType implements Printable {
   /// Describes the abstract values one may obtain by reading from a storage
   /// location with this type.
@@ -345,4 +325,24 @@ abstract class ATypeVisitor<T> {
   T visitFunctionTypeParameterAType(FunctionTypeParameterAType type);
   T visitBottomAType(BottomAType type);
   T visitTypeParameterAType(TypeParameterAType type);
+}
+
+class ASupertype implements Printable {
+  final Class classNode;
+  final List<AType> typeArguments;
+
+  ASupertype(this.classNode, this.typeArguments);
+
+  void printTo(Printer printer) {
+    printer.writeClassReference(classNode);
+    if (typeArguments.isNotEmpty) {
+      printer.writeSymbol('<');
+      printer.writeList(typeArguments, (AType argument) {
+        argument.printTo(printer);
+      });
+      printer.writeSymbol('>');
+    }
+  }
+
+  String toString() => Printable.show(this);
 }
