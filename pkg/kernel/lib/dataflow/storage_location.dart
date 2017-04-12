@@ -28,6 +28,8 @@ class StorageLocation extends solver.StorageLocationBaseClass
   final Reference owner; // Class or Member
   final int index;
 
+  /// If non-null, this storage location represents a use the given type
+  /// parameter.
   TypeParameterStorageLocation parameterLocation;
 
   StorageLocation(this.owner, this.index);
