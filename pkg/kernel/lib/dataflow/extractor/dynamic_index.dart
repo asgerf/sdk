@@ -5,9 +5,13 @@ library kernel.dataflow.extractor.dynamic_index;
 
 import 'package:kernel/ast.dart';
 
+/// An index of all members with a private name.
+///
+/// This is used for resolving dynamic calls with private names during
+/// constraint generation.
 class DynamicIndex {
-  final Map<Name, List<Member>> getters = <Name, List<Member>>{};
-  final Map<Name, List<Member>> setters = <Name, List<Member>>{};
+  final Map<Name, List<Member>> _getters = <Name, List<Member>>{};
+  final Map<Name, List<Member>> _setters = <Name, List<Member>>{};
 
   DynamicIndex(Program program) {
     for (var library in program.libraries) {
@@ -18,16 +22,16 @@ class DynamicIndex {
               !procedure.name.isPrivate) {
             continue;
           }
-          var map = procedure.isSetter ? setters : getters;
+          var map = procedure.isSetter ? _setters : _getters;
           var list = map[procedure.name] ??= <Member>[];
           list.add(procedure);
         }
         for (var field in classNode.fields) {
           if (field.isStatic || !field.name.isPrivate) continue;
-          var list = getters[field.name] ??= <Member>[];
+          var list = _getters[field.name] ??= <Member>[];
           list.add(field);
           if (!field.isFinal) {
-            list = setters[field.name] ??= <Member>[];
+            list = _setters[field.name] ??= <Member>[];
             list.add(field);
           }
         }
@@ -36,10 +40,10 @@ class DynamicIndex {
   }
 
   List<Member> getGetters(Name name) {
-    return getters[name] ?? const <Member>[];
+    return _getters[name] ?? const <Member>[];
   }
 
   List<Member> getSetters(Name name) {
-    return setters[name] ?? const <Member>[];
+    return _setters[name] ?? const <Member>[];
   }
 }
