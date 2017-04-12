@@ -8,6 +8,8 @@ import '../../class_hierarchy.dart';
 import '../../core_types.dart';
 import 'constraint_extractor.dart';
 
+/// Specifies the behavior of external methods, special-cased core library
+/// methods, and program entry points.
 abstract class ExternalModel {
   /// True if the given external [member] does not return `null` and does not
   /// cause any objects to escape.
@@ -35,6 +37,7 @@ abstract class ExternalModel {
   bool forceCleanSupertypes(Class class_);
 }
 
+/// Models the behavior of VM externals.
 class VmExternalModel extends ExternalModel {
   final CoreTypes coreTypes;
   final ClassHierarchy classHierarchy;
