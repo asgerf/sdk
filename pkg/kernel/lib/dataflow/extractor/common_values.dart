@@ -1,3 +1,6 @@
+// Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
+// for details. All rights reserved. Use of this source code is governed by a
+// BSD-style license that can be found in the LICENSE file.
 library kernel.dataflow.extractor.common_values;
 
 import 'package:kernel/core_types.dart';
@@ -6,6 +9,7 @@ import 'package:kernel/dataflow/extractor/backend_core_types.dart';
 import 'package:kernel/dataflow/extractor/value_sink.dart';
 import 'package:kernel/dataflow/value.dart';
 
+/// Contains commonly used values and types.
 class CommonValues {
   AType conditionType;
   AType escapingType;
