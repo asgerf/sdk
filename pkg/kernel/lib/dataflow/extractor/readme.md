@@ -8,7 +8,7 @@ Extraction happens in four interleaved steps:
  2. [ConstraintExtractor] extracts augmented subtyping judgements from the AST
     based on mostly traditional subtyping rules (in the augmented type system),
     while annotating AST nodes with an index where their computed value
-    should be stored.
+    can be found once the dataflow analysis complete.
 
  3. [SubtypeTranslator] translates augmented subtyping judgements into
     source/sink assignments.
