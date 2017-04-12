@@ -13,11 +13,11 @@ Extraction happens in four interleaved steps:
  3. [SubtypeTranslator] translates augmented subtyping judgements into
     source/sink assignments.
 
- 4. [ConstraintBuilder] translates source/sink assignments into constraints.
+ 4. [SourceSinkTranslator] translates source/sink assignments into constraints.
 
 Concretely, steps 2-4 are fused into a single pass, that is, a subtyping
 judgement is immediately translated to a set of constraints when found,
-and are not stored in an intermediate buffer.
+and are not stored in an intermediate buffer.  Step 1 is built on-demand.
 
 Extraction is modular, that is, it does not require knowledge of libraries
 other than those imported by the build unit being analyzed.
