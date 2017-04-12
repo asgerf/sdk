@@ -82,6 +82,16 @@ class ClassSet {
     }
     return domain.rootClass;
   }
+
+  void forEach(void callback(Class class_)) {
+    for (int i = 0; i < intervalList.length; i += 2) {
+      int begin = intervalList[i];
+      int end = intervalList[i + 1];
+      for (int j = begin; j < end; ++j) {
+        callback(domain.getClassFromIndex(j));
+      }
+    }
+  }
 }
 
 class _ClassInfo {
