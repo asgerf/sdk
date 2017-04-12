@@ -172,6 +172,7 @@ abstract class StorageLocationBank {
   StorageLocationBank(this.binding, this.coreTypes);
 
   NamedNode get classOrMember => binding.owner.node;
+  Reference get owner => binding.owner;
 
   int get nextIndex => locations.length;
 

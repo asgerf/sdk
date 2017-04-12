@@ -491,16 +491,16 @@ class ConstraintExtractorVisitor
   AType visitExpression(Expression node) {
     var type = node.accept(this);
     var source = type.source;
-    if (source is StorageLocation && source.owner == bank.classOrMember) {
+    if (source is StorageLocation && source.owner == bank.owner) {
       node.dataflowValueOffset = source.index;
     } else {
-      var newKey = bank.newLocation();
+      var newLocation = bank.newLocation();
       if (node.fileOffset != TreeNode.noOffset) {
         builder.setFileOffset(node.fileOffset);
       }
-      builder.addAssignment(source, newKey, ValueFlags.all);
-      type = type.withSource(newKey);
-      node.dataflowValueOffset = newKey.index;
+      builder.addAssignment(source, newLocation, ValueFlags.all);
+      type = type.withSource(newLocation);
+      node.dataflowValueOffset = newLocation.index;
     }
     return type;
   }
