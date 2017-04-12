@@ -3,6 +3,9 @@
 // BSD-style license that can be found in the LICENSE file.
 library kernel.dataflow.extractor.constraint_extractor;
 
+import 'package:kernel/util/class_set.dart';
+import 'package:meta/meta.dart';
+
 import '../../ast.dart';
 import '../../class_hierarchy.dart';
 import '../../core_types.dart';
@@ -13,15 +16,13 @@ import 'augmented_type.dart';
 import 'backend_core_types.dart';
 import 'binding.dart';
 import 'common_values.dart';
-import 'package:kernel/dataflow/extractor/source_sink_translator.dart';
-import 'subtype_translator.dart';
 import 'control_flow_state.dart';
 import 'dynamic_index.dart';
 import 'external_model.dart';
 import 'hierarchy.dart';
-import 'package:kernel/util/class_set.dart';
-import 'package:meta/meta.dart';
+import 'source_sink_translator.dart';
 import 'substitution.dart';
+import 'subtype_translator.dart';
 import 'type_augmentor.dart';
 import 'value_sink.dart';
 import 'value_source.dart';
