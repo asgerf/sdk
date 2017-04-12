@@ -47,7 +47,7 @@ abstract class AType implements Printable {
   AType substitute(Substitution substitution, int shift);
 
   /// Returns a copy of this type with its value source replaced.
-  AType withSource(ValueSource source);
+  AType withSourceAndSink({ValueSource source, ValueSink sink});
 
   /// True if this type or any of its subterms match [predicate].
   bool containsAny(bool predicate(AType type)) => predicate(this);
@@ -95,8 +95,9 @@ class InterfaceAType extends AType {
         AType.substituteList(typeArguments, substitution, shift));
   }
 
-  AType withSource(ValueSource source) {
-    return new InterfaceAType(source, sink, classNode, typeArguments);
+  AType withSourceAndSink({ValueSource source, ValueSink sink}) {
+    return new InterfaceAType(
+        source ?? this.source, sink ?? this.sink, classNode, typeArguments);
   }
 
   void printTo(Printer printer) {
@@ -186,10 +187,10 @@ class FunctionAType extends AType {
         returnType.substitute(substitution, 0));
   }
 
-  AType withSource(ValueSource source) {
+  AType withSourceAndSink({ValueSource source, ValueSink sink}) {
     return new FunctionAType(
-        source,
-        sink,
+        source ?? this.source,
+        sink ?? this.sink,
         typeParameterBounds,
         requiredParameterCount,
         positionalParameters,
@@ -264,8 +265,9 @@ class FunctionTypeParameterAType extends AType {
     return substitution.getInstantiation(this, shift) ?? this;
   }
 
-  AType withSource(ValueSource source) {
-    return new FunctionTypeParameterAType(source, sink, index);
+  AType withSourceAndSink({ValueSource source, ValueSink sink}) {
+    return new FunctionTypeParameterAType(
+        source ?? this.source, sink ?? this.sink, index);
   }
 
   void printTo(Printer printer) {
@@ -286,8 +288,8 @@ class BottomAType extends AType {
   static final BottomAType nullable =
       new BottomAType(Value.null_, ValueSink.nowhere);
 
-  AType withSource(ValueSource source) {
-    return new BottomAType(source, sink);
+  AType withSourceAndSink({ValueSource source, ValueSink sink}) {
+    return new BottomAType(source ?? this.source, sink ?? this.sink);
   }
 
   void printTo(Printer printer) {
@@ -307,8 +309,9 @@ class TypeParameterAType extends AType {
     return substitution.getSubstitute(this) ?? this;
   }
 
-  AType withSource(ValueSource newSource) {
-    return new TypeParameterAType(newSource, sink, parameter);
+  AType withSourceAndSink({ValueSource source, ValueSink sink}) {
+    return new TypeParameterAType(
+        source ?? this.source, sink ?? this.sink, parameter);
   }
 
   void printTo(Printer printer) {

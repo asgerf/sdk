@@ -112,7 +112,7 @@ class ConstraintSolver {
   }
 
   void transferEscapeConstraint(EscapeConstraint constraint) {
-    if (constraint.guard == null || constraint.guard.value.isEscaping) {
+    if (constraint.guard == null || constraint.guard.leadsToEscape) {
       propagateEscapingLocation(constraint.escaping);
     }
   }

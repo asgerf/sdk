@@ -178,7 +178,8 @@ class PairSubstitution extends Substitution {
     AType argument = types[index];
     var source =
         new ValueSourceWithNullability(argument.source, parameterType.source);
-    return argument.withSource(source);
+    var sink = new ValueSinkWithEscape(argument.sink, parameterType.sink);
+    return argument.withSourceAndSink(source: source, sink: sink);
   }
 
   AType getRawSubstitute(TypeParameter parameter) {

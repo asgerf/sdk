@@ -49,8 +49,16 @@ class SourceSinkTranslator extends ConstraintBuilder {
         new AssignmentFromValueSource(this, sink, mask, interfaceClass));
   }
 
-  void addEscape(ValueSource source, {StorageLocation guard}) {
-    source.acceptSource(new EscapeVisitor(this, guard));
+  /// Mark values coming from [source] as escaping.
+  ///
+  /// The the [guard] is given, only take effect if the guard can lead to
+  /// escape.
+  void addEscape(ValueSource source, {ValueSink guard}) {
+    if (guard != null) {
+      guard.acceptSink(new EscapeSinkVisitor(this, source));
+    } else {
+      source.acceptSource(new EscapeSourceVisitor(this));
+    }
   }
 }
 
@@ -79,6 +87,12 @@ class AssignmentToValueSink extends ValueSinkVisitor {
   @override
   visitUnassignableSink(UnassignableSink sink) {
     throw new UnassignableSinkError(sink);
+  }
+
+  @override
+  visitValueSinkWithEscape(ValueSinkWithEscape sink) {
+    sink.base.acceptSink(this);
+    translator.addEscape(source, guard: sink.escaping);
   }
 }
 
@@ -153,11 +167,11 @@ class AssignmentFromValueSource extends ValueSourceVisitor {
   }
 }
 
-class EscapeVisitor extends ValueSourceVisitor {
+class EscapeSourceVisitor extends ValueSourceVisitor {
   final SourceSinkTranslator translator;
   final StorageLocation guard;
 
-  EscapeVisitor(this.translator, this.guard);
+  EscapeSourceVisitor(this.translator, {this.guard});
 
   @override
   visitStorageLocation(StorageLocation source) {
@@ -170,6 +184,35 @@ class EscapeVisitor extends ValueSourceVisitor {
   @override
   visitValueSourceWithNullability(ValueSourceWithNullability source) {
     source.base.acceptSource(this);
+  }
+}
+
+class EscapeSinkVisitor extends ValueSinkVisitor {
+  final SourceSinkTranslator translator;
+  final ValueSource source;
+
+  EscapeSinkVisitor(this.translator, this.source);
+
+  @override
+  visitEscapingSink(EscapingSink sink) {
+    source.acceptSource(new EscapeSourceVisitor(translator));
+  }
+
+  @override
+  visitNowhereSink(NowhereSink sink) {}
+
+  @override
+  visitStorageLocation(StorageLocation sink) {
+    source.acceptSource(new EscapeSourceVisitor(translator, guard: sink));
+  }
+
+  @override
+  visitUnassignableSink(UnassignableSink sink) {}
+
+  @override
+  visitValueSinkWithEscape(ValueSinkWithEscape sink) {
+    sink.base.acceptSink(this);
+    sink.escaping.acceptSink(this);
   }
 }
 

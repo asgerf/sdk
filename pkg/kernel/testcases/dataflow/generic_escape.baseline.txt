@@ -1,0 +1,25 @@
+library;
+import self as self;
+import "dart:core" as core;
+
+class Generic<T extends core::_GrowableList!&core::Object/Bottom> extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method escapeMe(self::Something!&core::Object object, self::Generic::T arg) → Null {
+    object.foo(arg);
+  }
+}
+class Something extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method foo(Bottom&core::List<Bottom&core::int/Null> list) → Null {
+    list.{core::List::add}(null);
+  }
+}
+static method main() → Null&core::Object {
+  core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> list = <core::_IntegerImplementation+?&core::int>[1, 2, 3];
+  new self::Generic::•<core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/>>().{self::Generic::escapeMe}(new self::Something::•(), list);
+  core::_IntegerImplementation+?&core::int nullableInt = list.{core::Iterable::last};
+}

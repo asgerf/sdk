@@ -80,9 +80,20 @@ class EscapingSink extends ValueSink {
   }
 }
 
+class ValueSinkWithEscape extends ValueSink {
+  final ValueSink base, escaping;
+
+  ValueSinkWithEscape(this.base, this.escaping);
+
+  T acceptSink<T>(ValueSinkVisitor<T> visitor) {
+    return visitor.visitValueSinkWithEscape(this);
+  }
+}
+
 abstract class ValueSinkVisitor<T> {
-  T visitStorageLocation(StorageLocation key);
+  T visitStorageLocation(StorageLocation sink);
   T visitNowhereSink(NowhereSink sink);
   T visitUnassignableSink(UnassignableSink sink);
   T visitEscapingSink(EscapingSink sink);
+  T visitValueSinkWithEscape(ValueSinkWithEscape sink);
 }

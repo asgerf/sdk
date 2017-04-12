@@ -499,7 +499,7 @@ class ConstraintExtractorVisitor
         builder.setFileOffset(node.fileOffset);
       }
       builder.addAssignment(source, newLocation, ValueFlags.all);
-      type = type.withSource(newLocation);
+      type = type.withSourceAndSink(source: newLocation);
       node.dataflowValueOffset = newLocation.index;
     }
     return type;
@@ -1418,12 +1418,12 @@ class ConstraintExtractorVisitor
     // lists with nulls.
     if (node.targetReference == defaultListFactoryReference) {
       if (node.arguments.positional.length == 0) {
-        return type.withSource(common.growableListValue);
+        return type.withSourceAndSink(source: common.growableListValue);
       }
       InterfaceAType listType = type;
       AType contentType = listType.typeArguments[0];
       builder.addAssignment(Value.null_, contentType.sink, ValueFlags.all);
-      return type.withSource(common.fixedLengthListValue);
+      return type.withSourceAndSink(source: common.fixedLengthListValue);
     }
     return type;
   }
@@ -1969,14 +1969,19 @@ class ExternalVisitor extends ATypeVisitor {
 class AllocationVisitor extends ATypeVisitor {
   final ConstraintExtractor extractor;
   final StorageLocation object;
-  bool isCovariant;
+  final bool isCovariant;
+  final bool isContravariant;
 
   SourceSinkTranslator get builder => extractor._builder;
 
-  AllocationVisitor(this.extractor, this.object, {this.isCovariant: true});
+  AllocationVisitor(this.extractor, this.object,
+      {this.isCovariant: true, this.isContravariant: false});
 
-  AllocationVisitor get inverse =>
-      new AllocationVisitor(extractor, object, isCovariant: !isCovariant);
+  AllocationVisitor get inverse => new AllocationVisitor(extractor, object,
+      isCovariant: isContravariant, isContravariant: isCovariant);
+
+  AllocationVisitor get bivariant => new AllocationVisitor(extractor, object,
+      isCovariant: true, isContravariant: true);
 
   void visitSubterms(AType type) {
     type.accept(this);
@@ -1989,7 +1994,8 @@ class AllocationVisitor extends ATypeVisitor {
       // get processed here.  If the function escapes, the values it returns
       // can escape too, so process B as escaping.
       builder.addEscape(type.source, guard: object);
-    } else {
+    }
+    if (isContravariant) {
       // Simple case intuition:
       // For a function object of type `(A) => B`, the argument type A will get
       // processed here.  If the function escapes, unknown arguments can be
@@ -2019,7 +2025,7 @@ class AllocationVisitor extends ATypeVisitor {
   @override
   visitInterfaceAType(InterfaceAType type) {
     for (var argument in type.typeArguments) {
-      visit(argument);
+      bivariant.visit(argument);
     }
   }
 
