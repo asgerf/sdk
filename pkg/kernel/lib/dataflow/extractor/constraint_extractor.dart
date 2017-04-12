@@ -498,7 +498,7 @@ class ConstraintExtractorVisitor
       if (node.fileOffset != TreeNode.noOffset) {
         builder.setFileOffset(node.fileOffset);
       }
-      builder.addAssignment(source, newLocation, ValueFlags.all);
+      builder.addAssignment(source, newLocation);
       type = type.withSourceAndSink(source: newLocation);
       node.dataflowValueOffset = newLocation.index;
     }
@@ -692,8 +692,7 @@ class ConstraintExtractorVisitor
       visitStatement(node.body);
       if (controlFlow.isReachable && returnType != null) {
         builder.setFileOffset(node.fileEndOffset);
-        builder.addAssignment(
-            common.nullValue, returnType.sink, ValueFlags.null_);
+        builder.addAssignment(common.nullValue, returnType.sink);
       }
       controlFlow.resumeBranch(base);
     }
@@ -757,8 +756,7 @@ class ConstraintExtractorVisitor
           parameter.initializer, getVariableType(parameter), fileOffset);
     } else {
       builder.setFileOffset(fileOffset);
-      builder.addAssignment(
-          common.nullValue, getVariableType(parameter).sink, ValueFlags.null_);
+      builder.addAssignment(common.nullValue, getVariableType(parameter).sink);
     }
   }
 
@@ -972,7 +970,8 @@ class ConstraintExtractorVisitor
     Class interfaceClass = type is InterfaceType ? type.classNode : null;
     int mask = extractor.getValueSetFlagsFromInterfaceType(node.type) |
         ValueFlags.nonValueSetFlags;
-    builder.addAssignment(input.source, output.sink, mask, interfaceClass);
+    builder.addAssignment(
+        input.source, output.sink, new TypeFilter(interfaceClass, mask));
     if (isTaintingDowncast(type)) {
       builder.setFileOffset(node.fileOffset);
       builder.addEscape(input.source);
@@ -1232,7 +1231,7 @@ class ConstraintExtractorVisitor
       for (var target in targets) {
         var returnType = handleDynamicCallToPotentialTarget(
             where, receiver, target, types, positional, named, names);
-        builder.addAssignment(returnType.source, destination, ValueFlags.all);
+        builder.addAssignment(returnType.source, destination);
       }
       return new InterfaceAType(
           destination,
@@ -1421,7 +1420,7 @@ class ConstraintExtractorVisitor
       }
       InterfaceAType listType = type;
       AType contentType = listType.typeArguments[0];
-      builder.addAssignment(Value.null_, contentType.sink, ValueFlags.all);
+      builder.addAssignment(Value.null_, contentType.sink);
       return type.withSourceAndSink(source: common.fixedLengthListValue);
     }
     return type;
@@ -1507,7 +1506,7 @@ class ConstraintExtractorVisitor
     var type = getVariableType(variable);
     if (!controlFlow.isDefinitelyInitialized(variable)) {
       builder.setFileOffset(node.variable.fileOffset);
-      builder.addAssignment(Value.null_, type.sink, ValueFlags.all);
+      builder.addAssignment(Value.null_, type.sink);
     }
     return type;
   }

@@ -39,15 +39,9 @@ class SourceSinkTranslator extends ConstraintBuilder {
     return hierarchy.getTypeAsInstanceOf(subtype, superclass);
   }
 
-  void addAssignmentWithFilter(
-      ValueSource source, ValueSink sink, TypeFilter filter) {
-    addAssignment(source, sink, filter.mask, filter.interfaceClass);
-  }
-
-  void addAssignment(ValueSource source, ValueSink sink, int mask,
-      [Class interfaceClass]) {
-    sink.acceptSink(
-        new _AssignmentSinkVisitor(this, source, mask, interfaceClass));
+  void addAssignment(ValueSource source, ValueSink sink, [TypeFilter filter]) {
+    sink.acceptSink(new _AssignmentSinkVisitor(
+        this, source, filter?.mask ?? ValueFlags.all, filter?.interfaceClass));
   }
 
   /// Mark values coming from [source] as escaping.
@@ -222,9 +216,10 @@ class TypeFilter {
   final Class interfaceClass;
   final int valueSets;
 
-  TypeFilter(this.interfaceClass, this.valueSets);
+  const TypeFilter(this.interfaceClass, this.valueSets);
 
   int get mask => valueSets | ValueFlags.nonValueSetFlags;
 
   static final TypeFilter none = new TypeFilter(null, ValueFlags.allValueSets);
+  static final TypeFilter null_ = new TypeFilter(null, ValueFlags.null_);
 }

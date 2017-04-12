@@ -35,7 +35,7 @@ class SubtypeTranslator extends SourceSinkTranslator {
     // it out in order to save time for the solver (filters are expensive).
     TypeFilter filter =
         isValidSubtype ? TypeFilter.none : getTypeFilter(supertype);
-    addAssignmentWithFilter(subtype.source, supertype.sink, filter);
+    addAssignment(subtype.source, supertype.sink, filter);
   }
 
   /// Generates constraints to ensure [subbound] is a subbound of [superbound],
@@ -46,11 +46,11 @@ class SubtypeTranslator extends SourceSinkTranslator {
       // TODO: Clean this up.
       if (superbound.source is StorageLocation) {
         StorageLocation superSource = superbound.source as StorageLocation;
-        addAssignment(subbound.source, superSource, ValueFlags.null_);
+        addAssignment(subbound.source, superSource, TypeFilter.null_);
       }
       if (superbound.sink is StorageLocation) {
         StorageLocation superSink = superbound.sink as StorageLocation;
-        addAssignment(superSink, subbound.sink, ValueFlags.null_);
+        addAssignment(superSink, subbound.sink, TypeFilter.null_);
       }
       if (superbound is TypeParameterAType &&
           superbound.parameter == subbound.parameter) {
@@ -65,14 +65,14 @@ class SubtypeTranslator extends SourceSinkTranslator {
         // Add a type filter on the upper bound if the subtype checks failed.
         TypeFilter filter = ok ? TypeFilter.none : superFilter;
         StorageLocation superSource = superbound.source as StorageLocation;
-        addAssignmentWithFilter(subbound.source, superSource, filter);
+        addAssignment(subbound.source, superSource, filter);
       }
       if (superbound.sink is StorageLocation) {
         // Because of covariant subtyping, the lower bound check is never safe,
         // so we always use a type filter here.  The filter is sound because of
         // the checks inserted for covariant subtyping.
         StorageLocation superSink = superbound.sink as StorageLocation;
-        addAssignmentWithFilter(superSink, subbound.sink, superFilter);
+        addAssignment(superSink, subbound.sink, superFilter);
       }
     }
   }
