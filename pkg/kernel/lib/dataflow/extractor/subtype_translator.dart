@@ -8,7 +8,7 @@ import 'package:kernel/dataflow/constraints.dart';
 import 'package:kernel/dataflow/extractor/augmented_type.dart';
 import 'package:kernel/dataflow/extractor/common_values.dart';
 import 'package:kernel/dataflow/extractor/constraint_extractor.dart';
-import 'package:kernel/dataflow/extractor/hierarchy.dart';
+import 'package:kernel/dataflow/extractor/augmented_hierarchy.dart';
 import 'package:kernel/dataflow/extractor/source_sink_translator.dart';
 import 'package:kernel/dataflow/storage_location.dart';
 import 'package:kernel/dataflow/value.dart';

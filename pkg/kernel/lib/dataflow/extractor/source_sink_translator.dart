@@ -10,7 +10,7 @@ import '../../dataflow/storage_location.dart';
 import '../../dataflow/value.dart';
 import '../constraints.dart';
 import 'augmented_type.dart';
-import 'hierarchy.dart';
+import 'augmented_hierarchy.dart';
 import 'package:kernel/core_types.dart';
 import 'package:kernel/dataflow/extractor/common_values.dart';
 import 'package:kernel/dataflow/extractor/constraint_builder.dart';

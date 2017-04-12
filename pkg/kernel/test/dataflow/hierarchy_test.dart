@@ -7,7 +7,7 @@ import 'package:kernel/dataflow/constraints.dart';
 import 'package:kernel/dataflow/extractor/augmented_type.dart';
 import 'package:kernel/dataflow/extractor/binding.dart';
 import 'package:kernel/dataflow/extractor/external_model.dart';
-import 'package:kernel/dataflow/extractor/hierarchy.dart';
+import 'package:kernel/dataflow/extractor/augmented_hierarchy.dart';
 import 'package:kernel/kernel.dart';
 import 'package:test/test.dart';
 
