@@ -7,7 +7,7 @@ import '../../ast.dart';
 import '../../text/printable.dart';
 import '../storage_location.dart';
 import '../value.dart';
-import 'substitution.dart';
+import 'augmented_substitution.dart';
 import 'value_sink.dart';
 import 'value_source.dart';
 
