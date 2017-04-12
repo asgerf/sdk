@@ -9,6 +9,18 @@ import 'augmented_type.dart';
 import 'binding.dart';
 import 'substitution.dart';
 
+/// Allows upcasting of interface types in the augmented type system.
+///
+/// The supertype clause of a class may itself contain augmented types whose
+/// value need to be determined.  For instance, consider the class:
+///
+///     class MyList extends List<int>
+///
+/// It is not clear if `MyList` behaves as a list with nullable contents.
+///
+/// There is a storage associated with the `int` type in the extends clause,
+/// which tracks the nullability of the list contents.  This storage location
+/// is included in the type when upcasting `MyList` to `List`.
 class AugmentedHierarchy {
   final ClassHierarchy baseHierarchy;
   final List<Map<Class, Substitution>> _supertypes;
