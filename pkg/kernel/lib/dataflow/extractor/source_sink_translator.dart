@@ -50,13 +50,6 @@ class SourceSinkTranslator extends ConstraintBuilder {
         new _AssignmentSinkVisitor(this, source, mask, interfaceClass));
   }
 
-  void addAssignmentToLocation(
-      ValueSource source, StorageLocation sink, int mask,
-      [Class interfaceClass]) {
-    source.acceptSource(
-        new _AssignmentSourceVisitor(this, sink, mask, interfaceClass));
-  }
-
   /// Mark values coming from [source] as escaping.
   ///
   /// The the [guard] is given, only take effect if the guard can lead to
@@ -86,7 +79,8 @@ class _AssignmentSinkVisitor extends ValueSinkVisitor {
 
   @override
   visitStorageLocation(StorageLocation sink) {
-    translator.addAssignmentToLocation(source, sink, mask, interfaceClass);
+    source.acceptSource(
+        new _AssignmentSourceVisitor(translator, sink, mask, interfaceClass));
   }
 
   @override

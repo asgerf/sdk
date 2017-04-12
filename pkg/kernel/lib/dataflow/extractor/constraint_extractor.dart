@@ -1232,8 +1232,7 @@ class ConstraintExtractorVisitor
       for (var target in targets) {
         var returnType = handleDynamicCallToPotentialTarget(
             where, receiver, target, types, positional, named, names);
-        builder.addAssignmentToLocation(
-            returnType.source, destination, ValueFlags.all);
+        builder.addAssignment(returnType.source, destination, ValueFlags.all);
       }
       return new InterfaceAType(
           destination,
