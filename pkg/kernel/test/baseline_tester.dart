@@ -49,7 +49,6 @@ void runBaselineTests(String folderName, TestTarget target) {
     if (file is File && file.path.endsWith('.dart')) {
       String name = pathlib.basename(file.path);
       if (focusedTest != null && focusedTest != name) {
-        print('Skipping $name');
         continue;
       }
       test(name, () async {
