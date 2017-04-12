@@ -11,9 +11,13 @@ import '../storage_location.dart';
 /// This abstraction is used by constraint generation to work with types that
 /// do not have an associated [StorageLocation].
 abstract class ValueSink {
+  /// Sink that ignores incoming values.
   static final ValueSink nowhere = new NowhereSink();
+
+  /// Sink that escapes incoming values.
   static final ValueSink escape = new EscapingSink();
 
+  /// Sink that should never be used in an assignment.
   static ValueSink unassignable(String what, [TreeNode where]) {
     return new UnassignableSink(what, where);
   }
