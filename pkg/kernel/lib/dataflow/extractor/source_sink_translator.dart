@@ -55,6 +55,32 @@ class SourceSinkTranslator extends ConstraintBuilder {
       source.acceptSource(new _EscapeSourceVisitor(this));
     }
   }
+
+  /// Ensure that anything flowing out of [from] also flows out out of [to].
+  ///
+  /// This operation only supports value sources of [to] that have an underlying
+  /// storage location to which the values of [from] can be assigned.
+  ///
+  /// This limitation exists because our type hierarchy does not express the
+  /// invariant that type bounds in some contexts are known to carry a storage
+  /// location as their upper bound.
+  void addSourceToSourceAssignment(ValueSource from, ValueSource to,
+      [TypeFilter filter]) {
+    to.acceptSource(new _SourceToSourceVisitor(this, from, filter));
+  }
+
+  /// Ensure that anything that flows into [from] will also flow into [to].
+  ///
+  /// This operation only supports value sinks of [from] that have an underlying
+  /// storage location from which the values can be obtained.
+  ///
+  /// This limitation exists because our type hierarchy does not express the
+  /// invariant that type bounds in some contexts are known to carry a storage
+  /// location as their lower bound.
+  void addSinkToSinkAssignment(ValueSink from, ValueSink to,
+      [TypeFilter filter]) {
+    from.acceptSink(new _SinkToSinkVisitor(this, to, filter));
+  }
 }
 
 class _AssignmentSinkVisitor extends ValueSinkVisitor {
@@ -209,6 +235,54 @@ class _EscapeSourceVisitor extends ValueSourceVisitor {
   @override
   visitValueSourceWithNullability(ValueSourceWithNullability source) {
     source.base.acceptSource(this);
+  }
+}
+
+class _SourceToSourceVisitor extends ValueSourceVisitor {
+  final SourceSinkTranslator translator;
+  final ValueSource from;
+  final TypeFilter filter;
+
+  _SourceToSourceVisitor(this.translator, this.from, this.filter);
+
+  @override
+  visitStorageLocation(StorageLocation location) {
+    translator.addAssignment(from, location, filter);
+  }
+
+  @override
+  visitValue(Value to) {}
+
+  @override
+  visitValueSourceWithNullability(ValueSourceWithNullability to) {
+    to.base.acceptSource(this);
+  }
+}
+
+class _SinkToSinkVisitor extends ValueSinkVisitor {
+  final SourceSinkTranslator translator;
+  final ValueSink to;
+  final TypeFilter filter;
+
+  _SinkToSinkVisitor(this.translator, this.to, this.filter);
+
+  @override
+  visitEscapingSink(EscapingSink sink) {}
+
+  @override
+  visitNowhereSink(NowhereSink sink) {}
+
+  @override
+  visitStorageLocation(StorageLocation location) {
+    translator.addAssignment(location, to, filter);
+  }
+
+  @override
+  visitUnassignableSink(UnassignableSink sink) {}
+
+  @override
+  visitValueSinkWithEscape(ValueSinkWithEscape sink) {
+    sink.base.acceptSink(this);
   }
 }
 

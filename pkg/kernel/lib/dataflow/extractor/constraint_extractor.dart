@@ -1913,10 +1913,7 @@ class ExternalVisitor extends ATypeVisitor {
       // get processed here.  If the function escapes, the values it returns
       // can escape too, so process B as escaping.
       if (!isClean) {
-        var sink = type.sink;
-        if (sink is StorageLocation) {
-          builder.addEscape(sink);
-        }
+        builder.addSinkToSinkAssignment(type.sink, ValueSink.escape);
       }
     }
     if (isContravariant) {
@@ -1924,12 +1921,9 @@ class ExternalVisitor extends ATypeVisitor {
       // For a function object of type `(A) => B`, the argument type A will get
       // processed here.  If the function escapes, unknown arguments can be
       // passed to it, so mark A as having worst-case values.
-      var source = type.source;
-      if (source is StorageLocation) {
-        extractor._builder.addConstraint(new ValueConstraint(
-            source, extractor.getWorstCaseValueForType(type, isClean: isClean),
-            canEscape: !isClean));
-      }
+      builder.addSourceToSourceAssignment(
+          extractor.getWorstCaseValueForType(type, isClean: isClean),
+          type.source);
     }
     type.accept(this);
   }

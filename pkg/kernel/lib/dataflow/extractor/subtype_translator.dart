@@ -5,12 +5,11 @@ library kernel.dataflow.extractor.constraints_from_subtyping;
 
 import 'package:kernel/core_types.dart';
 import 'package:kernel/dataflow/constraints.dart';
+import 'package:kernel/dataflow/extractor/augmented_hierarchy.dart';
 import 'package:kernel/dataflow/extractor/augmented_type.dart';
 import 'package:kernel/dataflow/extractor/common_values.dart';
 import 'package:kernel/dataflow/extractor/constraint_extractor.dart';
-import 'package:kernel/dataflow/extractor/augmented_hierarchy.dart';
 import 'package:kernel/dataflow/extractor/source_sink_translator.dart';
-import 'package:kernel/dataflow/storage_location.dart';
 import 'package:kernel/dataflow/value.dart';
 
 /// Translates subtyping judgements into constraints.
@@ -44,14 +43,9 @@ class SubtypeTranslator extends SourceSinkTranslator {
   void addSubBound(AType subbound, AType superbound, TypeParameterScope scope) {
     if (subbound is TypeParameterAType) {
       // TODO: Clean this up.
-      if (superbound.source is StorageLocation) {
-        StorageLocation superSource = superbound.source as StorageLocation;
-        addAssignment(subbound.source, superSource, TypeFilter.null_);
-      }
-      if (superbound.sink is StorageLocation) {
-        StorageLocation superSink = superbound.sink as StorageLocation;
-        addAssignment(superSink, subbound.sink, TypeFilter.null_);
-      }
+      addSourceToSourceAssignment(
+          subbound.source, superbound.source, TypeFilter.null_);
+      addSinkToSinkAssignment(superbound.sink, subbound.sink, TypeFilter.null_);
       if (superbound is TypeParameterAType &&
           superbound.parameter == subbound.parameter) {
         return;
@@ -60,20 +54,14 @@ class SubtypeTranslator extends SourceSinkTranslator {
       addSubBound(bound, superbound, scope);
     } else {
       bool ok = _checkSubtypeStructure(subbound, superbound, scope);
-      var superFilter = getTypeFilter(superbound);
-      if (superbound.source is StorageLocation) {
-        // Add a type filter on the upper bound if the subtype checks failed.
-        TypeFilter filter = ok ? TypeFilter.none : superFilter;
-        StorageLocation superSource = superbound.source as StorageLocation;
-        addAssignment(subbound.source, superSource, filter);
-      }
-      if (superbound.sink is StorageLocation) {
-        // Because of covariant subtyping, the lower bound check is never safe,
-        // so we always use a type filter here.  The filter is sound because of
-        // the checks inserted for covariant subtyping.
-        StorageLocation superSink = superbound.sink as StorageLocation;
-        addAssignment(superSink, subbound.sink, superFilter);
-      }
+      TypeFilter superFilter = getTypeFilter(superbound);
+      // Add a type filter on the upper bound if the subtype checks failed.
+      addSourceToSourceAssignment(subbound.source, superbound.source,
+          ok ? TypeFilter.none : superFilter);
+      // Because of covariant subtyping, the lower bound check is never safe,
+      // so we always use a type filter here.  The filter is sound because of
+      // the checks inserted for covariant subtyping.
+      addSinkToSinkAssignment(superbound.sink, subbound.sink, superFilter);
     }
   }
 
