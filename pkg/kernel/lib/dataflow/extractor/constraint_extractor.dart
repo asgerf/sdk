@@ -489,7 +489,7 @@ class ConstraintExtractorVisitor
   }
 
   AType visitExpression(Expression node) {
-    var type = node.accept(this);
+    AType type = node.accept(this);
     var source = type.source;
     if (source is StorageLocation && source.owner == bank.owner) {
       node.dataflowValueOffset = source.index;
