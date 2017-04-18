@@ -50,6 +50,8 @@ main(List<String> args) async {
   }
   print('Top: $numTop\nNullable: $numNullable\nOther: $numOther');
 
+  // program.accept(new FindDynamicCalls());
+
   // program.computeCanonicalNames();
   // var file = new File('report.bin').openWrite();
   // var buffer = new Writer(file);
@@ -65,4 +67,46 @@ main(List<String> args) async {
   // reader.readEventList();
   //
   // writeProgramToBinary(program, 'report.dill');
+}
+
+class FindDynamicCalls extends RecursiveVisitor {
+  visitLibrary(Library node) {
+    if (node.importUri.scheme == 'dart') return;
+    node.visitChildren(this);
+  }
+
+  final List<String> blacklist = [
+    'call',
+    '==',
+    'toString',
+    'runtimeType',
+    'hashCode'
+  ];
+
+  handleDynamicCall(Expression node, Name name) {
+    if (!name.isPrivate && !blacklist.contains(name.name)) {
+      print('${node.location}: $name');
+    }
+  }
+
+  visitMethodInvocation(MethodInvocation node) {
+    if (node.interfaceTarget == null) {
+      handleDynamicCall(node, node.name);
+    }
+    node.visitChildren(this);
+  }
+
+  visitPropertyGet(PropertyGet node) {
+    if (node.interfaceTarget == null) {
+      handleDynamicCall(node, node.name);
+    }
+    node.visitChildren(this);
+  }
+
+  visitPropertySet(PropertySet node) {
+    if (node.interfaceTarget == null) {
+      handleDynamicCall(node, node.name);
+    }
+    node.visitChildren(this);
+  }
 }
