@@ -96,8 +96,10 @@ class BinaryReportReader {
 
       case ConstraintTag.GuardedValueConstraint:
         return new GuardedValueConstraint(
-            readLocationReference(), readLocationReference(), readValue())
-          ..fileOffset = fileOffset;
+            readLocationReference(),
+            readValue(),
+            readLocationReference(),
+            reader.readFixedUInt32())..fileOffset = fileOffset;
 
       case ConstraintTag.ValueConstraint:
         return new ValueConstraint(readLocationReference(), readValue())

@@ -1995,7 +1995,10 @@ class AllocationVisitor extends ATypeVisitor {
       var sink = type.sink;
       if (sink is StorageLocation) {
         extractor._builder.addConstraint(new GuardedValueConstraint(
-            object, sink, extractor.getWorstCaseValueForType(type)));
+            sink,
+            extractor.getWorstCaseValueForType(type),
+            object,
+            ValueFlags.escaping));
       }
     }
     type.accept(this);

@@ -90,7 +90,7 @@ class ConstraintSolver {
   }
 
   void transferGuardedValueConstraint(GuardedValueConstraint constraint) {
-    if (constraint.guard.value.isEscaping) {
+    if (constraint.guard.value.flags & constraint.guardMask != 0) {
       propagateValue(constraint.destination, constraint.value);
     }
   }

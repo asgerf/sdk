@@ -161,9 +161,10 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
   @override
   visitGuardedValueConstraint(GuardedValueConstraint constraint) {
     writer.writeByte(ConstraintTag.GuardedValueConstraint);
-    writer.writeLocationReference(constraint.guard);
     writer.writeLocationReference(constraint.destination);
     writer.writeValue(constraint.value);
+    writer.writeLocationReference(constraint.guard);
+    writer.writer.writeFixedUInt32(constraint.guardMask);
   }
 
   @override

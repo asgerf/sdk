@@ -186,10 +186,11 @@ class ValueConstraint extends Constraint {
   }
 }
 
-/// If [guard] is escaping, then [value] can flow into [destination].
+/// If the value in [guard] has one of the flags in [guardMask], then [value]
+/// can flow into [destination].
 ///
-/// This is generated for each type argument term inside an allocation site.
-/// For instance, for the allocation
+/// This is generated at object allocation sites, to handle the consequence of
+/// the object escaping.  For instance, for the allocation
 ///
 ///     new Map<String, List<Uri>>()
 ///
@@ -204,10 +205,12 @@ class GuardedValueConstraint extends Constraint {
 
   /// The constraint is triggers if the value in [guard] escapes.
   final StorageLocation guard;
+  final int guardMask;
 
-  GuardedValueConstraint(this.guard, this.destination, this.value) {
-    assert(guard != null);
+  GuardedValueConstraint(
+      this.destination, this.value, this.guard, this.guardMask) {
     assert(destination != null);
+    assert(guard != null);
   }
 
   void transfer(ConstraintSolver solver) {
