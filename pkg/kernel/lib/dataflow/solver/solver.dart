@@ -90,7 +90,7 @@ class ConstraintSolver {
   }
 
   void transferGuardedValueConstraint(GuardedValueConstraint constraint) {
-    if (constraint.guard.leadsToEscape) {
+    if (constraint.guard.value.isEscaping) {
       propagateValue(constraint.destination, constraint.value);
     }
   }
@@ -158,7 +158,7 @@ class ConstraintSolver {
   }
 
   void registerGuardedValueConstraint(GuardedValueConstraint constraint) {
-    addBackwardDependency(constraint.guard, constraint);
+    addForwardDependency(constraint.guard, constraint);
   }
 
   void registerAssignConstraint(AssignConstraint constraint) {
@@ -166,7 +166,11 @@ class ConstraintSolver {
     addBackwardDependency(constraint.destination, constraint);
   }
 
-  void registerValueConstraint(ValueConstraint constraint) {}
+  void registerValueConstraint(ValueConstraint constraint) {
+    if (constraint.canEscape) {
+      addBackwardDependency(constraint.destination, constraint);
+    }
+  }
 
   void registerEscapeConstraint(EscapeConstraint constraint) {
     if (constraint.guard != null) {
