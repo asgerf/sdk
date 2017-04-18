@@ -31,14 +31,14 @@ Program loadProgramFromBinary(String path, [Program program]) {
 }
 
 Future writeProgramToBinary(Program program, String path) {
-  var sink;
+  IOSink sink;
   if (path == 'null' || path == 'stdout') {
     sink = stdout.nonBlocking;
   } else {
     sink = new File(path).openWrite();
   }
 
-  var future;
+  Future future;
   try {
     new BinaryPrinter(sink).writeProgramFile(program);
   } finally {

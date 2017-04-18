@@ -4235,7 +4235,7 @@ void transformSupertypeList(List<Supertype> nodes, Transformer visitor) {
 void transformList(List<TreeNode> nodes, Transformer visitor, TreeNode parent) {
   int storeIndex = 0;
   for (int i = 0; i < nodes.length; ++i) {
-    var result = nodes[i].accept(visitor);
+    TreeNode result = nodes[i].accept(visitor);
     if (result != null) {
       nodes[storeIndex] = result;
       result.parent = parent;
