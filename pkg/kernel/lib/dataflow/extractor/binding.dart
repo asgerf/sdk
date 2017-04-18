@@ -44,8 +44,11 @@ class Binding {
       var bank = new FieldBank(
           constraintSystem.getCluster(member.reference), coreTypes);
       memberBanks[member] = bank;
-      bank.type =
-          bank.getInterfaceAugmentor(_augmentorScope).augmentType(member.type);
+      var augmentor = bank.getInterfaceAugmentor(_augmentorScope);
+      bank.interfaceType = augmentor.augmentType(member.type);
+      bank.concreteType = member.isInstanceMember
+          ? augmentor.augmentType(member.type)
+          : bank.interfaceType;
       return bank;
     } else {
       var bank = new FunctionMemberBank(
@@ -54,9 +57,11 @@ class Binding {
       var function = member.function;
       bank.binding.typeParameters = _makeTypeParameterList(
           member.reference, function.typeParameters.length);
-      bank.type = bank
-          .getInterfaceAugmentor(_augmentorScope)
-          .augmentType(function.functionType);
+      var augmentor = bank.getInterfaceAugmentor(_augmentorScope);
+      bank.interfaceType = augmentor.augmentType(function.functionType);
+      bank.concreteType = member.isInstanceMember && !member.isAbstract
+          ? augmentor.augmentType(function.functionType)
+          : bank.interfaceType;
       for (int i = 0; i < function.typeParameters.length; ++i) {
         StorageLocation location = bank.typeParameterBounds[i].source;
         bank.typeParameters[i].indexOfBound = location.index;
@@ -122,14 +127,29 @@ class Binding {
   }
 
   AType getFieldType(Field node) {
-    return getFieldBank(node).type;
+    return getFieldBank(node).interfaceType;
+  }
+
+  AType getConcreteFieldType(Field node) {
+    return getFieldBank(node).concreteType;
   }
 
   AType getGetterType(Member member) {
     if (member is Field) return getFieldType(member);
     if (member is Procedure) {
       var bank = getFunctionBank(member);
-      return member.isGetter ? bank.type.returnType : bank.type;
+      return member.isGetter
+          ? bank.interfaceType.returnType
+          : bank.interfaceType;
+    }
+    throw '$member cannot be used as a getter';
+  }
+
+  AType getConcreteGetterType(Member member) {
+    if (member is Field) return getConcreteFieldType(member);
+    if (member is Procedure) {
+      var bank = getFunctionBank(member);
+      return member.isGetter ? bank.concreteType.returnType : bank.concreteType;
     }
     throw '$member cannot be used as a getter';
   }
@@ -138,7 +158,16 @@ class Binding {
     if (member is Field) return getFieldType(member);
     if (member is Procedure && member.isSetter) {
       var bank = getFunctionBank(member);
-      return bank.type.positionalParameters[0];
+      return bank.interfaceType.positionalParameters[0];
+    }
+    throw '$member cannot be used as a setter';
+  }
+
+  AType getConcreteSetterType(Member member) {
+    if (member is Field) return getConcreteFieldType(member);
+    if (member is Procedure && member.isSetter) {
+      var bank = getFunctionBank(member);
+      return bank.concreteType.positionalParameters[0];
     }
     throw '$member cannot be used as a setter';
   }
@@ -208,12 +237,23 @@ abstract class MemberBank extends StorageLocationBank {
   MemberBank(ConstraintCluster binding, CoreTypes coreTypes)
       : super(binding, coreTypes);
 
-  AType get type;
+  /// The augmented interface type of this member, which takes overriding
+  /// members into account (i.e. it cannot be more specific than the type of
+  /// an overriding member).
+  AType get interfaceType;
+
+  /// The augmented concrete type of this member, which disregards overriding
+  /// members (i.e. it can be more specific than the type of an overriding
+  /// member).
+  ///
+  /// It is always more specific than the [interfaceType].
+  AType get concreteType;
 }
 
 /// The storage location bank for a field.
 class FieldBank extends MemberBank {
-  AType type;
+  AType interfaceType;
+  AType concreteType;
 
   FieldBank(ConstraintCluster binding, CoreTypes coreTypes)
       : super(binding, coreTypes);
@@ -223,17 +263,25 @@ class FieldBank extends MemberBank {
 
 /// The storage location bank for a procedure or constructor.
 class FunctionMemberBank extends MemberBank {
-  FunctionAType type;
+  FunctionAType interfaceType;
+  FunctionAType concreteType;
 
   FunctionMemberBank(ConstraintCluster binding, CoreTypes coreTypes)
       : super(binding, coreTypes);
 
   List<TypeParameterStorageLocation> get typeParameters =>
       binding.typeParameters;
-  AType get returnType => type.returnType;
-  List<AType> get typeParameterBounds => type.typeParameterBounds;
-  List<AType> get positionalParameters => type.positionalParameters;
-  List<AType> get namedParameters => type.namedParameters;
+  AType get returnType => interfaceType.returnType;
+  List<AType> get typeParameterBounds => interfaceType.typeParameterBounds;
+  List<AType> get positionalParameters => interfaceType.positionalParameters;
+  List<AType> get namedParameters => interfaceType.namedParameters;
+
+  AType get concreteReturnType => concreteType.returnType;
+  List<AType> get concreteTypeParameterBounds =>
+      concreteType.typeParameterBounds;
+  List<AType> get concretePositionalParameters =>
+      concreteType.positionalParameters;
+  List<AType> get concreteNamedParameters => concreteType.namedParameters;
 
   Member get member => binding.owner.asMember;
 }

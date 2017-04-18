@@ -385,7 +385,10 @@ class GlobalScope extends TypeParameterScope {
       FunctionNode function = parent;
       Member member = function.parent;
       int index = function.typeParameters.indexOf(parameter);
-      return binding.getFunctionBank(member).type.typeParameterBounds[index];
+      return binding
+          .getFunctionBank(member)
+          .interfaceType
+          .typeParameterBounds[index];
     }
   }
 }
@@ -416,7 +419,7 @@ class ConstraintExtractorVisitor
         InitializerVisitor<Null> {
   final ConstraintExtractor extractor;
   final Member currentMember;
-  final StorageLocationBank bank;
+  final MemberBank bank;
   final ClassBank classBank;
   TypeAugmentor augmentor;
   Reference defaultListFactoryReference;
@@ -477,7 +480,7 @@ class ConstraintExtractorVisitor
   }
 
   void checkConditionExpression(Expression condition) {
-    // No constraints are needed, but do visit the expression subtree.
+    // No constraints are needed, but we must visit the expression subtree.
     visitExpression(condition);
   }
 
@@ -505,8 +508,7 @@ class ConstraintExtractorVisitor
     return type;
   }
 
-  /// Returns false if the statement cannot complete normally.
-  visitStatement(Statement node) {
+  void visitStatement(Statement node) {
     node.accept(this);
   }
 
@@ -534,6 +536,9 @@ class ConstraintExtractorVisitor
 
   void analyzeMember() {
     augmentor = bank.getFreshAugmentor(binding.globalAugmentorScope);
+    if (!identical(bank.concreteType, bank.interfaceType)) {
+      checkAssignable(currentMember, bank.concreteType, bank.interfaceType);
+    }
     var class_ = currentClass;
     if (class_ != null) {
       var typeParameters = class_.typeParameters;
@@ -563,7 +568,7 @@ class ConstraintExtractorVisitor
 
   visitField(Field node) {
     FieldBank bank = this.bank;
-    var fieldType = thisSubstitution.substituteType(bank.type);
+    var fieldType = thisSubstitution.substituteType(bank.concreteType);
     bool treatAsExternal = node.isExternal || externalModel.forceExternal(node);
     if (node.initializer != null && !treatAsExternal) {
       checkAssignableExpression(node.initializer, fieldType, node.fileOffset);
@@ -577,13 +582,13 @@ class ConstraintExtractorVisitor
               isClean: externalModel.isCleanExternal(node),
               isCovariant: !node.isFinal,
               isContravariant: true)
-          .visit(bank.type);
+          .visit(bank.concreteType);
     }
     if (externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
       new ExternalVisitor(extractor,
               isClean: false, isCovariant: true, isContravariant: !node.isFinal)
-          .visit(bank.type);
+          .visit(bank.concreteType);
     }
   }
 
@@ -606,19 +611,19 @@ class ConstraintExtractorVisitor
               isClean: externalModel.isCleanExternal(node),
               isCovariant: false,
               isContravariant: true)
-          .visitSubterms(bank.type);
+          .visitSubterms(bank.concreteType);
     }
     if (externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
       new ExternalVisitor(extractor,
               isClean: false, isCovariant: true, isContravariant: true)
-          .visitSubterms(bank.type);
+          .visitSubterms(bank.concreteType);
     }
   }
 
   visitProcedure(Procedure node) {
     FunctionMemberBank bank = this.bank;
-    var ret = thisSubstitution.substituteType(bank.returnType);
+    var ret = thisSubstitution.substituteType(bank.concreteReturnType);
     returnType = _getInternalReturnType(node.function.asyncMarker, ret);
     yieldType = _getYieldType(node.function.asyncMarker, ret);
     recordParameterTypes(bank, node.function);
@@ -634,13 +639,13 @@ class ConstraintExtractorVisitor
               isClean: externalModel.isCleanExternal(node),
               isCovariant: false,
               isContravariant: true)
-          .visitSubterms(bank.type);
+          .visitSubterms(bank.concreteType);
     }
     if (externalModel.isEntryPoint(node)) {
       builder.setFileOffset(node.fileOffset);
       new ExternalVisitor(extractor,
               isClean: false, isCovariant: true, isContravariant: false)
-          .visitSubterms(bank.type);
+          .visitSubterms(bank.concreteType);
     }
   }
 
@@ -665,17 +670,17 @@ class ConstraintExtractorVisitor
     }
     for (int i = 0; i < function.positionalParameters.length; ++i) {
       var variable = function.positionalParameters[i];
-      var type = bank.positionalParameters[i];
+      var type = bank.concretePositionalParameters[i];
       scope.variables[variable] = type;
       variable.dataflowValueOffset = getStorageOffsetFromType(type);
     }
     for (var variable in function.namedParameters) {
-      var type = bank.type.getNamedParameterType(variable.name);
+      var type = bank.concreteType.getNamedParameterType(variable.name);
       scope.variables[variable] = type;
       variable.dataflowValueOffset = getStorageOffsetFromType(type);
     }
     function.returnDataflowValueOffset =
-        getStorageOffsetFromType(bank.returnType);
+        getStorageOffsetFromType(bank.concreteReturnType);
   }
 
   void handleFunctionBody(FunctionNode node) {
@@ -868,7 +873,8 @@ class ConstraintExtractorVisitor
     }
     for (int i = 0; i < arguments.named.length; ++i) {
       var argument = arguments.named[i];
-      var parameterType = target.type.getNamedParameterType(argument.name);
+      var parameterType =
+          target.interfaceType.getNamedParameterType(argument.name);
       if (parameterType == null) {
         fail(argument.value, 'Unexpected named parameter: ${argument.name}');
         break;
@@ -1035,13 +1041,11 @@ class ConstraintExtractorVisitor
   /// return value that does not take into account values returned by overriding
   /// members.
   StorageLocation getConcreteReturn(Member member) {
-    // TODO: Actually get the concrete return, not the interface return.
-    return binding.getFunctionBank(member).returnType.source;
+    return binding.getFunctionBank(member).concreteReturnType.source;
   }
 
   StorageLocation getConcreteGetter(Member member) {
-    // TODO: Actually get the concrete getter, not the interface getter.
-    return binding.getGetterType(member).source;
+    return binding.getConcreteGetterType(member).source;
   }
 
   void addSpecializedInstanceMembersConstraint(
@@ -1241,7 +1245,8 @@ class ConstraintExtractorVisitor
       }
       for (int i = 0; i < named.length; ++i) {
         var name = names[i];
-        var parameterType = targetType.type.getNamedParameterType(name);
+        var parameterType =
+            targetType.interfaceType.getNamedParameterType(name);
         var expectedType = substitution.substituteType(parameterType);
         checkAssignable(where, named[i], expectedType);
       }

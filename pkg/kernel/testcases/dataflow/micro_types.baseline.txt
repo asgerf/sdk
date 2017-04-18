@@ -71,8 +71,8 @@ class NullableArgOnThis<T extends core::_IntegerImplementation+&core::Object/Bot
   method nullableArg(self::NullableArgOnThis::T? arg) → Null {
     this.{self::NullableArgOnThis::field} = arg;
   }
-  method defaultNullable([self::NullableArgOnThis::T? arg]) → Null {}
-  method defaultNullable2([self::NullableArgOnThis::T? arg = null]) → Null {}
+  method defaultNullable([self::NullableArgOnThis::T arg]) → Null {}
+  method defaultNullable2([self::NullableArgOnThis::T arg = null]) → Null {}
   method doSomething() → Null {
     this.{self::NullableArgOnThis::nullableArg}(null);
   }

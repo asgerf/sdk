@@ -10,7 +10,7 @@ class Foo extends core::Object {
   constructor •() → Bottom
     : super core::Object::•()
     ;
-  method method(core::_IntegerImplementation+&core::Object x, [core::_IntegerImplementation+?&core::Object y, core::_IntegerImplementation+?&core::Object z]) → core::_StringBase+&core::Object {
+  method method(core::_IntegerImplementation+&core::Object x, [core::_IntegerImplementation+&core::Object y, core::_IntegerImplementation+&core::Object z]) → core::_StringBase+&core::Object {
     return "string";
   }
 }
@@ -37,13 +37,13 @@ class ExtendedListener extends self::Listener {
   constructor •() → Bottom
     : super self::Listener::•()
     ;
-  method event(Bottom&core::String input, [Null&core::int x, Null&core::int y, Null&core::Object z]) → Null {}
+  method event(Bottom&core::String input, [Null&core::int x, Null&core::int y, Bottom&core::Object z]) → Null {}
 }
 class InvalidListener extends core::Object {
   constructor •() → Bottom
     : super core::Object::•()
     ;
-  method event(Bottom&core::Object input, [Null&core::Object x]) → Null {}
+  method event(Bottom&core::Object input, [Bottom&core::Object x]) → Null {}
 }
 external static method createExternal() → Null&self::External;
 static method main() → core::Object+? {

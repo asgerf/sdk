@@ -56,6 +56,7 @@ static method main() → Null&core::Object {
   self::inspectAny(new self::NullableToString::•());
   self::inspectAny(new self::NullableRuntimeType::•());
   self::inspectAny(new self::NullableHashCode::•());
+  self::inspectAny(new self::NullableEquals::•());
   self::inspectAny(new self::NiceObject1::•());
   self::inspectAny(new self::NiceObject2::•());
   self::inspectAny(new core::Object::•());
@@ -73,6 +74,6 @@ static method inspectNice(core::Object+ x) → Null&core::Object {
   core::_StringBase+&core::String string = x.{core::Object::toString}();
   core::_StringBase+?&core::String stringFromTearOff = x.{core::Object::toString}.call();
   core::_IntegerImplementation+&core::int hashCode = x.{core::Object::hashCode};
-  core::_AbstractType+?&core::Type runtimeType = x.{core::Object::runtimeType};
+  core::_AbstractType+&core::Type runtimeType = x.{core::Object::runtimeType};
   core::bool! equals = x.{core::Object::==}(x);
 }

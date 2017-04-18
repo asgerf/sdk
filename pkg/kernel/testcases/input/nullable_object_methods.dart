@@ -30,6 +30,7 @@ main() {
   inspectAny(new NullableToString());
   inspectAny(new NullableRuntimeType());
   inspectAny(new NullableHashCode());
+  inspectAny(new NullableEquals());
   inspectAny(new NiceObject1());
   inspectAny(new NiceObject2());
   inspectAny(new Object());

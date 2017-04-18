@@ -19,7 +19,7 @@ class Something extends core::Object {
   }
 }
 static method main() → Null&core::Object {
-  core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> list = <core::_IntegerImplementation+?&core::int>[1, 2, 3];
-  new self::Generic::•<core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/>>().{self::Generic::escapeMe}(new self::Something::•(), list);
-  core::_IntegerImplementation+?&core::int nullableInt = list.{core::Iterable::last};
+  core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/> list = <core::_IntegerImplementation+&core::int>[1, 2, 3];
+  new self::Generic::•<core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/>>().{self::Generic::escapeMe}(new self::Something::•(), list);
+  core::_IntegerImplementation+&core::int nullableInt = list.{core::Iterable::last};
 }
