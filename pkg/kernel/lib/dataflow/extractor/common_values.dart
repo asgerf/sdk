@@ -34,6 +34,7 @@ class CommonValues {
   Value immutableListValue;
   Value linkedHashMapValue;
   Value immutableMapValue;
+  Value typeValue;
 
   Value anyValue;
   Value nullableIntValue;
@@ -56,6 +57,7 @@ class CommonValues {
     immutableListValue = backend.immutableListValue;
     linkedHashMapValue = backend.linkedHashMapValue;
     immutableMapValue = backend.immutableMapValue;
+    typeValue = backend.typeValue;
 
     // Build other commonly used values that are not defined by the backend.
     numValue = lattice.joinValues(intValue, doubleValue);

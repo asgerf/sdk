@@ -105,12 +105,25 @@ class BinaryReportReader {
         return new ValueConstraint(readLocationReference(), readValue())
           ..fileOffset = fileOffset;
 
-      case ConstraintTag.FilterConstraint:
+      case ConstraintTag.TypeFilterConstraint:
         return new TypeFilterConstraint(
             readLocationReference(),
             readLocationReference(),
             readClassReference(),
             reader.readFixedUInt32())..fileOffset = fileOffset;
+
+      case ConstraintTag.ValueFilterConstraint:
+        return new ValueFilterConstraint(
+            readLocationReference(), readLocationReference(), readValue())
+          ..fileOffset = fileOffset;
+
+      case ConstraintTag.InstanceMembersConstraint:
+        return new InstanceMembersConstraint(
+            readLocationReference(),
+            readLocationReference(),
+            readLocationReference(),
+            readLocationReference(),
+            readLocationReference())..fileOffset = fileOffset;
     }
     throw 'Unexpected constraint tag: $tag';
   }

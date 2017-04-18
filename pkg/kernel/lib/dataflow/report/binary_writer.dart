@@ -176,7 +176,7 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
 
   @override
   visitTypeFilterConstraint(TypeFilterConstraint constraint) {
-    writer.writeByte(ConstraintTag.FilterConstraint);
+    writer.writeByte(ConstraintTag.TypeFilterConstraint);
     writer.writeLocationReference(constraint.source);
     writer.writeLocationReference(constraint.destination);
     writer.writeClassReference(constraint.interfaceClass);
@@ -185,9 +185,19 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
 
   @override
   visitValueFilterConstraint(ValueFilterConstraint constraint) {
-    writer.writeByte(ConstraintTag.IntersectionConstraint);
+    writer.writeByte(ConstraintTag.ValueFilterConstraint);
     writer.writeLocationReference(constraint.source);
     writer.writeLocationReference(constraint.destination);
     writer.writeValue(constraint.guard);
+  }
+
+  @override
+  visitInstanceMembersConstraint(InstanceMembersConstraint constraint) {
+    writer.writeByte(ConstraintTag.InstanceMembersConstraint);
+    writer.writeLocationReference(constraint.destination);
+    writer.writeLocationReference(constraint.toStringReturn);
+    writer.writeLocationReference(constraint.hashCodeReturn);
+    writer.writeLocationReference(constraint.equalsReturn);
+    writer.writeLocationReference(constraint.runtimeTypeReturn);
   }
 }

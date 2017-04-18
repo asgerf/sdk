@@ -82,6 +82,14 @@ class SourceSinkTranslator extends ConstraintBuilder {
       [TypeFilter filter]) {
     from.acceptSink(new _SinkToSinkVisitor(this, to, filter));
   }
+
+  /// If the value in [guard] has one of the flags in [guardMask], then let
+  /// [value] flow into [destination].
+  void addGuardedValueAssignment(
+      Value value, ValueSink destination, ValueSource guard, int guardMask) {
+    destination.acceptSink(
+        new _GuardedValueSinkVisitor(this, value, guard, guardMask));
+  }
 }
 
 class _AssignmentSinkVisitor extends ValueSinkVisitor {
@@ -284,6 +292,72 @@ class _SinkToSinkVisitor extends ValueSinkVisitor {
   @override
   visitValueSinkWithEscape(ValueSinkWithEscape sink) {
     sink.base.acceptSink(this);
+  }
+}
+
+class _GuardedValueSinkVisitor extends ValueSinkVisitor {
+  final SourceSinkTranslator translator;
+  final Value value;
+  final ValueSource guard;
+  final int guardMask;
+
+  _GuardedValueSinkVisitor(
+      this.translator, this.value, this.guard, this.guardMask);
+
+  @override
+  visitEscapingSink(EscapingSink sink) {
+    // We cannot cause [value] to escape.
+  }
+
+  @override
+  visitNowhereSink(NowhereSink sink) {}
+
+  @override
+  visitStorageLocation(StorageLocation sink) {
+    guard.acceptSource(
+        new _GuardedValueSourceVisitor(translator, value, sink, guardMask));
+  }
+
+  @override
+  visitUnassignableSink(UnassignableSink sink) {
+    throw new UnassignableSinkError(sink);
+  }
+
+  @override
+  visitValueSinkWithEscape(ValueSinkWithEscape sink) {
+    sink.base.acceptSink(this);
+  }
+}
+
+class _GuardedValueSourceVisitor extends ValueSourceVisitor {
+  final SourceSinkTranslator translator;
+  final Value value;
+  final StorageLocation destination;
+  final int guardMask;
+
+  _GuardedValueSourceVisitor(
+      this.translator, this.value, this.destination, this.guardMask);
+
+  @override
+  visitStorageLocation(StorageLocation location) {
+    translator.addConstraint(
+        new GuardedValueConstraint(destination, value, location, guardMask));
+  }
+
+  @override
+  visitValue(Value value) {
+    if (value.flags & guardMask != 0) {
+      translator.addConstraint(new ValueConstraint(destination, value));
+    }
+  }
+
+  @override
+  visitValueSourceWithNullability(ValueSourceWithNullability source) {
+    source.base.acceptSource(this);
+    if (guardMask & ValueFlags.null_ != 0) {
+      source.nullability.acceptSource(new _GuardedValueSourceVisitor(
+          translator, value, destination, ValueFlags.null_));
+    }
   }
 }
 

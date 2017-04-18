@@ -1,0 +1,78 @@
+library;
+import self as self;
+import "dart:core" as core;
+
+class NullableToString extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method toString() → Null&core::String
+    return null;
+}
+class NullableRuntimeType extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  get runtimeType() → Null&core::Type
+    return null;
+}
+class NullableHashCode extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  get hashCode() → Null&core::int
+    return null;
+}
+class NullableEquals extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  operator ==(core::Object+? x) → Null&core::bool
+    return null;
+}
+class NiceObject1 extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method toString() → core::_StringBase+&core::String
+    return "nice1";
+  get hashCode() → core::_IntegerImplementation+&core::int
+    return 1;
+  operator ==(core::Object+? x) → core::bool!
+    return true;
+}
+class NiceObject2 extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method toString() → core::_StringBase+&core::String
+    return "nice2";
+  get hashCode() → core::_IntegerImplementation+&core::int
+    return 2;
+  operator ==(core::Object+? x) → core::bool!
+    return true;
+}
+static method main() → Null&core::Object {
+  self::inspectAny(new self::NullableToString::•());
+  self::inspectAny(new self::NullableRuntimeType::•());
+  self::inspectAny(new self::NullableHashCode::•());
+  self::inspectAny(new self::NiceObject1::•());
+  self::inspectAny(new self::NiceObject2::•());
+  self::inspectAny(new core::Object::•());
+  self::inspectNice(new self::NiceObject1::•());
+  self::inspectNice(new self::NiceObject2::•());
+}
+static method inspectAny(core::Object+ x) → Null&core::Object {
+  core::_StringBase+?&core::String string = x.{core::Object::toString}();
+  core::_StringBase+?&core::String stringFromTearOff = x.{core::Object::toString}.call();
+  core::_IntegerImplementation+?&core::int hashCode = x.{core::Object::hashCode};
+  core::_AbstractType+?&core::Type runtimeType = x.{core::Object::runtimeType};
+  core::bool!? equals = x.{core::Object::==}(x);
+}
+static method inspectNice(core::Object+ x) → Null&core::Object {
+  core::_StringBase+&core::String string = x.{core::Object::toString}();
+  core::_StringBase+?&core::String stringFromTearOff = x.{core::Object::toString}.call();
+  core::_IntegerImplementation+&core::int hashCode = x.{core::Object::hashCode};
+  core::_AbstractType+?&core::Type runtimeType = x.{core::Object::runtimeType};
+  core::bool! equals = x.{core::Object::==}(x);
+}

@@ -17,6 +17,7 @@ abstract class BackendCoreTypes {
   Value get immutableListValue;
   Value get linkedHashMapValue;
   Value get immutableMapValue;
+  Value get typeValue;
 
   Procedure get listFactory;
 }
@@ -31,6 +32,7 @@ class VmCoreTypes extends BackendCoreTypes {
   final Value immutableListValue;
   final Value linkedHashMapValue;
   final Value immutableMapValue;
+  final Value typeValue;
 
   final Procedure listFactory;
 
@@ -55,5 +57,7 @@ class VmCoreTypes extends BackendCoreTypes {
             ValueFlags.other),
         immutableMapValue = new Value(
             coreTypes.getClass('dart:core', '_ImmutableMap'), ValueFlags.other),
+        typeValue = new Value(coreTypes.getClass('dart:core', '_AbstractType'),
+            ValueFlags.other | ValueFlags.inexactBaseClass),
         listFactory = coreTypes.getMember('dart:core', 'List', '_internal');
 }

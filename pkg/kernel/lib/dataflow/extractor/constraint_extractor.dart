@@ -1025,6 +1025,39 @@ class ConstraintExtractorVisitor
     new AllocationVisitor(extractor, createdObject).visitSubterms(type);
   }
 
+  static final Name toStringName = new Name('toString');
+  static final Name hashCodeName = new Name('hashCode');
+  static final Name runtimeTypeName = new Name('runtimeType');
+  static final Name equalsName = new Name('==');
+
+  /// Returns the storage location with the concrete return value of [member]
+  /// (or field value if it is a field).  The "concrete return value" is its
+  /// return value that does not take into account values returned by overriding
+  /// members.
+  StorageLocation getConcreteReturn(Member member) {
+    // TODO: Actually get the concrete return, not the interface return.
+    return binding.getFunctionBank(member).returnType.source;
+  }
+
+  StorageLocation getConcreteGetter(Member member) {
+    // TODO: Actually get the concrete getter, not the interface getter.
+    return binding.getGetterType(member).source;
+  }
+
+  void addSpecializedInstanceMembersConstraint(
+      Class class_, StorageLocation destination) {
+    var toString = hierarchy.getDispatchTarget(class_, toStringName);
+    var hashCode = hierarchy.getDispatchTarget(class_, hashCodeName);
+    var equals = hierarchy.getDispatchTarget(class_, equalsName);
+    var runtimeType = hierarchy.getDispatchTarget(class_, runtimeTypeName);
+    builder.addConstraint(new InstanceMembersConstraint(
+        destination,
+        getConcreteReturn(toString),
+        getConcreteGetter(hashCode),
+        getConcreteReturn(equals),
+        getConcreteGetter(runtimeType)));
+  }
+
   @override
   AType visitConstructorInvocation(ConstructorInvocation node) {
     Constructor target = node.target;
@@ -1049,6 +1082,7 @@ class ConstraintExtractorVisitor
         target.enclosingClass,
         typeArguments);
     addAllocationConstraints(createdObject, value, type, node.fileOffset);
+    addSpecializedInstanceMembersConstraint(class_, createdObject);
     return type;
   }
 
@@ -1334,17 +1368,75 @@ class ConstraintExtractorVisitor
     return common.numType;
   }
 
+  StorageLocation getSpecializedCallReturn(
+      AType receiver, Value cleanValue, int nullabilityFlag, int fileOffset) {
+    var location = bank.newLocation();
+    builder.setFileOffset(fileOffset);
+    builder.addAssignment(cleanValue, location);
+    builder.addGuardedValueAssignment(
+        Value.null_, location, receiver.source, nullabilityFlag);
+    return location;
+  }
+
+  AType handleEqualsCall(MethodInvocation node) {
+    var receiver = visitExpression(node.receiver);
+    // TODO: Handle value escaping through == operator.
+    if (node.interfaceTarget != null) {
+      handleCall(node.arguments, node.interfaceTarget, node.fileOffset);
+    }
+    var returnValue = getSpecializedCallReturn(
+        receiver, common.boolValue, ValueFlags.nullableEquals, node.fileOffset);
+    return new InterfaceAType(
+        returnValue,
+        ValueSink.unassignable('return value of an expression', node),
+        coreTypes.boolClass, const <AType>[]);
+  }
+
+  AType handleToStringCall(MethodInvocation node) {
+    var receiver = visitExpression(node.receiver);
+    var returnValue = getSpecializedCallReturn(receiver, common.stringValue,
+        ValueFlags.nullableToString, node.fileOffset);
+    return new InterfaceAType(
+        returnValue,
+        ValueSink.unassignable('return value of an expression', node),
+        coreTypes.stringClass, const <AType>[]);
+  }
+
+  AType handleHashCodeGet(PropertyGet node) {
+    var receiver = visitExpression(node.receiver);
+    var returnValue = getSpecializedCallReturn(receiver, common.intValue,
+        ValueFlags.nullableHashCode, node.fileOffset);
+    return new InterfaceAType(
+        returnValue,
+        ValueSink.unassignable('return value of an expression', node),
+        coreTypes.intClass, const <AType>[]);
+  }
+
+  AType handleRuntimeTypeGet(PropertyGet node) {
+    var receiver = visitExpression(node.receiver);
+    var returnValue = getSpecializedCallReturn(receiver, common.typeValue,
+        ValueFlags.nullableRuntimeType, node.fileOffset);
+    return new InterfaceAType(
+        returnValue,
+        ValueSink.unassignable('return value of an expression', node),
+        coreTypes.intClass, const <AType>[]);
+  }
+
   @override
   AType visitMethodInvocation(MethodInvocation node) {
     int fileOffset = getFileOffset(node.fileOffset, node.receiver.fileOffset);
     var target = node.interfaceTarget;
+    String name = node.name.name;
+    if (name == '==') {
+      return handleEqualsCall(node);
+    }
+    if (name == 'toString' &&
+        node.arguments.positional.length == 0 &&
+        node.arguments.named.length == 0) {
+      return handleToStringCall(node);
+    }
     if (target == null) {
       var receiver = visitExpression(node.receiver);
-      if (node.name.name == '==') {
-        // TODO: Handle value escaping through == operator.
-        visitExpression(node.arguments.positional.single);
-        return common.boolType;
-      }
       if (node.name.name == 'call' && receiver is FunctionAType) {
         return handleFunctionCall(node, receiver, node.arguments, fileOffset);
       }
@@ -1362,6 +1454,13 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitPropertyGet(PropertyGet node) {
+    String name = node.name.name;
+    if (name == 'hashCode') {
+      return handleHashCodeGet(node);
+    }
+    if (name == 'runtimeType') {
+      return handleRuntimeTypeGet(node);
+    }
     if (node.interfaceTarget == null) {
       handleEscapingExpression(node.receiver);
       return common.topType;

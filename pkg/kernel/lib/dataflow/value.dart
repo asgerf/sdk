@@ -154,9 +154,22 @@ class ValueFlags {
   /// Set if the value can escape.
   static const int escaping = 1 << 7;
 
+  /// Set if the value may be an object whose toString method may return null.
+  static const int nullableToString = 1 << 8;
+
+  /// Set if the value may be an object whose hashCode getter may return null.
+  static const int nullableHashCode = 1 << 9;
+
+  /// Set if the value may be an object whose == operator may return null.
+  static const int nullableEquals = 1 << 10;
+
+  /// Set if the value may be an object whose runtimeType getter may return
+  /// null.
+  static const int nullableRuntimeType = 1 << 11;
+
   // -------- Utility stuff ----------
 
-  static const int numberOfFlags = 8;
+  static const int numberOfFlags = 12;
   static const int all = (1 << numberOfFlags) - 1;
   static const int none = 0;
 
@@ -174,6 +187,10 @@ class ValueFlags {
     'other',
     'inexactBaseClass',
     'escaped',
+    'nullableToString',
+    'nullableHashCode',
+    'nullableEquals',
+    'nullableRuntimeType',
   ];
 
   static String flagsToString(int bitmask) {

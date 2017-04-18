@@ -56,6 +56,18 @@ class ConstraintSolver {
     }
   }
 
+  void propagateValueFlags(StorageLocation location, int inputFlags) {
+    Value oldValue = location.value;
+    int oldFlags = oldValue.flags;
+    int newFlags = oldFlags | inputFlags;
+    if (oldFlags != newFlags) {
+      var newValue = new Value(oldValue.baseClass, newFlags);
+      location.value = newValue;
+      enqueue(location.forward);
+      report?.onChange(location, newValue, location.leadsToEscape);
+    }
+  }
+
   void propagateEscapingLocation(StorageLocation location) {
     if (!location.leadsToEscape) {
       location.leadsToEscape = true;
@@ -141,6 +153,23 @@ class ConstraintSolver {
     }
   }
 
+  void transferInstanceMembersConstraint(InstanceMembersConstraint constraint) {
+    int mask = 0;
+    if (constraint.hashCodeReturn.value.canBeNull) {
+      mask |= ValueFlags.nullableHashCode;
+    }
+    if (constraint.toStringReturn.value.canBeNull) {
+      mask |= ValueFlags.nullableToString;
+    }
+    if (constraint.equalsReturn.value.canBeNull) {
+      mask |= ValueFlags.nullableEquals;
+    }
+    if (constraint.runtimeTypeReturn.value.canBeNull) {
+      mask |= ValueFlags.nullableRuntimeType;
+    }
+    propagateValueFlags(constraint.destination, mask);
+  }
+
   bool canEscape(Value value) {
     return value.flags & ValueFlags.other != 0;
   }
@@ -186,6 +215,13 @@ class ConstraintSolver {
   void registerValueFilterConstraint(ValueFilterConstraint constraint) {
     addForwardDependency(constraint.source, constraint);
     addBackwardDependency(constraint.destination, constraint);
+  }
+
+  void registerInstanceMembersConstraint(InstanceMembersConstraint constraint) {
+    addForwardDependency(constraint.hashCodeReturn, constraint);
+    addForwardDependency(constraint.toStringReturn, constraint);
+    addForwardDependency(constraint.equalsReturn, constraint);
+    addForwardDependency(constraint.runtimeTypeReturn, constraint);
   }
 
   void doTransfer(Constraint constraint) {

@@ -209,6 +209,7 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
 
   @override
   visitGuardedValueConstraint(GuardedValueConstraint constraint) {
+    var maskString = ValueFlags.flagsToString(constraint.guardMask);
     buffer
       ..appendPush(rightAlignedCell())
       ..appendLocation(constraint.destination)
@@ -219,7 +220,7 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..appendPush(new SpanElement()..classes.add(CssClass.constraintGuard))
       ..appendText(' if ')
       ..appendLocation(constraint.guard)
-      ..appendText(' escapes')
+      ..appendText(' has flag {$maskString}')
       ..pop()
       ..pop()
       ..append(titleCell('GuardedValue'));
@@ -270,6 +271,27 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..pop()
       ..pop()
       ..append(titleCell('ValueFilter'));
+  }
+
+  @override
+  visitInstanceMembersConstraint(InstanceMembersConstraint constraint) {
+    buffer
+      ..appendPush(rightAlignedCell())
+      ..appendLocation(constraint.destination)
+      ..pop()
+      ..append(separator())
+      ..appendPush(new TableCellElement())
+      ..appendText('(')
+      ..appendLocation(constraint.toStringReturn)
+      ..appendText(',')
+      ..appendLocation(constraint.hashCodeReturn)
+      ..appendText(',')
+      ..appendLocation(constraint.equalsReturn)
+      ..appendText(',')
+      ..appendLocation(constraint.runtimeTypeReturn)
+      ..appendText(')')
+      ..pop()
+      ..append(titleCell('InstanceMembers'));
   }
 }
 
