@@ -52,6 +52,30 @@ class NiceObject2 extends core::Object {
   operator ==(core::Object+? x) → core::bool!
     return true;
 }
+class Generic1<T extends core::Object+/Bottom> extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method inspect(self::Generic1::T x) → Null&core::Object {
+    core::_StringBase+?&core::String string = x.{core::Object::toString}();
+    core::_StringBase+?&core::String stringFromTearOff = x.{core::Object::toString}.call();
+    core::_IntegerImplementation+?&core::int hashCode = x.{core::Object::hashCode};
+    core::_AbstractType+?&core::Type runtimeType = x.{core::Object::runtimeType};
+    core::bool!? equals = x.{core::Object::==}(x);
+  }
+}
+class Generic2<T extends core::Object+/Bottom> extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method inspect(self::Generic2::T x) → Null&core::Object {
+    core::_StringBase+?&core::String string = x.{core::Object::toString}();
+    core::_StringBase+?&core::String stringFromTearOff = x.{core::Object::toString}.call();
+    core::_IntegerImplementation+?&core::int hashCode = x.{core::Object::hashCode};
+    core::_AbstractType+?&core::Type runtimeType = x.{core::Object::runtimeType};
+    core::bool!? equals = x.{core::Object::==}(x);
+  }
+}
 static method main() → Null&core::Object {
   self::inspectAny(new self::NullableToString::•());
   self::inspectAny(new self::NullableRuntimeType::•());
@@ -62,6 +86,12 @@ static method main() → Null&core::Object {
   self::inspectAny(new core::Object::•());
   self::inspectNice(new self::NiceObject1::•());
   self::inspectNice(new self::NiceObject2::•());
+  new self::Generic2::•<self::NullableToString!>().{self::Generic2::inspect}(new self::NullableToString::•());
+  new self::Generic2::•<self::NullableRuntimeType!>().{self::Generic2::inspect}(new self::NullableRuntimeType::•());
+  new self::Generic2::•<self::NullableHashCode!>().{self::Generic2::inspect}(new self::NullableHashCode::•());
+  new self::Generic2::•<self::NullableEquals!>().{self::Generic2::inspect}(new self::NullableEquals::•());
+  new self::Generic2::•<self::NiceObject1!>().{self::Generic2::inspect}(new self::NiceObject1::•());
+  new self::Generic2::•<self::NiceObject2!>().{self::Generic2::inspect}(new self::NiceObject2::•());
 }
 static method inspectAny(core::Object+ x) → Null&core::Object {
   core::_StringBase+?&core::String string = x.{core::Object::toString}();
@@ -69,6 +99,7 @@ static method inspectAny(core::Object+ x) → Null&core::Object {
   core::_IntegerImplementation+?&core::int hashCode = x.{core::Object::hashCode};
   core::_AbstractType+?&core::Type runtimeType = x.{core::Object::runtimeType};
   core::bool!? equals = x.{core::Object::==}(x);
+  new self::Generic1::•<core::Object+>().{self::Generic1::inspect}(x);
 }
 static method inspectNice(core::Object+ x) → Null&core::Object {
   core::_StringBase+&core::String string = x.{core::Object::toString}();

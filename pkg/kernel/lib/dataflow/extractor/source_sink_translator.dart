@@ -339,9 +339,21 @@ class _GuardedValueSourceVisitor extends ValueSourceVisitor {
       this.translator, this.value, this.destination, this.guardMask);
 
   @override
-  visitStorageLocation(StorageLocation location) {
+  visitStorageLocation(StorageLocation guard) {
+    // The [guard] location represents a type parameter T, and thus only
+    // contains the nullability modifier on T.  In addition to its nullability
+    // modifier, we need information from all possible calling contexts, so we
+    // must take the value from its upper bound.
+    while (guard.parameterLocation != null) {
+      var parameter = guard.parameterLocation;
+      if (guardMask & ValueFlags.null_ != 0) {
+        translator.addConstraint(new GuardedValueConstraint(
+            destination, value, guard, ValueFlags.null_));
+      }
+      guard = translator.constraintSystem.getBoundLocation(parameter);
+    }
     translator.addConstraint(
-        new GuardedValueConstraint(destination, value, location, guardMask));
+        new GuardedValueConstraint(destination, value, guard, guardMask));
   }
 
   @override

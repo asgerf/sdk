@@ -37,6 +37,13 @@ main() {
 
   inspectNice(new NiceObject1());
   inspectNice(new NiceObject2());
+
+  new Generic2<NullableToString>().inspect(new NullableToString());
+  new Generic2<NullableRuntimeType>().inspect(new NullableRuntimeType());
+  new Generic2<NullableHashCode>().inspect(new NullableHashCode());
+  new Generic2<NullableEquals>().inspect(new NullableEquals());
+  new Generic2<NiceObject1>().inspect(new NiceObject1());
+  new Generic2<NiceObject2>().inspect(new NiceObject2());
 }
 
 inspectAny(Object x) {
@@ -45,6 +52,7 @@ inspectAny(Object x) {
   var hashCode = x.hashCode;
   var runtimeType = x.runtimeType;
   var equals = x == x;
+  new Generic1<Object>().inspect(x);
 }
 
 inspectNice(Object x) {
@@ -53,4 +61,24 @@ inspectNice(Object x) {
   var hashCode = x.hashCode;
   var runtimeType = x.runtimeType;
   var equals = x == x;
+}
+
+class Generic1<T> {
+  inspect(T x) {
+    var string = x.toString();
+    var stringFromTearOff = (x.toString)();
+    var hashCode = x.hashCode;
+    var runtimeType = x.runtimeType;
+    var equals = x == x;
+  }
+}
+
+class Generic2<T> {
+  inspect(T x) {
+    var string = x.toString();
+    var stringFromTearOff = (x.toString)();
+    var hashCode = x.hashCode;
+    var runtimeType = x.runtimeType;
+    var equals = x == x;
+  }
 }
