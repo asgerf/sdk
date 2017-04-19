@@ -10,15 +10,15 @@ static method main() → Null&core::Object {
   self::takeIdentityFunction(self::identity as <T extends core::Object>(dynamic) → dynamic, true);
   self::takeNullifier(self::nullifier as <T extends core::Object>(dynamic) → dynamic, true);
 }
-static method takeIdentityFunction(<Bottom&core::Object>(core::Object+?) => Bottom&core::Object id, core::bool! b) → Null&core::Object {
-  Bottom&core::String nonNullableString = id.call<core::String>("string") as core::String;
-  Bottom&core::String nullableString = id.call<core::String>(b ? null : "hello") as core::String;
-  Bottom&core::int nonNullableInt = id.call<core::int>(45) as core::int;
-  Bottom&core::int nullableInt = id.call<core::int>(b ? null : 45) as core::int;
+static method takeIdentityFunction(<Bottom&core::Object>(core::Object+?) => core::Object+? id, core::bool! b) → Null&core::Object {
+  core::_StringBase+?&core::String nonNullableString = id.call<core::String>("string") as core::String;
+  core::_StringBase+?&core::String nullableString = id.call<core::String>(b ? null : "hello") as core::String;
+  core::_IntegerImplementation+?&core::int nonNullableInt = id.call<core::int>(45) as core::int;
+  core::_IntegerImplementation+?&core::int nullableInt = id.call<core::int>(b ? null : 45) as core::int;
 }
-static method takeNullifier(<Bottom&core::Object>(core::Object+?) => Bottom&core::Object nu, core::bool! b) → Null&core::Object {
-  Bottom&core::String nonNullableString = nu.call<core::String>("string") as core::String;
-  Bottom&core::String nullableString = nu.call<core::String>(b ? null : "hello") as core::String;
-  Bottom&core::int nonNullableInt = nu.call<core::int>(45) as core::int;
-  Bottom&core::int nullableInt = nu.call<core::int>(b ? null : 45) as core::int;
+static method takeNullifier(<Bottom&core::Object>(core::Object+?) => core::Object+? nu, core::bool! b) → Null&core::Object {
+  core::_StringBase+?&core::String nonNullableString = nu.call<core::String>("string") as core::String;
+  core::_StringBase+?&core::String nullableString = nu.call<core::String>(b ? null : "hello") as core::String;
+  core::_IntegerImplementation+?&core::int nonNullableInt = nu.call<core::int>(45) as core::int;
+  core::_IntegerImplementation+?&core::int nullableInt = nu.call<core::int>(b ? null : 45) as core::int;
 }

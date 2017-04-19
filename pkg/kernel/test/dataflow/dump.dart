@@ -6,7 +6,7 @@ import 'package:kernel/dataflow/dataflow.dart';
 import 'package:kernel/kernel.dart';
 
 main(List<String> args) async {
-  if (args.isEmpty) args = ['dartk.dill'];
+  if (args.isEmpty) args = ['micro.dill'];
   var program = loadProgramFromBinary(args[0]);
   var coreTypes = new CoreTypes(program);
   var reporter = new DataflowReporter();

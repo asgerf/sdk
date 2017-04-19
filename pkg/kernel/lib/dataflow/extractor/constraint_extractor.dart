@@ -954,16 +954,16 @@ class ConstraintExtractorVisitor
   void taintSubterms(AType type) {
     if (type is InterfaceAType) {
       for (var argument in type.typeArguments) {
-        argument.accept(new ExternalVisitor.bivariant(extractor));
+        new ExternalVisitor.bivariant(extractor).visit(argument);
       }
     } else if (type is FunctionAType) {
       for (var argument in type.positionalParameters) {
-        argument.accept(new ExternalVisitor.covariant(extractor));
+        new ExternalVisitor.covariant(extractor).visit(argument);
       }
       for (var argument in type.namedParameters) {
-        argument.accept(new ExternalVisitor.covariant(extractor));
+        new ExternalVisitor.covariant(extractor).visit(argument);
       }
-      type.returnType.accept(new ExternalVisitor.contravariant(extractor));
+      new ExternalVisitor.contravariant(extractor).visit(type.returnType);
     }
   }
 
