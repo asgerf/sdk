@@ -148,6 +148,7 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
     writer.writeByte(ConstraintTag.EscapeConstraint);
     writer.writeLocationReference(constraint.escaping);
     writer.writeOptionalLocationReference(constraint.guard);
+    writer.writer.writeFixedUInt32(constraint.guardMask);
   }
 
   @override

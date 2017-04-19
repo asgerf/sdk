@@ -86,20 +86,18 @@ class BinaryReportReader {
     switch (tag) {
       case ConstraintTag.EscapeConstraint:
         return new EscapeConstraint(readLocationReference(),
-            guard: readOptionalLocationReference())..fileOffset = fileOffset;
+            readOptionalLocationReference(), reader.readFixedUInt32())
+          ..fileOffset = fileOffset;
 
       case ConstraintTag.AssignConstraint:
-        return new AssignConstraint(
-            readLocationReference(),
-            readLocationReference(),
-            reader.readFixedUInt32())..fileOffset = fileOffset;
+        return new AssignConstraint(readLocationReference(),
+            readLocationReference(), reader.readFixedUInt32())
+          ..fileOffset = fileOffset;
 
       case ConstraintTag.GuardedValueConstraint:
-        return new GuardedValueConstraint(
-            readLocationReference(),
-            readValue(),
-            readLocationReference(),
-            reader.readFixedUInt32())..fileOffset = fileOffset;
+        return new GuardedValueConstraint(readLocationReference(), readValue(),
+            readLocationReference(), reader.readFixedUInt32())
+          ..fileOffset = fileOffset;
 
       case ConstraintTag.ValueConstraint:
         return new ValueConstraint(readLocationReference(), readValue())
@@ -110,7 +108,8 @@ class BinaryReportReader {
             readLocationReference(),
             readLocationReference(),
             readClassReference(),
-            reader.readFixedUInt32())..fileOffset = fileOffset;
+            reader.readFixedUInt32())
+          ..fileOffset = fileOffset;
 
       case ConstraintTag.ValueFilterConstraint:
         return new ValueFilterConstraint(
@@ -123,7 +122,8 @@ class BinaryReportReader {
             readLocationReference(),
             readLocationReference(),
             readLocationReference(),
-            readLocationReference())..fileOffset = fileOffset;
+            readLocationReference())
+          ..fileOffset = fileOffset;
     }
     throw 'Unexpected constraint tag: $tag';
   }

@@ -49,9 +49,10 @@ class SourceSinkTranslator extends ConstraintBuilder {
   ///
   /// The the [guard] is given, only take effect if the guard can lead to
   /// escape.
-  void addEscape(ValueSource source, {ValueSink guard}) {
+  void addEscape(ValueSource source,
+      [ValueSink guard, int guardMask = ValueFlags.escaping]) {
     if (guard != null) {
-      guard.acceptSink(new _EscapeSinkVisitor(this, source));
+      guard.acceptSink(new _EscapeSinkVisitor(this, source, guardMask));
     } else {
       source.acceptSource(new _EscapeSourceVisitor(this));
     }
@@ -123,7 +124,7 @@ class _AssignmentSinkVisitor extends ValueSinkVisitor {
   @override
   visitValueSinkWithEscape(ValueSinkWithEscape sink) {
     sink.base.acceptSink(this);
-    translator.addEscape(source, guard: sink.escaping);
+    translator.addEscape(source, sink.escaping, ValueFlags.escaping);
   }
 }
 
@@ -201,8 +202,9 @@ class _AssignmentSourceVisitor extends ValueSourceVisitor {
 class _EscapeSinkVisitor extends ValueSinkVisitor {
   final SourceSinkTranslator translator;
   final ValueSource source;
+  final int guardMask;
 
-  _EscapeSinkVisitor(this.translator, this.source);
+  _EscapeSinkVisitor(this.translator, this.source, this.guardMask);
 
   @override
   visitEscapingSink(EscapingSink sink) {
@@ -214,7 +216,7 @@ class _EscapeSinkVisitor extends ValueSinkVisitor {
 
   @override
   visitStorageLocation(StorageLocation sink) {
-    source.acceptSource(new _EscapeSourceVisitor(translator, guard: sink));
+    source.acceptSource(new _EscapeSourceVisitor(translator, sink, guardMask));
   }
 
   @override
@@ -230,12 +232,13 @@ class _EscapeSinkVisitor extends ValueSinkVisitor {
 class _EscapeSourceVisitor extends ValueSourceVisitor {
   final SourceSinkTranslator translator;
   final StorageLocation guard;
+  final int guardMask;
 
-  _EscapeSourceVisitor(this.translator, {this.guard});
+  _EscapeSourceVisitor(this.translator, [this.guard, this.guardMask = 0]);
 
   @override
   visitStorageLocation(StorageLocation source) {
-    translator.addConstraint(new EscapeConstraint(source, guard: guard));
+    translator.addConstraint(new EscapeConstraint(source, guard, guardMask));
   }
 
   @override

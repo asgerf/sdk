@@ -231,12 +231,14 @@ class GuardedValueConstraint extends Constraint {
   }
 }
 
-/// The value in [escaping] can escape if the value in [guard] escapes.
+/// The value in [escaping] can escape if the value in [guard] has one of the
+/// flags in [guardMask].
 class EscapeConstraint extends Constraint {
   final StorageLocation escaping;
   final StorageLocation guard; // May be null.
+  final int guardMask;
 
-  EscapeConstraint(this.escaping, {this.guard});
+  EscapeConstraint(this.escaping, this.guard, this.guardMask);
 
   void transfer(ConstraintSolver solver) {
     solver.transferEscapeConstraint(this);

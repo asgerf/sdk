@@ -175,11 +175,14 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..appendPush(new TableCellElement())
       ..appendLocation(constraint.escaping);
     if (constraint.guard != null) {
+      var guardFlags = constraint.guardMask == ValueFlags.allValueSets
+          ? 'any value'
+          : 'flag {${ValueFlags.flagsToString(constraint.guardMask)}}';
       buffer
         ..appendPush(new SpanElement()..classes.add(CssClass.constraintGuard))
         ..appendText(' if ')
         ..appendLocation(constraint.guard)
-        ..appendText(' escapes')
+        ..appendText(' has $guardFlags')
         ..pop();
     }
     buffer

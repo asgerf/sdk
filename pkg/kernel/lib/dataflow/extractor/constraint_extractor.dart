@@ -932,58 +932,37 @@ class ConstraintExtractorVisitor
     }
   }
 
-  /// True if [castType] has type arguments which must be considered tainted
-  /// after the cast.
-  ///
-  /// For example, when casting from `Object` to `List<int>`, we must consider
-  /// the `int` type to be nullable, because we do not track where it came from.
-  bool isTaintingDowncast(DartType castType) {
-    // Potential improvement: Consider both input type and output type, and
-    //   taint only type arguments that cannot be connected to a type in the
-    //   input type. For example, casting `List<num>` to `List<int>` or
-    //   `Iterable<int>` to `List<int>` does not require taint.
-    if (castType is InterfaceType) {
-      return castType.typeArguments.isNotEmpty;
-    }
-    if (castType is FunctionType) {
-      return true;
-    }
-    return false;
-  }
-
-  void taintSubterms(AType type) {
-    if (type is InterfaceAType) {
-      for (var argument in type.typeArguments) {
-        new ExternalVisitor.bivariant(extractor).visit(argument);
-      }
-    } else if (type is FunctionAType) {
-      for (var argument in type.positionalParameters) {
-        new ExternalVisitor.covariant(extractor).visit(argument);
-      }
-      for (var argument in type.namedParameters) {
-        new ExternalVisitor.covariant(extractor).visit(argument);
-      }
-      new ExternalVisitor.contravariant(extractor).visit(type.returnType);
-    }
-  }
-
   @override
   AType visitAsExpression(AsExpression node) {
-    var input = visitExpression(node.operand);
-    var output = augmentor.augmentType(node.type);
+    var inputType = visitExpression(node.operand);
+
+    // Make a type filter assignment for the value being cast.
+    var outputLocation = bank.newLocation();
+    DartType castType = node.type;
+    var typeFilter = new TypeFilter(
+        castType is InterfaceType ? castType.classNode : null,
+        extractor.getValueSetFlagsFromInterfaceType(castType) |
+            ValueFlags.nonValueSetFlags);
     builder.setFileOffset(node.fileOffset);
-    var type = node.type;
-    Class interfaceClass = type is InterfaceType ? type.classNode : null;
-    int mask = extractor.getValueSetFlagsFromInterfaceType(node.type) |
-        ValueFlags.nonValueSetFlags;
-    builder.addAssignment(
-        input.source, output.sink, new TypeFilter(interfaceClass, mask));
-    if (isTaintingDowncast(type)) {
-      builder.setFileOffset(node.fileOffset);
-      builder.addEscape(input.source);
-      taintSubterms(output);
-    }
-    return output;
+    builder.addAssignment(inputType.source, outputLocation, typeFilter);
+
+    // If we are casting to a generic type, e.g. List<int>, we must ensure
+    // that the values read from the type arguments are sound worst-case
+    // approximations, and that if anything is added into them, the cast value
+    // escapes.
+    var escapeTracker = bank.newLocation(); // Values added to type arguments.
+    var worstCaseType =
+        new DowncastTypeVisitor(extractor, escapeTracker).visitType(castType);
+    var outputType = worstCaseType.withSourceAndSink(
+        source: outputLocation,
+        sink: ValueSink.unassignable('return value of an expression', node));
+
+    // If anything flows into the type arguments (e.g. something was added
+    // to the list), treat the cast value as escaping, since we cannot track
+    // the added values further back.
+    builder.addEscape(inputType.source, escapeTracker, ValueFlags.allValueSets);
+
+    return outputType;
   }
 
   AType unfutureType(AType type) {
@@ -2089,7 +2068,7 @@ class AllocationVisitor extends ATypeVisitor {
       // For a function object of type `(A) => B`, the return type B will
       // get processed here.  If the function escapes, the values it returns
       // can escape too, so process B as escaping.
-      builder.addEscape(type.source, guard: object);
+      builder.addEscape(type.source, object, ValueFlags.escaping);
     }
     if (isContravariant) {
       // Simple case intuition:
@@ -2190,7 +2169,7 @@ abstract class SourceSinkConverter extends ATypeVisitor<AType> {
   }
 }
 
-/// Replaces all sinks in a type with [ValueSink.nowhere].
+/// Replaces all sinks in a type with a given sink.
 class ProtectSinks extends SourceSinkConverter {
   @override
   ValueSink convertSink(ValueSink sink, AType type) {
@@ -2225,5 +2204,81 @@ class ProtectCleanSupertype extends SourceSinkConverter {
       if (class_ == coreTypes.boolClass) return common.boolValue;
     }
     return source;
+  }
+}
+
+class DowncastTypeVisitor extends DartTypeVisitor<AType> {
+  final ConstraintExtractor extractor;
+  final StorageLocation sink;
+  final List<List<TypeParameter>> _localTypeParameters =
+      <List<TypeParameter>>[];
+
+  DowncastTypeVisitor(this.extractor, this.sink);
+
+  CommonValues get common => extractor.common;
+  CoreTypes get coreTypes => extractor.coreTypes;
+
+  AType visitType(DartType type) => type.accept(this);
+
+  List<AType> visitTypeList(Iterable<DartType> types) {
+    return types.map(visitType).toList(growable: false);
+  }
+
+  @override
+  AType defaultDartType(DartType node) {
+    throw 'Unexpected type in cast: $node';
+  }
+
+  @override
+  AType visitBottomType(BottomType node) {
+    return new BottomAType(Value.null_, sink);
+  }
+
+  @override
+  AType visitDynamicType(DynamicType node) {
+    return new InterfaceAType(
+        common.anyValue, sink, coreTypes.objectClass, const <AType>[]);
+  }
+
+  @override
+  AType visitFunctionType(FunctionType node) {
+    _localTypeParameters.add(node.typeParameters);
+    var type = new FunctionAType(
+        common.nullableEscapingFunctionValue,
+        sink,
+        visitTypeList(node.typeParameters.map((t) => t.bound)),
+        node.requiredParameterCount,
+        visitTypeList(node.positionalParameters),
+        node.namedParameters.map((t) => t.name).toList(growable: false),
+        visitTypeList(node.namedParameters.map((t) => t.type)),
+        visitType(node.returnType));
+    _localTypeParameters.removeLast();
+    return type;
+  }
+
+  @override
+  AType visitInterfaceType(InterfaceType node) {
+    return new InterfaceAType(extractor.getWorstCaseValue(node.classNode), sink,
+        node.classNode, visitTypeList(node.typeArguments));
+  }
+
+  @override
+  AType visitTypeParameterType(TypeParameterType node) {
+    // Translate function-type type parameters to De Brujin indices.
+    int shift = 0;
+    for (var list in _localTypeParameters.reversed) {
+      int index = list.indexOf(node.parameter);
+      if (index != -1) {
+        return new FunctionTypeParameterAType(Value.null_, sink, shift + index);
+      }
+      shift += list.length;
+    }
+    return new TypeParameterAType(Value.null_, sink, node.parameter);
+  }
+
+  @override
+  AType visitVoidType(VoidType node) {
+    return new InterfaceAType(
+        common.anyValue, sink, coreTypes.objectClass, const <AType>[]);
   }
 }
