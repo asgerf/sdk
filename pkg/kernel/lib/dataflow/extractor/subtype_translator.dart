@@ -54,14 +54,14 @@ class SubtypeTranslator extends SourceSinkTranslator {
       addSubBound(bound, superbound, scope);
     } else {
       bool ok = _checkSubtypeStructure(subbound, superbound, scope);
-      TypeFilter superFilter = getTypeFilter(superbound);
       // Add a type filter on the upper bound if the subtype checks failed.
       addSourceToSourceAssignment(subbound.source, superbound.source,
-          ok ? TypeFilter.none : superFilter);
+          ok ? TypeFilter.none : getTypeFilter(superbound));
       // Because of covariant subtyping, the lower bound check is never safe,
       // so we always use a type filter here.  The filter is sound because of
       // the checks inserted for covariant subtyping.
-      addSinkToSinkAssignment(superbound.sink, subbound.sink, superFilter);
+      addSinkToSinkAssignment(
+          superbound.sink, subbound.sink, getTypeFilter(subbound));
     }
   }
 

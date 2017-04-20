@@ -17,7 +17,7 @@ class Foo<T extends core::_IntegerImplementation+&core::Object/Bottom> extends c
   }
 }
 static method main() → Null&core::Object {
-  self::Foo!<core::_IntegerImplementation+&core::int/core::Object+> fooInt = new self::Foo::•<core::_IntegerImplementation+&core::int>(1, (core::_IntegerImplementation+&core::int x) → core::Null {});
+  self::Foo!<core::_IntegerImplementation+&core::int/core::_IntegerImplementation+> fooInt = new self::Foo::•<core::_IntegerImplementation+&core::int>(1, (core::_IntegerImplementation+&core::int x) → core::Null {});
   fooInt.{self::Foo::method}(3);
   fooInt.{self::Foo::setter} = 3;
   fooInt.{self::Foo::withCallback}((core::_IntegerImplementation+&core::int x) → core::Null {});
