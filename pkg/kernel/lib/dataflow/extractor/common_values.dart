@@ -32,6 +32,9 @@ class CommonValues {
   Value growableListValue;
   Value fixedLengthListValue;
   Value immutableListValue;
+
+  /// A growable or fixed-length list, but not an immutable list.
+  Value mutableListValue;
   Value linkedHashMapValue;
   Value immutableMapValue;
   Value typeValue;
@@ -65,6 +68,8 @@ class CommonValues {
     // TODO: Do not treat functions as base classes.
     functionValue = new Value(coreTypes.functionClass,
         ValueFlags.other | ValueFlags.inexactBaseClass);
+    mutableListValue =
+        lattice.joinValues(growableListValue, fixedLengthListValue);
 
     anyValue = new Value(coreTypes.objectClass, ValueFlags.all);
     nullableIntValue = intValue.asNullable;

@@ -423,6 +423,8 @@ class ConstraintExtractorVisitor
   final ClassBank classBank;
   TypeAugmentor augmentor;
   Reference defaultListFactoryReference;
+  Reference listFromIterableReference;
+  Reference linkedHashSetFromIterableReference;
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ClassHierarchy get hierarchy => extractor.hierarchy;
@@ -453,6 +455,11 @@ class ConstraintExtractorVisitor
       this.classBank, this.isUncheckedLibrary) {
     defaultListFactoryReference =
         extractor.backendCoreTypes.listFactory.reference;
+    listFromIterableReference =
+        coreTypes.tryGetMember('dart:core', 'List', 'from')?.reference;
+    linkedHashSetFromIterableReference = coreTypes
+        .tryGetMember('dart:collection', 'LinkedHashSet', 'from')
+        ?.reference;
   }
 
   void checkTypeBound(TreeNode where, AType type, AType bound,
@@ -932,11 +939,7 @@ class ConstraintExtractorVisitor
     }
   }
 
-  @override
-  AType visitAsExpression(AsExpression node) {
-    AType inputType = visitExpression(node.operand);
-    DartType castType = node.type;
-
+  AType handleDowncast(AType inputType, DartType castType, int fileOffset) {
     // Handle cast to a type parameter type T specially.  For this case, we
     // generate an assignment from the input value to the lower bound of the
     // type parameter (so all instantiations of it must satisfy any value we
@@ -956,7 +959,7 @@ class ConstraintExtractorVisitor
     if (castType is TypeParameterType) {
       var bound = scope.getTypeParameterBound(castType.parameter);
       var outputLocation = bound.sink;
-      builder.setFileOffset(node.fileOffset);
+      builder.setFileOffset(fileOffset);
       builder.addAssignment(inputType.source, outputLocation);
       return new TypeParameterAType(
           Value.null_,
@@ -970,7 +973,7 @@ class ConstraintExtractorVisitor
         castType is InterfaceType ? castType.classNode : null,
         extractor.getValueSetFlagsFromInterfaceType(castType) |
             ValueFlags.nonValueSetFlags);
-    builder.setFileOffset(node.fileOffset);
+    builder.setFileOffset(fileOffset);
     builder.addAssignment(inputType.source, outputLocation, typeFilter);
 
     // If we are casting to a generic type, e.g. List<int>, we must ensure
@@ -982,7 +985,7 @@ class ConstraintExtractorVisitor
         new DowncastTypeVisitor(this, escapeTracker).visitType(castType);
     var outputType = worstCaseType.withSourceAndSink(
         source: outputLocation,
-        sink: ValueSink.unassignable('return value of an expression', node));
+        sink: ValueSink.unassignable('result of a downcast'));
 
     // If anything flows into the type arguments (e.g. something was added
     // to the list), treat the cast value as escaping, since we cannot track
@@ -990,6 +993,12 @@ class ConstraintExtractorVisitor
     builder.addEscape(inputType.source, escapeTracker, ValueFlags.allValueSets);
 
     return outputType;
+  }
+
+  @override
+  AType visitAsExpression(AsExpression node) {
+    AType inputType = visitExpression(node.operand);
+    return handleDowncast(inputType, node.type, node.fileOffset);
   }
 
   final Set<TypeParameter> typeParametersUsedInDowncast =
@@ -1531,21 +1540,101 @@ class ConstraintExtractorVisitor
     return binding.getGetterType(node.target);
   }
 
+  /// Special-cases calls to `List([int length])`
+  ///
+  /// This is to detect growability and fill fixed-length lists with nulls.
+  AType handleDefaultListFactoryCall(StaticInvocation node) {
+    var type = handleCall(node.arguments, node.target, node.fileOffset);
+    if (node.arguments.positional.length == 0) {
+      return type.withSourceAndSink(source: common.growableListValue);
+    }
+    InterfaceAType listType = type;
+    AType contentType = listType.typeArguments[0];
+    builder.addAssignment(Value.null_, contentType.sink);
+    return type.withSourceAndSink(source: common.fixedLengthListValue);
+  }
+
+  Value getListValueFromGrowableFlag(Arguments arguments) {
+    for (var namedArg in arguments.named) {
+      if (namedArg.name == 'growable') {
+        if (isTrueConstant(namedArg.value)) return common.growableListValue;
+        if (isFalseConstant(namedArg.value)) return common.fixedLengthListValue;
+        return common.mutableListValue;
+      }
+    }
+    return common.growableListValue;
+  }
+
+  InterfaceAType tryUpcast(AType type, Class class_) {
+    if (type is! InterfaceAType) return null;
+    return augmentedHierarchy.getTypeAsInstanceOf(type, class_);
+  }
+
+  AType getDowncastedIterableContentType(
+      AType iterable, DartType castType, int fileOffset) {
+    if (iterable is! InterfaceAType) return null;
+    InterfaceAType asIterable = augmentedHierarchy.getTypeAsInstanceOf(
+        iterable, coreTypes.iterableClass);
+    if (asIterable == null) return null;
+    var contentType = asIterable.typeArguments[0];
+    return handleDowncast(contentType, castType, fileOffset)
+        .withSourceAndSink(sink: ValueSink.nowhere);
+  }
+
+  /// Special-cases calls to `List.from(Iterable<Object> elements)`.
+  ///
+  /// There is a downcast from the content type of `elements` to the content
+  /// type of the list; this must be handled at the call-site in order to have
+  /// reasonable precision.
+  AType handleListFromIterableCall(StaticInvocation node) {
+    AType iterable = visitExpression(node.arguments.positional[0]);
+    AType content = getDowncastedIterableContentType(
+        iterable, node.arguments.types[0], node.fileOffset);
+    if (content == null) {
+      return handleCall(node.arguments, node.target, node.fileOffset);
+    }
+    for (var namedArg in node.arguments.named) {
+      visitExpression(namedArg.value);
+    }
+    return new InterfaceAType(
+        getListValueFromGrowableFlag(node.arguments),
+        ValueSink.unassignable('return value of an expression', node),
+        coreTypes.listClass,
+        <AType>[content]);
+  }
+
+  /// Special-cases calls to `LinkedHashSet.from(Iterable<Object> elements)`.
+  ///
+  /// There is a downcast from the content type of `elements` to the content
+  /// type of the list; this must be handled at the call-site in order to have
+  /// reasonable precision.
+  AType handleLinkedHashSetFromIterableCall(StaticInvocation node) {
+    AType iterable = visitExpression(node.arguments.positional[0]);
+    AType content = getDowncastedIterableContentType(
+        iterable, node.arguments.types[0], node.fileOffset);
+    if (content == null) {
+      return handleCall(node.arguments, node.target, node.fileOffset);
+    }
+    var class_ = coreTypes.getClass('dart:collection', 'LinkedHashSet');
+    var value = new Value(class_, ValueFlags.other);
+    return new InterfaceAType(
+        value,
+        ValueSink.unassignable('return value of an expression', node),
+        class_,
+        <AType>[content]);
+  }
+
   @override
   AType visitStaticInvocation(StaticInvocation node) {
-    var type = handleCall(node.arguments, node.target, node.fileOffset);
-    // Special case the List factory to detect growability and fill fixed-length
-    // lists with nulls.
-    if (node.targetReference == defaultListFactoryReference) {
-      if (node.arguments.positional.length == 0) {
-        return type.withSourceAndSink(source: common.growableListValue);
-      }
-      InterfaceAType listType = type;
-      AType contentType = listType.typeArguments[0];
-      builder.addAssignment(Value.null_, contentType.sink);
-      return type.withSourceAndSink(source: common.fixedLengthListValue);
+    Reference target = node.targetReference;
+    if (target == defaultListFactoryReference) {
+      return handleDefaultListFactoryCall(node);
+    } else if (target == listFromIterableReference) {
+      return handleListFromIterableCall(node);
+    } else if (target == linkedHashSetFromIterableReference) {
+      return handleLinkedHashSetFromIterableCall(node);
     }
-    return type;
+    return handleCall(node.arguments, node.target, node.fileOffset);
   }
 
   @override
