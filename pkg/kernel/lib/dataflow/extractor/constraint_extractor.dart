@@ -1572,10 +1572,10 @@ class ConstraintExtractorVisitor
 
   AType getDowncastedIterableContentType(
       AType iterable, DartType castType, int fileOffset) {
-    if (iterable is! InterfaceAType) return null;
+    if (iterable is! InterfaceAType) return common.topType;
     InterfaceAType asIterable = augmentedHierarchy.getTypeAsInstanceOf(
         iterable, coreTypes.iterableClass);
-    if (asIterable == null) return null;
+    if (asIterable == null) return common.topType;
     var contentType = asIterable.typeArguments[0];
     return handleDowncast(contentType, castType, fileOffset)
         .withSourceAndSink(sink: ValueSink.nowhere);
@@ -1590,9 +1590,6 @@ class ConstraintExtractorVisitor
     AType iterable = visitExpression(node.arguments.positional[0]);
     AType content = getDowncastedIterableContentType(
         iterable, node.arguments.types[0], node.fileOffset);
-    if (content == null) {
-      return handleCall(node.arguments, node.target, node.fileOffset);
-    }
     for (var namedArg in node.arguments.named) {
       visitExpression(namedArg.value);
     }
@@ -1612,9 +1609,6 @@ class ConstraintExtractorVisitor
     AType iterable = visitExpression(node.arguments.positional[0]);
     AType content = getDowncastedIterableContentType(
         iterable, node.arguments.types[0], node.fileOffset);
-    if (content == null) {
-      return handleCall(node.arguments, node.target, node.fileOffset);
-    }
     var class_ = coreTypes.getClass('dart:collection', 'LinkedHashSet');
     var value = new Value(class_, ValueFlags.other);
     return new InterfaceAType(
