@@ -1581,7 +1581,8 @@ class ConstraintExtractorVisitor
         .withSourceAndSink(sink: ValueSink.nowhere);
   }
 
-  /// Special-cases calls to `List.from(Iterable<Object> elements)`.
+  /// Special-cases calls to `List.from(Iterable<Object> elements)`, possibly
+  /// with the `growable` named argument.
   ///
   /// There is a downcast from the content type of `elements` to the content
   /// type of the list; this must be handled at the call-site in order to have
