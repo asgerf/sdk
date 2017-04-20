@@ -934,11 +934,38 @@ class ConstraintExtractorVisitor
 
   @override
   AType visitAsExpression(AsExpression node) {
-    var inputType = visitExpression(node.operand);
+    AType inputType = visitExpression(node.operand);
+    DartType castType = node.type;
+
+    // Handle cast to a type parameter type T specially.  For this case, we
+    // generate an assignment from the input value to the lower bound of the
+    // type parameter (so all instantiations of it must satisfy any value we
+    // pass in here).
+    //
+    // This special case exists for two reasons:
+    //
+    // - In the general case, all casts to a type parameter type will completely
+    //   corrupt that type parameter, thereby losing a ton of context-sensitive
+    //   information.
+    //
+    // - With context-sensitive cloning, the assignment we generate here can
+    //   be inlined at the call-site, effectively pushing the whole downcast
+    //   back to the call-site, where it can be handled much more precisely.
+    //   In particular, this is necessary for precise handling of the downcast
+    //   in `List.from`, `LinkedHashSet.from`, etc.
+    if (castType is TypeParameterType) {
+      var bound = scope.getTypeParameterBound(castType.parameter);
+      var outputLocation = bound.sink;
+      builder.setFileOffset(node.fileOffset);
+      builder.addAssignment(inputType.source, outputLocation);
+      return new TypeParameterAType(
+          Value.null_,
+          ValueSink.unassignable('return value of an expression'),
+          castType.parameter);
+    }
 
     // Make a type filter assignment for the value being cast.
     var outputLocation = bank.newLocation();
-    DartType castType = node.type;
     var typeFilter = new TypeFilter(
         castType is InterfaceType ? castType.classNode : null,
         extractor.getValueSetFlagsFromInterfaceType(castType) |
@@ -952,7 +979,7 @@ class ConstraintExtractorVisitor
     // escapes.
     var escapeTracker = bank.newLocation(); // Values added to type arguments.
     var worstCaseType =
-        new DowncastTypeVisitor(extractor, escapeTracker).visitType(castType);
+        new DowncastTypeVisitor(this, escapeTracker).visitType(castType);
     var outputType = worstCaseType.withSourceAndSink(
         source: outputLocation,
         sink: ValueSink.unassignable('return value of an expression', node));
@@ -963,6 +990,18 @@ class ConstraintExtractorVisitor
     builder.addEscape(inputType.source, escapeTracker, ValueFlags.allValueSets);
 
     return outputType;
+  }
+
+  final Set<TypeParameter> typeParametersUsedInDowncast =
+      new Set<TypeParameter>();
+
+  void handleTypeParameterUsedInDowncast(TypeParameter parameter) {
+    if (typeParametersUsedInDowncast.add(parameter)) {
+      // print('Corrupting $parameter');
+      var bound = scope.getTypeParameterBound(parameter);
+      builder.addAssignment(
+          extractor.getWorstCaseValueForType(bound), bound.sink);
+    }
   }
 
   AType unfutureType(AType type) {
@@ -2208,13 +2247,14 @@ class ProtectCleanSupertype extends SourceSinkConverter {
 }
 
 class DowncastTypeVisitor extends DartTypeVisitor<AType> {
-  final ConstraintExtractor extractor;
+  final ConstraintExtractorVisitor visitor;
   final StorageLocation sink;
   final List<List<TypeParameter>> _localTypeParameters =
       <List<TypeParameter>>[];
 
-  DowncastTypeVisitor(this.extractor, this.sink);
+  DowncastTypeVisitor(this.visitor, this.sink);
 
+  ConstraintExtractor get extractor => visitor.extractor;
   CommonValues get common => extractor.common;
   CoreTypes get coreTypes => extractor.coreTypes;
 
@@ -2264,6 +2304,7 @@ class DowncastTypeVisitor extends DartTypeVisitor<AType> {
 
   @override
   AType visitTypeParameterType(TypeParameterType node) {
+    visitor.handleTypeParameterUsedInDowncast(node.parameter);
     // Translate function-type type parameters to De Brujin indices.
     int shift = 0;
     for (var list in _localTypeParameters.reversed) {
