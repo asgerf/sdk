@@ -68,6 +68,6 @@ main(List<String> args) {
     var object = new CastCompoundFromT<Object>();
     object.list.add(<Object>["hello"]);
     var list = object.tryGetMemberAsList();
-    var string = list[0];
+    var string = list[n];
   }
 }
