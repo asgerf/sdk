@@ -364,26 +364,26 @@ static method testGenericDowncast() → Null {
   core::_IntegerImplementation+?&core::int nullableIntFromVMap = vmap.{core::Map::[]}(5);
 }
 static method testGenericDowncastNoMutation() → Null {
-  self::MutableBox!<core::_IntegerImplementation+?&core::int/> box = new self::MutableBox::•<core::_IntegerImplementation+?&core::int>(5);
+  self::MutableBox!<core::_IntegerImplementation+&core::int/> box = new self::MutableBox::•<core::_IntegerImplementation+&core::int>(5);
   self::MutableBox!&core::Object upcastBox = box;
   self::MutableBox!<core::_IntegerImplementation+?&core::int/> downcastBox = upcastBox as self::MutableBox<core::int>;
   core::_IntegerImplementation+?&core::int intFromDowncastBox = downcastBox.{self::MutableBox::field};
-  core::_IntegerImplementation+?&core::int intFromBox = box.{self::MutableBox::field};
-  core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> list = <core::_IntegerImplementation+?&core::int>[5];
+  core::_IntegerImplementation+&core::int intFromBox = box.{self::MutableBox::field};
+  core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/> list = <core::_IntegerImplementation+&core::int>[5];
   core::_GrowableList!&core::Object upcastList = list;
   core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> downcastList = upcastList as core::List<core::int>;
   core::_IntegerImplementation+?&core::int intFromDowncastList = downcastList.{core::Iterable::last};
-  core::_IntegerImplementation+?&core::int intFromList = list.{core::Iterable::last};
-  dart.collection::LinkedHashMap!&core::Map<core::_IntegerImplementation+?&core::int/, core::_IntegerImplementation+?&core::int/> kmap = <core::_IntegerImplementation+?&core::int, core::_IntegerImplementation+?&core::int>{5: 6};
+  core::_IntegerImplementation+&core::int intFromList = list.{core::Iterable::last};
+  dart.collection::LinkedHashMap!&core::Map<core::_IntegerImplementation+&core::int/, core::_IntegerImplementation+&core::int/> kmap = <core::_IntegerImplementation+&core::int, core::_IntegerImplementation+&core::int>{5: 6};
   dart.collection::LinkedHashMap!&core::Object upcastKMap = kmap;
   dart.collection::LinkedHashMap!&core::Map<core::_IntegerImplementation+?&core::int/, core::_IntegerImplementation+?&core::int/> downcastKMap = upcastKMap as core::Map<core::int, core::int>;
-  core::_IntegerImplementation+?&core::int intFromDowncastKMap = kmap.{core::Map::keys}.{core::Iterable::first};
-  core::_IntegerImplementation+?&core::int intFromKMap = kmap.{core::Map::keys}.{core::Iterable::first};
-  dart.collection::LinkedHashMap!&core::Map<core::_IntegerImplementation+?&core::int/, core::_IntegerImplementation+?&core::int/> vmap = <core::_IntegerImplementation+?&core::int, core::_IntegerImplementation+?&core::int>{5: 6};
+  core::_IntegerImplementation+&core::int intFromDowncastKMap = kmap.{core::Map::keys}.{core::Iterable::first};
+  core::_IntegerImplementation+&core::int intFromKMap = kmap.{core::Map::keys}.{core::Iterable::first};
+  dart.collection::LinkedHashMap!&core::Map<core::_IntegerImplementation+&core::int/, core::_IntegerImplementation+&core::int/> vmap = <core::_IntegerImplementation+&core::int, core::_IntegerImplementation+&core::int>{5: 6};
   dart.collection::LinkedHashMap!&core::Object upcastVMap = vmap;
   dart.collection::LinkedHashMap!&core::Map<core::_IntegerImplementation+?&core::int/, core::_IntegerImplementation+?&core::int/> downcastVMap = upcastVMap as core::Map<core::int, core::int>;
   core::_IntegerImplementation+?&core::int intFromDowncastVMap = downcastVMap.{core::Map::[]}(5);
-  core::_IntegerImplementation+?&core::int intFromVMap = vmap.{core::Map::[]}(5);
+  core::_IntegerImplementation+&core::int intFromVMap = vmap.{core::Map::[]}(5);
 }
 static method testGenericDynamic() → Null {
   self::MutableBox!<core::_IntegerImplementation+?&core::int/> box = new self::MutableBox::•<core::_IntegerImplementation+?&core::int>(5);
