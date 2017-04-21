@@ -54,18 +54,22 @@ class ConstraintExtractor {
   final BackendCoreTypes backendCoreTypes;
   final TypeErrorCallback typeErrorCallback;
 
+  // Shared data structures
   ClassHierarchy hierarchy;
   CommonValues common;
   CoreTypes coreTypes;
   ValueLattice lattice;
 
+  // Output data structures
   ConstraintSystem _constraintSystem;
   Binding _binding;
 
+  // Internal data structures
   AugmentedHierarchy _augmentedHierarchy;
   ClassSetDomain _instantiatedClasses;
   SubtypeTranslator _builder;
   DynamicIndex _dynamicIndex;
+  SpecialCasedMethods _specialCasedMethods;
 
   ConstraintExtractor(
       {@required this.externalModel,
@@ -95,6 +99,7 @@ class ConstraintExtractor {
     _builder = new SubtypeTranslator(
         _constraintSystem, _augmentedHierarchy, lattice, common, coreTypes);
     _instantiatedClasses = lattice.instantiatedClasses;
+    _specialCasedMethods = new SpecialCasedMethods(coreTypes, backendCoreTypes);
 
     // Build the constraint system.
     handleLiteralClassTypeBounds();
@@ -410,6 +415,57 @@ class LocalScope extends TypeParameterScope {
   }
 }
 
+/// An index of the methods which are given special treatment at the call site.
+class SpecialCasedMethods {
+  final Reference defaultListFactoryReference;
+  final Reference listFromIterableReference;
+  final Reference linkedHashSetFromIterableReference;
+  final Reference hashSetFromIterableReference;
+  final Reference listQueueFromIterableReference;
+  final Reference linkedHashMapFromMapReference;
+  final Reference hashMapFromMapReference;
+
+  List<Reference> all;
+
+  SpecialCasedMethods(CoreTypes coreTypes, BackendCoreTypes backendCoreTypes)
+      : defaultListFactoryReference = backendCoreTypes.listFactory.reference,
+        listFromIterableReference =
+            coreTypes.tryGetMember('dart:core', 'List', 'from')?.reference,
+        linkedHashSetFromIterableReference = coreTypes
+            .tryGetMember('dart:collection', 'LinkedHashSet', 'from')
+            ?.reference,
+        hashSetFromIterableReference = coreTypes
+            .tryGetMember('dart:collection', 'HashSet', 'from')
+            ?.reference,
+        listQueueFromIterableReference = coreTypes
+            .tryGetMember('dart:collection', 'ListQueue', 'from')
+            ?.reference,
+        linkedHashMapFromMapReference = coreTypes
+            .tryGetMember('dart:collection', 'LinkedHashMap', 'from')
+            ?.reference,
+        hashMapFromMapReference = coreTypes
+            .tryGetMember('dart:collection', 'HashMap', 'from')
+            ?.reference {
+    all = <Reference>[
+      defaultListFactoryReference,
+      listFromIterableReference,
+      linkedHashSetFromIterableReference,
+      hashSetFromIterableReference,
+      listQueueFromIterableReference,
+      linkedHashMapFromMapReference,
+      hashMapFromMapReference,
+    ];
+  }
+
+  /// True if the given method is handled specially at the call-site.
+  ///
+  /// Such methods will be treated as entry points, so the call-site arguments
+  /// don't need to be propagated into its parameters.
+  bool isSpecialCased(Procedure node) {
+    return all.contains(node.reference);
+  }
+}
+
 /// Generates constraints from the body of a member.
 class ConstraintExtractorVisitor
     implements
@@ -421,14 +477,23 @@ class ConstraintExtractorVisitor
   final Member currentMember;
   final MemberBank bank;
   final ClassBank classBank;
+  final SpecialCasedMethods specialCasedMethods;
   TypeAugmentor augmentor;
-  Reference defaultListFactoryReference;
-  Reference listFromIterableReference;
-  Reference linkedHashSetFromIterableReference;
-  Reference hashSetFromIterableReference;
-  Reference listQueueFromIterableReference;
-  Reference linkedHashMapFromMapReference;
-  Reference hashMapFromMapReference;
+
+  Reference get defaultListFactoryReference =>
+      specialCasedMethods.defaultListFactoryReference;
+  Reference get listFromIterableReference =>
+      specialCasedMethods.listFromIterableReference;
+  Reference get linkedHashSetFromIterableReference =>
+      specialCasedMethods.linkedHashSetFromIterableReference;
+  Reference get hashSetFromIterableReference =>
+      specialCasedMethods.hashSetFromIterableReference;
+  Reference get listQueueFromIterableReference =>
+      specialCasedMethods.listQueueFromIterableReference;
+  Reference get linkedHashMapFromMapReference =>
+      specialCasedMethods.linkedHashMapFromMapReference;
+  Reference get hashMapFromMapReference =>
+      specialCasedMethods.hashMapFromMapReference;
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ClassHierarchy get hierarchy => extractor.hierarchy;
@@ -456,25 +521,8 @@ class ConstraintExtractorVisitor
   final bool isUncheckedLibrary;
 
   ConstraintExtractorVisitor(this.extractor, this.currentMember, this.bank,
-      this.classBank, this.isUncheckedLibrary) {
-    defaultListFactoryReference =
-        extractor.backendCoreTypes.listFactory.reference;
-    listFromIterableReference =
-        coreTypes.tryGetMember('dart:core', 'List', 'from')?.reference;
-    linkedHashSetFromIterableReference = coreTypes
-        .tryGetMember('dart:collection', 'LinkedHashSet', 'from')
-        ?.reference;
-    hashSetFromIterableReference =
-        coreTypes.tryGetMember('dart:collection', 'HashSet', 'from')?.reference;
-    listQueueFromIterableReference = coreTypes
-        .tryGetMember('dart:collection', 'ListQueue', 'from')
-        ?.reference;
-    linkedHashMapFromMapReference = coreTypes
-        .tryGetMember('dart:collection', 'LinkedHashMap', 'from')
-        ?.reference;
-    hashMapFromMapReference =
-        coreTypes.tryGetMember('dart:collection', 'HashMap', 'from')?.reference;
-  }
+      this.classBank, this.isUncheckedLibrary)
+      : specialCasedMethods = extractor._specialCasedMethods;
 
   void checkTypeBound(TreeNode where, AType type, AType bound,
       [int fileOffset = TreeNode.noOffset]) {
@@ -662,7 +710,8 @@ class ConstraintExtractorVisitor
               isContravariant: true)
           .visitSubterms(bank.concreteType);
     }
-    if (externalModel.isEntryPoint(node)) {
+    if (externalModel.isEntryPoint(node) ||
+        specialCasedMethods.isSpecialCased(node)) {
       builder.setFileOffset(node.fileOffset);
       new ExternalVisitor(extractor,
               isClean: false, isCovariant: true, isContravariant: false)
