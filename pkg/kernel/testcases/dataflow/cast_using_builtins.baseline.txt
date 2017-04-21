@@ -1,0 +1,30 @@
+library;
+import self as self;
+import "dart:core" as core;
+
+static method main(core::_List!&core::List<core::_StringBase+&core::String/> args) → Null&core::Object {
+  core::_IntegerImplementation+&core::int n = args.{core::List::length};
+  {
+    core::_GrowableList!&core::List<core::_StringBase+?&core::String/> list = core::List::from<core::String>(<core::_StringBase+?&core::String>["hello", null]);
+    core::_StringBase+?&core::String nullableString = list.{core::List::[]}(n);
+  }
+  {
+    core::_GrowableList!&core::List<core::_StringBase+&core::String/> list = core::List::from<core::String>(<core::_StringBase+&core::String>["hello", "world"]);
+    core::_StringBase+&core::String nonNullableString = list.{core::List::[]}(n);
+  }
+  {
+    core::_GrowableList!&core::List<core::_StringBase+?&core::String/Null> list = core::List::from<core::String>(<core::_StringBase+&core::String>["hello", "world"]);
+    list.{core::List::[]=}(0, null);
+    core::_StringBase+?&core::String nullableString = list.{core::List::[]}(n);
+  }
+  {
+    core::_GrowableList!&core::List<core::_StringBase+&core::String/> list = core::List::from<core::String>(<core::_StringBase+&core::Object>["hello", "world"]);
+    core::_StringBase+&core::String nonNullableString = list.{core::List::[]}(n);
+  }
+  {
+    core::_GrowableList!&core::List<core::_StringBase+&core::String/> stringList = <core::_StringBase+&core::String>["hello", "world"];
+    core::_GrowableList!&core::List<core::_StringBase+?&core::String/Null> list = core::List::from<core::String>(stringList);
+    list.{core::List::[]=}(0, null);
+    core::_StringBase+&core::String nonNullableString = stringList.{core::List::[]}(n);
+  }
+}

@@ -1572,8 +1572,10 @@ class ConstraintExtractorVisitor
   /// reasonable precision.
   AType handleListFromIterableCall(StaticInvocation node) {
     AType iterable = visitExpression(node.arguments.positional[0]);
-    AType content = getDowncastedIterableContentType(
+    AType declaredContents = augmentor.augmentType(node.arguments.types[0]);
+    AType inputContents = getDowncastedIterableContentType(
         iterable, node.arguments.types[0], node.fileOffset);
+    builder.addSubtype(inputContents, declaredContents, scope);
     for (var namedArg in node.arguments.named) {
       visitExpression(namedArg.value);
     }
@@ -1581,7 +1583,7 @@ class ConstraintExtractorVisitor
         getListValueFromGrowableFlag(node.arguments),
         ValueSink.unassignable('return value of an expression', node),
         coreTypes.listClass,
-        <AType>[content]);
+        <AType>[declaredContents]);
   }
 
   /// Special-cases calls to `LinkedHashSet.from(Iterable<Object> elements)`.
@@ -1591,15 +1593,17 @@ class ConstraintExtractorVisitor
   /// reasonable precision.
   AType handleLinkedHashSetFromIterableCall(StaticInvocation node) {
     AType iterable = visitExpression(node.arguments.positional[0]);
-    AType content = getDowncastedIterableContentType(
+    AType declaredContents = augmentor.augmentType(node.arguments.types[0]);
+    AType inputContents = getDowncastedIterableContentType(
         iterable, node.arguments.types[0], node.fileOffset);
+    builder.addSubtype(inputContents, declaredContents, scope);
     var class_ = coreTypes.getClass('dart:collection', 'LinkedHashSet');
     var value = new Value(class_, ValueFlags.other);
     return new InterfaceAType(
         value,
         ValueSink.unassignable('return value of an expression', node),
         class_,
-        <AType>[content]);
+        <AType>[declaredContents]);
   }
 
   @override
