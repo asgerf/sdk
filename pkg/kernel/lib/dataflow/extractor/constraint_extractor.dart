@@ -944,18 +944,6 @@ class ConstraintExtractorVisitor
     // generate an assignment from the input value to the lower bound of the
     // type parameter (so all instantiations of it must satisfy any value we
     // pass in here).
-    //
-    // This special case exists for two reasons:
-    //
-    // - In the general case, all casts to a type parameter type will completely
-    //   corrupt that type parameter, thereby losing a ton of context-sensitive
-    //   information.
-    //
-    // - With context-sensitive cloning, the assignment we generate here can
-    //   be inlined at the call-site, effectively pushing the whole downcast
-    //   back to the call-site, where it can be handled much more precisely.
-    //   In particular, this is necessary for precise handling of the downcast
-    //   in `List.from`, `LinkedHashSet.from`, etc.
     if (castType is TypeParameterType) {
       var bound = scope.getTypeParameterBound(castType.parameter);
       var outputLocation = bound.sink;
