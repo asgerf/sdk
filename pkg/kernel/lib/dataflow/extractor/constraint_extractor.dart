@@ -480,20 +480,15 @@ class ConstraintExtractorVisitor
   final SpecialCasedMethods specialCasedMethods;
   TypeAugmentor augmentor;
 
-  Reference get defaultListFactoryReference =>
-      specialCasedMethods.defaultListFactoryReference;
-  Reference get listFromIterableReference =>
-      specialCasedMethods.listFromIterableReference;
-  Reference get linkedHashSetFromIterableReference =>
-      specialCasedMethods.linkedHashSetFromIterableReference;
-  Reference get hashSetFromIterableReference =>
-      specialCasedMethods.hashSetFromIterableReference;
-  Reference get listQueueFromIterableReference =>
-      specialCasedMethods.listQueueFromIterableReference;
-  Reference get linkedHashMapFromMapReference =>
-      specialCasedMethods.linkedHashMapFromMapReference;
-  Reference get hashMapFromMapReference =>
-      specialCasedMethods.hashMapFromMapReference;
+  // These are copied from SpecialCasedMethods to avoid too much indirection
+  // when matching a call all of them.
+  final Reference defaultListFactoryReference;
+  final Reference listFromIterableReference;
+  final Reference linkedHashSetFromIterableReference;
+  final Reference hashSetFromIterableReference;
+  final Reference listQueueFromIterableReference;
+  final Reference linkedHashMapFromMapReference;
+  final Reference hashMapFromMapReference;
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ClassHierarchy get hierarchy => extractor.hierarchy;
@@ -522,7 +517,21 @@ class ConstraintExtractorVisitor
 
   ConstraintExtractorVisitor(this.extractor, this.currentMember, this.bank,
       this.classBank, this.isUncheckedLibrary)
-      : specialCasedMethods = extractor._specialCasedMethods;
+      : specialCasedMethods = extractor._specialCasedMethods,
+        defaultListFactoryReference =
+            extractor._specialCasedMethods.defaultListFactoryReference,
+        listFromIterableReference =
+            extractor._specialCasedMethods.listFromIterableReference,
+        linkedHashSetFromIterableReference =
+            extractor._specialCasedMethods.linkedHashSetFromIterableReference,
+        hashSetFromIterableReference =
+            extractor._specialCasedMethods.hashSetFromIterableReference,
+        listQueueFromIterableReference =
+            extractor._specialCasedMethods.listQueueFromIterableReference,
+        linkedHashMapFromMapReference =
+            extractor._specialCasedMethods.linkedHashMapFromMapReference,
+        hashMapFromMapReference =
+            extractor._specialCasedMethods.hashMapFromMapReference;
 
   void checkTypeBound(TreeNode where, AType type, AType bound,
       [int fileOffset = TreeNode.noOffset]) {
