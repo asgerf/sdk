@@ -427,6 +427,8 @@ class ConstraintExtractorVisitor
   Reference linkedHashSetFromIterableReference;
   Reference hashSetFromIterableReference;
   Reference listQueueFromIterableReference;
+  Reference linkedHashMapFromMapReference;
+  Reference hashMapFromMapReference;
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ClassHierarchy get hierarchy => extractor.hierarchy;
@@ -467,6 +469,11 @@ class ConstraintExtractorVisitor
     listQueueFromIterableReference = coreTypes
         .tryGetMember('dart:collection', 'ListQueue', 'from')
         ?.reference;
+    linkedHashMapFromMapReference = coreTypes
+        .tryGetMember('dart:collection', 'LinkedHashMap', 'from')
+        ?.reference;
+    hashMapFromMapReference =
+        coreTypes.tryGetMember('dart:collection', 'HashMap', 'from')?.reference;
   }
 
   void checkTypeBound(TreeNode where, AType type, AType bound,
@@ -1621,6 +1628,36 @@ class ConstraintExtractorVisitor
         <AType>[declaredContents]);
   }
 
+  /// Special-cases calls to the following factories:
+  ///
+  ///     LinkedHashMap.from(Map<Object, Object> elements)
+  ///     HashMap.from(Map<Object, Object> elements)
+  ///
+  /// There are downcasts from the keys and values of `elements` to the key and
+  /// value types of the new map; this must be handled at the call-site in order
+  /// to have reasonable precision.
+  AType handleMapFromMapCall(StaticInvocation node) {
+    AType argument = visitExpression(node.arguments.positional[0]);
+    var asMap = argument is InterfaceAType
+        ? augmentedHierarchy.getTypeAsInstanceOf(argument, coreTypes.mapClass)
+        : null;
+    var types = node.arguments.types;
+    var declaredContents = augmentor.augmentTypeList(types);
+    for (int i = 0; i < types.length; ++i) {
+      AType input = asMap != null
+          ? handleDowncast(asMap.typeArguments[i], types[i], node.fileOffset)
+          : common.topType;
+      builder.addSubtype(input, declaredContents[i], scope);
+    }
+    var class_ = node.target.enclosingClass;
+    var value = new Value(class_, ValueFlags.other);
+    return new InterfaceAType(
+        value,
+        ValueSink.unassignable('return value of an expression', node),
+        class_,
+        declaredContents);
+  }
+
   @override
   AType visitStaticInvocation(StaticInvocation node) {
     Reference target = node.targetReference;
@@ -1632,6 +1669,9 @@ class ConstraintExtractorVisitor
         target == hashSetFromIterableReference ||
         target == listQueueFromIterableReference) {
       return handleCollectionFromIterableCall(node);
+    } else if (target == linkedHashMapFromMapReference ||
+        target == hashMapFromMapReference) {
+      return handleMapFromMapCall(node);
     }
     return handleCall(node.arguments, node.target, node.fileOffset);
   }

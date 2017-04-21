@@ -1,6 +1,7 @@
 library;
 import self as self;
 import "dart:core" as core;
+import "dart:collection" as col;
 
 static method main(core::_List!&core::List<core::_StringBase+&core::String/> args) → Null&core::Object {
   core::_IntegerImplementation+&core::int n = args.{core::List::length};
@@ -26,5 +27,90 @@ static method main(core::_List!&core::List<core::_StringBase+&core::String/> arg
     core::_GrowableList!&core::List<core::_StringBase+?&core::String/Null> list = core::List::from<core::String>(stringList);
     list.{core::List::[]=}(0, null);
     core::_StringBase+&core::String nonNullableString = stringList.{core::List::[]}(n);
+  }
+  {
+    col::LinkedHashSet!&core::Set<core::_StringBase+?&core::String/> stuff = col::LinkedHashSet::from<core::String>(<core::_StringBase+?&core::String>["hello", null]);
+    core::_StringBase+?&core::String nullableString = stuff.{core::Iterable::first};
+  }
+  {
+    col::LinkedHashSet!&core::Set<core::_StringBase+&core::String/> stuff = col::LinkedHashSet::from<core::String>(<core::_StringBase+&core::String>["hello", "world"]);
+    core::_StringBase+&core::String nonNullableString = stuff.{core::Iterable::first};
+  }
+  {
+    col::LinkedHashSet!&core::Set<core::_StringBase+?&core::String/Null> stuff = col::LinkedHashSet::from<core::String>(<core::_StringBase+&core::String>["hello", "world"]);
+    stuff.{core::Set::add}(null);
+    core::_StringBase+?&core::String nullableString = stuff.{core::Iterable::first};
+  }
+  {
+    col::LinkedHashSet!&core::Set<core::_StringBase+&core::String/> stuff = col::LinkedHashSet::from<core::String>(<core::_StringBase+&core::Object>["hello", "world"]);
+    core::_StringBase+&core::String nonNullableString = stuff.{core::Iterable::first};
+  }
+  {
+    core::_GrowableList!&core::List<core::_StringBase+&core::String/> stringList = <core::_StringBase+&core::String>["hello", "world"];
+    col::LinkedHashSet!&core::Set<core::_StringBase+?&core::String/Null> stuff = col::LinkedHashSet::from<core::String>(stringList);
+    stuff.{core::Set::add}(null);
+    core::_StringBase+&core::String nonNullableString = stringList.{core::List::[]}(n);
+  }
+  {
+    col::ListQueue!&col::Queue<core::_StringBase+?&core::String/> stuff = col::ListQueue::from<core::String>(<core::_StringBase+?&core::String>["hello", null]);
+    core::_StringBase+?&core::String nullableString = stuff.{core::Iterable::first};
+  }
+  {
+    col::ListQueue!&col::Queue<core::_StringBase+&core::String/> stuff = col::ListQueue::from<core::String>(<core::_StringBase+&core::String>["hello", "world"]);
+    core::_StringBase+&core::String nonNullableString = stuff.{core::Iterable::first};
+  }
+  {
+    col::ListQueue!&col::Queue<core::_StringBase+?&core::String/Null> stuff = col::ListQueue::from<core::String>(<core::_StringBase+&core::String>["hello", "world"]);
+    stuff.{col::Queue::add}(null);
+    core::_StringBase+?&core::String nullableString = stuff.{core::Iterable::first};
+  }
+  {
+    col::ListQueue!&col::Queue<core::_StringBase+&core::String/> stuff = col::ListQueue::from<core::String>(<core::_StringBase+&core::Object>["hello", "world"]);
+    core::_StringBase+&core::String nonNullableString = stuff.{core::Iterable::first};
+  }
+  {
+    core::_GrowableList!&core::List<core::_StringBase+&core::String/> stringList = <core::_StringBase+&core::String>["hello", "world"];
+    col::ListQueue!&col::Queue<core::_StringBase+?&core::String/Null> stuff = col::ListQueue::from<core::String>(stringList);
+    stuff.{col::Queue::add}(null);
+    core::_StringBase+&core::String nonNullableString = stringList.{core::List::[]}(n);
+  }
+  {
+    col::LinkedHashMap!&core::Map<core::_StringBase+&core::String/, core::_IntegerImplementation+&core::int/> map = col::LinkedHashMap::from<core::String, core::int>(<core::_StringBase+&core::String, core::_IntegerImplementation+&core::int>{"foo": 45});
+    core::_StringBase+&core::String nonNullableString = map.{core::Map::keys}.{core::Iterable::first};
+    core::_IntegerImplementation+&core::int nonNullableInt = map.{core::Map::values}.{core::Iterable::first};
+  }
+  {
+    col::LinkedHashMap!&core::Map<core::_StringBase+&core::String/, core::_IntegerImplementation+?&core::int/> map = col::LinkedHashMap::from<core::String, core::int>(<core::_StringBase+&core::String, core::_IntegerImplementation+?&core::int>{"foo": null, "bar": 45});
+    core::_StringBase+&core::String nonNullableString = map.{core::Map::keys}.{core::Iterable::first};
+    core::_IntegerImplementation+?&core::int nullableInt = map.{core::Map::values}.{core::Iterable::first};
+  }
+  {
+    col::LinkedHashMap!&core::Map<core::_StringBase+?&core::String/, core::_IntegerImplementation+&core::int/> map = col::LinkedHashMap::from<core::String, core::int>(<core::_StringBase+?&core::String, core::_IntegerImplementation+&core::int>{null: 45, "bar": 45});
+    core::_StringBase+?&core::String nullableString = map.{core::Map::keys}.{core::Iterable::first};
+    core::_IntegerImplementation+&core::int nonNullableInt = map.{core::Map::values}.{core::Iterable::first};
+  }
+  {
+    col::LinkedHashMap!&core::Map<core::_StringBase+?&core::String/, core::_IntegerImplementation+&core::int/> map = col::LinkedHashMap::from<core::String, core::int>(<core::_StringBase+?&core::Object, core::_IntegerImplementation+&core::Object>{null: 45, "bar": 45});
+    core::_StringBase+?&core::String nullableString = map.{core::Map::keys}.{core::Iterable::first};
+    core::_IntegerImplementation+&core::int nonNullableInt = map.{core::Map::values}.{core::Iterable::first};
+  }
+  {
+    col::LinkedHashMap!&core::Map<core::_StringBase+&core::String/, core::_IntegerImplementation+&core::int/> originalMap = <core::_StringBase+&core::String, core::_IntegerImplementation+&core::int>{"foo": 45};
+    col::LinkedHashMap!&core::Map<core::_StringBase+&core::String/core::_StringBase+, core::_IntegerImplementation+?&core::int/Null> map = col::LinkedHashMap::from<core::String, core::int>(originalMap);
+    map.{core::Map::[]=}("bar", null);
+    core::_StringBase+&core::String nonNullableString = originalMap.{core::Map::keys}.{core::Iterable::first};
+    core::_IntegerImplementation+&core::int nonNullableInt = originalMap.{core::Map::values}.{core::Iterable::first};
+  }
+  {
+    col::LinkedHashMap!&core::Map<core::_StringBase+&core::String/core::_StringBase+, core::_IntegerImplementation+?&core::int/Null> map = col::LinkedHashMap::from<core::String, core::int>(<core::_StringBase+&core::String, core::_IntegerImplementation+&core::int>{"foo": 45});
+    map.{core::Map::[]=}("bar", null);
+    core::_StringBase+&core::String nonNullableString = map.{core::Map::keys}.{core::Iterable::first};
+    core::_IntegerImplementation+?&core::int nullableInt = map.{core::Map::values}.{core::Iterable::first};
+  }
+  {
+    col::LinkedHashMap!&core::Map<core::_StringBase+?&core::String/Null, core::_IntegerImplementation+&core::int/core::_IntegerImplementation+> map = col::LinkedHashMap::from<core::String, core::int>(<core::_StringBase+&core::String, core::_IntegerImplementation+&core::int>{"foo": 45});
+    map.{core::Map::[]=}(null, 45);
+    core::_StringBase+?&core::String nullableString = map.{core::Map::keys}.{core::Iterable::first};
+    core::_IntegerImplementation+&core::int nonNullableInt = map.{core::Map::values}.{core::Iterable::first};
   }
 }
