@@ -1553,11 +1553,6 @@ class ConstraintExtractorVisitor
     return common.growableListValue;
   }
 
-  InterfaceAType tryUpcast(AType type, Class class_) {
-    if (type is! InterfaceAType) return null;
-    return augmentedHierarchy.getTypeAsInstanceOf(type, class_);
-  }
-
   AType getDowncastedIterableContentType(
       AType iterable, DartType castType, int fileOffset) {
     if (iterable is! InterfaceAType) return common.topType;
