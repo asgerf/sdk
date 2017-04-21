@@ -1023,7 +1023,8 @@ class ConstraintExtractorVisitor
       var bound = scope.getTypeParameterBound(castType.parameter);
       var outputLocation = bound.sink;
       builder.setFileOffset(fileOffset);
-      builder.addAssignment(inputType.source, outputLocation);
+      builder.addAssignment(
+          inputType.source, outputLocation, TypeFilter.notNull);
       return new TypeParameterAType(
           Value.null_,
           ValueSink.unassignable('return value of an expression'),

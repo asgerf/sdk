@@ -386,4 +386,6 @@ class TypeFilter {
 
   static final TypeFilter none = new TypeFilter(null, ValueFlags.allValueSets);
   static final TypeFilter null_ = new TypeFilter(null, ValueFlags.null_);
+  static final TypeFilter notNull =
+      new TypeFilter(null, ValueFlags.nonNullValueSets);
 }
