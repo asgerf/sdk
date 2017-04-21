@@ -954,6 +954,9 @@ class ConstraintExtractorVisitor
   }
 
   AType handleDowncast(AType inputType, DartType castType, int fileOffset) {
+    // TODO: Check if the cast is unnecessary (inputType <: castType).
+    //       This can easily happen for the downcast implied by `List.from`.
+
     // Handle cast to a type parameter type T specially.  For this case, we
     // generate an assignment from the input value to the lower bound of the
     // type parameter (so all instantiations of it must satisfy any value we
