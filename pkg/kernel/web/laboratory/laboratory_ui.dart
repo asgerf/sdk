@@ -73,6 +73,7 @@ class CssClass {
   static const String typeViewFlagLabel = 'type-view-flag-label';
   static const String typeViewFlagOff = 'type-view-flag-off';
   static const String typeViewFlagOn = 'type-view-flag-on';
+  static const String typeViewFlagParametric = 'type-view-flag-parametric';
   static const String typeViewFlagSeparator = 'type-view-flag-separator';
   static const String typeViewNextValue = 'type-view-next-value';
 }

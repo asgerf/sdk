@@ -146,16 +146,20 @@ class TypeView {
         ..classes.add(CssClass.typeViewFlagLabel));
 
       bool hasFlag = firstColumn.flags & mask != 0;
-      var hasFlagCss =
-          hasFlag ? CssClass.typeViewFlagOn : CssClass.typeViewFlagOff;
-      var hasFlagText = hasFlag ? 'yes' : 'no';
+      String context =
+          firstColumn.contextualFlags & mask != 0 ? firstColumn.context : null;
+      var hasFlagCss = context != null
+          ? CssClass.typeViewFlagParametric
+          : (hasFlag ? CssClass.typeViewFlagOn : CssClass.typeViewFlagOff);
+      var hasFlagText = context != null ? context : (hasFlag ? 'yes' : 'no');
 
       row.append(new TableCellElement()..text = hasFlagText);
       row.classes.add(hasFlagCss);
 
       var previous = firstColumn;
       for (var column in columns.skip(1)) {
-        if (column.flags & mask == previous.flags & mask) {
+        if (column.flags & mask == previous.flags & mask &&
+            column.contextualFlags & mask == previous.contextualFlags & mask) {
           row.append(new TableCellElement());
           continue;
         }
@@ -163,7 +167,10 @@ class TypeView {
         // can only change from no to yes, but if there is a bug in the solver
         // it should be evident when viewing the report, so just show the data.
         bool hasFlag = column.flags & mask != 0;
-        String text = hasFlag ? '$arrow yes' : '$arrow no';
+        bool hasContextualFlag = column.contextualFlags & mask != 0;
+        String text = hasContextualFlag
+            ? column.context
+            : (hasFlag ? '$arrow yes' : '$arrow no');
         var cell = new TableCellElement()..text = text;
         if (column.cssClass != null) {
           cell.classes.add(column.cssClass);
@@ -204,13 +211,36 @@ class TypeView {
     return value;
   }
 
+  TypeParameter getTypeParameter(TreeNode node, int index) {
+    if (node is Class) return node.typeParameters[index];
+    if (node is Member) return node.function.typeParameters[index];
+    throw 'No type parameters on $node';
+  }
+
   TypeViewColumn getLocationColumn(StorageLocation location, int time,
       [String cssClass]) {
     var value = getLocationValue(location, time);
     bool leadsToEscape = report.leadsToEscape(location, time);
     int extraFlags = leadsToEscape ? 1 : 0;
     int flags = value.flags | (extraFlags << ValueFlags.numberOfFlags);
-    return new TypeViewColumn(value.baseClass, flags, cssClass);
+    if (location.parameterLocation != null) {
+      var parameter = location.parameterLocation;
+      var typeParameter =
+          getTypeParameter(parameter.owner.node, parameter.typeParameterIndex);
+      var name = typeParameter.name;
+      int typeParameterFlags = 0;
+      for (int i = 0; i < ValueFlags.numberOfFlags; ++i) {
+        int mask = 1 << i;
+        bool locallyHasFlag = report.getValue(location, time).flags & mask != 0;
+        bool joinedHasFlag = value.flags & mask != 0;
+        if (!locallyHasFlag && joinedHasFlag) {
+          typeParameterFlags |= mask;
+        }
+      }
+      return new TypeViewColumn.contextual(
+          value.baseClass, flags, name, typeParameterFlags, cssClass);
+    }
+    return new TypeViewColumn.location(value.baseClass, flags, cssClass);
   }
 
   void _showLocation(StorageLocation location) {
@@ -326,8 +356,27 @@ class TypeViewColumn {
   final int flags;
   String cssClass;
 
-  TypeViewColumn(this.baseClass, this.flags, [this.cssClass]);
+  /// Flags whose value is determined by one of the type parameters.
+  ///
+  /// If a flag is 1 in this mask, it means that flags is set in contexts where
+  /// some type parameter has that flag, and is unset in contexts where the type
+  /// parameter does not have that flag.
+  final int contextualFlags;
+
+  /// The name of the type parameter that determines the contextual flags.
+  final String context;
+
+  TypeViewColumn.location(this.baseClass, this.flags, [this.cssClass])
+      : context = null,
+        contextualFlags = 0;
+
+  TypeViewColumn.contextual(
+      this.baseClass, this.flags, this.context, this.contextualFlags,
+      [this.cssClass]);
+
   TypeViewColumn.value(Value value, [this.cssClass])
       : baseClass = value.baseClass,
-        flags = value.flags;
+        flags = value.flags,
+        context = null,
+        contextualFlags = 0;
 }
