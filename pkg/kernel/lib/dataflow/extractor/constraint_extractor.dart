@@ -425,6 +425,8 @@ class ConstraintExtractorVisitor
   Reference defaultListFactoryReference;
   Reference listFromIterableReference;
   Reference linkedHashSetFromIterableReference;
+  Reference hashSetFromIterableReference;
+  Reference listQueueFromIterableReference;
 
   CoreTypes get coreTypes => extractor.coreTypes;
   ClassHierarchy get hierarchy => extractor.hierarchy;
@@ -459,6 +461,11 @@ class ConstraintExtractorVisitor
         coreTypes.tryGetMember('dart:core', 'List', 'from')?.reference;
     linkedHashSetFromIterableReference = coreTypes
         .tryGetMember('dart:collection', 'LinkedHashSet', 'from')
+        ?.reference;
+    hashSetFromIterableReference =
+        coreTypes.tryGetMember('dart:collection', 'HashSet', 'from')?.reference;
+    listQueueFromIterableReference = coreTypes
+        .tryGetMember('dart:collection', 'ListQueue', 'from')
         ?.reference;
   }
 
@@ -1564,12 +1571,16 @@ class ConstraintExtractorVisitor
         .withSourceAndSink(sink: ValueSink.nowhere);
   }
 
-  /// Special-cases calls to `List.from(Iterable<Object> elements)`, possibly
-  /// with the `growable` named argument.
+  /// Special-cases calls to the factory
+  ///
+  ///     List.from(Iterable<Object> elements, {bool growable})
   ///
   /// There is a downcast from the content type of `elements` to the content
   /// type of the list; this must be handled at the call-site in order to have
   /// reasonable precision.
+  ///
+  /// Additionally, the growability of the list is determined based on the
+  /// `growable` argument.
   AType handleListFromIterableCall(StaticInvocation node) {
     AType iterable = visitExpression(node.arguments.positional[0]);
     AType declaredContents = augmentor.augmentType(node.arguments.types[0]);
@@ -1586,18 +1597,22 @@ class ConstraintExtractorVisitor
         <AType>[declaredContents]);
   }
 
-  /// Special-cases calls to `LinkedHashSet.from(Iterable<Object> elements)`.
+  /// Special-cases calls to the following factories:
+  ///
+  ///     LinkedHashSet.from(Iterable<Object> elements)
+  ///     HashSet.from(Iterable<Object> elements)
+  ///     ListQueue.from(Iterable<Object> elements)
   ///
   /// There is a downcast from the content type of `elements` to the content
-  /// type of the list; this must be handled at the call-site in order to have
-  /// reasonable precision.
-  AType handleLinkedHashSetFromIterableCall(StaticInvocation node) {
+  /// type of the new container; this must be handled at the call-site in order
+  /// to have reasonable precision.
+  AType handleCollectionFromIterableCall(StaticInvocation node) {
     AType iterable = visitExpression(node.arguments.positional[0]);
     AType declaredContents = augmentor.augmentType(node.arguments.types[0]);
     AType inputContents = getDowncastedIterableContentType(
         iterable, node.arguments.types[0], node.fileOffset);
     builder.addSubtype(inputContents, declaredContents, scope);
-    var class_ = coreTypes.getClass('dart:collection', 'LinkedHashSet');
+    var class_ = node.target.enclosingClass;
     var value = new Value(class_, ValueFlags.other);
     return new InterfaceAType(
         value,
@@ -1613,8 +1628,10 @@ class ConstraintExtractorVisitor
       return handleDefaultListFactoryCall(node);
     } else if (target == listFromIterableReference) {
       return handleListFromIterableCall(node);
-    } else if (target == linkedHashSetFromIterableReference) {
-      return handleLinkedHashSetFromIterableCall(node);
+    } else if (target == linkedHashSetFromIterableReference ||
+        target == hashSetFromIterableReference ||
+        target == listQueueFromIterableReference) {
+      return handleCollectionFromIterableCall(node);
     }
     return handleCall(node.arguments, node.target, node.fileOffset);
   }

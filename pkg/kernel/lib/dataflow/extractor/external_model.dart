@@ -34,6 +34,16 @@ abstract class ExternalModel {
 
   /// Force the type argument provided in the extends/implements clause of
   /// the given class to be treated as non-nullable.
+  ///
+  /// This is to special-case certain core library classes that are known to
+  /// behave nicely, even though their implementation cannot be analyzed with
+  /// the necessary precision.
+  ///
+  /// For instance, Uint32List implements List<int> with non-nullable `int`, as
+  /// it cannot contain null, and ListQueue<E> implements Queue<E> without
+  /// a nullability modifier on E, so it can be instantiated as either having
+  /// nullable or non-nullable contents (as opposed to being forced nullable
+  /// in all instantiations).
   bool forceCleanSupertypes(Class class_);
 }
 
@@ -46,9 +56,11 @@ class VmExternalModel extends ExternalModel {
   final Set<Member> forceExternals = new Set<Member>();
   final Set<Member> extraEntryPoints = new Set<Member>();
   Library _typedDataLibrary;
+  Library _collectionLibrary;
 
   VmExternalModel(Program program, this.coreTypes, this.classHierarchy) {
     _typedDataLibrary = coreTypes.getLibrary('dart:typed_data');
+    _collectionLibrary = coreTypes.getLibrary('dart:collection');
     externalNameAnnotation =
         coreTypes.getClass('dart:_internal', 'ExternalName');
     forceExternals.addAll(coreTypes.numClass.members);
@@ -65,6 +77,9 @@ class VmExternalModel extends ExternalModel {
 
     forceExternals
         .addAll(coreTypes.getClass('dart:core', '_StringBase').members);
+
+    forceExternals
+        .addAll(coreTypes.getClass('dart:collection', 'Queue').members);
 
     // Ensure methods overriding a forced external are also forced external.
     for (var class_ in classHierarchy.classes) {
@@ -138,7 +153,8 @@ class VmExternalModel extends ExternalModel {
 
   bool forceCleanSupertypes(Class class_) {
     // Ensure that typed data lists implement List with a non-nullable type.
-    return class_.enclosingLibrary == _typedDataLibrary;
+    return class_.enclosingLibrary == _typedDataLibrary ||
+        class_.enclosingLibrary == _collectionLibrary;
   }
 }
 
