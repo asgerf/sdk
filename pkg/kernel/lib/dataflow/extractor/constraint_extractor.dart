@@ -1833,6 +1833,9 @@ class ConstraintExtractorVisitor
       builder.setFileOffset(node.variable.fileOffset);
       builder.addAssignment(Value.null_, type.sink);
     }
+    if (node.promotedType != null) {
+      return handleDowncast(type, node.promotedType, node.fileOffset);
+    }
     return type;
   }
 

@@ -1,0 +1,98 @@
+library;
+import self as self;
+import "dart:core" as core;
+
+class CastToT<T extends core::_StringBase+&core::Object/core::_StringBase+> extends core::Object {
+  final field core::_GrowableList!&core::List<self::CastToT::T?/Null> list = <self::CastToT::T?>[];
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method tryAdd(core::_StringBase+&core::Object x) → Null {
+    if(x is self::CastToT::T) {
+      this.{self::CastToT::list}.{core::List::add}(x{self::CastToT::T});
+    }
+  }
+}
+class CastFromT<T extends core::_StringBase+&core::Object/Bottom> extends core::Object {
+  final field core::_GrowableList!&core::List<self::CastFromT::T/> list = <self::CastFromT::T>[];
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method tryGetString() → core::_StringBase+&core::String {
+    core::_StringBase+&core::Object x = this.{self::CastFromT::list}.{core::List::[]}(0);
+    if(x is core::String) {
+      return x{core::String};
+    }
+    else {
+      throw "not a string";
+    }
+  }
+}
+class CastCompoundToT<T extends core::_StringBase+?&core::Object/core::Object+?> extends core::Object {
+  final field core::_GrowableList!&core::List<self::CastCompoundToT::T?/> list = <self::CastCompoundToT::T>[];
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method tryAddAll(core::_GrowableList!&core::Object x) → Null {
+    if(x is core::List<self::CastCompoundToT::T>) {
+      this.{self::CastCompoundToT::list}.{core::List::addAll}(x{core::List<self::CastCompoundToT::T>});
+    }
+  }
+}
+class CastCompoundToT2<T extends core::_StringBase+?&core::Object/core::Object+?> extends core::Object {
+  final field core::_GrowableList!&core::List<self::CastCompoundToT2::T?/> list = <self::CastCompoundToT2::T>[];
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method tryAddAll(core::_GrowableList!&core::Object x) → Null {
+    if(x is core::List<self::CastCompoundToT2::T>) {
+      this.{self::CastCompoundToT2::list}.{core::List::addAll}(x{core::List<self::CastCompoundToT2::T>});
+    }
+  }
+}
+class CastCompoundFromT<T extends core::Object+?/core::Object+?> extends core::Object {
+  final field core::_GrowableList!&core::List<self::CastCompoundFromT::T/> list = <self::CastCompoundFromT::T>[];
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method tryGetMemberAsList() → core::Object+?&core::List<self::CastCompoundFromT::T?/> {
+    core::Object+? x = this.{self::CastCompoundFromT::list}.{core::List::[]}(0);
+    if(x is core::List<self::CastCompoundFromT::T>) {
+      return x{core::List<self::CastCompoundFromT::T>};
+    }
+    else {
+      throw "not a List<T>";
+    }
+  }
+}
+static method main(core::_List!&core::List<core::_StringBase+&core::String/> args) → Null&core::Object {
+  core::_IntegerImplementation+&core::int n = args.{core::List::length};
+  {
+    self::CastToT!<core::_StringBase+&core::String/> object = new self::CastToT::•<core::_StringBase+&core::String>();
+    object.{self::CastToT::tryAdd}("hello");
+    core::_StringBase+?&core::String string = object.{self::CastToT::list}.{core::List::[]}(0);
+  }
+  {
+    self::CastFromT!<core::_StringBase+&core::String/core::_StringBase+> object = new self::CastFromT::•<core::_StringBase+&core::String>();
+    object.{self::CastFromT::list}.{core::List::add}("hello");
+    core::_StringBase+&core::String string = object.{self::CastFromT::tryGetString}();
+  }
+  {
+    self::CastCompoundToT!<core::_StringBase+?&core::String/core::_StringBase+> object = new self::CastCompoundToT::•<core::_StringBase+?&core::String>();
+    object.{self::CastCompoundToT::list}.{core::List::add}("hello");
+    object.{self::CastCompoundToT::tryAddAll}(<core::_StringBase+?&core::String>[null]);
+    core::_StringBase+?&core::String nullableString = object.{self::CastCompoundToT::list}.{core::List::[]}(n);
+  }
+  {
+    self::CastCompoundToT2!<core::_StringBase+?&core::String/Null> object = new self::CastCompoundToT2::•<core::_StringBase+?&core::String>();
+    object.{self::CastCompoundToT2::list}.{core::List::add}(null);
+    object.{self::CastCompoundToT2::tryAddAll}(<core::_StringBase+?&core::String>["hello"]);
+    core::_StringBase+?&core::String nullableString = object.{self::CastCompoundToT2::list}.{core::List::[]}(n);
+  }
+  {
+    self::CastCompoundFromT!<core::Object+?/core::_GrowableList!> object = new self::CastCompoundFromT::•<core::Object+?>();
+    object.{self::CastCompoundFromT::list}.{core::List::add}(<core::_StringBase+&core::Object>["hello"]);
+    core::Object+?&core::List<core::Object+?/> list = object.{self::CastCompoundFromT::tryGetMemberAsList}();
+    core::Object+? string = list.{core::List::[]}(n);
+  }
+}
