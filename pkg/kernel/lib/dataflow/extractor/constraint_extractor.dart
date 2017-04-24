@@ -1067,7 +1067,8 @@ class ConstraintExtractorVisitor
     // If anything flows into the type arguments (e.g. something was added
     // to the list), treat the cast value as escaping, since we cannot track
     // the added values further back.
-    builder.addEscape(inputType.source, escapeTracker, ValueFlags.allValueSets);
+    builder.addEscape(inputType.source,
+        guard: escapeTracker, guardMask: ValueFlags.allValueSets);
 
     return outputType;
   }
@@ -2313,7 +2314,7 @@ class AllocationVisitor extends ATypeVisitor {
       // For a function object of type `(A) => B`, the return type B will
       // get processed here.  If the function escapes, the values it returns
       // can escape too, so process B as escaping.
-      builder.addEscape(type.source, object, ValueFlags.escaping);
+      builder.addEscapingAssignment(type.source, object);
     }
     if (isContravariant) {
       // Simple case intuition:

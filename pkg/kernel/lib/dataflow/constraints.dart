@@ -104,6 +104,7 @@ abstract class Constraint {
 
 abstract class ConstraintVisitor<T> {
   T visitAssignConstraint(AssignConstraint constraint);
+  T visitEscapingAssignConstraint(EscapingAssignConstraint constraint);
   T visitValueConstraint(ValueConstraint constraint);
   T visitEscapeConstraint(EscapeConstraint constraint);
   T visitGuardedValueConstraint(GuardedValueConstraint constraint);
@@ -150,6 +151,30 @@ class AssignConstraint extends Constraint {
 
   T accept<T>(ConstraintVisitor<T> visitor) {
     return visitor.visitAssignConstraint(this);
+  }
+}
+
+/// [source] can escape is [destination] can escape, but no values are
+/// propagated.
+class EscapingAssignConstraint extends Constraint {
+  final StorageLocation source;
+  final StorageLocation destination;
+
+  EscapingAssignConstraint(this.source, this.destination);
+
+  @override
+  T accept<T>(ConstraintVisitor<T> visitor) {
+    return visitor.visitEscapingAssignConstraint(this);
+  }
+
+  @override
+  void register(ConstraintSolver solver) {
+    solver.registerEscapingAssignConstraint(this);
+  }
+
+  @override
+  void transfer(ConstraintSolver solver) {
+    solver.transferEscapingAssignConstraint(this);
   }
 }
 

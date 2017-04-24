@@ -116,6 +116,12 @@ class ConstraintSolver {
     }
   }
 
+  void transferEscapingAssignConstraint(EscapingAssignConstraint constraint) {
+    if (constraint.destination.leadsToEscape) {
+      propagateEscapingLocation(constraint.source);
+    }
+  }
+
   void transferValueConstraint(ValueConstraint constraint) {
     propagateValue(constraint.destination, constraint.value);
     if (constraint.canEscape) {
@@ -193,6 +199,10 @@ class ConstraintSolver {
 
   void registerAssignConstraint(AssignConstraint constraint) {
     addForwardDependency(constraint.source, constraint);
+    addBackwardDependency(constraint.destination, constraint);
+  }
+
+  void registerEscapingAssignConstraint(EscapingAssignConstraint constraint) {
     addBackwardDependency(constraint.destination, constraint);
   }
 

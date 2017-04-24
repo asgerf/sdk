@@ -201,4 +201,11 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
     writer.writeLocationReference(constraint.equalsReturn);
     writer.writeLocationReference(constraint.runtimeTypeReturn);
   }
+
+  @override
+  visitEscapingAssignConstraint(EscapingAssignConstraint constraint) {
+    writer.writeByte(ConstraintTag.EscapingAssignConstraint);
+    writer.writeLocationReference(constraint.source);
+    writer.writeLocationReference(constraint.destination);
+  }
 }

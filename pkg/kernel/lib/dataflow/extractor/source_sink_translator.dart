@@ -47,15 +47,21 @@ class SourceSinkTranslator extends ConstraintBuilder {
 
   /// Mark values coming from [source] as escaping.
   ///
-  /// The the [guard] is given, only take effect if the guard can lead to
-  /// escape.
-  void addEscape(ValueSource source,
-      [ValueSink guard, int guardMask = ValueFlags.escaping]) {
+  /// The the [guard] is given, only take effect if the [guard] contains a
+  /// value with one of the flags defined by [guardMask].
+  void addEscape(ValueSource source, {ValueSource guard, int guardMask: -1}) {
     if (guard != null) {
-      guard.acceptSink(new _EscapeSinkVisitor(this, source, guardMask));
+      assert(guardMask != -1);
+      guard.acceptSource(new _EscapeGuardVisitor(this, source, guardMask));
     } else {
       source.acceptSource(new _EscapeSourceVisitor(this));
     }
+  }
+
+  /// Mark values coming from [source] as escaping if values flowing into
+  /// [destination] can escape.
+  void addEscapingAssignment(ValueSource source, ValueSink destination) {
+    destination.acceptSink(new _EscapingAssignSinkVisitor(this, source));
   }
 
   /// Ensure that anything flowing out of [from] also flows out out of [to].
@@ -124,7 +130,8 @@ class _AssignmentSinkVisitor extends ValueSinkVisitor {
   @override
   visitValueSinkWithEscape(ValueSinkWithEscape sink) {
     sink.base.acceptSink(this);
-    translator.addEscape(source, sink.escaping, ValueFlags.escaping);
+    sink.escaping
+        .acceptSink(new _EscapingAssignSinkVisitor(translator, source));
   }
 }
 
@@ -199,12 +206,11 @@ class _AssignmentSourceVisitor extends ValueSourceVisitor {
   }
 }
 
-class _EscapeSinkVisitor extends ValueSinkVisitor {
+class _EscapingAssignSinkVisitor extends ValueSinkVisitor {
   final SourceSinkTranslator translator;
   final ValueSource source;
-  final int guardMask;
 
-  _EscapeSinkVisitor(this.translator, this.source, this.guardMask);
+  _EscapingAssignSinkVisitor(this.translator, this.source);
 
   @override
   visitEscapingSink(EscapingSink sink) {
@@ -216,7 +222,7 @@ class _EscapeSinkVisitor extends ValueSinkVisitor {
 
   @override
   visitStorageLocation(StorageLocation sink) {
-    source.acceptSource(new _EscapeSourceVisitor(translator, sink, guardMask));
+    source.acceptSource(new _EscapingAssignSourceVisitor(translator, sink));
   }
 
   @override
@@ -226,6 +232,55 @@ class _EscapeSinkVisitor extends ValueSinkVisitor {
   visitValueSinkWithEscape(ValueSinkWithEscape sink) {
     sink.base.acceptSink(this);
     sink.escaping.acceptSink(this);
+  }
+}
+
+class _EscapingAssignSourceVisitor extends ValueSourceVisitor {
+  final SourceSinkTranslator translator;
+  final StorageLocation destination;
+
+  _EscapingAssignSourceVisitor(this.translator, this.destination);
+
+  @override
+  visitStorageLocation(StorageLocation source) {
+    translator.addConstraint(new EscapingAssignConstraint(source, destination));
+  }
+
+  @override
+  visitValue(Value value) {}
+
+  @override
+  visitValueSourceWithNullability(ValueSourceWithNullability source) {
+    source.base.acceptSource(this);
+  }
+}
+
+class _EscapeGuardVisitor extends ValueSourceVisitor {
+  final SourceSinkTranslator translator;
+  final ValueSource source;
+  final int guardMask;
+
+  _EscapeGuardVisitor(this.translator, this.source, this.guardMask);
+
+  @override
+  visitStorageLocation(StorageLocation guard) {
+    source.acceptSource(new _EscapeSourceVisitor(translator, guard, guardMask));
+  }
+
+  @override
+  visitValue(Value value) {
+    if (value.flags & guardMask != 0) {
+      source.acceptSource(new _EscapeSourceVisitor(translator));
+    }
+  }
+
+  @override
+  visitValueSourceWithNullability(ValueSourceWithNullability source) {
+    source.base.acceptSource(this);
+    if (guardMask & ValueFlags.null_ != 0) {
+      source.nullability.acceptSource(
+          new _EscapeGuardVisitor(translator, source, ValueFlags.null_));
+    }
   }
 }
 

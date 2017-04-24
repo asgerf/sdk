@@ -6,6 +6,7 @@ class ConstraintTag {
   static const int TypeFilterConstraint = 4;
   static const int ValueFilterConstraint = 5;
   static const int InstanceMembersConstraint = 6;
+  static const int EscapingAssignConstraint = 7;
 }
 
 class DebugTag {

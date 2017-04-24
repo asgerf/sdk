@@ -211,6 +211,24 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
   }
 
   @override
+  visitEscapingAssignConstraint(EscapingAssignConstraint constraint) {
+    buffer
+      ..appendPush(rightAlignedCell()..classes.add(CssClass.constraintEscape))
+      ..appendText('escape')
+      ..pop()
+      ..append(separator())
+      ..appendPush(new TableCellElement())
+      ..appendLocation(constraint.source)
+      ..appendPush(new SpanElement()..classes.add(CssClass.constraintGuard))
+      ..appendText(' if ')
+      ..appendLocation(constraint.destination)
+      ..appendText(' escapes')
+      ..pop()
+      ..pop()
+      ..append(titleCell('EscapingAssign'));
+  }
+
+  @override
   visitGuardedValueConstraint(GuardedValueConstraint constraint) {
     var maskString = ValueFlags.flagsToString(constraint.guardMask);
     buffer

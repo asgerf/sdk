@@ -124,6 +124,11 @@ class BinaryReportReader {
             readLocationReference(),
             readLocationReference())
           ..fileOffset = fileOffset;
+
+      case ConstraintTag.EscapingAssignConstraint:
+        return new EscapingAssignConstraint(
+            readLocationReference(), readLocationReference())
+          ..fileOffset = fileOffset;
     }
     throw 'Unexpected constraint tag: $tag';
   }
