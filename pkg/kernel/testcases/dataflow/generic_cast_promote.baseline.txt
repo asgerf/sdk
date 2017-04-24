@@ -91,7 +91,7 @@ static method main(core::_List!&core::List<core::_StringBase+&core::String/> arg
   }
   {
     self::CastCompoundFromT!<core::Object+?/core::_GrowableList!> object = new self::CastCompoundFromT::•<core::Object+?>();
-    object.{self::CastCompoundFromT::list}.{core::List::add}(<core::_StringBase+&core::Object>["hello"]);
+    object.{self::CastCompoundFromT::list}.{core::List::add}(<core::Object+?>["hello"]);
     core::Object+?&core::List<core::Object+?/> list = object.{self::CastCompoundFromT::tryGetMemberAsList}();
     core::Object+? string = list.{core::List::[]}(n);
   }

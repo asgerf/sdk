@@ -198,8 +198,9 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
     writer.writeLocationReference(constraint.destination);
     writer.writeLocationReference(constraint.toStringReturn);
     writer.writeLocationReference(constraint.hashCodeReturn);
-    writer.writeLocationReference(constraint.equalsReturn);
     writer.writeLocationReference(constraint.runtimeTypeReturn);
+    writer.writeLocationReference(constraint.equalsReturn);
+    writer.writeLocationReference(constraint.equalsArgument);
   }
 
   @override

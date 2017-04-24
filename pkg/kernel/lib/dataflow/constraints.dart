@@ -123,7 +123,7 @@ abstract class ConstraintVisitor<T> {
 class AssignConstraint extends Constraint {
   final StorageLocation source;
   final StorageLocation destination;
-  final int mask; // TODO: Remove
+  final int mask;
 
   AssignConstraint(this.source, this.destination,
       [this.mask = ValueFlags.all]) {
@@ -131,9 +131,6 @@ class AssignConstraint extends Constraint {
     assert(destination != null);
     assert(mask != null);
   }
-
-  /// If true, any value in [source] escapes if [destination] leads to escape.
-  bool get canEscape => mask & ValueFlags.escaping != 0;
 
   void transfer(ConstraintSolver solver) {
     solver.transferAssignConstraint(this);
@@ -337,11 +334,17 @@ class InstanceMembersConstraint extends Constraint {
   final StorageLocation destination;
   final StorageLocation toStringReturn;
   final StorageLocation hashCodeReturn;
-  final StorageLocation equalsReturn;
   final StorageLocation runtimeTypeReturn;
+  final StorageLocation equalsReturn;
+  final StorageLocation equalsArgument;
 
-  InstanceMembersConstraint(this.destination, this.toStringReturn,
-      this.hashCodeReturn, this.equalsReturn, this.runtimeTypeReturn);
+  InstanceMembersConstraint(
+      this.destination,
+      this.toStringReturn,
+      this.hashCodeReturn,
+      this.runtimeTypeReturn,
+      this.equalsReturn,
+      this.equalsArgument);
 
   @override
   T accept<T>(ConstraintVisitor<T> visitor) {

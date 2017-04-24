@@ -726,6 +726,13 @@ class ConstraintExtractorVisitor
               isClean: false, isCovariant: true, isContravariant: false)
           .visitSubterms(bank.concreteType);
     }
+    if (node.name.name == '==') {
+      // Pollute the argument type to `==` operators.  Calls to `==` do not
+      // propagate their arguments into the call target, because it would almost
+      // always cause the argument to escape.
+      builder.addAssignment(
+          common.anyNonNullValue, bank.positionalParameters[0].sink);
+    }
   }
 
   void recordClassTypeParameterBounds() {
@@ -1149,6 +1156,13 @@ class ConstraintExtractorVisitor
     return binding.getFunctionBank(member).concreteReturnType.source;
   }
 
+  StorageLocation getConcreteArgument(Member member) {
+    return binding
+        .getFunctionBank(member)
+        .concretePositionalParameters[0]
+        .source;
+  }
+
   StorageLocation getConcreteGetter(Member member) {
     return binding.getConcreteGetterType(member).source;
   }
@@ -1163,8 +1177,9 @@ class ConstraintExtractorVisitor
         destination,
         getConcreteReturn(toString),
         getConcreteGetter(hashCode),
+        getConcreteGetter(runtimeType),
         getConcreteReturn(equals),
-        getConcreteGetter(runtimeType)));
+        getConcreteArgument(equals)));
   }
 
   @override
@@ -1490,10 +1505,12 @@ class ConstraintExtractorVisitor
 
   AType handleEqualsCall(MethodInvocation node) {
     var receiver = visitExpression(node.receiver);
-    // TODO: Handle value escaping through == operator.
-    if (node.interfaceTarget != null) {
-      handleCall(node.arguments, node.interfaceTarget, node.fileOffset);
-    }
+    var argument = visitExpression(node.arguments.positional[0]);
+    // Cause the argument to escape if the receiver has an escaping equals
+    // operator.
+    builder.addEscape(argument.source,
+        guard: getUpperBound(receiver).source,
+        guardMask: ValueFlags.escapingEquals);
     var returnValue = getSpecializedCallReturn(
         receiver, common.boolValue, ValueFlags.nullableEquals, node.fileOffset);
     return new InterfaceAType(

@@ -111,7 +111,7 @@ class ConstraintSolver {
     var source = constraint.source;
     var destination = constraint.destination;
     propagateValue(destination, source.value.masked(constraint.mask));
-    if (constraint.canEscape && destination.leadsToEscape) {
+    if (destination.leadsToEscape) {
       propagateEscapingLocation(source);
     }
   }
@@ -168,11 +168,14 @@ class ConstraintSolver {
     if (constraint.toStringReturn.value.canBeNull) {
       mask |= ValueFlags.nullableToString;
     }
+    if (constraint.runtimeTypeReturn.value.canBeNull) {
+      mask |= ValueFlags.nullableRuntimeType;
+    }
     if (constraint.equalsReturn.value.canBeNull) {
       mask |= ValueFlags.nullableEquals;
     }
-    if (constraint.runtimeTypeReturn.value.canBeNull) {
-      mask |= ValueFlags.nullableRuntimeType;
+    if (constraint.equalsArgument.leadsToEscape) {
+      mask |= ValueFlags.escapingEquals;
     }
     propagateValueFlags(constraint.destination, mask);
   }
@@ -182,15 +185,15 @@ class ConstraintSolver {
   }
 
   /// The [constraint] must be executed whenever the forward properties of
-  /// the given [key] changes.
-  void addForwardDependency(StorageLocation key, Constraint constraint) {
-    key.forward.dependencies.add(constraint);
+  /// the given [location] changes.
+  void addForwardDependency(StorageLocation location, Constraint constraint) {
+    location.forward.dependencies.add(constraint);
   }
 
   /// The [constraint] must be executed whenever the backward properties of
-  /// the given [key] changes.
-  void addBackwardDependency(StorageLocation key, Constraint constraint) {
-    key.backward.dependencies.add(constraint);
+  /// the given [location] changes.
+  void addBackwardDependency(StorageLocation location, Constraint constraint) {
+    location.backward.dependencies.add(constraint);
   }
 
   void registerGuardedValueConstraint(GuardedValueConstraint constraint) {
@@ -231,8 +234,9 @@ class ConstraintSolver {
   void registerInstanceMembersConstraint(InstanceMembersConstraint constraint) {
     addForwardDependency(constraint.hashCodeReturn, constraint);
     addForwardDependency(constraint.toStringReturn, constraint);
-    addForwardDependency(constraint.equalsReturn, constraint);
     addForwardDependency(constraint.runtimeTypeReturn, constraint);
+    addForwardDependency(constraint.equalsReturn, constraint);
+    addBackwardDependency(constraint.equalsArgument, constraint);
   }
 
   void doTransfer(Constraint constraint) {

@@ -50,7 +50,7 @@ class _DataflowResults extends DataflowResults {
 }
 
 class _MemberDataflowResults extends MemberDataflowResults {
-  final StorageLocationBank _bank;
+  final MemberBank _bank;
   final Binding _binding;
   final ValueLattice _lattice;
   final Value _top;
@@ -72,7 +72,33 @@ class _MemberDataflowResults extends MemberDataflowResults {
     return _getStorageLocationValue(_bank.locations[offset]);
   }
 
+  bool isStorageLocationLeadingToEscape(int offset) {
+    if (offset == null || offset == -1) return true;
+    return _bank.locations[offset].leadsToEscape;
+  }
+
   Value get value => getValueAtStorageLocation(0);
+
+  int get concreteReturn {
+    var bank = _bank;
+    StorageLocation location = bank is FunctionMemberBank
+        ? bank.concreteReturnType.source
+        : bank.concreteType.source;
+    return location.index;
+  }
+
+  int getConcretePositionalParameter(int n) {
+    FunctionMemberBank bank = _bank;
+    StorageLocation location = bank.concretePositionalParameters[n].source;
+    return location.index;
+  }
+
+  int getConcreteNamedParameter(String name) {
+    FunctionMemberBank bank = _bank;
+    StorageLocation location =
+        bank.concreteType.getNamedParameterType(name).source;
+    return location.index;
+  }
 }
 
 class _DataflowReporter extends DataflowReporter {

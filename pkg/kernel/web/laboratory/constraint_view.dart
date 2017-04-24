@@ -307,9 +307,11 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..appendText(',')
       ..appendLocation(constraint.hashCodeReturn)
       ..appendText(',')
+      ..appendLocation(constraint.runtimeTypeReturn)
+      ..appendText(',')
       ..appendLocation(constraint.equalsReturn)
       ..appendText(',')
-      ..appendLocation(constraint.runtimeTypeReturn)
+      ..appendLocation(constraint.equalsArgument)
       ..appendText(')')
       ..pop()
       ..append(titleCell('InstanceMembers'));

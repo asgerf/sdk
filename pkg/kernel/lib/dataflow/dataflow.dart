@@ -57,6 +57,8 @@ abstract class MemberDataflowResults {
 
   Value getValueAtStorageLocation(int storageLocationOffset);
 
+  bool isStorageLocationLeadingToEscape(int storageLocationOffset);
+
   Value getValueOfVariable(VariableDeclaration node) {
     return getValueAtStorageLocation(node.dataflowValueOffset);
   }
@@ -67,6 +69,25 @@ abstract class MemberDataflowResults {
 
   Value getValueOfExpression(Expression node) {
     return getValueAtStorageLocation(node.dataflowValueOffset);
+  }
+
+  int get concreteReturn;
+
+  int getConcretePositionalParameter(int index);
+
+  int getConcreteNamedParameter(String name);
+
+  /// The return value (or field value) of this member, disregarding overriding
+  /// members.
+  Value get concreteReturnValue => getValueAtStorageLocation(concreteReturn);
+
+  bool isConcretePositionalParameterLeadingToEscape(int index) {
+    return isStorageLocationLeadingToEscape(
+        getConcretePositionalParameter(index));
+  }
+
+  bool isConcreteNamedParameterLeadingToEscape(String name) {
+    return isStorageLocationLeadingToEscape(getConcreteNamedParameter(name));
   }
 }
 

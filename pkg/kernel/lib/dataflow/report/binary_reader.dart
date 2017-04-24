@@ -122,6 +122,7 @@ class BinaryReportReader {
             readLocationReference(),
             readLocationReference(),
             readLocationReference(),
+            readLocationReference(),
             readLocationReference())
           ..fileOffset = fileOffset;
 

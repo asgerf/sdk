@@ -153,8 +153,7 @@ class VmExternalModel extends ExternalModel {
 
   bool forceCleanSupertypes(Class class_) {
     // Ensure that typed data lists implement List with a non-nullable type.
-    return class_.enclosingLibrary == _typedDataLibrary ||
-        class_.enclosingLibrary == _collectionLibrary;
+    return class_.enclosingLibrary == _typedDataLibrary;
   }
 }
 

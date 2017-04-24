@@ -27,7 +27,7 @@ class NullableEquals extends core::Object {
   constructor •() → Bottom
     : super core::Object::•()
     ;
-  operator ==(core::Object+? x) → Null&core::bool
+  operator ==(core::Object+ x) → Null&core::bool
     return null;
 }
 class NiceObject1 extends core::Object {
@@ -38,7 +38,7 @@ class NiceObject1 extends core::Object {
     return "nice1";
   get hashCode() → core::_IntegerImplementation+&core::int
     return 1;
-  operator ==(core::Object+? x) → core::bool!
+  operator ==(core::Object+ x) → core::bool!
     return true;
 }
 class NiceObject2 extends core::Object {
@@ -49,7 +49,7 @@ class NiceObject2 extends core::Object {
     return "nice2";
   get hashCode() → core::_IntegerImplementation+&core::int
     return 2;
-  operator ==(core::Object+? x) → core::bool!
+  operator ==(core::Object+ x) → core::bool!
     return true;
 }
 class Generic1<T extends core::Object+/Bottom> extends core::Object {

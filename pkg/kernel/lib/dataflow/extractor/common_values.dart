@@ -40,6 +40,7 @@ class CommonValues {
   Value typeValue;
 
   Value anyValue;
+  Value anyNonNullValue;
   Value nullableIntValue;
   Value nullableDoubleValue;
   Value nullableNumValue;
@@ -72,6 +73,7 @@ class CommonValues {
         lattice.joinValues(growableListValue, fixedLengthListValue);
 
     anyValue = new Value(coreTypes.objectClass, ValueFlags.all);
+    anyNonNullValue = new Value(coreTypes.objectClass, ValueFlags.notNull);
     nullableIntValue = intValue.asNullable;
     nullableDoubleValue = doubleValue.asNullable;
     nullableNumValue = numValue.asNullable;

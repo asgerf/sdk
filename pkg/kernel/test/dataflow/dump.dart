@@ -3,10 +3,11 @@
 // BSD-style license that can be found in the LICENSE file.
 import 'package:kernel/core_types.dart';
 import 'package:kernel/dataflow/dataflow.dart';
+import 'package:kernel/dataflow/storage_location.dart';
 import 'package:kernel/kernel.dart';
 
 main(List<String> args) async {
-  if (args.isEmpty) args = ['micro.dill'];
+  if (args.isEmpty) args = ['flutter.dill'];
   var program = loadProgramFromBinary(args[0]);
   var coreTypes = new CoreTypes(program);
   var reporter = new DataflowReporter();
@@ -46,27 +47,21 @@ main(List<String> args) async {
       } else {
         ++numOther;
       }
+      if (member.name.name == '==') {
+        StorageLocation parameter = reporter.binding
+            .getFunctionBank(member)
+            .concretePositionalParameters[0]
+            .source;
+        if (parameter.leadsToEscape) {
+          var className = member.enclosingClass.name;
+          var library = '${member.enclosingLibrary.importUri}';
+          print('Equals operator causing escape in class'
+              ' $className from $library');
+        }
+      }
     }
   }
   print('Top: $numTop\nNullable: $numNullable\nOther: $numOther');
-
-  // program.accept(new FindDynamicCalls());
-
-  // program.computeCanonicalNames();
-  // var file = new File('report.bin').openWrite();
-  // var buffer = new Writer(file);
-  // var writer = new BinaryReportWriter(buffer);
-  // writer.writeConstraintSystem(constraints);
-  // writer.writeEventList(report.transferEvents);
-  // writer.finish();
-  // await file.close();
-  //
-  // var reader = new BinaryReportReader(
-  //     new Reader(new File('report.bin').readAsBytesSync()));
-  // reader.readConstraintSystem();
-  // reader.readEventList();
-  //
-  // writeProgramToBinary(program, 'report.dill');
 }
 
 class FindDynamicCalls extends RecursiveVisitor {
