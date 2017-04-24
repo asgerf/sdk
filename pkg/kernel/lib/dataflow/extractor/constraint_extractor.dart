@@ -1011,9 +1011,24 @@ class ConstraintExtractorVisitor
     }
   }
 
+  /// If [type] is a type parameter type, returns its upper bound, otherwise
+  /// returns the type itself.
+  AType getUpperBound(AType type) {
+    if (type is TypeParameterAType) {
+      var bound = scope.getTypeParameterBound(type.parameter);
+      var newType = getUpperBound(bound);
+      return newType.withSourceAndSink(
+          source: new ValueSourceWithNullability(newType.source, type.source));
+    } else {
+      return type;
+    }
+  }
+
   AType handleDowncast(AType inputType, DartType castType, int fileOffset) {
     // TODO: Check if the cast is unnecessary (inputType <: castType).
     //       This can easily happen for the downcast implied by `List.from`.
+
+    inputType = getUpperBound(inputType);
 
     // Handle cast to a type parameter type T specially.  For this case, we
     // generate an assignment from the input value to the lower bound of the

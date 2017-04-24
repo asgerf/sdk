@@ -16,7 +16,7 @@ class CastFromT<T extends core::_StringBase+&core::Object/Bottom> extends core::
   constructor •() → Bottom
     : super core::Object::•()
     ;
-  method tryGetString() → Bottom&core::String
+  method tryGetString() → core::_StringBase+&core::String
     return this.{self::CastFromT::list}.{core::List::[]}(0) as core::String;
 }
 class CastCompoundToT<T extends core::_StringBase+?&core::Object/core::Object+?> extends core::Object {
@@ -42,7 +42,7 @@ class CastCompoundFromT<T extends core::Object+?/core::Object+?> extends core::O
   constructor •() → Bottom
     : super core::Object::•()
     ;
-  method tryGetMemberAsList() → Bottom&core::List<self::CastCompoundFromT::T?/> {
+  method tryGetMemberAsList() → core::Object+?&core::List<self::CastCompoundFromT::T?/> {
     return this.{self::CastCompoundFromT::list}.{core::List::[]}(0) as core::List<self::CastCompoundFromT::T>;
   }
 }
@@ -56,7 +56,7 @@ static method main(core::_List!&core::List<core::_StringBase+&core::String/> arg
   {
     self::CastFromT!<core::_StringBase+&core::String/core::_StringBase+> object = new self::CastFromT::•<core::_StringBase+&core::String>();
     object.{self::CastFromT::list}.{core::List::add}("hello");
-    Bottom&core::String string = object.{self::CastFromT::tryGetString}();
+    core::_StringBase+&core::String string = object.{self::CastFromT::tryGetString}();
   }
   {
     self::CastCompoundToT!<core::_StringBase+?&core::String/core::_StringBase+> object = new self::CastCompoundToT::•<core::_StringBase+?&core::String>();
@@ -73,7 +73,7 @@ static method main(core::_List!&core::List<core::_StringBase+&core::String/> arg
   {
     self::CastCompoundFromT!<core::Object+?/core::_GrowableList!> object = new self::CastCompoundFromT::•<core::Object+?>();
     object.{self::CastCompoundFromT::list}.{core::List::add}(<core::_StringBase+&core::Object>["hello"]);
-    Bottom&core::List<core::Object+?/> list = object.{self::CastCompoundFromT::tryGetMemberAsList}();
+    core::Object+?&core::List<core::Object+?/> list = object.{self::CastCompoundFromT::tryGetMemberAsList}();
     core::Object+? string = list.{core::List::[]}(n);
   }
 }
