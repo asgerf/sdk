@@ -60,6 +60,10 @@ class SourceSinkTranslator extends ConstraintBuilder {
 
   /// Mark values coming from [source] as escaping if values flowing into
   /// [destination] can escape.
+  ///
+  /// This differs from a guarded [addEscape] in that this constraint does not
+  /// consider what values may flow into [destination], but only whether the
+  /// destination may lead to an escape point.
   void addEscapingAssignment(ValueSource source, ValueSink destination) {
     destination.acceptSink(new _EscapingAssignSinkVisitor(this, source));
   }
