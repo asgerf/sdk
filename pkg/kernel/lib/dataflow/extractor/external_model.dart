@@ -32,7 +32,7 @@ abstract class ExternalModel {
   /// types of its parameters.  The return value is considered escaping.
   bool isEntryPoint(Member member);
 
-  /// Force the type argument provided in the extends/implements clause of
+  /// Force the type arguments provided in the extends/implements clause of
   /// the given class to be treated as non-nullable.
   ///
   /// This is to special-case certain core library classes that are known to
