@@ -8,7 +8,7 @@ import '../../class_hierarchy.dart';
 import '../../core_types.dart';
 import 'constraint_extractor.dart';
 
-/// Specifies the behavior of external methods, special-cased core library
+/// Specifies the behavior of external methods, special-cased backend library
 /// methods, and program entry points.
 abstract class ExternalModel {
   /// True if the given external [member] does not return `null` and does not
