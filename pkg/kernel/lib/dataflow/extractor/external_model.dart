@@ -56,11 +56,9 @@ class VmExternalModel extends ExternalModel {
   final Set<Member> forceExternals = new Set<Member>();
   final Set<Member> extraEntryPoints = new Set<Member>();
   Library _typedDataLibrary;
-  Library _collectionLibrary;
 
   VmExternalModel(Program program, this.coreTypes, this.classHierarchy) {
     _typedDataLibrary = coreTypes.getLibrary('dart:typed_data');
-    _collectionLibrary = coreTypes.getLibrary('dart:collection');
     externalNameAnnotation =
         coreTypes.getClass('dart:_internal', 'ExternalName');
     forceExternals.addAll(coreTypes.numClass.members);
