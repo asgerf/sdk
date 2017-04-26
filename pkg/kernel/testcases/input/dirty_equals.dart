@@ -16,6 +16,12 @@ class NotSoDirtyEquals {
   }
 }
 
+class CleanDynamicEquals {
+  bool operator ==(dynamic obj) {
+    return obj.isNotEmpty && obj.last == 0;
+  }
+}
+
 class CleanEquals {
   int field;
 
@@ -55,6 +61,12 @@ void callNotSoDirtyEquals(Object arg) {
   int nonNullableInt = intList.last;
 }
 
+void callCleanDynamicEquals(Object arg) {
+  var intList = <int>[45];
+  arg == intList;
+  int nonNullableInt = intList.last;
+}
+
 void callCleanEquals(Object arg) {
   var intList = <int>[45];
   arg == intList;
@@ -82,6 +94,13 @@ void indexOfInNotSoDirtyEquals(Object arg) {
   int nonNullableInt = intList.last;
 }
 
+void indexOfCleanDynamicEquals(Object arg) {
+  var list = <Object>[arg];
+  var intList = <int>[45];
+  list.indexOf(intList);
+  int nonNullableInt = intList.last;
+}
+
 void indexOfInCleanEquals(Object arg) {
   var list = <Object>[arg];
   var intList = <int>[45];
@@ -100,11 +119,13 @@ void indexOfInDirtyNonGenericEquals(DirtyNonGenericEquals arg) {
 main() {
   callDirtyEquals(new DirtyEquals());
   callNotSoDirtyEquals(new NotSoDirtyEquals());
+  callCleanDynamicEquals(new CleanDynamicEquals());
   callCleanEquals(new CleanEquals(0));
   callDirtyNonGenericEquals(new DirtyNonGenericEquals(0));
 
   indexOfInDirtyEquals(new DirtyEquals());
   indexOfInNotSoDirtyEquals(new NotSoDirtyEquals());
+  indexOfCleanDynamicEquals(new CleanDynamicEquals());
   indexOfInCleanEquals(new CleanEquals(0));
   indexOfInDirtyNonGenericEquals(new DirtyNonGenericEquals(0));
 }

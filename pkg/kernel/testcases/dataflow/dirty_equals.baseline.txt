@@ -24,6 +24,14 @@ class NotSoDirtyEquals extends core::Object {
     return false;
   }
 }
+class CleanDynamicEquals extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  operator ==(core::Object+ obj) → core::bool! {
+    return obj.isNotEmpty as core::bool && obj.last.==(0);
+  }
+}
 class CleanEquals extends core::Object {
   field core::_IntegerImplementation+&core::int field;
   constructor •(core::_IntegerImplementation+&core::int field) → Bottom
@@ -59,6 +67,11 @@ static method callNotSoDirtyEquals(self::NotSoDirtyEquals!&core::Object arg) →
   arg.{core::Object::==}(intList);
   core::_IntegerImplementation+&core::int nonNullableInt = intList.{core::Iterable::last};
 }
+static method callCleanDynamicEquals(self::CleanDynamicEquals!&core::Object arg) → Null {
+  core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> intList = <core::_IntegerImplementation+?&core::int>[45];
+  arg.{core::Object::==}(intList);
+  core::_IntegerImplementation+?&core::int nonNullableInt = intList.{core::Iterable::last};
+}
 static method callCleanEquals(self::CleanEquals!&core::Object arg) → Null {
   core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/> intList = <core::_IntegerImplementation+&core::int>[45];
   arg.{core::Object::==}(intList);
@@ -82,6 +95,12 @@ static method indexOfInNotSoDirtyEquals(self::NotSoDirtyEquals!&core::Object arg
   list.{core::List::indexOf}(intList);
   core::_IntegerImplementation+?&core::int nonNullableInt = intList.{core::Iterable::last};
 }
+static method indexOfCleanDynamicEquals(self::CleanDynamicEquals!&core::Object arg) → Null {
+  core::_GrowableList!&core::List<core::Object+/core::_GrowableList!> list = <core::Object+>[arg];
+  core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> intList = <core::_IntegerImplementation+?&core::int>[45];
+  list.{core::List::indexOf}(intList);
+  core::_IntegerImplementation+?&core::int nonNullableInt = intList.{core::Iterable::last};
+}
 static method indexOfInCleanEquals(self::CleanEquals!&core::Object arg) → Null {
   core::_GrowableList!&core::List<core::Object+/core::_GrowableList!> list = <core::Object+>[arg];
   core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> intList = <core::_IntegerImplementation+?&core::int>[45];
@@ -98,10 +117,12 @@ static method indexOfInDirtyNonGenericEquals(self::DirtyNonGenericEquals! arg) �
 static method main() → Null&core::Object {
   self::callDirtyEquals(new self::DirtyEquals::•());
   self::callNotSoDirtyEquals(new self::NotSoDirtyEquals::•());
+  self::callCleanDynamicEquals(new self::CleanDynamicEquals::•());
   self::callCleanEquals(new self::CleanEquals::•(0));
   self::callDirtyNonGenericEquals(new self::DirtyNonGenericEquals::•(0));
   self::indexOfInDirtyEquals(new self::DirtyEquals::•());
   self::indexOfInNotSoDirtyEquals(new self::NotSoDirtyEquals::•());
+  self::indexOfCleanDynamicEquals(new self::CleanDynamicEquals::•());
   self::indexOfInCleanEquals(new self::CleanEquals::•(0));
   self::indexOfInDirtyNonGenericEquals(new self::DirtyNonGenericEquals::•(0));
 }
