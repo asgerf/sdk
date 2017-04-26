@@ -8,12 +8,14 @@ import '../constraints.dart';
 import '../storage_location.dart';
 import '../value.dart';
 import 'package:kernel/core_types.dart';
+import 'package:kernel/dataflow/solver/dynamic_node.dart';
 
 /// A base class for [StorageLocation] with some fields that are owned by the
 /// constraint solver.
 class StorageLocationBaseClass {
   Value value = Value.bottom;
   bool leadsToEscape = false;
+  DynamicNode dynamicNode = null;
   final WorkItem forward = new WorkItem();
   final WorkItem backward = new WorkItem();
 
@@ -26,7 +28,7 @@ class StorageLocationBaseClass {
 }
 
 class WorkItem {
-  final List<Constraint> dependencies = <Constraint>[];
+  List<Constraint> dependencies = <Constraint>[];
   bool isInWorklist = false;
 }
 
@@ -180,6 +182,20 @@ class ConstraintSolver {
     propagateValueFlags(constraint.destination, mask);
   }
 
+  void propagateDynamicNode(StorageLocation location, DynamicNode node) {
+    if (node == null) return;
+    if (location.dynamicNode == null) {
+      location.dynamicNode = node.root;
+      return;
+    }
+    bool changed = DynamicNode.unify(location.dynamicNode, node);
+    if (changed) {
+      enqueue(node);
+    }
+  }
+
+  void transferDynamicCall(DynamicCall constraint) {}
+
   bool canEscape(Value value) {
     return value.flags & ValueFlags.other != 0;
   }
@@ -237,6 +253,11 @@ class ConstraintSolver {
     addForwardDependency(constraint.runtimeTypeReturn, constraint);
     addForwardDependency(constraint.equalsReturn, constraint);
     addBackwardDependency(constraint.equalsArgument, constraint);
+  }
+
+  void registerDynamicCall(DynamicCall constraint) {
+    var node = new DynamicNode()..dependencies.add(constraint);
+    propagateDynamicNode(constraint.receiver, node);
   }
 
   void doTransfer(Constraint constraint) {

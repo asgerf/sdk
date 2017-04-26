@@ -361,3 +361,64 @@ class InstanceMembersConstraint extends Constraint {
     solver.transferInstanceMembersConstraint(this);
   }
 }
+
+class DynamicCall extends Constraint {
+  final StorageLocation destination;
+  final StorageLocation receiver;
+  final Name name;
+  final List<StorageLocation> positionalArguments;
+  final List<StorageLocation> namedArguments;
+  final List<String> namedArgumentNames;
+
+  DynamicCall(this.destination, this.receiver, this.name,
+      this.positionalArguments, this.namedArguments, this.namedArgumentNames);
+
+  @override
+  T accept<T>(ConstraintVisitor<T> visitor) {
+    // TODO: implement accept
+  }
+
+  @override
+  void register(ConstraintSolver solver) {
+    solver.registerDynamicCall(this);
+  }
+
+  @override
+  void transfer(ConstraintSolver solver) {
+    solver.transferDynamicCall(this);
+  }
+}
+
+class DynamicReceiver extends Constraint {
+  final StorageLocation returnValue;
+  final StorageLocation receiver;
+  final Name name;
+  final int requiredParameters;
+  final List<StorageLocation> positionalParameters;
+  final List<StorageLocation> namedParameters;
+  final List<String> namedParameterNames;
+
+  DynamicReceiver(
+      this.returnValue,
+      this.receiver,
+      this.name,
+      this.requiredParameters,
+      this.positionalParameters,
+      this.namedParameters,
+      this.namedParameterNames);
+
+  @override
+  T accept<T>(ConstraintVisitor<T> visitor) {
+    // TODO: implement accept
+  }
+
+  @override
+  void register(ConstraintSolver solver) {
+    // TODO: implement register
+  }
+
+  @override
+  void transfer(ConstraintSolver solver) {
+    // TODO: implement transfer
+  }
+}
