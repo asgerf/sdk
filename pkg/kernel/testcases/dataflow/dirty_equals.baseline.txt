@@ -1,0 +1,107 @@
+library;
+import self as self;
+import "dart:core" as core;
+
+class DirtyEquals extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  operator ==(core::Object+ obj) → core::bool! {
+    if(obj is core::List<core::int>) {
+      obj{core::List<core::int>}.{core::List::add}(null);
+    }
+    return false;
+  }
+}
+class NotSoDirtyEquals extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  operator ==(core::Object+ obj) → core::bool! {
+    if(obj is core::List<core::int>) {
+      return obj{core::List<core::int>}.{core::Iterable::isNotEmpty} && obj{core::List<core::int>}.{core::Iterable::last}.{core::num::==}(0);
+    }
+    return false;
+  }
+}
+class CleanEquals extends core::Object {
+  field core::_IntegerImplementation+&core::int field;
+  constructor •(core::_IntegerImplementation+&core::int field) → Bottom
+    : self::CleanEquals::field = field, super core::Object::•()
+    ;
+  operator ==(core::Object+ other) → core::bool! {
+    if(other is self::CleanEquals) {
+      return this.{self::CleanEquals::field}.{core::num::==}(other{self::CleanEquals}.{self::CleanEquals::field});
+    }
+    return false;
+  }
+}
+class DirtyNonGenericEquals extends core::Object {
+  field core::_IntegerImplementation+?&core::int field;
+  constructor •(core::_IntegerImplementation+&core::int field) → Bottom
+    : self::DirtyNonGenericEquals::field = field, super core::Object::•()
+    ;
+  operator ==(core::Object+ other) → core::bool! {
+    if(other is self::DirtyNonGenericEquals) {
+      other{self::DirtyNonGenericEquals}.{self::DirtyNonGenericEquals::field} = null;
+      return true;
+    }
+    return false;
+  }
+}
+static method callDirtyEquals(self::DirtyEquals!&core::Object arg) → Null {
+  core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> intList = <core::_IntegerImplementation+?&core::int>[45];
+  arg.{core::Object::==}(intList);
+  core::_IntegerImplementation+?&core::int nullableInt = intList.{core::Iterable::last};
+}
+static method callNotSoDirtyEquals(self::NotSoDirtyEquals!&core::Object arg) → Null {
+  core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/> intList = <core::_IntegerImplementation+&core::int>[45];
+  arg.{core::Object::==}(intList);
+  core::_IntegerImplementation+&core::int nonNullableInt = intList.{core::Iterable::last};
+}
+static method callCleanEquals(self::CleanEquals!&core::Object arg) → Null {
+  core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/> intList = <core::_IntegerImplementation+&core::int>[45];
+  arg.{core::Object::==}(intList);
+  core::_IntegerImplementation+&core::int nonNullableInt = intList.{core::Iterable::last};
+}
+static method callDirtyNonGenericEquals(self::DirtyNonGenericEquals! arg) → Null {
+  core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/> intList = <core::_IntegerImplementation+&core::int>[45];
+  arg.{self::DirtyNonGenericEquals::==}(intList);
+  core::_IntegerImplementation+&core::int nonNullableInt = intList.{core::Iterable::last};
+  core::_IntegerImplementation+?&core::int nullableInt = arg.{self::DirtyNonGenericEquals::field};
+}
+static method indexOfInDirtyEquals(self::DirtyEquals!&core::Object arg) → Null {
+  core::_GrowableList!&core::List<core::Object+/core::_GrowableList!> list = <core::Object+>[arg];
+  core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> intList = <core::_IntegerImplementation+?&core::int>[45];
+  list.{core::List::indexOf}(intList);
+  core::_IntegerImplementation+?&core::int nullableInt = intList.{core::Iterable::last};
+}
+static method indexOfInNotSoDirtyEquals(self::NotSoDirtyEquals!&core::Object arg) → Null {
+  core::_GrowableList!&core::List<core::Object+/core::_GrowableList!> list = <core::Object+>[arg];
+  core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> intList = <core::_IntegerImplementation+?&core::int>[45];
+  list.{core::List::indexOf}(intList);
+  core::_IntegerImplementation+?&core::int nonNullableInt = intList.{core::Iterable::last};
+}
+static method indexOfInCleanEquals(self::CleanEquals!&core::Object arg) → Null {
+  core::_GrowableList!&core::List<core::Object+/core::_GrowableList!> list = <core::Object+>[arg];
+  core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> intList = <core::_IntegerImplementation+?&core::int>[45];
+  list.{core::List::indexOf}(intList);
+  core::_IntegerImplementation+?&core::int nonNullableInt = intList.{core::Iterable::last};
+}
+static method indexOfInDirtyNonGenericEquals(self::DirtyNonGenericEquals! arg) → Null {
+  core::_GrowableList!&core::List<core::Object+/core::_GrowableList!> list = <core::Object+>[arg];
+  core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> intList = <core::_IntegerImplementation+?&core::int>[45];
+  list.{core::List::indexOf}(intList);
+  core::_IntegerImplementation+?&core::int nonNullableInt = intList.{core::Iterable::last};
+  core::_IntegerImplementation+?&core::int nullableInt = arg.{self::DirtyNonGenericEquals::field};
+}
+static method main() → Null&core::Object {
+  self::callDirtyEquals(new self::DirtyEquals::•());
+  self::callNotSoDirtyEquals(new self::NotSoDirtyEquals::•());
+  self::callCleanEquals(new self::CleanEquals::•(0));
+  self::callDirtyNonGenericEquals(new self::DirtyNonGenericEquals::•(0));
+  self::indexOfInDirtyEquals(new self::DirtyEquals::•());
+  self::indexOfInNotSoDirtyEquals(new self::NotSoDirtyEquals::•());
+  self::indexOfInCleanEquals(new self::CleanEquals::•(0));
+  self::indexOfInDirtyNonGenericEquals(new self::DirtyNonGenericEquals::•(0));
+}
