@@ -68,9 +68,9 @@ static method callNotSoDirtyEquals(self::NotSoDirtyEquals!&core::Object arg) →
   core::_IntegerImplementation+&core::int nonNullableInt = intList.{core::Iterable::last};
 }
 static method callCleanDynamicEquals(self::CleanDynamicEquals!&core::Object arg) → Null {
-  core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> intList = <core::_IntegerImplementation+?&core::int>[45];
+  core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/> intList = <core::_IntegerImplementation+&core::int>[45];
   arg.{core::Object::==}(intList);
-  core::_IntegerImplementation+?&core::int nonNullableInt = intList.{core::Iterable::last};
+  core::_IntegerImplementation+&core::int nonNullableInt = intList.{core::Iterable::last};
 }
 static method callCleanEquals(self::CleanEquals!&core::Object arg) → Null {
   core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/> intList = <core::_IntegerImplementation+&core::int>[45];

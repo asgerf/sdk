@@ -1589,8 +1589,16 @@ class ConstraintExtractorVisitor
       return handleRuntimeTypeGet(node);
     }
     if (node.interfaceTarget == null) {
-      handleEscapingExpression(node.receiver);
-      return common.topType;
+      var receiver = visitExpression(node.receiver);
+      var returnValue = bank.newLocation();
+      builder.setFileOffset(node.fileOffset);
+      builder.addAssignment(common.anyValue, returnValue);
+      // Escape the receiver if the returned value escapes.
+      builder.addEscapingAssignment(receiver.source, returnValue);
+      return new InterfaceAType(
+          returnValue,
+          ValueSink.unassignable('return value of an expression'),
+          coreTypes.objectClass, const <AType>[]);
     } else {
       var receiver = getReceiverType(node, node.receiver, node.interfaceTarget);
       var getterType = binding.getGetterType(node.interfaceTarget);
