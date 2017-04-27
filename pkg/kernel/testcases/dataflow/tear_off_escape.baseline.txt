@@ -37,7 +37,7 @@ static method main() → Null {
   core::_IntegerImplementation+?&core::int nullableInt = dirty.{self::Generic::field};
   core::_IntegerImplementation+&core::int nonNullableInt = clean.{self::Generic::field};
 }
-static method doDynamicCall(Bottom&core::Object callback) → Null {
+static method doDynamicCall(core::Function+&core::Object callback) → Null {
   callback.call(<core::_IntegerImplementation+?&core::int>[45, null]);
 }
 static method doStaticDirtyCall((core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/>) => Null callback) → Null {
@@ -46,7 +46,7 @@ static method doStaticDirtyCall((core::_GrowableList!&core::List<core::_IntegerI
 static method doStaticCleanCall((core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/>) => Null callback) → Null {
   callback.call(<core::_IntegerImplementation+&core::int>[45]);
 }
-static method doGenericDynamicCall(Bottom&core::Object callback) → Null {
+static method doGenericDynamicCall(core::Function+&core::Object callback) → Null {
   callback.call(<core::_IntegerImplementation+?&core::int>[45, null]);
 }
 static method doGenericCleanCall((core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/>) => Null callback) → Null {
