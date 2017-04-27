@@ -1,0 +1,54 @@
+library;
+import self as self;
+import "dart:core" as core;
+
+class TearOffEscape extends core::Object {
+  constructor •() → Bottom
+    : super core::Object::•()
+    ;
+  method dynamicCall(Bottom&core::List<Bottom&core::int/> list) → Null {
+    Bottom&core::int nullableInt = list.{core::Iterable::last};
+  }
+  method staticDirtyCall(core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> list) → Null {
+    core::_IntegerImplementation+?&core::int nullableInt = list.{core::Iterable::last};
+  }
+  method staticCleanCall(core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/> list) → Null {
+    core::_IntegerImplementation+&core::int nonNullableInt = list.{core::Iterable::last};
+  }
+}
+class Generic<T extends core::_IntegerImplementation+?&core::Object/Bottom> extends core::Object {
+  field self::Generic::T field;
+  constructor •(self::Generic::T field) → Bottom
+    : self::Generic::field = field, super core::Object::•()
+    ;
+  method assign(core::_GrowableList!&core::List<self::Generic::T/> list) → Null {
+    this.{self::Generic::field} = list.{core::Iterable::last};
+  }
+}
+static method main() → Null {
+  self::TearOffEscape! tearOffEscape = new self::TearOffEscape::•();
+  self::doDynamicCall(tearOffEscape.{self::TearOffEscape::dynamicCall});
+  self::doStaticDirtyCall(tearOffEscape.{self::TearOffEscape::staticDirtyCall});
+  self::doStaticCleanCall(tearOffEscape.{self::TearOffEscape::staticCleanCall});
+  self::Generic!<core::_IntegerImplementation+?&core::int/> dirty = new self::Generic::•<core::_IntegerImplementation+?&core::int>(0);
+  self::Generic!<core::_IntegerImplementation+&core::int/> clean = new self::Generic::•<core::_IntegerImplementation+&core::int>(0);
+  self::doGenericDynamicCall(dirty.{self::Generic::assign});
+  self::doGenericCleanCall(clean.{self::Generic::assign});
+  core::_IntegerImplementation+?&core::int nullableInt = dirty.{self::Generic::field};
+  core::_IntegerImplementation+&core::int nonNullableInt = clean.{self::Generic::field};
+}
+static method doDynamicCall(Bottom&core::Object callback) → Null {
+  callback.call(<core::_IntegerImplementation+?&core::int>[45, null]);
+}
+static method doStaticDirtyCall((core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/>) => Null callback) → Null {
+  callback.call(<core::_IntegerImplementation+?&core::int>[45, null]);
+}
+static method doStaticCleanCall((core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/>) => Null callback) → Null {
+  callback.call(<core::_IntegerImplementation+&core::int>[45]);
+}
+static method doGenericDynamicCall(Bottom&core::Object callback) → Null {
+  callback.call(<core::_IntegerImplementation+?&core::int>[45, null]);
+}
+static method doGenericCleanCall((core::_GrowableList!&core::List<core::_IntegerImplementation+&core::int/>) => Null callback) → Null {
+  callback.call(<core::_IntegerImplementation+&core::int>[45]);
+}

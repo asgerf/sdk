@@ -852,8 +852,9 @@ class ConstraintExtractorVisitor
   }
 
   Substitution getReceiverType(
-      TreeNode where, Expression receiver, Member member) {
-    AType type = visitExpression(receiver);
+      TreeNode where, Expression receiver, Member member,
+      [AType type]) {
+    type ??= visitExpression(receiver);
     Class superclass = member.enclosingClass;
     if (superclass.supertype == null) {
       return Substitution.empty; // Members on Object are always accessible.
@@ -1597,7 +1598,8 @@ class ConstraintExtractorVisitor
     if (name == 'runtimeType') {
       return handleRuntimeTypeGet(node);
     }
-    if (node.interfaceTarget == null) {
+    var target = node.interfaceTarget;
+    if (target == null) {
       var receiver = visitExpression(node.receiver);
       var returnValue = bank.newLocation();
       builder.setFileOffset(node.fileOffset);
@@ -1608,11 +1610,22 @@ class ConstraintExtractorVisitor
           returnValue,
           ValueSink.unassignable('return value of an expression'),
           coreTypes.objectClass, const <AType>[]);
-    } else {
-      var receiver = getReceiverType(node, node.receiver, node.interfaceTarget);
-      var getterType = binding.getGetterType(node.interfaceTarget);
-      return receiver.substituteType(getterType);
     }
+    AType receiverType = visitExpression(node.receiver);
+    Substitution receiver =
+        getReceiverType(node, node.receiver, target, receiverType);
+    AType getterType = binding.getGetterType(target);
+    AType returnValue = receiver.substituteType(getterType);
+    if (target is Procedure && !target.isGetter) {
+      // If a tear-off escapes, ensure the receiver escapes as well, so its
+      // type arguments are polluted accordingly.
+      builder.setFileOffset(node.fileOffset);
+      var returnLocation = bank.newLocation();
+      builder.addAssignment(returnValue.source, returnLocation);
+      builder.addEscapingAssignment(receiverType.source, returnLocation);
+      return returnValue.withSourceAndSink(source: returnLocation);
+    }
+    return returnValue;
   }
 
   @override
