@@ -711,8 +711,8 @@ class ConstraintExtractorVisitor
       yieldType = common.topType;
     }
     handleFunctionBody(node.function);
+    builder.setFileOffset(node.fileOffset);
     if (treatAsExternal || seenTypeError) {
-      builder.setFileOffset(node.fileOffset);
       new ExternalVisitor(extractor,
               isClean: externalModel.isCleanExternal(node),
               isCovariant: false,
@@ -721,7 +721,6 @@ class ConstraintExtractorVisitor
     }
     if (externalModel.isEntryPoint(node) ||
         specialCasedMethods.isSpecialCased(node)) {
-      builder.setFileOffset(node.fileOffset);
       new ExternalVisitor(extractor,
               isClean: false, isCovariant: true, isContravariant: false)
           .visitSubterms(bank.concreteType);
@@ -732,6 +731,10 @@ class ConstraintExtractorVisitor
       // always cause the argument to escape.
       builder.addAssignment(
           common.anyNonNullValue, bank.positionalParameters[0].sink);
+    }
+    if (!node.isAccessor) {
+      StorageLocation functionLocation = bank.concreteType.source;
+      builder.addAssignment(common.functionValue, functionLocation);
     }
   }
 
