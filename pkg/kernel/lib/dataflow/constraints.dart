@@ -110,7 +110,7 @@ abstract class ConstraintVisitor<T> {
   T visitGuardedValueConstraint(GuardedValueConstraint constraint);
   T visitTypeFilterConstraint(TypeFilterConstraint constraint);
   T visitValueFilterConstraint(ValueFilterConstraint constraint);
-  T visitInstanceMembersConstraint(InstanceMembersConstraint constraint);
+  T visitAllocationConstraint(AllocationConstraint constraint);
 }
 
 /// Any value in [source] matching [mask] can flow into [destination].
@@ -330,7 +330,7 @@ class ValueFilterConstraint extends Constraint {
   }
 }
 
-class InstanceMembersConstraint extends Constraint {
+class AllocationConstraint extends Constraint {
   final StorageLocation destination;
   final StorageLocation toStringReturn;
   final StorageLocation hashCodeReturn;
@@ -338,7 +338,7 @@ class InstanceMembersConstraint extends Constraint {
   final StorageLocation equalsReturn;
   final StorageLocation equalsArgument;
 
-  InstanceMembersConstraint(
+  AllocationConstraint(
       this.destination,
       this.toStringReturn,
       this.hashCodeReturn,
@@ -348,16 +348,16 @@ class InstanceMembersConstraint extends Constraint {
 
   @override
   T accept<T>(ConstraintVisitor<T> visitor) {
-    return visitor.visitInstanceMembersConstraint(this);
+    return visitor.visitAllocationConstraint(this);
   }
 
   @override
   void register(ConstraintSolver solver) {
-    solver.registerInstanceMembersConstraint(this);
+    solver.registerAllocationConstraint(this);
   }
 
   @override
   void transfer(ConstraintSolver solver) {
-    solver.transferInstanceMembersConstraint(this);
+    solver.transferAllocationConstraint(this);
   }
 }

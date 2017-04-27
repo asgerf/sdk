@@ -817,7 +817,7 @@ class ConstraintExtractorVisitor
         node.namedParameters.map((v) => v.name).toList(growable: false),
         node.namedParameters.map(getVariableType).toList(growable: false),
         augmentedReturnType);
-    addAllocationConstraints(
+    addGenericAllocationConstraints(
         functionObject, common.functionValue, type, node.fileOffset);
     if (selfReference != null) {
       scope.variables[selfReference] = type;
@@ -1135,7 +1135,7 @@ class ConstraintExtractorVisitor
     new AllocationVisitor(extractor, createdObject).visit(typeArgument);
   }
 
-  void addAllocationConstraints(
+  void addGenericAllocationConstraints(
       StorageLocation createdObject, Value value, AType type, int fileOffset) {
     builder.setFileOffset(fileOffset);
     builder.addConstraint(
@@ -1167,13 +1167,18 @@ class ConstraintExtractorVisitor
     return binding.getConcreteGetterType(member).source;
   }
 
-  void addSpecializedInstanceMembersConstraint(
+  /// Add constraints to for an an allocation of [class_], for handling dynamic
+  /// calls to its instance members and calls to methods declared on Object.
+  ///
+  /// The type arguments provided in the allocation are handled separately by
+  /// [addGenericAllocationConstraints].
+  void addInstanceMemberAllocationConstraints(
       Class class_, StorageLocation destination) {
     var toString = hierarchy.getDispatchTarget(class_, toStringName);
     var hashCode = hierarchy.getDispatchTarget(class_, hashCodeName);
     var equals = hierarchy.getDispatchTarget(class_, equalsName);
     var runtimeType = hierarchy.getDispatchTarget(class_, runtimeTypeName);
-    builder.addConstraint(new InstanceMembersConstraint(
+    builder.addConstraint(new AllocationConstraint(
         destination,
         getConcreteReturn(toString),
         getConcreteGetter(hashCode),
@@ -1205,8 +1210,9 @@ class ConstraintExtractorVisitor
         ValueSink.unassignable('result of an expression', node),
         target.enclosingClass,
         typeArguments);
-    addAllocationConstraints(createdObject, value, type, node.fileOffset);
-    addSpecializedInstanceMembersConstraint(class_, createdObject);
+    addGenericAllocationConstraints(
+        createdObject, value, type, node.fileOffset);
+    addInstanceMemberAllocationConstraints(class_, createdObject);
     return type;
   }
 
@@ -1288,7 +1294,8 @@ class ConstraintExtractorVisitor
         ValueSink.unassignable('result of an expression', node),
         coreTypes.listClass,
         <AType>[typeArgument]);
-    addAllocationConstraints(createdObject, value, type, node.fileOffset);
+    addGenericAllocationConstraints(
+        createdObject, value, type, node.fileOffset);
     return type;
   }
 
@@ -1319,7 +1326,8 @@ class ConstraintExtractorVisitor
         ValueSink.unassignable('result of an expression', node),
         coreTypes.mapClass,
         <AType>[keyType, valueType]);
-    addAllocationConstraints(createdObject, value, type, node.fileOffset);
+    addGenericAllocationConstraints(
+        createdObject, value, type, node.fileOffset);
     return type;
   }
 

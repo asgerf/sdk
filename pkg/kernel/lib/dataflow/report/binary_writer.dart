@@ -193,8 +193,8 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
   }
 
   @override
-  visitInstanceMembersConstraint(InstanceMembersConstraint constraint) {
-    writer.writeByte(ConstraintTag.InstanceMembersConstraint);
+  visitAllocationConstraint(AllocationConstraint constraint) {
+    writer.writeByte(ConstraintTag.AllocationConstraint);
     writer.writeLocationReference(constraint.destination);
     writer.writeLocationReference(constraint.toStringReturn);
     writer.writeLocationReference(constraint.hashCodeReturn);

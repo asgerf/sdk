@@ -160,7 +160,7 @@ class ConstraintSolver {
     }
   }
 
-  void transferInstanceMembersConstraint(InstanceMembersConstraint constraint) {
+  void transferAllocationConstraint(AllocationConstraint constraint) {
     int mask = 0;
     if (constraint.hashCodeReturn.value.canBeNull) {
       mask |= ValueFlags.nullableHashCode;
@@ -231,7 +231,7 @@ class ConstraintSolver {
     addBackwardDependency(constraint.destination, constraint);
   }
 
-  void registerInstanceMembersConstraint(InstanceMembersConstraint constraint) {
+  void registerAllocationConstraint(AllocationConstraint constraint) {
     addForwardDependency(constraint.hashCodeReturn, constraint);
     addForwardDependency(constraint.toStringReturn, constraint);
     addForwardDependency(constraint.runtimeTypeReturn, constraint);

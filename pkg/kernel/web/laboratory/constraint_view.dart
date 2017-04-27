@@ -295,7 +295,7 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
   }
 
   @override
-  visitInstanceMembersConstraint(InstanceMembersConstraint constraint) {
+  visitAllocationConstraint(AllocationConstraint constraint) {
     buffer
       ..appendPush(rightAlignedCell())
       ..appendLocation(constraint.destination)
@@ -314,7 +314,7 @@ class ConstraintRowEmitter extends ConstraintVisitor<Null> {
       ..appendLocation(constraint.equalsArgument)
       ..appendText(')')
       ..pop()
-      ..append(titleCell('InstanceMembers'));
+      ..append(titleCell('Allocation'));
   }
 }
 

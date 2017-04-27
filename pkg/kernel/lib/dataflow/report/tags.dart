@@ -5,7 +5,7 @@ class ConstraintTag {
   static const int ValueConstraint = 3;
   static const int TypeFilterConstraint = 4;
   static const int ValueFilterConstraint = 5;
-  static const int InstanceMembersConstraint = 6;
+  static const int AllocationConstraint = 6;
   static const int EscapingAssignConstraint = 7;
 }
 

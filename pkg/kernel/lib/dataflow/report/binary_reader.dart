@@ -116,8 +116,8 @@ class BinaryReportReader {
             readLocationReference(), readLocationReference(), readValue())
           ..fileOffset = fileOffset;
 
-      case ConstraintTag.InstanceMembersConstraint:
-        return new InstanceMembersConstraint(
+      case ConstraintTag.AllocationConstraint:
+        return new AllocationConstraint(
             readLocationReference(),
             readLocationReference(),
             readLocationReference(),
