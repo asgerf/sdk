@@ -119,6 +119,7 @@ class BinaryReportReader {
       case ConstraintTag.AllocationConstraint:
         return new AllocationConstraint(
             readLocationReference(),
+            readClassReference(),
             readLocationReference(),
             readLocationReference(),
             readLocationReference(),

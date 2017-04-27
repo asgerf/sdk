@@ -1180,6 +1180,7 @@ class ConstraintExtractorVisitor
     var runtimeType = hierarchy.getDispatchTarget(class_, runtimeTypeName);
     builder.addConstraint(new AllocationConstraint(
         destination,
+        class_,
         getConcreteReturn(toString),
         getConcreteGetter(hashCode),
         getConcreteGetter(runtimeType),

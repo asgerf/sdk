@@ -332,6 +332,7 @@ class ValueFilterConstraint extends Constraint {
 
 class AllocationConstraint extends Constraint {
   final StorageLocation destination;
+  final Class classNode;
   final StorageLocation toStringReturn;
   final StorageLocation hashCodeReturn;
   final StorageLocation runtimeTypeReturn;
@@ -340,6 +341,7 @@ class AllocationConstraint extends Constraint {
 
   AllocationConstraint(
       this.destination,
+      this.classNode,
       this.toStringReturn,
       this.hashCodeReturn,
       this.runtimeTypeReturn,

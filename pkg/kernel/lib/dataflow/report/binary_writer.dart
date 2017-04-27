@@ -196,6 +196,7 @@ class BinaryWriterConstraintVisitor extends ConstraintVisitor {
   visitAllocationConstraint(AllocationConstraint constraint) {
     writer.writeByte(ConstraintTag.AllocationConstraint);
     writer.writeLocationReference(constraint.destination);
+    writer.writeClassReference(constraint.classNode);
     writer.writeLocationReference(constraint.toStringReturn);
     writer.writeLocationReference(constraint.hashCodeReturn);
     writer.writeLocationReference(constraint.runtimeTypeReturn);
