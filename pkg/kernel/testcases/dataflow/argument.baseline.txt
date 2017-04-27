@@ -24,9 +24,9 @@ class Baz extends self::Base {
 }
 static method foo(self::Foo!&core::Object x) → Null {}
 static method bar(self::Bar!&core::Object x) → Null {}
-static method foo_escaped(Bottom&core::Object x) → Null {}
-static method bar_escaped(Bottom&core::Object x) → Null {}
-static method escape(Bottom&core::Object fn) → Null {
+static method foo_escaped(core::Object+? x) → Null {}
+static method bar_escaped(core::Object+? x) → Null {}
+static method escape(core::Function+&core::Object fn) → Null {
   fn.call(new self::Baz::•());
 }
 static method main() → Null&core::Object {

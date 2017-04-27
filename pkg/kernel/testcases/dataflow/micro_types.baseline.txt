@@ -426,6 +426,10 @@ static method testCallbackEscapeDynamic() → Null {
   core::Function+&core::Object dynamicCurryNullable = curryNullable;
   dynamicCurryNullable.call().call(5);
   dynamicCurryNullable.call().call(null);
+  function takeListWithNullable(core::Object+?&core::List<core::_IntegerImplementation+?&core::int/> x) → void {}
+  core::Function+&core::Object dynamicTakeListWithNullable = takeListWithNullable;
+  dynamicTakeListWithNullable.call(<core::_IntegerImplementation+?&core::int>[5]);
+  dynamicTakeListWithNullable.call(<core::_IntegerImplementation+?&core::int>[null]);
 }
 static method testGenericCasts() → Null {
   self::Generic!<Null&core::int/Null> generic = new self::Generic::•<Null&core::int>(null);

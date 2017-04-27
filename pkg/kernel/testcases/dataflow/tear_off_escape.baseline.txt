@@ -7,7 +7,7 @@ class TearOffEscape extends core::Object {
     : super core::Object::•()
     ;
   method dynamicCall(Bottom&core::List<Bottom&core::int/> list) → Null {
-    Bottom&core::int nullableInt = list.{core::Iterable::last};
+    core::_IntegerImplementation+?&core::int nullableInt = list.{core::Iterable::last};
   }
   method staticDirtyCall(core::_GrowableList!&core::List<core::_IntegerImplementation+?&core::int/> list) → Null {
     core::_IntegerImplementation+?&core::int nullableInt = list.{core::Iterable::last};

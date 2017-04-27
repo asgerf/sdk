@@ -384,6 +384,11 @@ void testCallbackEscapeDynamic() {
   dynamic dynamicCurryNullable = curryNullable;
   dynamicCurryNullable()(5);
   dynamicCurryNullable()(null);
+
+  void takeListWithNullable(List<int> x) {}
+  dynamic dynamicTakeListWithNullable = takeListWithNullable;
+  dynamicTakeListWithNullable(<int>[5]);
+  dynamicTakeListWithNullable(<int>[null]);
 }
 
 class Generic<T> {

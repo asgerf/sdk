@@ -2,9 +2,9 @@ library;
 import self as self;
 import "dart:core" as core;
 
-static method identity<T extends Bottom&core::Object/Bottom>(self::identity::T x) → self::identity::T
+static method identity<T extends core::Object+?/Bottom>(self::identity::T x) → self::identity::T
   return x;
-static method nullifier<T extends Bottom&core::Object/Bottom>(self::nullifier::T x) → self::nullifier::T?
+static method nullifier<T extends core::Object+?/Bottom>(self::nullifier::T x) → self::nullifier::T?
   return null;
 static method main() → Null&core::Object {
   self::takeIdentityFunction(self::identity as <T extends core::Object>(dynamic) → dynamic, true);

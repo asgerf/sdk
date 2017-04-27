@@ -734,7 +734,8 @@ class ConstraintExtractorVisitor
     }
     if (!node.isAccessor) {
       StorageLocation functionLocation = bank.concreteType.source;
-      builder.addAssignment(common.functionValue, functionLocation);
+      addGenericAllocationConstraints(functionLocation, common.functionValue,
+          bank.concreteType, node.fileOffset);
     }
   }
 
@@ -1132,11 +1133,6 @@ class ConstraintExtractorVisitor
     checkAssignableExpression(node.otherwise, type, fileOffset);
     controlFlow.mergeInto(base);
     return type;
-  }
-
-  void addAllocationTypeArgument(
-      StorageLocation createdObject, AType typeArgument) {
-    new AllocationVisitor(extractor, createdObject).visit(typeArgument);
   }
 
   void addGenericAllocationConstraints(
@@ -2359,26 +2355,28 @@ class AllocationVisitor extends ATypeVisitor {
   }
 
   void visit(AType type) {
+    if (type is TypeParameterAType || type is FunctionTypeParameterAType) {
+      return;
+    }
     if (isCovariant) {
       // Simple case intuition:
       // For a function object of type `(A) => B`, the return type B will
       // get processed here.  If the function escapes, the values it returns
       // can escape too, so process B as escaping.
-      builder.addEscapingAssignment(type.source, object);
+      StorageLocation sink = type.sink;
+      builder.addEscapingAssignment(sink, object);
     }
     if (isContravariant) {
       // Simple case intuition:
       // For a function object of type `(A) => B`, the argument type A will get
       // processed here.  If the function escapes, unknown arguments can be
       // passed to it, so mark A as having worst-case values.
-      var sink = type.sink;
-      if (sink is StorageLocation) {
-        extractor._builder.addConstraint(new GuardedValueConstraint(
-            sink,
-            extractor.getWorstCaseValueForType(type),
-            object,
-            ValueFlags.escaping));
-      }
+      StorageLocation source = type.source;
+      builder.addGuardedValueAssignment(
+          extractor.getWorstCaseValueForType(type),
+          source,
+          object,
+          ValueFlags.escaping);
     }
     type.accept(this);
   }
@@ -2388,6 +2386,7 @@ class AllocationVisitor extends ATypeVisitor {
 
   @override
   visitFunctionAType(FunctionAType type) {
+    type.typeParameterBounds.forEach(bivariant.visit);
     type.positionalParameters.forEach(inverse.visit);
     type.namedParameters.forEach(inverse.visit);
     visit(type.returnType);
