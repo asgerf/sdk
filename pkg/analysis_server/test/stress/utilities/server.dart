@@ -12,7 +12,8 @@ import 'dart:convert' hide JsonDecoder;
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:analysis_server/plugin/protocol/protocol.dart';
+import 'package:analysis_server/protocol/protocol.dart';
+import 'package:analysis_server/protocol/protocol_generated.dart';
 import 'package:path/path.dart' as path;
 
 import 'logger.dart';
@@ -110,7 +111,7 @@ class RequestData {
   RequestData(this.id, this.method, this.params, this.requestTime);
 
   /**
-   * Return the number of milliseconds that elapsed betwee the request and the
+   * Return the number of milliseconds that elapsed between the request and the
    * response. This getter assumes that the response was received.
    */
   int get elapsedTime => responseTime - requestTime;

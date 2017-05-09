@@ -683,7 +683,7 @@ class ClassElementForLink_Class extends ClassElementForLink
    */
   InterfaceType _computeInterfaceType(EntityRef typeRef) {
     if (typeRef != null) {
-      DartType type = enclosingElement.resolveTypeRef(typeRef, this);
+      DartType type = enclosingElement.resolveTypeRef(this, typeRef);
       if (type is InterfaceType && !type.element.isEnum) {
         return type;
       }
@@ -1000,11 +1000,10 @@ abstract class CompilationUnitElementForLink
 
   /**
    * Compute the type referred to by the given linked type [slot] (interpreted
-   * relative to [typeParameterContext]).  If there is no inferred type in the
+   * in [context]).  If there is no inferred type in the
    * given slot, `dynamic` is returned.
    */
-  DartType getLinkedType(
-      int slot, TypeParameterizedElementMixin typeParameterContext);
+  DartType getLinkedType(ElementImpl context, int slot);
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -1057,7 +1056,9 @@ abstract class CompilationUnitElementForLink
               resolveRef(containingReference).getContainedName(name);
         }
       } else if (linkedReference.dependency == 0) {
-        if (name == 'void') {
+        if (linkedReference.kind == ReferenceKind.unresolved) {
+          _references[index] = UndefinedElementForLink.instance;
+        } else if (name == 'void') {
           _references[index] = enclosingElement._linker.voidElement;
         } else if (name == '*bottom*') {
           _references[index] = enclosingElement._linker.bottomElement;
@@ -1076,8 +1077,7 @@ abstract class CompilationUnitElementForLink
   }
 
   @override
-  DartType resolveTypeRef(
-      EntityRef type, TypeParameterizedElementMixin typeParameterContext,
+  DartType resolveTypeRef(ElementImpl context, EntityRef type,
       {bool defaultVoid: false,
       bool instantiateToBoundsAllowed: true,
       bool declaredType: false}) {
@@ -1089,7 +1089,8 @@ abstract class CompilationUnitElementForLink
       }
     }
     if (type.paramReference != 0) {
-      return typeParameterContext.getTypeParameterType(type.paramReference);
+      return context.typeParameterContext
+          .getTypeParameterType(type.paramReference);
     } else if (type.syntheticReturnType != null) {
       // TODO(paulberry): implement.
       throw new UnimplementedError();
@@ -1099,7 +1100,7 @@ abstract class CompilationUnitElementForLink
     } else {
       DartType getTypeArgument(int i) {
         if (i < type.typeArguments.length) {
-          return resolveTypeRef(type.typeArguments[i], typeParameterContext);
+          return resolveTypeRef(context, type.typeArguments[i]);
         } else if (!instantiateToBoundsAllowed) {
           // Do not allow buildType to instantiate the bounds; force dynamic.
           return DynamicTypeImpl.instance;
@@ -1279,8 +1280,7 @@ class CompilationUnitElementInBuildUnit extends CompilationUnitElementForLink {
   }
 
   @override
-  DartType getLinkedType(
-      int slot, TypeParameterizedElementMixin typeParameterContext) {
+  DartType getLinkedType(ElementImpl context, int slot) {
     // This method should only be called on compilation units that come from
     // dependencies, never on compilation units that are part of the current
     // build unit.
@@ -1294,8 +1294,11 @@ class CompilationUnitElementInBuildUnit extends CompilationUnitElementForLink {
    */
   void link() {
     if (library._linker.strongMode) {
-      new InstanceMemberInferrer(enclosingElement._linker.typeProvider,
-              enclosingElement.inheritanceManager, new Set<FieldElement>())
+      new InstanceMemberInferrer(
+              enclosingElement._linker.typeProvider,
+              (clazz) => (clazz.library as LibraryElementInBuildUnit)
+                  .inheritanceManager,
+              new Set<FieldElement>())
           .inferCompilationUnit(this);
       for (TopLevelVariableElementForLink variable in topLevelVariables) {
         variable.link(this);
@@ -1406,10 +1409,9 @@ class CompilationUnitElementInDependency extends CompilationUnitElementForLink {
   bool get isInBuildUnit => false;
 
   @override
-  DartType getLinkedType(
-      int slot, TypeParameterizedElementMixin typeParameterContext) {
+  DartType getLinkedType(ElementImpl context, int slot) {
     if (slot < _linkedTypeRefs.length) {
-      return resolveTypeRef(_linkedTypeRefs[slot], typeParameterContext);
+      return resolveTypeRef(context, _linkedTypeRefs[slot]);
     } else {
       return DynamicTypeImpl.instance;
     }
@@ -1832,7 +1834,7 @@ abstract class ExecutableElementForLink extends Object
       return null;
     } else {
       return _declaredReturnType ??=
-          compilationUnit.resolveTypeRef(_unlinkedExecutable.returnType, this);
+          compilationUnit.resolveTypeRef(this, _unlinkedExecutable.returnType);
     }
   }
 
@@ -1879,7 +1881,7 @@ abstract class ExecutableElementForLink extends Object
         _inferredReturnType = _computeDefaultReturnType();
       } else {
         _inferredReturnType = compilationUnit.getLinkedType(
-            _unlinkedExecutable.inferredReturnTypeSlot, this);
+            this, _unlinkedExecutable.inferredReturnTypeSlot);
       }
     }
     return _inferredReturnType;
@@ -2327,8 +2329,7 @@ class ExprTypeComputer {
         if (ref.typeArguments.isNotEmpty) {
           return constructorElement.enclosingClass.buildType((int i) {
             if (i < ref.typeArguments.length) {
-              return unit.resolveTypeRef(
-                  ref.typeArguments[i], function.typeParameterContext);
+              return unit.resolveTypeRef(function, ref.typeArguments[i]);
             } else {
               return null;
             }
@@ -2528,7 +2529,7 @@ class ExprTypeComputer {
 
   DartType _getNextTypeRef() {
     EntityRef ref = _getNextRef();
-    return unit.resolveTypeRef(ref, function.typeParameterContext);
+    return unit.resolveTypeRef(function, ref);
   }
 
   List<DartType> _getTypeArguments() {
@@ -2885,7 +2886,7 @@ class FunctionElementForLink_FunctionTypedParam extends Object
         _returnType = DynamicTypeImpl.instance;
       } else {
         _returnType = enclosingElement.compilationUnit.resolveTypeRef(
-            enclosingElement._unlinkedParam.type, typeParameterContext);
+            enclosingElement, enclosingElement._unlinkedParam.type);
       }
     }
     return _returnType;
@@ -3200,7 +3201,7 @@ class FunctionTypeAliasElementForLink extends Object
 
   @override
   DartType get returnType => _returnType ??=
-      enclosingElement.resolveTypeRef(_unlinkedTypedef.returnType, this);
+      enclosingElement.resolveTypeRef(this, _unlinkedTypedef.returnType);
 
   @override
   TypeParameterizedElementMixin get typeParameterContext => this;
@@ -3520,9 +3521,11 @@ abstract class LibraryElementForLink<
       ];
       int numParts = definingUnit.parts.length;
       for (int i = 0; i < numParts; i++) {
-        // TODO(paulberry): make sure we handle the case where
-        // resolveRelativeUri fails.
         String partRelativeUriStr = definingUnit.publicNamespace.parts[i];
+
+        if (partRelativeUriStr.isEmpty) {
+          continue;
+        }
 
         Uri partRelativeUri;
         try {
@@ -3948,7 +3951,7 @@ class MethodElementForLink extends ExecutableElementForLink_NonLocal
  * member of an element that is not a container (e.g. accessing the "length"
  * property of a constant).
  *
- * Accesses to a chain of non-static members separated by '.' are andled by
+ * Accesses to a chain of non-static members separated by '.' are handled by
  * creating a [NonstaticMemberElementForLink] that points to another
  * [NonstaticMemberElementForLink], to whatever nesting level is necessary.
  */
@@ -4191,14 +4194,14 @@ class ParameterElementForLink implements ParameterElementImpl {
       } else if (_unlinkedParam.type == null) {
         if (!compilationUnit.isInBuildUnit) {
           _inferredType = compilationUnit.getLinkedType(
-              _unlinkedParam.inferredTypeSlot, _typeParameterContext);
+              this, _unlinkedParam.inferredTypeSlot);
           return _inferredType;
         } else {
           _declaredType = DynamicTypeImpl.instance;
         }
       } else {
-        _declaredType = compilationUnit.resolveTypeRef(
-            _unlinkedParam.type, _typeParameterContext);
+        _declaredType =
+            compilationUnit.resolveTypeRef(this, _unlinkedParam.type);
       }
     }
     return _declaredType;
@@ -4208,6 +4211,11 @@ class ParameterElementForLink implements ParameterElementImpl {
   void set type(DartType inferredType) {
     assert(_inferredType == null);
     _inferredType = inferredType;
+  }
+
+  @override
+  TypeParameterizedElementMixin get typeParameterContext {
+    return _typeParameterContext;
   }
 
   /**
@@ -4790,8 +4798,8 @@ class TopLevelVariableElementForLink extends VariableElementForLink
 }
 
 /**
- * Specialization of [DependencyWalker] for performing type inferrence
- * on static and top level variables.
+ * Specialization of [DependencyWalker] for performing type inference on static
+ * and top level variables.
  */
 class TypeInferenceDependencyWalker
     extends DependencyWalker<TypeInferenceNode> {
@@ -4883,9 +4891,12 @@ class TypeInferenceNode extends Node<TypeInferenceNode> {
           refPtr++;
           break;
         case UnlinkedExprOperation.invokeMethodRef:
-          // TODO(paulberry): if this reference refers to a variable, should it
-          // be considered a type inference dependency?
-          refPtr++;
+          EntityRef ref = unlinkedConst.references[refPtr++];
+          TypeInferenceNode dependency =
+              compilationUnit.resolveRef(ref.reference).asTypeInferenceNode;
+          if (dependency != null) {
+            dependencies.add(dependency);
+          }
           intPtr += 2;
           int numTypeArguments = unlinkedConst.ints[intPtr++];
           refPtr += numTypeArguments;
@@ -5181,8 +5192,8 @@ abstract class VariableElementForLink
     if (unlinkedVariable.type == null) {
       return null;
     } else {
-      return _declaredType ??= compilationUnit.resolveTypeRef(
-          unlinkedVariable.type, _typeParameterContext);
+      return _declaredType ??=
+          compilationUnit.resolveTypeRef(this, unlinkedVariable.type);
     }
   }
 
@@ -5221,7 +5232,7 @@ abstract class VariableElementForLink
         _inferredType = DynamicTypeImpl.instance;
       } else {
         _inferredType = compilationUnit.getLinkedType(
-            unlinkedVariable.inferredTypeSlot, _typeParameterContext);
+            this, unlinkedVariable.inferredTypeSlot);
       }
     }
     return _inferredType;
@@ -5278,6 +5289,11 @@ abstract class VariableElementForLink
   @override
   void set type(DartType newType) {
     // TODO(paulberry): store inferred type.
+  }
+
+  @override
+  TypeParameterizedElementMixin get typeParameterContext {
+    return _typeParameterContext;
   }
 
   /**

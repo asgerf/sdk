@@ -2,9 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-library test.services.correction.util;
-
-import 'package:analysis_server/plugin/protocol/protocol.dart';
+import 'package:analysis_server/protocol/protocol_generated.dart';
 import 'package:analysis_server/src/services/correction/strings.dart';
 import 'package:analysis_server/src/services/correction/util.dart';
 import 'package:analyzer/src/generated/source.dart';
@@ -21,6 +19,9 @@ main() {
 
 @reflectiveTest
 class UtilTest extends AbstractSingleUnitTest {
+  @override
+  bool get enableNewAnalysisDriver => false;
+
   test_addLibraryImports_dart_hasImports_between() async {
     await resolveTestUnit('''
 import 'dart:async';

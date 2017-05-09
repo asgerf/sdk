@@ -57,6 +57,12 @@ abstract class AbstractResynthesizeTest extends AbstractSingleUnitTest {
   bool allowMissingFiles = false;
 
   /**
+   * Tests may set this to `false` to indicate that resynthesized elements
+   * should not be compare with elements created using AnalysisContext.
+   */
+  bool shouldCompareLibraryElements = true;
+
+  /**
    * Return `true` if resynthesizing should be done is strong mode.
    */
   bool get isStrongMode;
@@ -3734,7 +3740,7 @@ const V = const p.C.named();
           r'''
 import 'a.dart' as p;
 const C V = const
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: a.dart;C*/.
         named/*location: null*/();
 ''');
@@ -3744,7 +3750,7 @@ const C V = const
           r'''
 import 'a.dart' as p;
 const dynamic V = const
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: a.dart;C*/.
         named/*location: null*/();
 ''');
@@ -3765,7 +3771,7 @@ const V = const p.C.named();
           r'''
 import 'a.dart' as p;
 const dynamic V = const
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: null*/.
         named/*location: null*/();
 ''');
@@ -3775,7 +3781,7 @@ const dynamic V = const
           r'''
 import 'a.dart' as p;
 const dynamic V = const
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: null*/.
         named/*location: null*/();
 ''');
@@ -3955,6 +3961,7 @@ const dynamic V = const
   }
 
   test_const_invokeConstructor_unnamed_unresolved2() {
+    shouldCompareLibraryElements = false;
     addLibrarySource('/a.dart', '');
     var library = checkLibrary(
         r'''
@@ -3968,7 +3975,7 @@ const V = const p.C();
           r'''
 import 'a.dart' as p;
 const dynamic V = const
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: null*/();
 ''');
     } else {
@@ -3977,7 +3984,7 @@ const dynamic V = const
           r'''
 import 'a.dart' as p;
 const dynamic V = const
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: null*/();
 ''');
     }
@@ -4095,7 +4102,7 @@ const int v = p.C.F.length;
           r'''
 import 'a.dart' as p;
 const int v =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: a.dart;C*/.
         F/*location: a.dart;C;F?*/.
         length/*location: dart:core;String;length?*/;
@@ -4106,7 +4113,7 @@ const int v =
           r'''
 import 'a.dart' as p;
 const int v =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: a.dart;C*/.
         F/*location: a.dart;C;F?*/.
         length/*location: dart:core;String;length?*/;
@@ -4208,7 +4215,7 @@ const v = p.S.length;
           r'''
 import 'a.dart' as p;
 const dynamic v/*error: instanceGetter*/ =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         S/*location: a.dart;S?*/.
         length/*location: dart:core;String;length?*/;
 ''');
@@ -4218,7 +4225,7 @@ const dynamic v/*error: instanceGetter*/ =
           r'''
 import 'a.dart' as p;
 const dynamic v =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         S/*location: a.dart;S?*/.
         length/*location: dart:core;String;length?*/;
 ''');
@@ -4467,7 +4474,7 @@ const V = p.C.F;
           r'''
 import 'a.dart' as p;
 const int V =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: a.dart;C*/.
         F/*location: a.dart;C;F?*/;
 ''');
@@ -4477,7 +4484,7 @@ const int V =
           r'''
 import 'a.dart' as p;
 const dynamic V =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: a.dart;C*/.
         F/*location: a.dart;C;F?*/;
 ''');
@@ -4567,7 +4574,7 @@ const V = p.C.m;
           r'''
 import 'a.dart' as p;
 const (int, String) → int V =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: a.dart;C*/.
         m/*location: a.dart;C;m*/;
 ''');
@@ -4577,7 +4584,7 @@ const (int, String) → int V =
           r'''
 import 'a.dart' as p;
 const dynamic V =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: a.dart;C*/.
         m/*location: a.dart;C;m*/;
 ''');
@@ -4653,7 +4660,7 @@ const V = p.foo;
           r'''
 import 'a.dart' as p;
 const () → dynamic V =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         foo/*location: a.dart;foo*/;
 ''');
     } else {
@@ -4662,7 +4669,7 @@ const () → dynamic V =
           r'''
 import 'a.dart' as p;
 const dynamic V =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         foo/*location: a.dart;foo*/;
 ''');
     }
@@ -4737,7 +4744,7 @@ const B = p.A + 2;
           r'''
 import 'a.dart' as p;
 const int B =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         A/*location: a.dart;A?*/ + 2;
 ''');
     } else {
@@ -4746,7 +4753,7 @@ const int B =
           r'''
 import 'a.dart' as p;
 const dynamic B =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         A/*location: a.dart;A?*/ + 2;
 ''');
     }
@@ -4922,13 +4929,13 @@ const vFunctionTypeAlias = p.F;
           r'''
 import 'a.dart' as p;
 const Type vClass =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: a.dart;C*/;
 const Type vEnum =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         E/*location: a.dart;E*/;
 const Type vFunctionTypeAlias =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         F/*location: a.dart;F*/;
 ''');
     } else {
@@ -4937,13 +4944,13 @@ const Type vFunctionTypeAlias =
           r'''
 import 'a.dart' as p;
 const dynamic vClass =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: a.dart;C*/;
 const dynamic vEnum =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         E/*location: a.dart;E*/;
 const dynamic vFunctionTypeAlias =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         F/*location: a.dart;F*/;
 ''');
     }
@@ -5047,7 +5054,7 @@ const v = p.C.foo;
           r'''
 import 'foo.dart' as p;
 const dynamic v =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: foo.dart;C*/.
         foo/*location: null*/;
 ''');
@@ -5057,7 +5064,7 @@ const dynamic v =
           r'''
 import 'foo.dart' as p;
 const dynamic v =
-        p/*location: null*/.
+        p/*location: test.dart;p*/.
         C/*location: foo.dart;C*/.
         foo/*location: null*/;
 ''');
@@ -8542,6 +8549,82 @@ class C<T, U> {
     }
   }
 
+  test_genericFunction_asFunctionReturnType() {
+    shouldCompareLibraryElements = false;
+    var library = checkLibrary(r'''
+int Function(int a, String b) f() => null;
+''');
+    checkElementText(
+        library,
+        r'''
+(int, String) → int f() {}
+''');
+  }
+
+  test_genericFunction_asFunctionTypedParameterReturnType() {
+    shouldCompareLibraryElements = false;
+    var library = checkLibrary(r'''
+void f(int Function(int a, String b) p(num c)) => null;
+''');
+    checkElementText(
+        library,
+        r'''
+void f((num) → (int, String) → int p) {}
+''');
+  }
+
+  test_genericFunction_asGenericFunctionReturnType() {
+    shouldCompareLibraryElements = false;
+    var library = checkLibrary(r'''
+typedef F = void Function(String a) Function(int b);
+''');
+    checkElementText(
+        library,
+        r'''
+typedef F = (String) → void Function(int b);
+''');
+  }
+
+  test_genericFunction_asMethodReturnType() {
+    shouldCompareLibraryElements = false;
+    var library = checkLibrary(r'''
+class C {
+  int Function(int a, String b) m() => null;
+}
+''');
+    checkElementText(
+        library,
+        r'''
+class C {
+  (int, String) → int m() {}
+}
+''');
+  }
+
+  test_genericFunction_asParameterType() {
+    shouldCompareLibraryElements = false;
+    var library = checkLibrary(r'''
+void f(int Function(int a, String b) p) => null;
+''');
+    checkElementText(
+        library,
+        r'''
+void f((int, String) → int p) {}
+''');
+  }
+
+  test_genericFunction_asTopLevelVariableType() {
+    shouldCompareLibraryElements = false;
+    var library = checkLibrary(r'''
+int Function(int a, String b) v;
+''');
+    checkElementText(
+        library,
+        r'''
+(int, String) → int v;
+''');
+  }
+
   test_getElement_constructor_named() {
     String text = 'class C { C.named(); }';
     Source source = addLibrarySource('/test.dart', text);
@@ -8859,6 +8942,32 @@ Future<dynamic> f;
           r'''
 import 'dart:async' hide Stream, Completer;
 Future<dynamic> f;
+''');
+    }
+  }
+
+  test_import_invalidUri_metadata() {
+    allowMissingFiles = true;
+    shouldCompareLibraryElements = false;
+    LibraryElementImpl resynthesized = checkLibrary('''
+@foo
+import '';
+''');
+    if (isStrongMode) {
+      checkElementText(
+          resynthesized,
+          r'''
+@
+        foo/*location: null*/
+import '';
+''');
+    } else {
+      checkElementText(
+          resynthesized,
+          r'''
+@
+        foo/*location: null*/
+import '';
 ''');
     }
   }
@@ -9500,6 +9609,9 @@ class B extends A {
   }
 
   void test_inferredType_usesSyntheticFunctionType_functionTypedParam() {
+    // AnalysisContext does not set the enclosing element for the synthetic
+    // FunctionElement created for the [f, g] type argument.
+    shouldCompareLibraryElements = false;
     var library = checkLibrary('''
 int f(int x(String y)) => null;
 String g(int x(String y)) => null;
@@ -9871,7 +9983,7 @@ class D {}
           r'''
 import 'a.dart' as a;
 @
-        a/*location: null*/.
+        a/*location: test.dart;a*/.
         C/*location: a.dart;C*/.
         named/*location: a.dart;C;named*/
 class D {
@@ -9883,7 +9995,7 @@ class D {
           r'''
 import 'a.dart' as a;
 @
-        a/*location: null*/.
+        a/*location: test.dart;a*/.
         C/*location: a.dart;C*/.
         named/*location: a.dart;C;named*/
 class D {
@@ -10102,8 +10214,41 @@ class C {
     }
   }
 
+  test_invalidUri_part_emptyUri() {
+    allowMissingFiles = true;
+    shouldCompareLibraryElements = false;
+    var library = checkLibrary(r'''
+part '';
+class B extends A {}
+''');
+    if (isStrongMode) {
+      checkElementText(
+          library,
+          r'''
+part '';
+class B {
+}
+--------------------
+unit: null
+
+''');
+    } else {
+      checkElementText(
+          library,
+          r'''
+part '';
+class B {
+}
+--------------------
+unit: null
+
+''');
+    }
+  }
+
   test_invalidUris() {
     allowMissingFiles = true;
+    shouldCompareLibraryElements = false;
     var library = checkLibrary(r'''
 import '[invalid uri]';
 import '[invalid uri]:foo.dart';
@@ -10125,22 +10270,54 @@ part '[invalid uri]';
       checkElementText(
           library,
           r'''
+import '[invalid uri]';
+import '[invalid uri]:foo.dart';
 import 'a1.dart';
+import '[invalid uri]';
+import '[invalid uri]:foo.dart';
+export '[invalid uri]';
+export '[invalid uri]:foo.dart';
 export 'a2.dart';
+export '[invalid uri]';
+export '[invalid uri]:foo.dart';
+part '[invalid uri]';
 part 'a3.dart';
+part '[invalid uri]';
+--------------------
+unit: null
+
 --------------------
 unit: a3.dart
+
+--------------------
+unit: null
 
 ''');
     } else {
       checkElementText(
           library,
           r'''
+import '[invalid uri]';
+import '[invalid uri]:foo.dart';
 import 'a1.dart';
+import '[invalid uri]';
+import '[invalid uri]:foo.dart';
+export '[invalid uri]';
+export '[invalid uri]:foo.dart';
 export 'a2.dart';
+export '[invalid uri]';
+export '[invalid uri]:foo.dart';
+part '[invalid uri]';
 part 'a3.dart';
+part '[invalid uri]';
+--------------------
+unit: null
+
 --------------------
 unit: a3.dart
+
+--------------------
+unit: null
 
 ''');
     }
@@ -11535,7 +11712,7 @@ unit: foo.dart
           r'''
 import 'a.dart' as a;
 @
-        a/*location: null*/.
+        a/*location: test.dart;a*/.
         b/*location: a.dart;b?*/
 class C {
 }
@@ -11546,7 +11723,7 @@ class C {
           r'''
 import 'a.dart' as a;
 @
-        a/*location: null*/.
+        a/*location: test.dart;a*/.
         b/*location: a.dart;b?*/
 class C {
 }
@@ -12638,6 +12815,7 @@ unit: b.dart
 
   test_parts_invalidUri() {
     allowMissingFiles = true;
+    shouldCompareLibraryElements = false;
     addSource('/foo/bar.dart', 'part of my.lib;');
     var library = checkLibrary('library my.lib; part "foo/";');
     if (isStrongMode) {
@@ -12645,18 +12823,27 @@ unit: b.dart
           library,
           r'''
 library my.lib;
+part 'foo/';
+--------------------
+unit: null
+
 ''');
     } else {
       checkElementText(
           library,
           r'''
 library my.lib;
+part 'foo/';
+--------------------
+unit: null
+
 ''');
     }
   }
 
   test_parts_invalidUri_nullStringValue() {
     allowMissingFiles = true;
+    shouldCompareLibraryElements = false;
     addSource('/foo/bar.dart', 'part of my.lib;');
     var library = checkLibrary(r'''
 library my.lib;
@@ -12667,12 +12854,20 @@ part "${foo}/bar.dart";
           library,
           r'''
 library my.lib;
+part '';
+--------------------
+unit: null
+
 ''');
     } else {
       checkElementText(
           library,
           r'''
 library my.lib;
+part '';
+--------------------
+unit: null
+
 ''');
     }
   }
@@ -13860,8 +14055,50 @@ typedef dynamic F();
   }
 
   test_typedef_generic() {
-    checkLibrary(
-        'typedef F<T> = Function<S>(List<S> list, Function<A>(A), T);');
+    var library = checkLibrary(
+        'typedef F<T> = int Function<S>(List<S> list, num Function<A>(A), T);');
+    if (isStrongMode) {
+      checkElementText(
+          library,
+          r'''
+typedef F<T> = int Function<S>(List<S> list, <A>(A) → num , T );
+''');
+    } else {
+      checkElementText(
+          library,
+          r'''
+typedef F<T> = int Function<S>(List<S> list, <A>(A) → num , T );
+''');
+    }
+  }
+
+  test_typedef_generic_asFieldType() {
+    shouldCompareLibraryElements = false;
+    var library = checkLibrary(r'''
+typedef Foo<S> = S Function<T>(T x);
+class A {
+  Foo<int> f;
+}
+''');
+    if (isStrongMode) {
+      checkElementText(
+          library,
+          r'''
+typedef Foo<S> = S Function<T>(T x);
+class A {
+  <T>(T) → int f;
+}
+''');
+    } else {
+      checkElementText(
+          library,
+          r'''
+typedef Foo<S> = S Function<T>(T x);
+class A {
+  <T>(T) → int f;
+}
+''');
+    }
   }
 
   test_typedef_parameter_parameters() {
@@ -14071,6 +14308,26 @@ class D {
 }
 ''');
     }
+  }
+
+  test_typedef_type_parameters_bound_recursive() {
+    shouldCompareLibraryElements = false;
+    var library = checkLibrary('typedef void F<T extends F>();');
+    checkElementText(
+        library,
+        r'''
+typedef void F<T extends F>();
+''');
+  }
+
+  test_typedef_type_parameters_bound_recursive2() {
+    shouldCompareLibraryElements = false;
+    var library = checkLibrary('typedef void F<T extends List<F>>();');
+    checkElementText(
+        library,
+        r'''
+typedef void F<T extends List<F>>();
+''');
   }
 
   test_typedef_type_parameters_f_bound_complex() {
@@ -14289,7 +14546,7 @@ class C {
           r'''
 import 'dart:async' as foo;
 @
-        foo/*location: null*/.
+        foo/*location: test.dart;foo*/.
         bar/*location: null*/
 class C {
 }
@@ -14300,7 +14557,7 @@ class C {
           r'''
 import 'dart:async' as foo;
 @
-        foo/*location: null*/.
+        foo/*location: test.dart;foo*/.
         bar/*location: null*/
 class C {
 }
@@ -14345,7 +14602,7 @@ class C {
           r'''
 import 'dart:async' as foo;
 @
-        foo/*location: null*/.
+        foo/*location: test.dart;foo*/.
         bar/*location: null*/.
         baz/*location: null*/()
 class C {
@@ -14357,7 +14614,7 @@ class C {
           r'''
 import 'dart:async' as foo;
 @
-        foo/*location: null*/.
+        foo/*location: test.dart;foo*/.
         bar/*location: null*/.
         baz/*location: null*/()
 class C {
@@ -14376,7 +14633,7 @@ class C {
           r'''
 import 'dart:async' as foo;
 @
-        foo/*location: null*/.
+        foo/*location: test.dart;foo*/.
         Future/*location: dart:async;Future*/.
         bar/*location: null*/()
 class C {
@@ -14388,7 +14645,7 @@ class C {
           r'''
 import 'dart:async' as foo;
 @
-        foo/*location: null*/.
+        foo/*location: test.dart;foo*/.
         Future/*location: dart:async;Future*/.
         bar/*location: null*/()
 class C {
@@ -14432,7 +14689,7 @@ class C {
           r'''
 import 'dart:async' as foo;
 @
-        foo/*location: null*/.
+        foo/*location: test.dart;foo*/.
         bar/*location: null*/()
 class C {
 }
@@ -14443,7 +14700,7 @@ class C {
           r'''
 import 'dart:async' as foo;
 @
-        foo/*location: null*/.
+        foo/*location: test.dart;foo*/.
         bar/*location: null*/()
 class C {
 }

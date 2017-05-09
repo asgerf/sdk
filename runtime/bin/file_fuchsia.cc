@@ -196,8 +196,8 @@ File* File::Open(const char* name, FileOpenMode mode) {
   // Report errors for non-regular files.
   struct stat st;
   if (NO_RETRY_EXPECTED(stat(name, &st)) == 0) {
-    if (!S_ISREG(st.st_mode)) {
-      errno = (S_ISDIR(st.st_mode)) ? EISDIR : ENOENT;
+    if (S_ISDIR(st.st_mode)) {
+      errno = EISDIR;
       return NULL;
     }
   }
@@ -541,10 +541,7 @@ File::StdioHandleType File::GetStdioHandleType(int fd) {
   struct stat buf;
   int result = fstat(fd, &buf);
   if (result == -1) {
-    const int kBufferSize = 1024;
-    char error_message[kBufferSize];
-    Utils::StrError(errno, error_message, kBufferSize);
-    FATAL2("Failed stat on file descriptor %d: %s", fd, error_message);
+    return kOther;
   }
   if (S_ISCHR(buf.st_mode)) {
     return kTerminal;

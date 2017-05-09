@@ -7,12 +7,15 @@ import 'dart:collection';
 import 'dart:io' show Platform;
 
 import 'package:analysis_server/src/plugin/notification_manager.dart';
+import 'package:analyzer/context/context_root.dart' as analyzer;
 import 'package:analyzer/file_system/file_system.dart';
 import 'package:analyzer/instrumentation/instrumentation.dart';
 import 'package:analyzer/src/generated/bazel.dart';
 import 'package:analyzer/src/generated/gn.dart';
+import 'package:analyzer/src/util/glob.dart';
 import 'package:analyzer_plugin/channel/channel.dart';
 import 'package:analyzer_plugin/protocol/protocol.dart';
+import 'package:analyzer_plugin/protocol/protocol_constants.dart';
 import 'package:analyzer_plugin/protocol/protocol_generated.dart';
 import 'package:analyzer_plugin/src/channel/isolate_channel.dart';
 import 'package:analyzer_plugin/src/protocol/protocol_internal.dart';
@@ -20,11 +23,11 @@ import 'package:convert/convert.dart';
 import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
+import 'package:watcher/watcher.dart' as watcher;
 
 /**
  * Information about a single plugin.
  */
-@visibleForTesting
 class PluginInfo {
   /**
    * The path to the root directory of the definition of the plugin on disk (the
@@ -57,7 +60,7 @@ class PluginInfo {
    * The context roots that are currently using the results produced by the
    * plugin.
    */
-  Set<ContextRoot> contextRoots = new HashSet<ContextRoot>();
+  Set<analyzer.ContextRoot> contextRoots = new HashSet<analyzer.ContextRoot>();
 
   /**
    * The current execution of the plugin, or `null` if the plugin is not
@@ -72,10 +75,16 @@ class PluginInfo {
       this.notificationManager, this.instrumentationService);
 
   /**
+   * Return the data known about this plugin.
+   */
+  PluginData get data =>
+      new PluginData(path, currentSession?.name, currentSession?.version);
+
+  /**
    * Add the given [contextRoot] to the set of context roots being analyzed by
    * this plugin.
    */
-  void addContextRoot(ContextRoot contextRoot) {
+  void addContextRoot(analyzer.ContextRoot contextRoot) {
     if (contextRoots.add(contextRoot)) {
       _updatePluginRoots();
     }
@@ -85,22 +94,34 @@ class PluginInfo {
    * Remove the given [contextRoot] from the set of context roots being analyzed
    * by this plugin.
    */
-  void removeContextRoot(ContextRoot contextRoot) {
+  void removeContextRoot(analyzer.ContextRoot contextRoot) {
     if (contextRoots.remove(contextRoot)) {
       _updatePluginRoots();
     }
   }
 
   /**
+   * If the plugin is currently running, send a request based on the given
+   * [params] to the plugin. If the plugin is not running, the request will
+   * silently be dropped.
+   */
+  void sendRequest(RequestParams params) {
+    currentSession?.sendRequest(params);
+  }
+
+  /**
    * Start a new isolate that is running the plugin. Return the state object
-   * used to interact with the plugin.
+   * used to interact with the plugin, or `null` if the plugin could not be run.
    */
   Future<PluginSession> start(String byteStorePath) async {
     if (currentSession != null) {
       throw new StateError('Cannot start a plugin that is already running.');
     }
     currentSession = new PluginSession(this);
-    await currentSession.start(byteStorePath);
+    bool isRunning = await currentSession.start(byteStorePath);
+    if (!isRunning) {
+      currentSession = null;
+    }
     return currentSession;
   }
 
@@ -121,8 +142,11 @@ class PluginInfo {
    */
   void _updatePluginRoots() {
     if (currentSession != null) {
-      AnalysisSetContextRootsParams params =
-          new AnalysisSetContextRootsParams(contextRoots.toList());
+      AnalysisSetContextRootsParams params = new AnalysisSetContextRootsParams(
+          contextRoots
+              .map((analyzer.ContextRoot contextRoot) =>
+                  new ContextRoot(contextRoot.root, contextRoot.exclude))
+              .toList());
       currentSession.sendRequest(params);
     }
   }
@@ -159,6 +183,27 @@ class PluginManager {
   Map<String, PluginInfo> _pluginMap = <String, PluginInfo>{};
 
   /**
+   * The parameters for the last 'analysis.setPriorityFiles' request that was
+   * received from the client. Because plugins are lazily discovered, this needs
+   * to be retained so that it can be sent after a plugin has been started.
+   */
+  AnalysisSetPriorityFilesParams _analysisSetPriorityFilesParams;
+
+  /**
+   * The parameters for the last 'analysis.setSubscriptions' request that was
+   * received from the client. Because plugins are lazily discovered, this needs
+   * to be retained so that it can be sent after a plugin has been started.
+   */
+  AnalysisSetSubscriptionsParams _analysisSetSubscriptionsParams;
+
+  /**
+   * The current state of content overlays. Because plugins are lazily
+   * discovered, the state needs to be retained so that it can be sent after a
+   * plugin has been started.
+   */
+  Map<String, dynamic> _overlayState = <String, dynamic>{};
+
+  /**
    * Initialize a newly created plugin manager. The notifications from the
    * running plugins will be handled by the given [notificationManager].
    */
@@ -171,21 +216,36 @@ class PluginManager {
    * yet been started, then it will be started by this method.
    */
   Future<Null> addPluginToContextRoot(
-      ContextRoot contextRoot, String path) async {
+      analyzer.ContextRoot contextRoot, String path) async {
     PluginInfo plugin = _pluginMap[path];
-    if (plugin == null) {
+    bool isNew = plugin == null;
+    if (isNew) {
       List<String> pluginPaths = _pathsFor(path);
+      if (pluginPaths == null) {
+        return;
+      }
       plugin = new PluginInfo(path, pluginPaths[0], pluginPaths[1],
           notificationManager, instrumentationService);
       _pluginMap[path] = plugin;
       if (pluginPaths[0] != null) {
         PluginSession session = await plugin.start(byteStorePath);
-        session.onDone.then((_) {
+        session?.onDone?.then((_) {
           _pluginMap.remove(path);
         });
       }
     }
     plugin.addContextRoot(contextRoot);
+    if (isNew) {
+      if (_analysisSetSubscriptionsParams != null) {
+        plugin.sendRequest(_analysisSetSubscriptionsParams);
+      }
+      if (_overlayState.isNotEmpty) {
+        plugin.sendRequest(new AnalysisUpdateContentParams(_overlayState));
+      }
+      if (_analysisSetPriorityFilesParams != null) {
+        plugin.sendRequest(_analysisSetPriorityFilesParams);
+      }
+    }
   }
 
   /**
@@ -194,12 +254,47 @@ class PluginManager {
    * containing futures that will complete when each of the plugins have sent a
    * response.
    */
-  List<Future<Response>> broadcast(
-      ContextRoot contextRoot, RequestParams params) {
+  Map<PluginInfo, Future<Response>> broadcastRequest(RequestParams params,
+      {analyzer.ContextRoot contextRoot}) {
     List<PluginInfo> plugins = pluginsForContextRoot(contextRoot);
-    return plugins
-        .map((PluginInfo plugin) => plugin.currentSession?.sendRequest(params))
-        .toList();
+    Map<PluginInfo, Future<Response>> responseMap =
+        <PluginInfo, Future<Response>>{};
+    for (PluginInfo plugin in plugins) {
+      responseMap[plugin] = plugin.currentSession?.sendRequest(params);
+    }
+    return responseMap;
+  }
+
+  /**
+   * Broadcast the given [watchEvent] to all of the plugins that are analyzing
+   * in contexts containing the file associated with the event. Return a list
+   * containing futures that will complete when each of the plugins have sent a
+   * response.
+   */
+  Future<List<Future<Response>>> broadcastWatchEvent(
+      watcher.WatchEvent watchEvent) async {
+    String filePath = watchEvent.path;
+
+    /**
+     * Return `true` if the given glob [pattern] matches the file being watched.
+     */
+    bool matches(String pattern) =>
+        new Glob(path.separator, pattern).matches(filePath);
+
+    WatchEvent event = null;
+    List<Future<Response>> responses = <Future<Response>>[];
+    for (PluginInfo plugin in _pluginMap.values) {
+      PluginSession session = plugin.currentSession;
+      if (session != null &&
+          path.isWithin(plugin.path, filePath) &&
+          session.interestingFiles.any(matches)) {
+        event ??= _convertWatchEvent(watchEvent);
+        AnalysisHandleWatchEventsParams params =
+            new AnalysisHandleWatchEventsParams([event]);
+        responses.add(session.sendRequest(params));
+      }
+    }
+    return responses;
   }
 
   /**
@@ -207,7 +302,10 @@ class PluginManager {
    * given [contextRoot].
    */
   @visibleForTesting
-  List<PluginInfo> pluginsForContextRoot(ContextRoot contextRoot) {
+  List<PluginInfo> pluginsForContextRoot(analyzer.ContextRoot contextRoot) {
+    if (contextRoot == null) {
+      return _pluginMap.values.toList();
+    }
     List<PluginInfo> plugins = <PluginInfo>[];
     for (PluginInfo plugin in _pluginMap.values) {
       if (plugin.contextRoots.contains(contextRoot)) {
@@ -220,7 +318,7 @@ class PluginManager {
   /**
    * The given [contextRoot] is no longer being analyzed.
    */
-  void removedContextRoot(ContextRoot contextRoot) {
+  void removedContextRoot(analyzer.ContextRoot contextRoot) {
     List<PluginInfo> plugins = _pluginMap.values.toList();
     for (PluginInfo plugin in plugins) {
       plugin.removeContextRoot(contextRoot);
@@ -232,10 +330,82 @@ class PluginManager {
   }
 
   /**
+   * Send a request based on the given [params] to existing plugins to set the
+   * priority files to those specified by the [params]. As a side-effect, record
+   * the parameters so that they can be sent to any newly started plugins.
+   */
+  void setAnalysisSetPriorityFilesParams(
+      AnalysisSetPriorityFilesParams params) {
+    for (PluginInfo plugin in _pluginMap.values) {
+      plugin.sendRequest(params);
+    }
+    _analysisSetPriorityFilesParams = params;
+  }
+
+  /**
+   * Send a request based on the given [params] to existing plugins to set the
+   * subscriptions to those specified by the [params]. As a side-effect, record
+   * the parameters so that they can be sent to any newly started plugins.
+   */
+  void setAnalysisSetSubscriptionsParams(
+      AnalysisSetSubscriptionsParams params) {
+    for (PluginInfo plugin in _pluginMap.values) {
+      plugin.sendRequest(params);
+    }
+    _analysisSetSubscriptionsParams = params;
+  }
+
+  /**
+   * Send a request based on the given [params] to existing plugins to set the
+   * content overlays to those specified by the [params]. As a side-effect,
+   * update the overlay state so that it can be sent to any newly started
+   * plugins.
+   */
+  void setAnalysisUpdateContentParams(AnalysisUpdateContentParams params) {
+    for (PluginInfo plugin in _pluginMap.values) {
+      plugin.sendRequest(params);
+    }
+    Map<String, dynamic> files = params.files;
+    for (String file in files.keys) {
+      Object overlay = files[file];
+      if (overlay is RemoveContentOverlay) {
+        _overlayState.remove(file);
+      } else if (overlay is AddContentOverlay) {
+        _overlayState[file] = overlay;
+      } else if (overlay is ChangeContentOverlay) {
+        AddContentOverlay previousOverlay = _overlayState[file];
+        String newContent =
+            SourceEdit.applySequence(previousOverlay.content, overlay.edits);
+        _overlayState[file] = new AddContentOverlay(newContent);
+      } else {
+        throw new ArgumentError(
+            'Invalid class of overlay: ${overlay.runtimeType}');
+      }
+    }
+  }
+
+  /**
    * Stop all of the plugins that are currently running.
    */
   Future<List<Null>> stopAll() {
     return Future.wait(_pluginMap.values.map((PluginInfo info) => info.stop()));
+  }
+
+  WatchEventType _convertChangeType(watcher.ChangeType type) {
+    switch (type) {
+      case watcher.ChangeType.ADD:
+        return WatchEventType.ADD;
+      case watcher.ChangeType.MODIFY:
+        return WatchEventType.MODIFY;
+      case watcher.ChangeType.REMOVE:
+        return WatchEventType.REMOVE;
+      default:
+        throw new StateError('Unknown change type: $type');
+    }
+  }
+
+  WatchEvent _convertWatchEvent(watcher.WatchEvent watchEvent) {
+    return new WatchEvent(_convertChangeType(watchEvent.type), watchEvent.path);
   }
 
   /**
@@ -277,8 +447,9 @@ class PluginManager {
           if (!packagesFile.exists) {
             packagesFile = null;
           }
+        } else {
+          packagesFile = null;
         }
-        packagesFile = null;
       }
       return <String>[pluginFile.path, packagesFile?.path];
     }
@@ -394,6 +565,14 @@ class PluginSession {
    * Handle the given [notification].
    */
   void handleNotification(Notification notification) {
+    if (notification.event == PLUGIN_NOTIFICATION_ERROR) {
+      PluginErrorParams params =
+          new PluginErrorParams.fromNotification(notification);
+      if (params.isFatal) {
+        info.stop();
+        stop();
+      }
+    }
     info.notificationManager.handlePluginNotification(info.path, notification);
   }
 
@@ -468,6 +647,11 @@ class PluginSession {
         info.instrumentationService);
     await channel.listen(handleResponse, handleNotification,
         onDone: handleOnDone, onError: handleOnError);
+    if (channel == null) {
+      // If there is an error when starting the isolate, the channel will invoke
+      // handleOnDone, which will cause `channel` to be set to `null`.
+      return false;
+    }
     Response response = await sendRequest(
         new PluginVersionCheckParams(byteStorePath ?? '', '1.0.0-alpha.0'));
     PluginVersionCheckResult result =

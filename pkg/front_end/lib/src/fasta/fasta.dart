@@ -10,9 +10,11 @@ import 'dart:convert' show JSON;
 
 import 'dart:io' show BytesBuilder, Directory, File, exitCode;
 
-import 'package:kernel/binary/ast_to_binary.dart' show BinaryPrinter;
+import 'package:front_end/physical_file_system.dart';
+import 'package:kernel/binary/ast_to_binary.dart'
+    show LibraryFilteringBinaryPrinter;
 
-import 'package:kernel/kernel.dart' show Program;
+import 'package:kernel/kernel.dart' show Program, Library;
 
 import 'package:kernel/target/targets.dart' show Target, TargetFlags, getTarget;
 
@@ -109,17 +111,26 @@ class CompileTask {
 
   CompileTask(this.c, this.ticker);
 
+  DillTarget createDillTarget(TranslateUri uriTranslator) {
+    return new DillTarget(ticker, uriTranslator);
+  }
+
   KernelTarget createKernelTarget(
-      DillTarget dillTarget, TranslateUri uriTranslator) {
-    return new KernelTarget(dillTarget, uriTranslator, c.uriToSource);
+      DillTarget dillTarget, TranslateUri uriTranslator, bool strongMode) {
+    return new KernelTarget(
+        c.fileSystem, dillTarget, uriTranslator, strongMode, c.uriToSource);
   }
 
   Future<KernelTarget> buildOutline([Uri output]) async {
-    TranslateUri uriTranslator =
-        await TranslateUri.parse(c.options.sdk, c.options.packages);
+    TranslateUri uriTranslator = await TranslateUri.parse(
+        c.fileSystem, c.options.sdk, c.options.packages);
     ticker.logMs("Read packages file");
-    DillTarget dillTarget = new DillTarget(ticker, uriTranslator);
-    KernelTarget kernelTarget = createKernelTarget(dillTarget, uriTranslator);
+    DillTarget dillTarget = createDillTarget(uriTranslator);
+    KernelTarget kernelTarget =
+        createKernelTarget(dillTarget, uriTranslator, c.options.strongMode);
+    if (c.options.strongMode) {
+      print("Note: strong mode support is preliminary and may not work.");
+    }
     Uri platform = c.options.platform;
     if (platform != null) {
       dillTarget.read(platform);
@@ -151,7 +162,8 @@ class CompileTask {
 }
 
 Future<CompilationResult> parseScript(
-    Uri fileName, Uri packages, Uri patchedSdk, bool verbose) async {
+    Uri fileName, Uri packages, Uri patchedSdk,
+    {bool verbose: false, bool strongMode: false}) async {
   try {
     if (!await new File.fromUri(fileName).exists()) {
       return new CompilationResult.error(
@@ -162,16 +174,15 @@ Future<CompilationResult> parseScript(
           formatUnexpected(patchedSdk, -1, "Patched sdk directory not found."));
     }
 
-    Target target = getTarget("vm", new TargetFlags(strongMode: false));
-
     Program program;
-    final uriTranslator = await TranslateUri.parse(null, packages);
-    final Ticker ticker = new Ticker(isVerbose: verbose);
-    final DillTarget dillTarget = new DillTarget(ticker, uriTranslator);
-    dillTarget.read(patchedSdk.resolve('platform.dill'));
-    final KernelTarget kernelTarget =
-        new KernelTarget(dillTarget, uriTranslator);
     try {
+      TranslateUri uriTranslator =
+          await TranslateUri.parse(PhysicalFileSystem.instance, null, packages);
+      final Ticker ticker = new Ticker(isVerbose: verbose);
+      final DillTarget dillTarget = new DillTarget(ticker, uriTranslator);
+      dillTarget.read(patchedSdk.resolve('platform.dill'));
+      final KernelTarget kernelTarget = new KernelTarget(
+          PhysicalFileSystem.instance, dillTarget, uriTranslator, strongMode);
       kernelTarget.read(fileName);
       await dillTarget.writeOutline(null);
       program = await kernelTarget.writeOutline(null);
@@ -185,13 +196,26 @@ Future<CompilationResult> parseScript(
       return new CompilationResult.error(e.format());
     }
 
+    if (program.mainMethod == null) {
+      return new CompilationResult.error("No 'main' method found.");
+    }
+
     // Perform target-specific transformations.
+    Target target = getTarget("vm", new TargetFlags(strongMode: false));
     target.performModularTransformations(program);
     target.performGlobalTransformations(program);
 
-    // Write the program to a list of bytes and return it.
+    // Write the program to a list of bytes and return it.  Do not include
+    // libraries that have a dart: import URI.
+    //
+    // TODO(kmillikin): This is intended to exclude platform libraries that are
+    // included in the Kernel binary platform platform.dill.  It does not
+    // necessarily exclude exactly the platform libraries.  Use a better
+    // predicate that knows what is included in platform.dill.
     var sink = new ByteSink();
-    new BinaryPrinter(sink).writeProgramFile(program);
+    bool predicate(Library library) => !library.importUri.isScheme('dart');
+    new LibraryFilteringBinaryPrinter(sink, predicate)
+        .writeProgramFile(program);
     return new CompilationResult.ok(sink.builder.takeBytes());
   } catch (e, s) {
     return reportCrash(e, s, fileName);
@@ -223,13 +247,13 @@ Future writeDepsFile(Uri script, Uri depsFile, Uri output,
       c.options.options["--verbose"] = true;
     }
 
-    TranslateUri uriTranslator =
-        await TranslateUri.parse(c.options.sdk, c.options.packages);
+    TranslateUri uriTranslator = await TranslateUri.parse(
+        c.fileSystem, c.options.sdk, c.options.packages);
     ticker.logMs("Read packages file");
     DillTarget dillTarget = new DillTarget(ticker, uriTranslator)
       ..read(platform);
-    KernelTarget kernelTarget =
-        new KernelTarget(dillTarget, uriTranslator, c.uriToSource);
+    KernelTarget kernelTarget = new KernelTarget(PhysicalFileSystem.instance,
+        dillTarget, uriTranslator, false, c.uriToSource);
 
     kernelTarget.read(script);
     await dillTarget.writeOutline(null);

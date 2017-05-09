@@ -199,7 +199,6 @@ class StaticTypeAnalyzer extends SimpleAstVisitor<Object> {
 
   ParameterizedType inferMapType(MapLiteral node, {bool downwards: false}) {
     DartType contextType = InferenceContext.getContext(node);
-
     List<DartType> elementTypes;
     List<ParameterElement> parameters;
     if (downwards) {
@@ -229,7 +228,9 @@ class StaticTypeAnalyzer extends SimpleAstVisitor<Object> {
     var ts = _typeSystem as StrongTypeSystemImpl;
     ParameterizedType inferred = ts.inferGenericFunctionOrType(
         _typeProvider.mapType, parameters, elementTypes, contextType,
-        errorReporter: _resolver.errorReporter, errorNode: node);
+        downwards: downwards,
+        errorReporter: _resolver.errorReporter,
+        errorNode: node);
     return inferred;
   }
 
@@ -1947,46 +1948,6 @@ class StaticTypeAnalyzer extends SimpleAstVisitor<Object> {
           argTypes.add(argumentList.arguments[i].staticType);
         }
       }
-
-      // TODO(leafp): remove this again after code has been updated to
-      // use FutureOr on classes that implement Future
-      // Special case Future<T>.then upwards inference. It has signature:
-      //
-      //     <S>(T -> (S | Future<S>)) -> Future<S>
-      //
-      // Based on the first argument type, we'll pick one of these signatures:
-      //
-      //     <S>(T -> S) -> Future<S>
-      //     <S>(T -> Future<S>) -> Future<S>
-      //
-      // ... and finish the inference using that.
-      if (argTypes.isNotEmpty && _resolver.isFutureThen(fnType.element)) {
-        var firstArgType = argTypes[0];
-        var firstParamType = params[0].type;
-        if (firstArgType is FunctionType &&
-            firstParamType is FunctionType &&
-            !firstParamType.returnType.isDartAsyncFutureOr) {
-          var argReturnType = firstArgType.returnType;
-          // Skip the inference if we have the top type. It can only lead to
-          // worse inference. For example, this happens when the lambda returns
-          // S or Future<S> in a conditional.
-          if (!argReturnType.isObject && !argReturnType.isDynamic) {
-            DartType paramReturnType = _typeProvider.futureOrType
-                .instantiate([fnType.typeFormals[0].type]);
-
-            // Adjust the expected parameter type to have this return type.
-            var function = new FunctionElementImpl(firstParamType.name, -1)
-              ..isSynthetic = true
-              ..shareParameters(firstParamType.parameters.toList())
-              ..returnType = paramReturnType;
-            function.type = new FunctionTypeImpl(function);
-            // Use this as the expected 1st parameter type.
-            params[0] = new ParameterElementImpl.synthetic(
-                params[0].name, function.type, params[0].parameterKind);
-          }
-        }
-      }
-
       return ts.inferGenericFunctionOrType(
           fnType, params, argTypes, InferenceContext.getContext(node),
           errorReporter: _resolver.errorReporter, errorNode: errorNode);

@@ -32,6 +32,7 @@ import 'elements/elements.dart'
         PrefixElement,
         ResolvedAstKind,
         TypedefElement;
+import 'elements/entities.dart';
 import 'js_backend/js_backend.dart' show JavaScriptBackend;
 import 'js_backend/backend_usage.dart' show BackendUsage;
 import 'resolution/resolution.dart' show AnalyzableElementX;
@@ -183,6 +184,16 @@ class DeferredLoadTask extends CompilerTask {
     return _elementToOutputUnit[element];
   }
 
+  /// Returns the [OutputUnit] where [element] belongs.
+  OutputUnit outputUnitForClass(ClassElement element) {
+    return outputUnitForElement(element);
+  }
+
+  /// Returns the [OutputUnit] where [element] belongs.
+  OutputUnit outputUnitForMember(MemberElement element) {
+    return outputUnitForElement(element);
+  }
+
   /// Direct access to the output-unit to element relation used for testing.
   OutputUnit getOutputUnitForElementForTesting(Element element) {
     return _elementToOutputUnit[element];
@@ -200,6 +211,10 @@ class DeferredLoadTask extends CompilerTask {
   }
 
   bool isDeferred(Element element) {
+    return outputUnitForElement(element) != mainOutputUnit;
+  }
+
+  bool isDeferredClass(ClassElement element) {
     return outputUnitForElement(element) != mainOutputUnit;
   }
 
@@ -432,7 +447,7 @@ class DeferredLoadTask extends CompilerTask {
 
       ClassElement cls = element.declaration;
       cls.implementation.forEachMember(addLiveInstanceMember);
-      for (var type in cls.implementation.allSupertypes) {
+      for (ResolutionInterfaceType type in cls.implementation.allSupertypes) {
         elements.add(type.element.implementation);
       }
       elements.add(cls.implementation);
@@ -661,13 +676,14 @@ class DeferredLoadTask extends CompilerTask {
     }
   }
 
-  void onResolutionComplete(FunctionElement main) {
+  void onResolutionComplete(FunctionEntity main) {
     if (!isProgramSplit) {
       allOutputUnits.add(mainOutputUnit);
       return;
     }
     if (main == null) return;
-    LibraryElement mainLibrary = main.library;
+    MethodElement mainMethod = main;
+    LibraryElement mainLibrary = mainMethod.library;
     _importedDeferredBy = new Map<_DeferredImport, Set<Element>>();
     _constantsDeferredBy = new Map<_DeferredImport, Set<ConstantValue>>();
     _importedDeferredBy[_fakeMainImport] = _mainElements;
@@ -677,8 +693,7 @@ class DeferredLoadTask extends CompilerTask {
         () => measure(() {
               // Starting from main, traverse the program and find all
               // dependencies.
-              _mapDependencies(
-                  element: compiler.mainFunction, import: _fakeMainImport);
+              _mapDependencies(element: mainMethod, import: _fakeMainImport);
 
               // Also add "global" dependencies to the main OutputUnit.  These
               // are things that the backend needs but cannot associate with a
@@ -771,6 +786,8 @@ class DeferredLoadTask extends CompilerTask {
 
   void beforeResolution(Compiler compiler) {
     if (compiler.mainApp == null) return;
+    // TODO(johnniwinther): Support deferred load for kernel based elements.
+    if (compiler.options.loadFromDill) return;
     _allDeferredImports[_fakeMainImport] = compiler.mainApp;
     var lastDeferred;
     // When detecting duplicate prefixes of deferred libraries there are 4
@@ -927,7 +944,6 @@ class DeferredLoadTask extends CompilerTask {
   /// - <list of files> is a list of the filenames the must be loaded when that
   ///   import is loaded.
   Map<String, Map<String, dynamic>> computeDeferredMap() {
-    JavaScriptBackend backend = compiler.backend;
     Map<String, Map<String, dynamic>> mapping =
         new Map<String, Map<String, dynamic>>();
     _deferredImportDescriptions.keys.forEach((_DeferredImport import) {
@@ -942,10 +958,24 @@ class DeferredLoadTask extends CompilerTask {
 
       libraryMap["imports"][importDeferName[import]] =
           outputUnits.map((OutputUnit outputUnit) {
-        return backend.deferredPartFileName(outputUnit.name);
+        return deferredPartFileName(outputUnit.name);
       }).toList();
     });
     return mapping;
+  }
+
+  /// Returns the filename for the output-unit named [name].
+  ///
+  /// The filename is of the form "<main output file>_<name>.part.js".
+  /// If [addExtension] is false, the ".part.js" suffix is left out.
+  String deferredPartFileName(String name, {bool addExtension: true}) {
+    assert(name != "");
+    String outPath = compiler.options.outputUri != null
+        ? compiler.options.outputUri.path
+        : "out";
+    String outName = outPath.substring(outPath.lastIndexOf('/') + 1);
+    String extension = addExtension ? ".part.js" : "";
+    return "${outName}_$name$extension";
   }
 
   /// Creates a textual representation of the output unit content.
@@ -1050,7 +1080,7 @@ class _DeclaredDeferredImport implements _DeferredImport {
         if (element == compiler.commonElements.deferredLibraryClass) {
           ConstructedConstantValue constant = value;
           StringConstantValue s = constant.fields.values.single;
-          result = s.primitiveValue.slowToString();
+          result = s.primitiveValue;
           break;
         }
       }

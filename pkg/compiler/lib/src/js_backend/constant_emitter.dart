@@ -165,8 +165,7 @@ class ConstantEmitter implements ConstantValueVisitor<jsAst.Expression, Null> {
    */
   @override
   jsAst.Expression visitString(StringConstantValue constant, [_]) {
-    return js.escapedString(constant.primitiveValue.slowToString(),
-        ascii: true);
+    return js.escapedString(constant.primitiveValue, ascii: true);
   }
 
   @override
@@ -271,7 +270,8 @@ class ConstantEmitter implements ConstantValueVisitor<jsAst.Expression, Null> {
   jsAst.Expression visitType(TypeConstantValue constant, [_]) {
     ResolutionDartType type = constant.representedType;
     jsAst.Name typeName = namer.runtimeTypeName(type.element);
-    return new jsAst.Call(getHelperProperty(backend.helpers.createRuntimeType),
+    return new jsAst.Call(
+        getHelperProperty(backend.commonElements.createRuntimeType),
         [js.quoteName(typeName)]);
   }
 
@@ -302,7 +302,7 @@ class ConstantEmitter implements ConstantValueVisitor<jsAst.Expression, Null> {
     ClassElement element = constant.type.element;
     if (backend.isForeign(element) && element.name == 'JS_CONST') {
       StringConstantValue str = constant.fields.values.single;
-      String value = str.primitiveValue.slowToString();
+      String value = str.primitiveValue;
       return new jsAst.LiteralExpression(stripComments(value));
     }
     jsAst.Expression constructor =
@@ -328,7 +328,7 @@ class ConstantEmitter implements ConstantValueVisitor<jsAst.Expression, Null> {
         !type.treatAsRaw &&
         backend.rtiNeed.classNeedsRti(type.element)) {
       return new jsAst.Call(
-          getHelperProperty(backend.helpers.setRuntimeTypeInfo),
+          getHelperProperty(backend.commonElements.setRuntimeTypeInfo),
           [value, _reifiedTypeArguments(type)]);
     }
     return value;
@@ -346,7 +346,8 @@ class ConstantEmitter implements ConstantValueVisitor<jsAst.Expression, Null> {
     List<jsAst.Expression> arguments = <jsAst.Expression>[];
     RuntimeTypesEncoder rtiEncoder = backend.rtiEncoder;
     for (ResolutionDartType argument in type.typeArguments) {
-      arguments.add(rtiEncoder.getTypeRepresentation(argument, unexpected));
+      arguments.add(rtiEncoder.getTypeRepresentation(
+          backend.emitter.emitter, argument, unexpected));
     }
     return new jsAst.ArrayInitializer(arguments);
   }

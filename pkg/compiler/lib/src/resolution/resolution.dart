@@ -270,10 +270,9 @@ class ResolverTask extends CompilerTask {
       ClassElement enclosingClass = element.enclosingClass;
       if (enclosingClass != null) {
         // TODO(johnniwinther): Find another way to obtain mixin uses.
-        Iterable<MixinApplicationElement> mixinUses =
-            world.allMixinUsesOf(enclosingClass);
         ClassElement mixin = enclosingClass;
-        for (MixinApplicationElement mixinApplication in mixinUses) {
+        for (MixinApplicationElement mixinApplication
+            in world.allMixinUsesOf(enclosingClass)) {
           checkMixinSuperUses(resolutionTree, mixinApplication, mixin);
         }
       }
@@ -292,10 +291,17 @@ class ResolverTask extends CompilerTask {
     });
   }
 
+  /// Returns `true` if [element] has been processed by the resolution enqueuer.
+  bool _hasBeenProcessed(MemberElement element) {
+    assert(invariant(element, element == element.analyzableElement.declaration,
+        message: "Unexpected element $element"));
+    return enqueuer.processedEntities.contains(element);
+  }
+
   WorldImpact resolveMethodElement(FunctionElementX element) {
     assert(invariant(element, element.isDeclaration));
     return reporter.withCurrentElement(element, () {
-      if (enqueuer.hasBeenProcessed(element)) {
+      if (_hasBeenProcessed(element)) {
         // TODO(karlklose): Remove the check for [isConstructor]. [elememts]
         // should never be non-null, not even for constructors.
         assert(invariant(element, element.isConstructor,
@@ -770,7 +776,7 @@ class ResolverTask extends CompilerTask {
         // mixin application has been performed.
         // TODO(johnniwinther): Obtain the [TreeElements] for [member]
         // differently.
-        if (resolution.enqueuer.hasBeenProcessed(member)) {
+        if (_hasBeenProcessed(member)) {
           if (member.resolvedAst.kind == ResolvedAstKind.PARSED) {
             checkMixinSuperUses(
                 member.resolvedAst.elements, mixinApplication, mixin);
@@ -803,17 +809,19 @@ class ResolverTask extends CompilerTask {
     // well?
     List<Element> constConstructors = <Element>[];
     List<Element> nonFinalInstanceFields = <Element>[];
-    cls.forEachMember((holder, member) {
+    cls.forEachMember((holder, dynamic member) {
       reporter.withCurrentElement(member, () {
         // Perform various checks as side effect of "computing" the type.
         member.computeType(resolution);
 
         // Check modifiers.
+        // ignore: UNDEFINED_GETTER
         if (member.isFunction && member.modifiers.isFinal) {
           reporter.reportErrorMessage(
               member, MessageKind.ILLEGAL_FINAL_METHOD_MODIFIER);
         }
         if (member.isConstructor) {
+          // ignore: UNDEFINED_GETTER
           final mismatchedFlagsBits = member.modifiers.flags &
               (Modifiers.FLAG_STATIC | Modifiers.FLAG_ABSTRACT);
           if (mismatchedFlagsBits != 0) {
@@ -824,15 +832,18 @@ class ResolverTask extends CompilerTask {
                 MessageKind.ILLEGAL_CONSTRUCTOR_MODIFIERS,
                 {'modifiers': mismatchedFlags});
           }
+          // ignore: UNDEFINED_GETTER
           if (member.modifiers.isConst) {
             constConstructors.add(member);
           }
         }
         if (member.isField) {
+          // ignore: UNDEFINED_GETTER
           if (member.modifiers.isConst && !member.modifiers.isStatic) {
             reporter.reportErrorMessage(
                 member, MessageKind.ILLEGAL_CONST_FIELD_MODIFIER);
           }
+          // ignore: UNDEFINED_GETTER
           if (!member.modifiers.isStatic && !member.modifiers.isFinal) {
             nonFinalInstanceFields.add(member);
           }

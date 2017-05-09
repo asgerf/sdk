@@ -97,19 +97,29 @@ abstract class SummaryResynthesizer extends ElementResynthesizer {
     if (components.length == 1) {
       return getLibraryElement(libraryUri);
     } else if (components.length == 2) {
-      Map<String, CompilationUnitElement> libraryMap =
-          _resynthesizedUnits[libraryUri];
-      if (libraryMap == null) {
-        getLibraryElement(libraryUri);
-        libraryMap = _resynthesizedUnits[libraryUri];
+      LibraryElement libraryElement = getLibraryElement(libraryUri);
+      // Try to find the unit element.
+      {
+        Map<String, CompilationUnitElement> libraryMap =
+            _resynthesizedUnits[libraryUri];
         assert(libraryMap != null);
+        String unitUri = components[1];
+        CompilationUnitElement unitElement = libraryMap[unitUri];
+        if (unitElement != null) {
+          return unitElement;
+        }
       }
-      String unitUri = components[1];
-      CompilationUnitElement element = libraryMap[unitUri];
-      if (element == null) {
-        throw new Exception('Unit element not found in summary: $location');
+      // Try to find the prefix element.
+      {
+        String name = components[1];
+        for (PrefixElement prefix in libraryElement.prefixes) {
+          if (prefix.name == name) {
+            return prefix;
+          }
+        }
       }
-      return element;
+      // Fail.
+      throw new Exception('The element not found in summary: $location');
     } else if (components.length == 3 || components.length == 4) {
       String unitUri = components[1];
       // Prepare elements-in-units in the library.
@@ -213,13 +223,13 @@ abstract class SummaryResynthesizer extends ElementResynthesizer {
       List<UnlinkedUnit> serializedUnits = <UnlinkedUnit>[unlinkedSummary];
       for (String part in serializedUnits[0].publicNamespace.parts) {
         Source partSource = sourceFactory.resolveUri(librarySource, part);
-        if (partSource == null) {
-          serializedUnits.add(null);
-        } else {
+        UnlinkedUnit partUnlinkedUnit;
+        if (partSource != null) {
           String partAbsUri = partSource.uri.toString();
-          serializedUnits.add(getUnlinkedSummary(partAbsUri) ??
-              new UnlinkedUnitBuilder(codeRange: new CodeRangeBuilder()));
+          partUnlinkedUnit = getUnlinkedSummary(partAbsUri);
         }
+        serializedUnits.add(partUnlinkedUnit ??
+            new UnlinkedUnitBuilder(codeRange: new CodeRangeBuilder()));
       }
       _LibraryResynthesizer libraryResynthesizer = new _LibraryResynthesizer(
           this, serializedLibrary, serializedUnits, librarySource);
@@ -584,8 +594,7 @@ class _ConstExprBuilder {
    */
   TypeAnnotation _newTypeName() {
     EntityRef typeRef = uc.references[refPtr++];
-    DartType type =
-        resynthesizer.buildType(typeRef, context?.typeParameterContext);
+    DartType type = resynthesizer.buildType(context, typeRef);
     return _buildTypeAst(type);
   }
 
@@ -633,7 +642,7 @@ class _ConstExprBuilder {
         return;
       }
       InterfaceType definingType = resynthesizer._createConstructorDefiningType(
-          context?.typeParameterContext, info, ref.typeArguments);
+          context, info, ref.typeArguments);
       constructorElement =
           resynthesizer._getConstructorForInfo(definingType, info);
       typeNode = _buildTypeAst(definingType);
@@ -938,6 +947,9 @@ class _LibraryResynthesizer {
       case ReferenceKind.typedef:
         return new FunctionTypeAliasElementHandle(
             summaryResynthesizer, location);
+      case ReferenceKind.genericFunctionTypedef:
+        return new GenericTypeAliasElementHandle(
+            summaryResynthesizer, location);
       case ReferenceKind.topLevelFunction:
         return new FunctionElementHandle(summaryResynthesizer, location);
       case ReferenceKind.topLevelPropertyAccessor:
@@ -1037,9 +1049,6 @@ class _LibraryResynthesizer {
       String uri, UnlinkedPart partDecl, int unitNum) {
     Source unitSource =
         summaryResynthesizer.sourceFactory.resolveUri(librarySource, uri);
-    if (unitSource == null) {
-      return null;
-    }
     _UnitResynthesizer partResynthesizer =
         createUnitResynthesizer(unitNum, unitSource, partDecl);
     CompilationUnitElementImpl partUnit = partResynthesizer.unit;
@@ -1101,10 +1110,13 @@ class _LibraryResynthesizer {
   /**
    * Remember the absolute URI to the corresponding unit mapping.
    */
-  void rememberUriToUnit(_UnitResynthesizer unitResynthesized) {
-    CompilationUnitElementImpl unit = unitResynthesized.unit;
-    String absoluteUri = unit.source.uri.toString();
-    resynthesizedUnits[absoluteUri] = unit;
+  void rememberUriToUnit(_UnitResynthesizer unitResynthesizer) {
+    CompilationUnitElementImpl unit = unitResynthesizer.unit;
+    Source source = unit.source;
+    if (source != null) {
+      String absoluteUri = source.uri.toString();
+      resynthesizedUnits[absoluteUri] = unit;
+    }
   }
 }
 
@@ -1209,13 +1221,16 @@ class _ReferenceInfo {
    * If this reference refers to a non-generic type, the type it refers to.
    * Otherwise `null`.
    */
-  DartType type;
+  DartType _type;
 
   /**
    * The number of type parameters accepted by the entity referred to by this
    * reference, or zero if it doesn't accept any type parameters.
    */
   final int numTypeParameters;
+
+  bool _isBeingInstantiatedToBounds = false;
+  bool _isRecursiveWhileInstantiateToBounds = false;
 
   /**
    * Create a new [_ReferenceInfo] object referring to an element called [name]
@@ -1235,11 +1250,23 @@ class _ReferenceInfo {
       DartType specialType,
       this.numTypeParameters) {
     if (specialType != null) {
-      type = specialType;
-    } else {
-      type = _buildType(true, 0, (_) => DynamicTypeImpl.instance, const []);
+      _type = specialType;
     }
   }
+
+  /**
+   * If this reference refers to a non-generic type, the type it refers to.
+   * Otherwise `null`.
+   */
+  DartType get type {
+    if (_type == null) {
+      _type = _buildType(true, 0, (_) => DynamicTypeImpl.instance, const []);
+    }
+    return _type;
+  }
+
+  List<DartType> get _dynamicTypeArguments =>
+      new List<DartType>.filled(numTypeParameters, DynamicTypeImpl.instance);
 
   /**
    * Build a [DartType] corresponding to the result of applying some type
@@ -1301,8 +1328,7 @@ class _ReferenceInfo {
                 .instantiateToBounds(element.type) as InterfaceType;
             return instantiatedToBounds.typeArguments;
           } else {
-            return new List<DartType>.filled(
-                numTypeParameters, DynamicTypeImpl.instance);
+            return _dynamicTypeArguments;
           }
         }
         return typeArguments;
@@ -1314,6 +1340,11 @@ class _ReferenceInfo {
       }
       // Done.
       return type;
+    } else if (element is GenericTypeAliasElementHandle) {
+      GenericTypeAliasElementImpl actualElement = element.actualElement;
+      List<DartType> argumentTypes =
+          new List.generate(numTypeArguments, getTypeArgument);
+      return actualElement.typeAfterSubstitution(argumentTypes);
     } else if (element is FunctionTypedElement) {
       if (element is FunctionTypeAliasElementHandle) {
         List<DartType> typeArguments;
@@ -1322,13 +1353,27 @@ class _ReferenceInfo {
               _buildTypeArguments(numTypeArguments, getTypeArgument);
         } else if (libraryResynthesizer.summaryResynthesizer.strongMode &&
             instantiateToBoundsAllowed) {
-          FunctionType instantiatedToBounds = libraryResynthesizer
-              .summaryResynthesizer.context.typeSystem
-              .instantiateToBounds(element.type) as FunctionType;
-          typeArguments = instantiatedToBounds.typeArguments;
+          if (!_isBeingInstantiatedToBounds) {
+            _isBeingInstantiatedToBounds = true;
+            _isRecursiveWhileInstantiateToBounds = false;
+            try {
+              FunctionType instantiatedToBounds = libraryResynthesizer
+                  .summaryResynthesizer.context.typeSystem
+                  .instantiateToBounds(element.type) as FunctionType;
+              if (!_isRecursiveWhileInstantiateToBounds) {
+                typeArguments = instantiatedToBounds.typeArguments;
+              } else {
+                typeArguments = _dynamicTypeArguments;
+              }
+            } finally {
+              _isBeingInstantiatedToBounds = false;
+            }
+          } else {
+            _isRecursiveWhileInstantiateToBounds = true;
+            typeArguments = _dynamicTypeArguments;
+          }
         } else {
-          typeArguments = new List<DartType>.filled(
-              numTypeParameters, DynamicTypeImpl.instance);
+          typeArguments = _dynamicTypeArguments;
         }
         return new FunctionTypeImpl.elementWithNameAndArgs(
             element, name, typeArguments, numTypeParameters != 0);
@@ -1421,24 +1466,21 @@ class _ResynthesizerContext implements ResynthesizerContext {
 
   @override
   ConstructorElement resolveConstructorRef(
-      TypeParameterizedElementMixin typeParameterContext, EntityRef entry) {
-    return _unitResynthesizer._getConstructorForEntry(
-        typeParameterContext, entry);
+      ElementImpl context, EntityRef entry) {
+    return _unitResynthesizer._getConstructorForEntry(context, entry);
   }
 
   @override
-  DartType resolveLinkedType(
-      int slot, TypeParameterizedElementMixin typeParameterContext) {
-    return _unitResynthesizer.buildLinkedType(slot, typeParameterContext);
+  DartType resolveLinkedType(ElementImpl context, int slot) {
+    return _unitResynthesizer.buildLinkedType(context, slot);
   }
 
   @override
-  DartType resolveTypeRef(
-      EntityRef type, TypeParameterizedElementMixin typeParameterContext,
+  DartType resolveTypeRef(ElementImpl context, EntityRef type,
       {bool defaultVoid: false,
       bool instantiateToBoundsAllowed: true,
       bool declaredType: false}) {
-    return _unitResynthesizer.buildType(type, typeParameterContext,
+    return _unitResynthesizer.buildType(context, type,
         defaultVoid: defaultVoid,
         instantiateToBoundsAllowed: instantiateToBoundsAllowed,
         declaredType: declaredType);
@@ -1512,7 +1554,7 @@ class _UnitResynthesizer {
         _resynthesizerContext,
         unlinkedUnit,
         unlinkedPart,
-        unitSource.shortName);
+        unitSource?.shortName);
 
     {
       List<int> lineStarts = unlinkedUnit.lineStarts;
@@ -1607,8 +1649,7 @@ class _UnitResynthesizer {
    * Build the appropriate [DartType] object corresponding to a slot id in the
    * [LinkedUnit.types] table.
    */
-  DartType buildLinkedType(
-      int slot, TypeParameterizedElementMixin typeParameterContext) {
+  DartType buildLinkedType(ElementImpl context, int slot) {
     if (slot == 0) {
       // A slot id of 0 means there is no [DartType] object to build.
       return null;
@@ -1619,7 +1660,7 @@ class _UnitResynthesizer {
       // stored in this slot.
       return null;
     }
-    return buildType(type, typeParameterContext);
+    return buildType(context, type);
   }
 
   /**
@@ -1628,8 +1669,7 @@ class _UnitResynthesizer {
    * deserialized, so handles are used to avoid having to deserialize other
    * libraries in the process.
    */
-  DartType buildType(
-      EntityRef type, TypeParameterizedElementMixin typeParameterContext,
+  DartType buildType(ElementImpl context, EntityRef type,
       {bool defaultVoid: false,
       bool instantiateToBoundsAllowed: true,
       bool declaredType: false}) {
@@ -1641,20 +1681,20 @@ class _UnitResynthesizer {
       }
     }
     if (type.paramReference != 0) {
-      return typeParameterContext.getTypeParameterType(type.paramReference);
+      return context.typeParameterContext
+          .getTypeParameterType(type.paramReference);
     } else if (type.entityKind == EntityRefKind.genericFunctionType) {
       GenericFunctionTypeElement element =
-          new GenericFunctionTypeElementImpl.forSerialized(
-              type, typeParameterContext);
+          new GenericFunctionTypeElementImpl.forSerialized(context, type);
       return element.type;
     } else if (type.syntheticReturnType != null) {
       FunctionElementImpl element =
-          new FunctionElementImpl_forLUB(unit, typeParameterContext, type);
+          new FunctionElementImpl_forLUB(context, type);
       return element.type;
     } else {
       DartType getTypeArgument(int i) {
         if (i < type.typeArguments.length) {
-          return buildType(type.typeArguments[i], typeParameterContext,
+          return buildType(context, type.typeArguments[i],
               declaredType: declaredType);
         } else {
           return DynamicTypeImpl.instance;
@@ -1794,6 +1834,12 @@ class _UnitResynthesizer {
           locationComponents =
               libraryResynthesizer.getReferencedLocationComponents(
                   linkedReference.dependency, linkedReference.unit, identifier);
+          if (linkedReference.kind == ReferenceKind.prefix) {
+            locationComponents = <String>[
+              locationComponents[0],
+              locationComponents[2]
+            ];
+          }
         }
         if (!_resynthesizerContext.isStrongMode &&
             locationComponents.length == 3 &&
@@ -1839,6 +1885,11 @@ class _UnitResynthesizer {
                 summaryResynthesizer, location);
             isDeclarableType = true;
             break;
+          case ReferenceKind.genericFunctionTypedef:
+            element = new GenericTypeAliasElementHandle(
+                summaryResynthesizer, location);
+            isDeclarableType = true;
+            break;
           case ReferenceKind.variable:
             Element enclosingElement = enclosingInfo.element;
             if (enclosingElement is ExecutableElement) {
@@ -1862,6 +1913,8 @@ class _UnitResynthesizer {
             }
             break;
           case ReferenceKind.prefix:
+            element = new PrefixElementHandle(summaryResynthesizer, location);
+            break;
           case ReferenceKind.unresolved:
             break;
         }
@@ -1898,18 +1951,15 @@ class _UnitResynthesizer {
    * [typeArgumentRefs] to the given linked [info].  Return [DynamicTypeImpl]
    * if the [info] is unresolved.
    */
-  DartType _createConstructorDefiningType(
-      TypeParameterizedElementMixin typeParameterContext,
-      _ReferenceInfo info,
-      List<EntityRef> typeArgumentRefs) {
+  DartType _createConstructorDefiningType(ElementImpl context,
+      _ReferenceInfo info, List<EntityRef> typeArgumentRefs) {
     bool isClass = info.element is ClassElement;
     _ReferenceInfo classInfo = isClass ? info : info.enclosing;
     if (classInfo == null) {
       return DynamicTypeImpl.instance;
     }
-    List<DartType> typeArguments = typeArgumentRefs
-        .map((t) => buildType(t, typeParameterContext))
-        .toList();
+    List<DartType> typeArguments =
+        typeArgumentRefs.map((t) => buildType(context, t)).toList();
     return classInfo.buildType(true, typeArguments.length, (i) {
       if (i < typeArguments.length) {
         return typeArguments[i];
@@ -1923,10 +1973,10 @@ class _UnitResynthesizer {
    * Return the [ConstructorElement] corresponding to the given [entry].
    */
   ConstructorElement _getConstructorForEntry(
-      TypeParameterizedElementMixin typeParameterContext, EntityRef entry) {
+      ElementImpl context, EntityRef entry) {
     _ReferenceInfo info = getReferenceInfo(entry.reference);
-    DartType type = _createConstructorDefiningType(
-        typeParameterContext, info, entry.typeArguments);
+    DartType type =
+        _createConstructorDefiningType(context, info, entry.typeArguments);
     if (type is InterfaceType) {
       return _getConstructorForInfo(type, info);
     }

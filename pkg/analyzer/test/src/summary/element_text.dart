@@ -262,7 +262,7 @@ class _ElementWriter {
   void writeExportElement(ExportElement e) {
     writeMetadata(e, '', '\n');
     buffer.write('export ');
-    writeUri(e, e.exportedLibrary.source);
+    writeUri(e, e.exportedLibrary?.source);
 
     e.combinators.forEach(writeNamespaceCombinator);
 
@@ -442,13 +442,26 @@ class _ElementWriter {
     writeDocumentation(e);
     writeMetadata(e, '', '\n');
 
-    buffer.write('typedef ');
-    writeType2(e.returnType);
+    if (e is GenericTypeAliasElement) {
+      buffer.write('typedef ');
+      writeName(e);
+      writeTypeParameterElements(e.typeParameters);
 
-    writeName(e);
+      buffer.write(' = ');
 
-    writeTypeParameterElements(e.typeParameters);
-    writeParameterElements(e.parameters);
+      writeType(e.function.returnType);
+      buffer.write(' Function');
+      writeTypeParameterElements(e.function.typeParameters);
+      writeParameterElements(e.function.parameters);
+    } else {
+      buffer.write('typedef ');
+      writeType2(e.returnType);
+
+      writeName(e);
+
+      writeTypeParameterElements(e.typeParameters);
+      writeParameterElements(e.parameters);
+    }
 
     buffer.writeln(';');
   }
@@ -463,7 +476,7 @@ class _ElementWriter {
     if (!e.isSynthetic) {
       writeMetadata(e, '', '\n');
       buffer.write('import ');
-      writeUri(e, e.importedLibrary.source);
+      writeUri(e, e.importedLibrary?.source);
 
       writeIf(e.isDeferred, ' deferred');
 
@@ -745,7 +758,7 @@ class _ElementWriter {
   void writeUnitElement(CompilationUnitElement e) {
     if (e.library.definingCompilationUnit != e) {
       buffer.writeln('-' * 20);
-      buffer.writeln('unit: ${e.source.shortName}');
+      buffer.writeln('unit: ${e.source?.shortName}');
       buffer.writeln();
     }
     e.functionTypeAliases.forEach(writeFunctionTypeAliasElement);
@@ -794,8 +807,10 @@ class _ElementWriter {
 
     ElementLocation location = element.location;
     List<String> components = location.components.toList();
-    if (components.length > 2) {
+    if (components.length >= 1) {
       components[0] = onlyName(components[0]);
+    }
+    if (components.length >= 2) {
       components[1] = onlyName(components[1]);
       if (components[0] == components[1]) {
         components.removeAt(0);

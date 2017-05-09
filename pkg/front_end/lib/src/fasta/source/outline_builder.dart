@@ -28,8 +28,7 @@ import 'source_library_builder.dart' show SourceLibraryBuilder;
 
 import 'unhandled_listener.dart' show NullValue, Unhandled, UnhandledListener;
 
-import '../parser/dart_vm_native.dart'
-    show removeNativeClause, skipNativeClause;
+import '../parser/dart_vm_native.dart' show removeNativeClause;
 
 import '../operator.dart'
     show
@@ -437,10 +436,6 @@ class OutlineBuilder extends UnhandledListener {
     List<TypeVariableBuilder> typeVariables = pop();
     int charOffset = pop();
     String name = pop();
-    if (typeVariables != null && mixinApplication is MixinApplicationBuilder) {
-      mixinApplication.typeVariables = typeVariables;
-      mixinApplication.subclassName = name;
-    }
     int modifiers = Modifier.validate(pop());
     List<MetadataBuilder> metadata = pop();
     library.addNamedMixinApplication(metadata, name, typeVariables, modifiers,
@@ -653,11 +648,11 @@ class OutlineBuilder extends UnhandledListener {
   @override
   void endTopLevelFields(int count, Token beginToken, Token endToken) {
     debugEvent("endTopLevelFields");
-    List namesAndOffsets = popList(count * 2);
+    List namesOffsetsAndInitializers = popList(count * 4);
     TypeBuilder type = pop();
     int modifiers = Modifier.validate(pop());
     List<MetadataBuilder> metadata = pop();
-    library.addFields(metadata, modifiers, type, namesAndOffsets);
+    library.addFields(metadata, modifiers, type, namesOffsetsAndInitializers);
     checkEmpty(beginToken.charOffset);
   }
 
@@ -665,11 +660,11 @@ class OutlineBuilder extends UnhandledListener {
   void endFields(
       int count, Token covariantToken, Token beginToken, Token endToken) {
     debugEvent("Fields");
-    List namesAndOffsets = popList(count * 2);
+    List namesOffsetsAndInitializers = popList(count * 4);
     TypeBuilder type = pop();
     int modifiers = Modifier.validate(pop());
     List<MetadataBuilder> metadata = pop();
-    library.addFields(metadata, modifiers, type, namesAndOffsets);
+    library.addFields(metadata, modifiers, type, namesOffsetsAndInitializers);
   }
 
   @override
@@ -751,14 +746,17 @@ class OutlineBuilder extends UnhandledListener {
   }
 
   @override
-  void endFieldInitializer(Token assignmentOperator) {
+  void endFieldInitializer(Token assignmentOperator, Token token) {
     debugEvent("FieldInitializer");
-    // Ignoring field initializers for now.
+    push(assignmentOperator.next);
+    push(token);
   }
 
   @override
   void handleNoFieldInitializer(Token token) {
     debugEvent("NoFieldInitializer");
+    push(NullValue.FieldInitializer);
+    push(NullValue.FieldInitializer);
   }
 
   @override
@@ -805,9 +803,10 @@ class OutlineBuilder extends UnhandledListener {
   @override
   Token handleUnrecoverableError(Token token, FastaMessage message) {
     if (isDartLibrary && message.code == codeExpectedBlockToSkip) {
-      Token recover = skipNativeClause(token);
+      var target = library.loader.target;
+      Token recover = target.skipNativeClause(token);
       if (recover != null) {
-        nativeMethodName = unescapeString(token.next.lexeme);
+        nativeMethodName = target.extractNativeMethodName(token);
         return recover;
       }
     }

@@ -86,7 +86,7 @@ class Command {
     builder.addJson(displayName);
   }
 
-  bool _equal(Command other) =>
+  bool _equal(covariant Command other) =>
       hashCode == other.hashCode && displayName == other.displayName;
 
   String toString() => reproductionCommand;
@@ -236,8 +236,7 @@ class KernelCompilationCommand extends CompilationCommand {
       List<String> arguments,
       Map<String, String> environmentOverrides)
       : super._(displayName, outputFile, neverSkipCompilation,
-                bootstrapDependencies, executable, arguments,
-                environmentOverrides);
+            bootstrapDependencies, executable, arguments, environmentOverrides);
 
   int get maxNumRetries => 1;
 }
@@ -266,13 +265,14 @@ class ContentShellCommand extends ProcessCommand {
   // Cache the modified environments in a map from the old environment and
   // the string of Dart flags to the new environment.  Avoid creating new
   // environment object for each command object.
-  static Map<AddFlagsKey, Map> environments = new Map<AddFlagsKey, Map>();
+  static Map<AddFlagsKey, Map> environments = <AddFlagsKey, Map>{};
 
-  static Map _getEnvironment(Map env, List<String> dartFlags) {
+  static Map<String, String> _getEnvironment(
+      Map<String, String> env, List<String> dartFlags) {
     var needDartFlags = dartFlags != null && dartFlags.length > 0;
     if (needDartFlags) {
       if (env == null) {
-        env = const {};
+        env = const <String, String>{};
       }
       var flags = dartFlags.join(' ');
       return environments.putIfAbsent(
@@ -284,7 +284,7 @@ class ContentShellCommand extends ProcessCommand {
   }
 
   static List<String> _getArguments(List<String> options, String htmlFile) {
-    var arguments = new List.from(options);
+    var arguments = options.toList();
     arguments.add(htmlFile);
     return arguments;
   }
@@ -300,8 +300,8 @@ class BrowserTestCommand extends Command {
 
   BrowserTestCommand._(
       String _browser, this.url, this.configuration, this.retry)
-      : super._(_browser),
-        browser = _browser;
+      : browser = _browser,
+        super._(_browser);
 
   void _buildHashCode(HashCodeBuilder builder) {
     super._buildHashCode(builder);
@@ -374,14 +374,14 @@ class VmBatchCommand extends ProcessCommand implements VmCommand {
   final bool checked;
 
   VmBatchCommand._(String executable, String dartFile, List<String> arguments,
-      Map<String, String> environmentOverrides, {this.checked: true})
+      Map<String, String> environmentOverrides,
+      {this.checked: true})
       : this.dartFile = dartFile,
         super._('vm-batch', executable, arguments, environmentOverrides);
 
   @override
-  List<String> get batchArguments => checked
-      ? ['--checked', dartFile]
-      : [dartFile];
+  List<String> get batchArguments =>
+      checked ? ['--checked', dartFile] : [dartFile];
 
   @override
   bool _equal(VmBatchCommand other) {
@@ -405,11 +405,12 @@ class AdbPrecompilationCommand extends Command {
   final List<String> arguments;
   final bool useBlobs;
 
-  AdbPrecompilationCommand._(this.precompiledRunnerFilename,
-                             this.processTestFilename,
-                             this.precompiledTestDirectory,
-                             this.arguments,
-                             this.useBlobs)
+  AdbPrecompilationCommand._(
+      this.precompiledRunnerFilename,
+      this.processTestFilename,
+      this.precompiledTestDirectory,
+      this.arguments,
+      this.useBlobs)
       : super._("adb_precompilation");
 
   void _buildHashCode(HashCodeBuilder builder) {
@@ -443,13 +444,13 @@ class PubCommand extends ProcessCommand {
 
   PubCommand._(String pubCommand, String pubExecutable,
       String pubspecYamlDirectory, String pubCacheDirectory, List<String> args)
-      : super._(
+      : command = pubCommand,
+        super._(
             'pub_$pubCommand',
             new io.File(pubExecutable).absolute.path,
             [pubCommand]..addAll(args),
             {'PUB_CACHE': pubCacheDirectory},
-            pubspecYamlDirectory),
-        command = pubCommand;
+            pubspecYamlDirectory);
 
   void _buildHashCode(HashCodeBuilder builder) {
     super._buildHashCode(builder);
@@ -648,17 +649,18 @@ class CommandBuilder {
   VmBatchCommand getVmBatchCommand(String executable, String tester,
       List<String> arguments, Map<String, String> environmentOverrides,
       {bool checked: true}) {
-    var command =
-        new VmBatchCommand._(executable, tester, arguments, environmentOverrides,
-            checked: checked);
+    var command = new VmBatchCommand._(
+        executable, tester, arguments, environmentOverrides,
+        checked: checked);
     return _getUniqueCommand(command);
   }
 
-  AdbPrecompilationCommand getAdbPrecompiledCommand(String precompiledRunner,
-                                                    String processTest,
-                                                    String testDirectory,
-                                                    List<String> arguments,
-                                                    bool useBlobs) {
+  AdbPrecompilationCommand getAdbPrecompiledCommand(
+      String precompiledRunner,
+      String processTest,
+      String testDirectory,
+      List<String> arguments,
+      bool useBlobs) {
     var command = new AdbPrecompilationCommand._(
         precompiledRunner, processTest, testDirectory, arguments, useBlobs);
     return _getUniqueCommand(command);
@@ -687,9 +689,8 @@ class CommandBuilder {
   Command getPubCommand(String pubCommand, String pubExecutable,
       String pubspecYamlDirectory, String pubCacheDirectory,
       {List<String> arguments: const <String>[]}) {
-    var command = new PubCommand._(
-        pubCommand, pubExecutable, pubspecYamlDirectory, pubCacheDirectory,
-        arguments);
+    var command = new PubCommand._(pubCommand, pubExecutable,
+        pubspecYamlDirectory, pubCacheDirectory, arguments);
     return _getUniqueCommand(command);
   }
 
@@ -918,7 +919,7 @@ abstract class CommandOutput {
 
   bool get hasTimedOut;
 
-  bool didFail(testcase);
+  bool didFail(TestCase testCase);
 
   bool hasFailed(TestCase testCase);
 
@@ -1072,9 +1073,9 @@ class BrowserCommandOutputImpl extends CommandOutputImpl {
 
   BrowserCommandOutputImpl(
       command, exitCode, timedOut, stdout, stderr, time, compilationSkipped)
-      : super(command, exitCode, timedOut, stdout, stderr, time,
-            compilationSkipped, 0),
-        _infraFailure = _failedBecauseOfFlakyInfrastructure(stderr);
+      : _infraFailure = _failedBecauseOfFlakyInfrastructure(stderr),
+        super(command, exitCode, timedOut, stdout, stderr, time,
+            compilationSkipped, 0);
 
   Expectation result(TestCase testCase) {
     // Handle crashes and timeouts first
@@ -1459,7 +1460,7 @@ class AnalysisCommandOutputImpl extends CommandOutputImpl {
   }
 
   void parseAnalyzerOutput(List<String> outErrors, List<String> outWarnings) {
-    // Parse a line delimited by the | character using \ as an escape charager
+    // Parse a line delimited by the | character using \ as an escape character
     // like:  FOO|BAR|FOO\|BAR|FOO\\BAZ as 4 fields: FOO BAR FOO|BAR FOO\BAZ
     List<String> splitMachineError(String line) {
       StringBuffer field = new StringBuffer();
@@ -1610,11 +1611,15 @@ class CompilationCommandOutputImpl extends CommandOutputImpl {
 
 class KernelCompilationCommandOutputImpl extends CompilationCommandOutputImpl {
   KernelCompilationCommandOutputImpl(
-      Command command, int exitCode, bool timedOut,
-      List<int> stdout, List<int> stderr,
-      Duration time, bool compilationSkipped)
+      Command command,
+      int exitCode,
+      bool timedOut,
+      List<int> stdout,
+      List<int> stderr,
+      Duration time,
+      bool compilationSkipped)
       : super(command, exitCode, timedOut, stdout, stderr, time,
-              compilationSkipped);
+            compilationSkipped);
 
   bool get canRunDependendCommands {
     // See [BatchRunnerProcess]: 0 means success, 1 means compile-time error.
@@ -1784,16 +1789,16 @@ class OutputLog {
       ? tail.sublist(tail.length - TAIL_LENGTH)
       : tail;
 
-
   void _checkUtf8(List<int> data) {
     try {
       UTF8.decode(data, allowMalformed: false);
-    } on FormatException catch (e) {
+    } on FormatException {
       hasNonUtf8 = true;
       String malformed = UTF8.decode(data, allowMalformed: true);
-      data..clear()
-          ..addAll(UTF8.encode(malformed))
-          ..addAll("""
+      data
+        ..clear()
+        ..addAll(UTF8.encode(malformed))
+        ..addAll("""
 
   *****************************************************************************
 
@@ -1802,10 +1807,9 @@ class OutputLog {
   *****************************************************************************
 
   """
-          .codeUnits);
+            .codeUnits);
     }
   }
-
 
   List<int> toList() {
     if (complete == null) {
@@ -1840,14 +1844,19 @@ Future<List<int>> _getPidList(pid, diagnostics) async {
   var lines;
   var start_line = 0;
   if (io.Platform.isLinux || io.Platform.isMacOS) {
-    var result = await io.Process.run("pgrep",
-        ["-P", "${pid_list[0]}"],
-        runInShell: true);
+    var result = await io.Process
+        .run("pgrep", ["-P", "${pid_list[0]}"], runInShell: true);
     lines = result.stdout.split('\n');
   } else if (io.Platform.isWindows) {
-    var result = await io.Process.run("wmic",
-        ["process", "where" , "(ParentProcessId=${pid_list[0]})",
-         "get", "ProcessId"],
+    var result = await io.Process.run(
+        "wmic",
+        [
+          "process",
+          "where",
+          "(ParentProcessId=${pid_list[0]})",
+          "get",
+          "ProcessId"
+        ],
         runInShell: true);
     lines = result.stdout.split('\n');
     // Skip first line containing header "ProcessId".
@@ -1891,9 +1900,7 @@ class RunningProcess {
   Completer<CommandOutput> completer;
   Map configuration;
 
-  RunningProcess(this.command,
-                 this.timeout,
-                 {this.configuration});
+  RunningProcess(this.command, this.timeout, {this.configuration});
 
   Future<CommandOutput> run() {
     completer = new Completer<CommandOutput>();
@@ -1910,8 +1917,7 @@ class RunningProcess {
       } else {
         var processEnvironment = _createProcessEnvironment();
         var args = command.arguments;
-        Future processFuture = io.Process.start(
-            command.executable, args,
+        Future processFuture = io.Process.start(command.executable, args,
             environment: processEnvironment,
             workingDirectory: command.workingDirectory);
         processFuture.then((io.Process process) {
@@ -1941,6 +1947,7 @@ class RunningProcess {
               }
             }
           }
+
           closeStderr([_]) {
             if (!stderrDone) {
               stderrCompleter.complete();
@@ -1968,18 +1975,20 @@ class RunningProcess {
                 executable = '/usr/bin/sample';
               } else if (io.Platform.isWindows) {
                 bool is_x64 = command.executable.contains("X64") ||
-                              command.executable.contains("SIMARM64");
+                    command.executable.contains("SIMARM64");
                 var win_sdk_path = configuration['win_sdk_path'];
                 if (win_sdk_path != null) {
                   executable = win_sdk_path +
-                      "\\Debuggers\\" + (is_x64 ? "x64" : "x86") + "\\cdb.exe";
+                      "\\Debuggers\\" +
+                      (is_x64 ? "x64" : "x86") +
+                      "\\cdb.exe";
                   diagnostics.add("Using $executable to print stack traces");
                 } else {
                   diagnostics.add("win_sdk path not found");
                 }
               } else {
                 diagnostics.add("Capturing stack traces on"
-                                "${io.Platform.operatingSystem} not supported");
+                    "${io.Platform.operatingSystem} not supported");
               }
               if (executable != null) {
                 var pid_list = await _getPidList(process.pid, diagnostics);
@@ -2100,7 +2109,7 @@ class RunningProcess {
   }
 }
 
-class BatchRunnerProcess  {
+class BatchRunnerProcess {
   Completer<CommandOutput> _completer;
   ProcessCommand _command;
   List<String> _arguments;
@@ -2225,6 +2234,7 @@ class BatchRunnerProcess  {
         _process = null;
       }
     }
+
     return handler;
   }
 
@@ -2236,7 +2246,8 @@ class BatchRunnerProcess  {
   _startProcess(callback) {
     assert(_command is ProcessCommand);
     var executable = _command.executable;
-    var arguments = []..addAll(_command.batchArguments)..add('--batch');
+    var arguments = _command.batchArguments.toList();
+    arguments.add('--batch');
     var environment = new Map.from(io.Platform.environment);
     if (_processEnvironmentOverrides != null) {
       for (var key in _processEnvironmentOverrides.keys) {
@@ -2345,14 +2356,14 @@ class TestCaseEnqueuer {
     void newTest(TestCase testCase) {
       remainingTestCases.add(testCase);
 
-      var lastNode;
+      dgraph.Node lastNode;
       for (var command in testCase.commands) {
         // Make exactly *one* node in the dependency graph for every command.
         // This ensures that we never have two commands c1 and c2 in the graph
         // with "c1 == c2".
         var node = command2node[command];
         if (node == null) {
-          var requiredNodes = (lastNode != null) ? [lastNode] : [];
+          var requiredNodes = (lastNode != null) ? [lastNode] : <dgraph.Node>[];
           node = graph.newNode(command, requiredNodes);
           command2node[command] = node;
           command2testCases[command] = <TestCase>[];
@@ -2379,6 +2390,7 @@ class TestCaseEnqueuer {
         iterator.current.forEachTest(newTest, testCache, enqueueNextSuite);
       }
     }
+
     enqueueNextSuite();
   }
 }
@@ -2405,12 +2417,14 @@ class CommandEnqueuer {
   CommandEnqueuer(this._graph) {
     var eventCondition = _graph.events.where;
 
-    eventCondition((e) => e is dgraph.NodeAddedEvent).listen((event) {
+    eventCondition((e) => e is dgraph.NodeAddedEvent).listen((e) {
+      var event = e as dgraph.NodeAddedEvent;
       dgraph.Node node = event.node;
       _changeNodeStateIfNecessary(node);
     });
 
-    eventCondition((e) => e is dgraph.StateChangedEvent).listen((event) {
+    eventCondition((e) => e is dgraph.StateChangedEvent).listen((e) {
+      var event = e as dgraph.StateChangedEvent;
       if ([dgraph.NodeState.Waiting, dgraph.NodeState.Processing]
           .contains(event.from)) {
         if (FINISHED_STATES.contains(event.to)) {
@@ -2469,7 +2483,7 @@ class CommandQueue {
 
   final Queue<Command> _runQueue = new Queue<Command>();
   final _commandOutputStream = new StreamController<CommandOutput>(sync: true);
-  final _completer = new Completer();
+  final _completer = new Completer<Null>();
 
   int _numProcesses = 0;
   int _maxProcesses;
@@ -2481,8 +2495,8 @@ class CommandQueue {
   CommandQueue(this.graph, this.enqueuer, this.executor, this._maxProcesses,
       this._maxBrowserProcesses, this._verbose) {
     var eventCondition = graph.events.where;
-    eventCondition((event) => event is dgraph.StateChangedEvent)
-        .listen((event) {
+    eventCondition((e) => e is dgraph.StateChangedEvent).listen((e) {
+      var event = e as dgraph.StateChangedEvent;
       if (event.to == dgraph.NodeState.Enqueuing) {
         assert(event.from == dgraph.NodeState.Initialized ||
             event.from == dgraph.NodeState.Waiting);
@@ -2610,7 +2624,7 @@ abstract class CommandExecutor {
   Future cleanup();
   // TODO(kustermann): The [timeout] parameter should be a property of Command
   Future<CommandOutput> runCommand(
-      dgraph.Node node, Command command, int timeout);
+      dgraph.Node node, covariant Command command, int timeout);
 }
 
 class CommandExecutorImpl implements CommandExecutor {
@@ -2636,7 +2650,7 @@ class CommandExecutorImpl implements CommandExecutor {
     _finishing = true;
 
     Future _terminateBatchRunners() {
-      var futures = [];
+      var futures = <Future>[];
       for (var runners in _batchProcesses.values) {
         futures.addAll(runners.map((runner) => runner.terminate()));
       }
@@ -2669,6 +2683,7 @@ class CommandExecutorImpl implements CommandExecutor {
         }
       });
     }
+
     return runCommand(command.maxNumRetries);
   }
 
@@ -2705,8 +2720,9 @@ class CommandExecutorImpl implements CommandExecutor {
       return _getBatchRunner(command.displayName + command.dartFile)
           .runCommand(name, command, timeout, command.arguments);
     } else {
-      return new RunningProcess(
-          command, timeout, configuration: globalConfiguration).run();
+      return new RunningProcess(command, timeout,
+              configuration: globalConfiguration)
+          .run();
     }
   }
 
@@ -2734,12 +2750,15 @@ class CommandExecutorImpl implements CommandExecutor {
 
     steps.add(() => device.runAdbShellCommand(['rm', '-Rf', deviceTestDir]));
     steps.add(() => device.runAdbShellCommand(['mkdir', '-p', deviceTestDir]));
-    steps.add(() => device.pushCachedData(runner,
-                                          '$devicedir/dart_precompiled_runtime'));
-    steps.add(() => device.pushCachedData(processTest,
-                                          '$devicedir/process_test'));
-    steps.add(() => device.runAdbShellCommand(
-        ['chmod', '777', '$devicedir/dart_precompiled_runtime $devicedir/process_test']));
+    steps.add(() =>
+        device.pushCachedData(runner, '$devicedir/dart_precompiled_runtime'));
+    steps.add(
+        () => device.pushCachedData(processTest, '$devicedir/process_test'));
+    steps.add(() => device.runAdbShellCommand([
+          'chmod',
+          '777',
+          '$devicedir/dart_precompiled_runtime $devicedir/process_test'
+        ]));
 
     for (var file in files) {
       steps.add(() => device
@@ -2928,11 +2947,11 @@ bool shouldRetryCommand(CommandOutput output) {
         return line.contains(MESSAGE_CANNOT_OPEN_DISPLAY) ||
             line.contains(MESSAGE_FAILED_TO_RUN_COMMAND);
       }
+
       if (stdout.any(containsFailureMsg) || stderr.any(containsFailureMsg)) {
         return true;
       }
     }
-
   }
   return false;
 }
@@ -2976,8 +2995,8 @@ class TestCaseCompleter {
 
     // Listen for NodeState.Processing -> NodeState.{Successful,Failed}
     // changes.
-    eventCondition((event) => event is dgraph.StateChangedEvent)
-        .listen((dgraph.StateChangedEvent event) {
+    eventCondition((event) => event is dgraph.StateChangedEvent).listen((e) {
+      var event = e as dgraph.StateChangedEvent;
       if (event.from == dgraph.NodeState.Processing &&
           !finishedRemainingTestCases) {
         var command = event.node.userData;
@@ -2992,8 +3011,7 @@ class TestCaseCompleter {
 
     // Listen also for GraphSealedEvent's. If there is not a single node in the
     // graph, we still want to finish after the graph was sealed.
-    eventCondition((event) => event is dgraph.GraphSealedEvent)
-        .listen((dgraph.GraphSealedEvent event) {
+    eventCondition((event) => event is dgraph.GraphSealedEvent).listen((_) {
       if (!_closed && enqueuer.remainingTestCases.isEmpty) {
         _controller.close();
         _closed = true;
@@ -3057,7 +3075,7 @@ class ProcessQueue {
     void setupForListing(TestCaseEnqueuer testCaseEnqueuer) {
       _graph.events
           .where((event) => event is dgraph.GraphSealedEvent)
-          .listen((dgraph.GraphSealedEvent event) {
+          .listen((_) {
         var testCases = new List.from(testCaseEnqueuer.remainingTestCases);
         testCases.sort((a, b) => a.displayName.compareTo(b.displayName));
 
@@ -3079,7 +3097,7 @@ class ProcessQueue {
     void setupForRunning(TestCaseEnqueuer testCaseEnqueuer) {
       Timer _debugTimer;
       // If we haven't seen a single test finishing during a 10 minute period
-      // something is definitly wrong, so we dump the debugging information.
+      // something is definitely wrong, so we dump the debugging information.
       final debugTimerDuration = const Duration(minutes: 10);
 
       void cancelDebugTimer() {

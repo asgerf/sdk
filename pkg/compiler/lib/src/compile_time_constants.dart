@@ -4,7 +4,6 @@
 
 library dart2js.compile_time_constant_evaluator;
 
-import 'common/backend_api.dart' show BackendClasses;
 import 'common/resolution.dart' show Resolution;
 import 'common/tasks.dart' show CompilerTask, Measurer;
 import 'common.dart';
@@ -16,11 +15,11 @@ import 'constants/evaluation.dart';
 import 'constants/expressions.dart';
 import 'constants/values.dart';
 import 'common_elements.dart' show CommonElements;
-import 'elements/resolution_types.dart';
 import 'elements/elements.dart';
 import 'elements/entities.dart';
 import 'elements/modelx.dart' show ConstantVariableMixin;
-import 'resolution/operators.dart';
+import 'elements/operators.dart';
+import 'elements/resolution_types.dart';
 import 'resolution/tree_elements.dart' show TreeElements;
 import 'tree/tree.dart';
 import 'universe/call_structure.dart' show CallStructure;
@@ -507,11 +506,7 @@ class CompileTimeConstantEvaluator extends Visitor<AstConstant> {
         node,
         new MapConstantExpression(type, keyExpressions, valueExpressions),
         constantSystem.createMap(
-            compiler.commonElements,
-            compiler.backend.backendClasses,
-            type,
-            keyValues,
-            map.values.toList()));
+            compiler.commonElements, type, keyValues, map.values.toList()));
   }
 
   AstConstant visitLiteralNull(LiteralNull node) {
@@ -520,11 +515,9 @@ class CompileTimeConstantEvaluator extends Visitor<AstConstant> {
   }
 
   AstConstant visitLiteralString(LiteralString node) {
-    return new AstConstant(
-        context,
-        node,
-        new StringConstantExpression(node.dartString.slowToString()),
-        constantSystem.createString(node.dartString));
+    String text = node.dartString.slowToString();
+    return new AstConstant(context, node, new StringConstantExpression(text),
+        constantSystem.createString(text));
   }
 
   AstConstant visitStringJuxtaposition(StringJuxtaposition node) {
@@ -542,8 +535,8 @@ class CompileTimeConstantEvaluator extends Visitor<AstConstant> {
         context,
         node,
         new ConcatenateConstantExpression([left.expression, right.expression]),
-        constantSystem.createString(new DartString.concat(
-            leftValue.primitiveValue, rightValue.primitiveValue)));
+        constantSystem.createString(
+            leftValue.primitiveValue + rightValue.primitiveValue));
   }
 
   AstConstant visitStringInterpolation(StringInterpolation node) {
@@ -553,8 +546,9 @@ class CompileTimeConstantEvaluator extends Visitor<AstConstant> {
       return initialString;
     }
     subexpressions.add(initialString.expression);
+    StringBuffer sb = new StringBuffer();
     StringConstantValue initialStringValue = initialString.value;
-    DartString accumulator = initialStringValue.primitiveValue;
+    sb.write(initialStringValue.primitiveValue);
     for (StringInterpolationPart part in node.parts) {
       AstConstant subexpression = evaluate(part.expression);
       if (subexpression == null || subexpression.isError) {
@@ -562,42 +556,36 @@ class CompileTimeConstantEvaluator extends Visitor<AstConstant> {
       }
       subexpressions.add(subexpression.expression);
       ConstantValue expression = subexpression.value;
-      DartString expressionString;
-      if (expression.isNum || expression.isBool || expression.isNull) {
+      if (expression.isPrimitive) {
         PrimitiveConstantValue primitive = expression;
-        expressionString =
-            new DartString.literal(primitive.primitiveValue.toString());
-      } else if (expression.isString) {
-        PrimitiveConstantValue primitive = expression;
-        expressionString = primitive.primitiveValue;
+        sb.write(primitive.primitiveValue);
       } else {
         // TODO(johnniwinther): Specialize message to indicated that the problem
         // is not constness but the types of the const expressions.
         return signalNotCompileTimeConstant(part.expression);
       }
-      accumulator = new DartString.concat(accumulator, expressionString);
       AstConstant partString = evaluate(part.string);
       if (partString == null) return null;
       subexpressions.add(partString.expression);
       StringConstantValue partStringValue = partString.value;
-      accumulator =
-          new DartString.concat(accumulator, partStringValue.primitiveValue);
+      sb.write(partStringValue.primitiveValue);
     }
     return new AstConstant(
         context,
         node,
         new ConcatenateConstantExpression(subexpressions),
-        constantSystem.createString(accumulator));
+        constantSystem.createString(sb.toString()));
   }
 
   AstConstant visitLiteralSymbol(LiteralSymbol node) {
-    ResolutionInterfaceType type = commonElements.symbolType;
+    ResolutionInterfaceType type = commonElements.symbolImplementationType;
     String text = node.slowNameString;
     List<AstConstant> arguments = <AstConstant>[
       new AstConstant(context, node, new StringConstantExpression(text),
-          constantSystem.createString(new LiteralDartString(text)))
+          constantSystem.createString(text))
     ];
-    ConstructorElement constructor = compiler.commonElements.symbolConstructor;
+    ConstructorElement constructor =
+        compiler.commonElements.symbolConstructorTarget;
     AstConstant constant = createConstructorInvocation(
         node, type, constructor, CallStructure.ONE_ARG,
         normalizedArguments: arguments);
@@ -606,8 +594,7 @@ class CompileTimeConstantEvaluator extends Visitor<AstConstant> {
   }
 
   ConstantValue makeTypeConstant(ResolutionDartType elementType) {
-    return constantSystem.createType(
-        compiler.commonElements, compiler.backend.backendClasses, elementType);
+    return constantSystem.createType(compiler.commonElements, elementType);
   }
 
   /// Returns true if the prefix of the send resolves to a deferred import
@@ -673,7 +660,7 @@ class CompileTimeConstantEvaluator extends Visitor<AstConstant> {
           AstConstant left = evaluate(send.receiver);
           if (left != null && left.value.isString) {
             StringConstantValue stringConstantValue = left.value;
-            DartString string = stringConstantValue.primitiveValue;
+            String string = stringConstantValue.primitiveValue;
             IntConstantValue length = constantSystem.createInt(string.length);
             result = new AstConstant(context, send,
                 new StringLengthConstantExpression(left.expression), length);
@@ -867,7 +854,7 @@ class CompileTimeConstantEvaluator extends Visitor<AstConstant> {
 
     target.computeType(resolution);
 
-    if (!callStructure.signatureApplies(target.type)) {
+    if (!callStructure.signatureApplies(target.parameterStructure)) {
       String name = Elements.constructorNameForDiagnostics(
           target.enclosingClass.name, target.name);
       reporter.reportErrorMessage(node,
@@ -1048,7 +1035,7 @@ class CompileTimeConstantEvaluator extends Visitor<AstConstant> {
           {'fromType': type, 'toType': commonElements.stringType});
     }
 
-    String name = firstArgument.primitiveValue.slowToString();
+    String name = firstArgument.primitiveValue;
     String value = compiler.fromEnvironment(name);
 
     AstConstant createEvaluatedConstant(ConstantValue value) {
@@ -1088,8 +1075,7 @@ class CompileTimeConstantEvaluator extends Visitor<AstConstant> {
       }
     } else {
       assert(constructor.isStringFromEnvironmentConstructor);
-      return createEvaluatedConstant(
-          constantSystem.createString(new DartString.literal(value)));
+      return createEvaluatedConstant(constantSystem.createString(value));
     }
   }
 
@@ -1114,7 +1100,7 @@ class CompileTimeConstantEvaluator extends Visitor<AstConstant> {
     }
     assert(invariant(
         node,
-        callStructure.signatureApplies(constructor.type) ||
+        callStructure.signatureApplies(constructor.parameterStructure) ||
             compiler.compilationFailed,
         message: "Call structure $callStructure does not apply to constructor "
             "$constructor."));
@@ -1447,13 +1433,10 @@ class ErroneousAstConstant extends AstConstant {
             new NullConstantValue());
 }
 
-class _CompilerEnvironment implements Environment {
+class _CompilerEnvironment implements EvaluationEnvironment {
   final Compiler _compiler;
 
   _CompilerEnvironment(this._compiler);
-
-  @override
-  BackendClasses get backendClasses => _compiler.backend.backendClasses;
 
   @override
   CommonElements get commonElements => _compiler.commonElements;

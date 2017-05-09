@@ -16,6 +16,7 @@ import 'package:analysis_server/src/domains/analysis/navigation.dart';
 import 'package:analysis_server/src/domains/analysis/navigation_dart.dart';
 import 'package:analysis_server/src/operation/operation_analysis.dart'
     show NavigationOperation, OccurrencesOperation;
+import 'package:analysis_server/src/plugin/request_converter.dart';
 import 'package:analysis_server/src/protocol/protocol_internal.dart';
 import 'package:analysis_server/src/protocol_server.dart';
 import 'package:analysis_server/src/services/dependencies/library_dependencies.dart';
@@ -67,6 +68,16 @@ class AnalysisDomainHandler implements RequestHandler {
 
     if (server.options.enableNewAnalysisDriver) {
       var result = await server.getAnalysisResult(file);
+
+      if (server.onResultErrorSupplementor != null) {
+        if (result != null) {
+          await server.onResultErrorSupplementor(file, result.errors);
+        } else {
+          server.onNoAnalysisResult(file, send);
+          return;
+        }
+      }
+
       send(result?.driver?.analysisOptions, result?.lineInfo, result?.errors);
       return;
     }
@@ -136,6 +147,8 @@ class AnalysisDomainHandler implements RequestHandler {
       server.sendResponse(new AnalysisGetLibraryDependenciesResult(
               libraries.toList(growable: false), packageMap)
           .toResponse(request.id));
+    }).catchError((error, st) {
+      server.sendResponse(new Response.serverError(request, error, st));
     });
     // delay response
     return Response.DELAYED_RESPONSE;
@@ -278,6 +291,15 @@ class AnalysisDomainHandler implements RequestHandler {
       }
       server.reanalyze(rootResources);
     }
+    //
+    // Forward the request to the plugins.
+    //
+    RequestConverter converter = new RequestConverter();
+    server.pluginManager
+        .broadcastRequest(converter.convertAnalysisReanalyzeParams(params));
+    //
+    // Send the response.
+    //
     return new AnalysisReanalyzeResult().toResponse(request.id);
   }
 
@@ -321,6 +343,15 @@ class AnalysisDomainHandler implements RequestHandler {
   Response setPriorityFiles(Request request) {
     var params = new AnalysisSetPriorityFilesParams.fromRequest(request);
     server.setPriorityFiles(request.id, params.files);
+    //
+    // Forward the request to the plugins.
+    //
+    RequestConverter converter = new RequestConverter();
+    server.pluginManager.setAnalysisSetPriorityFilesParams(
+        converter.convertAnalysisSetPriorityFilesParams(params));
+    //
+    // Send the response.
+    //
     return new AnalysisSetPriorityFilesResult().toResponse(request.id);
   }
 
@@ -333,6 +364,15 @@ class AnalysisDomainHandler implements RequestHandler {
     Map<AnalysisService, Set<String>> subMap = mapMap(params.subscriptions,
         valueCallback: (List<String> subscriptions) => subscriptions.toSet());
     server.setAnalysisSubscriptions(subMap);
+    //
+    // Forward the request to the plugins.
+    //
+    RequestConverter converter = new RequestConverter();
+    server.pluginManager.setAnalysisSetSubscriptionsParams(
+        converter.convertAnalysisSetSubscriptionsParams(params));
+    //
+    // Send the response.
+    //
     return new AnalysisSetSubscriptionsResult().toResponse(request.id);
   }
 
@@ -342,6 +382,15 @@ class AnalysisDomainHandler implements RequestHandler {
   Response updateContent(Request request) {
     var params = new AnalysisUpdateContentParams.fromRequest(request);
     server.updateContent(request.id, params.files);
+    //
+    // Forward the request to the plugins.
+    //
+    RequestConverter converter = new RequestConverter();
+    server.pluginManager.setAnalysisUpdateContentParams(
+        converter.convertAnalysisUpdateContentParams(params));
+    //
+    // Send the response.
+    //
     return new AnalysisUpdateContentResult().toResponse(request.id);
   }
 

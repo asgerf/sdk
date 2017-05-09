@@ -1,27 +1,60 @@
 ## 1.24.0
 
 ### Language
+* During a dynamic type check, `void` is not required to be `null` anymore.
+  In practice, this makes overriding `void` functions with non-`void` functions
+  safer.
 
 #### Strong Mode
+
+* Removed ad hoc Future.then inference in favor of using FutureOr.  Prior to
+adding FutureOr to the language, the analyzer implented an ad hoc type inference
+for Future.then (and overrides) treating it as if the onValue callback was typed
+to return FutureOr for the purposes of inference.  This ad hoc inference has
+been removed now that FutureOr has been added.
+
+Packages that implement `Future` must either type the `onValue` parameter to
+`.then` as returning `FutureOr<T>`, or else must leave the type of the parameter
+entirely to allow inference to fill in the type.
+
 
 ### Core library changes
 
 * `dart:io`
-  * Added `Platform.localeName`.
+  * Added `Platform.localeName`, needed for accessing the locale on platforms
+    that don't store it in an environment variable.
+  * Added `ProcessInfo.currentRss` and `ProcessInfo.maxRss` for inspecting
+    the Dart VM process current and peak resident set size.
+  * Added 'RawSynchronousSocket', a basic synchronous socket implementation.
+* `dart:convert`
+  * Removed deprecated `ChunkedConverter` class.
+  * JSON maps are now typed as `Map<String, dynamic>` instead of
+    `Map<dynamic, dynamic>`. A JSON-map is not a `HashMap` or `LinkedHashMap`
+    anymore (but just a `Map`).
+* `dart:async`
+  * Add `groupBy` to `Stream`. Allows splitting a string into separate streams
+    depending on "key" property computed from the individual events.
+* `dart:async`, `dart:io`, `dart:core`
+    * Adding to a closed sink, including `IOSink`, is not allowed anymore. In
+      1.24, violations are only reported (on stdout or stderr), but a future
+      version of the Dart SDK will change this to throwing a `StateError`.
+
 
 ### Dart VM
 
 ### Tool Changes
 
-## 1.23.0
+* Pub
+    * `pub build` will use a failing exit code if there are errors in any
+      transformer.
+    * Allow publishing packages that depend on the Flutter SDK.
 
-### Language
-* Allow using URI strings in `part of` declarations to refer to the
-  importing library.
-  A library part now can declare its library either as:
-  `part of name.of.library;` or as `part of "uriReferenceOfLibrary.dart";`.
-  This allows libraries with no library declarations (and therefore no name)
-  to have parts, and it allows tools to easily find the library of a part file.
+* dartfmt
+    * Preserve type parameters in new generic function typedef syntax.
+    * Add self-test validation to ensure formatter bugs do not cause user code
+      to be lost.
+
+## 1.23.0
 
 #### Strong Mode
 
@@ -96,12 +129,13 @@ class C extends A with B {}
       int x = 42;
     }
     class D extends C {
-      int x = 123;
-      get y => super.x;
+      get x {
+        print("x got called");
+        return super.x;
+      }
     }
     main() {
       print(new D().x);
-      print(new D().y);
     }
     ```
 

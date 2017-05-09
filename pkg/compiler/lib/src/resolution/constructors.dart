@@ -22,6 +22,7 @@ import '../elements/modelx.dart'
         FieldElementX,
         InitializingFormalElementX,
         ParameterElementX;
+import '../elements/names.dart';
 import '../tree/tree.dart';
 import '../universe/call_structure.dart' show CallStructure;
 import '../universe/feature.dart' show Feature;
@@ -275,7 +276,8 @@ class InitializerResolver {
           reportAndCreateErroneousConstructor(node, constructorName, kind, {});
     } else {
       lookedupConstructor.computeType(visitor.resolution);
-      if (!callStructure.signatureApplies(lookedupConstructor.type)) {
+      if (!callStructure
+          .signatureApplies(lookedupConstructor.parameterStructure)) {
         MessageKind kind = isImplicitSuperCall
             ? MessageKind.NO_MATCHING_CONSTRUCTOR_FOR_IMPLICIT
             : MessageKind.NO_MATCHING_CONSTRUCTOR;

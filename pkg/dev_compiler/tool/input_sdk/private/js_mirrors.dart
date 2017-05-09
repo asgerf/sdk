@@ -49,11 +49,11 @@ TypeMirror reflectType(Type key) {
 
 final dynamic _dart = JS('', 'dart');
 
-dynamic _dload(obj, String name) {
+dynamic _dload(obj, name) {
   return JS('', '#.dloadMirror(#, #)', _dart, obj, name);
 }
 
-void _dput(obj, String name, val) {
+void _dput(obj, name, val) {
   JS('', '#.dputMirror(#, #, #)', _dart, obj, name, val);
 }
 
@@ -61,7 +61,7 @@ dynamic _dcall(obj, List args) {
   return JS('', '#.dcall(#, ...#)', _dart, obj, args);
 }
 
-dynamic _dsend(obj, String name, List args) {
+dynamic _dsend(obj, name, List args) {
   return JS('', '#.dsend(#, #, ...#)', _dart, obj, name, args);
 }
 
@@ -79,6 +79,10 @@ dynamic _defaultConstructorType(type) {
 
 dynamic _getMixins(type) {
   return JS('', '#.getMixins(#, [])', _dart, type);
+}
+
+dynamic _getFunctionType(type) {
+  return JS('', '#.getFunctionTypeMirror(#)', _dart, type);
 }
 
 typedef T _Lazy<T>();
@@ -360,13 +364,7 @@ class JsClassMirror extends JsMirror implements ClassMirror {
       }
       var fields = _getFields(unwrapped);
       fields.forEach((symbol, t) {
-        var metadata = [];
-        if (t is List) {
-          metadata = t.skip(1).toList();
-          t = t[0];
-        }
-        _declarations[symbol] =
-            new JsVariableMirror._(symbol, _wrap(t), metadata);
+        _declarations[symbol] = new JsVariableMirror._fromField(symbol, t);
       });
       var methods = _getMethods(unwrapped);
       methods.forEach((symbol, ft) {
@@ -390,14 +388,7 @@ class JsClassMirror extends JsMirror implements ClassMirror {
       });
       var staticFields = _getStaticFields(unwrapped);
       staticFields.forEach((symbol, t) {
-        var name = getName(symbol);
-        var metadata = [];
-        if (t is List) {
-          metadata = t.skip(1).toList();
-          t = t[0];
-        }
-        _declarations[symbol] =
-            new JsVariableMirror._(symbol, _wrap(t), metadata);
+        _declarations[symbol] = new JsVariableMirror._fromField(symbol, t);
       });
       var statics = _getStatics(unwrapped);
       statics.forEach((symbol, ft) {
@@ -537,20 +528,26 @@ class JsVariableMirror extends JsMirror implements VariableMirror {
   final String _name;
   final TypeMirror type;
   final List<InstanceMirror> metadata;
+  final bool isFinal;
 
   // TODO(vsm): Refactor this out.
   Symbol get simpleName => _symbol;
 
   // TODO(vsm): Fix this
   final bool isStatic = false;
-  final bool isFinal = false;
 
-  JsVariableMirror._(Symbol symbol, Type t, List annotations)
+  JsVariableMirror._(Symbol symbol, Type t, List annotations,
+      {this.isFinal: false})
       : _symbol = symbol,
         _name = getName(symbol),
         type = reflectType(t),
         metadata = new List<InstanceMirror>.unmodifiable(
-            annotations.map((a) => reflect(a)));
+            annotations?.map(reflect) ?? []);
+
+  JsVariableMirror._fromField(Symbol symbol, fieldInfo)
+      : this._(symbol, _wrap(JS('', '#.type', fieldInfo)),
+            JS('', '#.metadata', fieldInfo),
+            isFinal: JS('bool', '#.isFinal', fieldInfo));
 
   String toString() => "VariableMirror on '$_name'";
 }
@@ -627,11 +624,7 @@ class JsMethodMirror extends JsMirror implements MethodMirror {
 
     // TODO(vsm): Handle generic function types properly.  Or deprecate mirrors
     // before we need to!
-    if (JS('bool', 'typeof(#) == "function"', ftype)) {
-      // Instantiate the generic version.
-      // TODO(vsm): Can't use arguments.length on arrow function.
-      ftype = JS('', '#.apply(null, #)', ftype, [dynamic, dynamic, dynamic]);
-    }
+    ftype = _getFunctionType(ftype);
 
     // TODO(vsm): Add named args.
     List args = ftype.args;

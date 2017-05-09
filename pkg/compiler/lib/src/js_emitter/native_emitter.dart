@@ -10,7 +10,6 @@ import '../elements/types.dart' show DartType, FunctionType;
 import '../elements/entities.dart';
 import '../js/js.dart' as jsAst;
 import '../js/js.dart' show js;
-import '../js_backend/backend_helpers.dart' show BackendHelpers;
 import '../js_backend/js_backend.dart' show JavaScriptBackend, Namer;
 import '../js_backend/interceptor_data.dart';
 import '../js_backend/native_data.dart';
@@ -21,6 +20,8 @@ import 'model.dart';
 
 class NativeEmitter {
   final CodeEmitterTask emitterTask;
+  final NativeData nativeData;
+  final InterceptorData interceptorData;
 
   // Whether the application contains native classes.
   bool hasNativeClasses = false;
@@ -36,19 +37,13 @@ class NativeEmitter {
   // Caches the methods that have a native body.
   Set<FunctionEntity> nativeMethods = new Set<FunctionEntity>();
 
-  NativeEmitter(CodeEmitterTask emitterTask) : this.emitterTask = emitterTask;
+  NativeEmitter(this.emitterTask, this.nativeData, this.interceptorData);
 
   Compiler get compiler => emitterTask.compiler;
 
   JavaScriptBackend get backend => compiler.backend;
 
-  BackendHelpers get helpers => backend.helpers;
-
   CodegenWorldBuilder get worldBuilder => compiler.codegenWorldBuilder;
-
-  NativeData get nativeData => backend.nativeData;
-
-  InterceptorData get interceptorData => backend.interceptorData;
 
   Namer get namer => backend.namer;
 
@@ -104,7 +99,7 @@ class NativeEmitter {
         objectClass = cls;
         return;
       }
-      if (cls.element == helpers.jsInterceptorClass) {
+      if (cls.element == compiler.commonElements.jsInterceptorClass) {
         jsInterceptorClass = cls;
         return;
       }
@@ -271,7 +266,7 @@ class NativeEmitter {
 
   void potentiallyConvertDartClosuresToJs(List<jsAst.Statement> statements,
       FunctionEntity member, List<jsAst.Parameter> stubParameters) {
-    FunctionEntity converter = helpers.closureConverter;
+    FunctionEntity converter = compiler.commonElements.closureConverter;
     jsAst.Expression closureConverter =
         emitterTask.staticFunctionAccess(converter);
     worldBuilder.forEachParameter(member, (DartType type, String name) {

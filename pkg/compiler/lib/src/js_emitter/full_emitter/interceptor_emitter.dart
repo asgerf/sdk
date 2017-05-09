@@ -20,15 +20,24 @@ class InterceptorEmitter extends CodeEmitterHelper {
   InterceptorEmitter(this.closedWorld);
 
   void recordMangledNameOfMemberMethod(MemberEntity member, jsAst.Name name) {
-    if (backend.interceptorData.isInterceptedMethod(member)) {
+    if (closedWorld.interceptorData.isInterceptedMethod(member)) {
       interceptorInvocationNames.add(name);
     }
   }
 
   jsAst.Expression buildGetInterceptorMethod(
       jsAst.Name key, Set<ClassEntity> classes) {
-    InterceptorStubGenerator stubGenerator =
-        new InterceptorStubGenerator(compiler, namer, backend, closedWorld);
+    InterceptorStubGenerator stubGenerator = new InterceptorStubGenerator(
+        compiler.options,
+        compiler.commonElements,
+        backend.emitter,
+        backend.nativeCodegenEnqueuer,
+        backend.constants,
+        namer,
+        backend.oneShotInterceptorData,
+        backend.customElementsCodegenAnalysis,
+        compiler.codegenWorldBuilder,
+        closedWorld);
     jsAst.Expression function =
         stubGenerator.generateGetInterceptorMethod(classes);
 
@@ -49,7 +58,8 @@ class InterceptorEmitter extends CodeEmitterHelper {
       Set<ClassEntity> classes =
           backend.oneShotInterceptorData.getSpecializedGetInterceptorsFor(name);
       parts.add(js.statement('#.# = #', [
-        namer.globalObjectForLibrary(backend.helpers.interceptorsLibrary),
+        namer
+            .globalObjectForLibrary(backend.commonElements.interceptorsLibrary),
         name,
         buildGetInterceptorMethod(name, classes)
       ]));
@@ -63,10 +73,19 @@ class InterceptorEmitter extends CodeEmitterHelper {
     Iterable<jsAst.Name> names =
         backend.oneShotInterceptorData.oneShotInterceptorNames;
 
-    InterceptorStubGenerator stubGenerator =
-        new InterceptorStubGenerator(compiler, namer, backend, closedWorld);
-    String globalObject =
-        namer.globalObjectForLibrary(backend.helpers.interceptorsLibrary);
+    InterceptorStubGenerator stubGenerator = new InterceptorStubGenerator(
+        compiler.options,
+        compiler.commonElements,
+        backend.emitter,
+        backend.nativeCodegenEnqueuer,
+        backend.constants,
+        namer,
+        backend.oneShotInterceptorData,
+        backend.customElementsCodegenAnalysis,
+        compiler.codegenWorldBuilder,
+        closedWorld);
+    String globalObject = namer
+        .globalObjectForLibrary(backend.commonElements.interceptorsLibrary);
     for (jsAst.Name name in names) {
       jsAst.Expression function =
           stubGenerator.generateOneShotInterceptor(name);

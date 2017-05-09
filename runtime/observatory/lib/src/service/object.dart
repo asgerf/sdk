@@ -330,7 +330,7 @@ abstract class ServiceObject {
   /// an exception.
   Future<ServiceObject> reload({int count: kDefaultFieldLimit}) {
     // TODO(turnidge): Checking for a null id should be part of the
-    // "immmutable" check.
+    // "immutable" check.
     bool hasId = (id != null) && (id != '');
     bool isVM = this is VM;
     // We should always reload the VM.
@@ -1356,10 +1356,14 @@ class Isolate extends ServiceObjectOwner implements M.Isolate {
     return invokeRpc('getSourceReport', params);
   }
 
-  Future<ServiceMap> reloadSources({String rootLibUri, bool pause}) {
+  Future<ServiceMap> reloadSources(
+      {String rootLibUri, String packagesUri, bool pause}) {
     Map<String, dynamic> params = <String, dynamic>{};
     if (rootLibUri != null) {
       params['rootLibUri'] = rootLibUri;
+    }
+    if (packagesUri != null) {
+      params['packagesUri'] = packagesUri;
     }
     if (pause != null) {
       params['pause'] = pause;
@@ -3138,10 +3142,6 @@ class Thread extends ServiceObject implements M.Thread {
       case "kMarkerTask":
         _kind = M.ThreadKind.markerTask;
         _kindString = 'marker';
-        break;
-      case "kFinalizerTask":
-        _kind = M.ThreadKind.finalizerTask;
-        _kindString = 'finalizer';
         break;
       default:
         assert(false);

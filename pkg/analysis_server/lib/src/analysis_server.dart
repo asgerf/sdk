@@ -10,7 +10,8 @@ import 'dart:core';
 import 'dart:io' as io;
 import 'dart:math' show max;
 
-import 'package:analysis_server/plugin/protocol/protocol.dart'
+import 'package:analysis_server/protocol/protocol.dart';
+import 'package:analysis_server/protocol/protocol_generated.dart'
     hide AnalysisOptions, Element;
 import 'package:analysis_server/src/analysis_logger.dart';
 import 'package:analysis_server/src/channel/channel.dart';
@@ -28,6 +29,8 @@ import 'package:analysis_server/src/operation/operation.dart';
 import 'package:analysis_server/src/operation/operation_analysis.dart';
 import 'package:analysis_server/src/operation/operation_queue.dart';
 import 'package:analysis_server/src/plugin/notification_manager.dart';
+import 'package:analysis_server/src/plugin/plugin_manager.dart';
+import 'package:analysis_server/src/plugin/plugin_watcher.dart';
 import 'package:analysis_server/src/plugin/server_plugin.dart';
 import 'package:analysis_server/src/protocol_server.dart' as server;
 import 'package:analysis_server/src/server/diagnostic_server.dart';
@@ -38,6 +41,7 @@ import 'package:analysis_server/src/services/search/search_engine_internal.dart'
 import 'package:analysis_server/src/services/search/search_engine_internal2.dart';
 import 'package:analysis_server/src/single_context_manager.dart';
 import 'package:analysis_server/src/utilities/null_string_sink.dart';
+import 'package:analyzer/context/context_root.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/standard_resolution_map.dart';
 import 'package:analyzer/dart/element/element.dart';
@@ -66,6 +70,7 @@ import 'package:analyzer/src/task/dart.dart';
 import 'package:analyzer/src/util/glob.dart';
 import 'package:analyzer/task/dart.dart';
 import 'package:plugin/plugin.dart';
+import 'package:watcher/watcher.dart';
 
 typedef void OptionUpdater(AnalysisOptionsImpl options);
 
@@ -133,6 +138,11 @@ class AnalysisServer {
    * This field is `null` when the new plugin support is disabled.
    */
   final NotificationManager notificationManager;
+
+  /**
+   * The object used to manage the execution of plugins.
+   */
+  PluginManager pluginManager;
 
   /**
    * The [ResourceProvider] using which paths are converted into [Resource]s.
@@ -354,6 +364,24 @@ class AnalysisServer {
   StreamController<String> _onFileChangedController;
 
   /**
+   * This exists as a temporary stopgap for plugins, until the official plugin
+   * API is complete.
+   */
+  Function onResultErrorSupplementor;
+
+  /**
+   * This exists as a temporary stopgap for plugins, until the official plugin
+   * API is complete.
+   */
+  Function onNoAnalysisResult;
+
+  /**
+   * This exists as a temporary stopgap for plugins, until the official plugin
+   * API is complete.
+   */
+  Function onNoAnalysisCompletion;
+
+  /**
    * The set of the files that are currently priority.
    */
   final Set<String> priorityFiles = new Set<String>();
@@ -391,13 +419,17 @@ class AnalysisServer {
       : notificationManager =
             new NotificationManager(channel, resourceProvider) {
     _performance = performanceDuringStartup;
+
+    pluginManager = new PluginManager(resourceProvider, _getByteStorePath(),
+        notificationManager, instrumentationService);
+    PluginWatcher pluginWatcher =
+        new PluginWatcher(resourceProvider, pluginManager);
+
     defaultContextOptions.incremental = true;
     defaultContextOptions.incrementalApi =
         options.enableIncrementalResolutionApi;
     defaultContextOptions.incrementalValidation =
         options.enableIncrementalResolutionValidation;
-    defaultContextOptions.finerGrainedInvalidation =
-        options.finerGrainedInvalidation;
     defaultContextOptions.generateImplicitErrors = false;
     operationQueue = new ServerOperationQueue();
 
@@ -415,8 +447,9 @@ class AnalysisServer {
       _analysisPerformanceLogger = new nd.PerformanceLog(sink);
     }
     byteStore = _createByteStore();
-    analysisDriverScheduler =
-        new nd.AnalysisDriverScheduler(_analysisPerformanceLogger);
+    analysisDriverScheduler = new nd.AnalysisDriverScheduler(
+        _analysisPerformanceLogger,
+        driverWatcher: pluginWatcher);
     analysisDriverScheduler.status.listen(sendStatusNotificationNew);
     analysisDriverScheduler.start();
 
@@ -1734,6 +1767,21 @@ class AnalysisServer {
   }
 
   /**
+   * Return the path to the location of the byte store on disk, or `null` if
+   * there is no on-disk byte store.
+   */
+  String _getByteStorePath() {
+    if (resourceProvider is PhysicalResourceProvider) {
+      Folder stateLocation =
+          resourceProvider.getStateLocation('.analysis-driver');
+      if (stateLocation != null) {
+        return stateLocation.path;
+      }
+    }
+    return null;
+  }
+
+  /**
    * Return a set of all contexts whose associated folder is contained within,
    * or equal to, one of the resources in the given list of [resources].
    */
@@ -1852,7 +1900,6 @@ class AnalysisServerOptions {
   bool enableIncrementalResolutionApi = false;
   bool enableIncrementalResolutionValidation = false;
   bool enableNewAnalysisDriver = false;
-  bool finerGrainedInvalidation = false;
   bool noIndex = false;
   bool useAnalysisHighlight2 = false;
   String fileReadMode = 'as-is';
@@ -1902,9 +1949,10 @@ class ServerContextManagerCallbacks extends ContextManagerCallbacks {
   ServerContextManagerCallbacks(this.analysisServer, this.resourceProvider);
 
   @override
-  nd.AnalysisDriver addAnalysisDriver(Folder folder, AnalysisOptions options) {
+  nd.AnalysisDriver addAnalysisDriver(
+      Folder folder, ContextRoot contextRoot, AnalysisOptions options) {
     ContextBuilder builder = createContextBuilder(folder, options);
-    nd.AnalysisDriver analysisDriver = builder.buildDriver(folder.path);
+    nd.AnalysisDriver analysisDriver = builder.buildDriver(contextRoot);
     analysisDriver.results.listen((result) {
       NotificationManager notificationManager =
           analysisServer.notificationManager;
@@ -2063,6 +2111,11 @@ class ServerContextManagerCallbacks extends ContextManagerCallbacks {
   void applyFileRemoved(nd.AnalysisDriver driver, String file) {
     driver.removeFile(file);
     sendAnalysisNotificationFlushResults(analysisServer, [file]);
+  }
+
+  @override
+  void broadcastWatchEvent(WatchEvent event) {
+    analysisServer.pluginManager.broadcastWatchEvent(event);
   }
 
   @override

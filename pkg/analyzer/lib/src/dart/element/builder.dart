@@ -229,35 +229,6 @@ class ApiElementBuilder extends _BaseElementBuilder {
   }
 
   @override
-  Object visitFieldFormalParameter(FieldFormalParameter node) {
-    if (node.parent is! DefaultFormalParameter) {
-      SimpleIdentifier parameterName = node.identifier;
-      FieldFormalParameterElementImpl parameter =
-          new FieldFormalParameterElementImpl.forNode(parameterName);
-      _setCodeRange(parameter, node);
-      _setFieldParameterField(node, parameter);
-      parameter.isConst = node.isConst;
-      parameter.isExplicitlyCovariant = node.covariantKeyword != null;
-      parameter.isFinal = node.isFinal;
-      parameter.parameterKind = node.kind;
-      _currentHolder.addParameter(parameter);
-      parameterName.staticElement = parameter;
-    }
-    //
-    // The children of this parameter include any parameters defined on the type
-    // of this parameter.
-    //
-    ElementHolder holder = new ElementHolder();
-    _visitChildren(holder, node);
-    ParameterElementImpl element = node.element;
-    element.metadata = _createElementAnnotations(node.metadata);
-    element.parameters = holder.parameters;
-    element.typeParameters = holder.typeParameters;
-    holder.validate();
-    return null;
-  }
-
-  @override
   Object visitFunctionDeclaration(FunctionDeclaration node) {
     FunctionExpression expression = node.functionExpression;
     if (expression != null) {
@@ -422,22 +393,6 @@ class ApiElementBuilder extends _BaseElementBuilder {
     element.type = new FunctionTypeImpl.forTypedef(element);
     _currentHolder.addTypeAlias(element);
     aliasName.staticElement = element;
-    holder.validate();
-    return null;
-  }
-
-  @override
-  Object visitGenericFunctionType(GenericFunctionType node) {
-    ElementHolder holder = new ElementHolder();
-    _visitChildren(holder, node);
-    GenericFunctionTypeElementImpl element =
-        new GenericFunctionTypeElementImpl.forOffset(node.beginToken.offset);
-    _setCodeRange(element, node);
-    element.parameters = holder.parameters;
-    element.typeParameters = holder.typeParameters;
-    FunctionType type = new FunctionTypeImpl(element);
-    element.type = type;
-    (node as GenericFunctionTypeImpl).type = type;
     holder.validate();
     return null;
   }
@@ -1452,6 +1407,35 @@ abstract class _BaseElementBuilder extends RecursiveAstVisitor<Object> {
   }
 
   @override
+  Object visitFieldFormalParameter(FieldFormalParameter node) {
+    if (node.parent is! DefaultFormalParameter) {
+      SimpleIdentifier parameterName = node.identifier;
+      FieldFormalParameterElementImpl parameter =
+          new FieldFormalParameterElementImpl.forNode(parameterName);
+      _setCodeRange(parameter, node);
+      _setFieldParameterField(node, parameter);
+      parameter.isConst = node.isConst;
+      parameter.isExplicitlyCovariant = node.covariantKeyword != null;
+      parameter.isFinal = node.isFinal;
+      parameter.parameterKind = node.kind;
+      _currentHolder.addParameter(parameter);
+      parameterName.staticElement = parameter;
+    }
+    //
+    // The children of this parameter include any parameters defined on the type
+    // of this parameter.
+    //
+    ElementHolder holder = new ElementHolder();
+    _visitChildren(holder, node);
+    ParameterElementImpl element = node.element;
+    element.metadata = _createElementAnnotations(node.metadata);
+    element.parameters = holder.parameters;
+    element.typeParameters = holder.typeParameters;
+    holder.validate();
+    return null;
+  }
+
+  @override
   Object visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node) {
     if (node.parent is! DefaultFormalParameter) {
       SimpleIdentifier parameterName = node.identifier;
@@ -1476,6 +1460,22 @@ abstract class _BaseElementBuilder extends RecursiveAstVisitor<Object> {
     element.metadata = _createElementAnnotations(node.metadata);
     element.parameters = holder.parameters;
     element.typeParameters = holder.typeParameters;
+    holder.validate();
+    return null;
+  }
+
+  @override
+  Object visitGenericFunctionType(GenericFunctionType node) {
+    ElementHolder holder = new ElementHolder();
+    _visitChildren(holder, node);
+    GenericFunctionTypeElementImpl element =
+        new GenericFunctionTypeElementImpl.forOffset(node.beginToken.offset);
+    _setCodeRange(element, node);
+    element.parameters = holder.parameters;
+    element.typeParameters = holder.typeParameters;
+    FunctionType type = new FunctionTypeImpl(element);
+    element.type = type;
+    (node as GenericFunctionTypeImpl).type = type;
     holder.validate();
     return null;
   }

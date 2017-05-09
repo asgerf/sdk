@@ -8,7 +8,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:analysis_server/plugin/protocol/protocol.dart';
+import 'package:analysis_server/protocol/protocol.dart';
+import 'package:analysis_server/protocol/protocol_generated.dart';
 import 'package:analysis_server/src/constants.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
@@ -203,7 +204,7 @@ abstract class CommonInputConverter extends Converter<String, Operation> {
 
   /**
    * Process the expected response by completing the given completer
-   * with the result if it has alredy been received,
+   * with the result if it has already been received,
    * or caching the completer to be completed when the server
    * returns the associated result.
    * Return a future that completes when the response is received

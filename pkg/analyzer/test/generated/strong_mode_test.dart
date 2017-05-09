@@ -1074,6 +1074,47 @@ class StrongModeLocalInferenceTest extends ResolverTestCase {
     _isFutureOfNull(invoke.staticType);
   }
 
+  test_generic_partial() async {
+    // Test that upward and downward type inference handles partial
+    // type schemas correctly.  Downwards inference in a partial context
+    // (e.g. Map<String, ?>) should still allow upwards inference to fill
+    // in the missing information.
+    String code = r'''
+class A<T> {
+  A(T x);
+  A.fromA(A<T> a) {}
+  A.fromMap(Map<String, T> m) {}
+  A.fromList(List<T> m) {}
+  A.fromT(T t) {}
+  A.fromB(B<T, String> a) {}
+}
+
+class B<S, T> {
+  B(S s);
+}
+
+void test() {
+    var a0 = new A.fromA(new A(3));
+    var a1 = new A.fromMap({'hello' : 3});
+    var a2 = new A.fromList([3]);
+    var a3 = new A.fromT(3);
+    var a4 = new A.fromB(new B(3));
+}
+   ''';
+    CompilationUnit unit = await resolveSource(code);
+    Element elementA = AstFinder.getClass(unit, "A").element;
+    List<Statement> statements =
+        AstFinder.getStatementsInTopLevelFunction(unit, "test");
+    void check(int i) {
+      VariableDeclarationStatement stmt = statements[i];
+      VariableDeclaration decl = stmt.variables.variables[0];
+      Expression init = decl.initializer;
+      _isInstantiationOf(_hasElement(elementA))([_isInt])(init.staticType);
+    }
+
+    for (var i = 0; i < 5; i++) check(i);
+  }
+
   test_inferConstructor_unknownTypeLowerBound() async {
     Source source = addSource(r'''
         class C<T> {
@@ -1462,8 +1503,7 @@ num test(Iterable values) => values.fold(values.first as num, max);
         A<int, String> a3 = new F.named(3, "hello");
         A<int, String> a4 = new F.named(3, "hello", "hello", 3);
         A<int, String> a5 = new F.named(3, "hello", "hello");
-      }
-    }''';
+      }''';
     CompilationUnit unit = await resolveSource(code);
 
     Expression rhs(VariableDeclarationStatement stmt) {
@@ -1826,7 +1866,7 @@ num test(Iterable values) => values.fold(values.first as num, max);
     String code = r'''
       class A {
         List<String> m0(int x) => ["hello"];
-        List<String> m1(int x) {return [3];};
+        List<String> m1(int x) {return [3];}
       }
    ''';
     CompilationUnit unit = await resolveSource(code);
@@ -2236,7 +2276,7 @@ num test(Iterable values) => values.fold(values.first as num, max);
   test_superConstructorInvocation_propagation() async {
     String code = r'''
       class B {
-        B(List<String>);
+        B(List<String> p);
       }
       class A extends B {
         A() : super([]);
@@ -3111,6 +3151,30 @@ void test() {
     expectIdentifierType('aa', "A<dynamic>");
     expectIdentifierType('bb', "B<num>");
     expectIdentifierType('cc', "C<int, B<int>, A<dynamic>>");
+  }
+
+  test_inferClosureType_parameters() async {
+    Source source = addSource(r'''
+typedef F({bool p});
+foo(callback(F f)) {}
+main() {
+  foo((f) {
+    f(p: false);
+  });
+}
+''');
+    var result = await computeAnalysisResult(source);
+    var main = result.unit.declarations[2] as FunctionDeclaration;
+    var body = main.functionExpression.body as BlockFunctionBody;
+    var statement = body.block.statements[0] as ExpressionStatement;
+    var invocation = statement.expression as MethodInvocation;
+    var closure = invocation.argumentList.arguments[0] as FunctionExpression;
+    var closureType = closure.staticType as FunctionType;
+    var fType = closureType.parameters[0].type as FunctionType;
+    // The inferred type of "f" in "foo()" invocation must own its parameters.
+    ParameterElement p = fType.parameters[0];
+    expect(p.name, 'p');
+    expect(p.enclosingElement, same(fType.element));
   }
 
   @failingTest

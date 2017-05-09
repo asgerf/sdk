@@ -33,7 +33,7 @@ mixin(base, @rest mixins) => JS(
   for (let m of $mixins) {
     $copyProperties(Mixin.prototype, m.prototype);
   }
-  // Initializer method: run mixin initializers, then the base.
+  // Initializer methods: run mixin initializers, then the base.
   Mixin.prototype.new = function(...args) {
     // Run mixin initializers. They cannot have arguments.
     // Run them backwards so most-derived mixin is initialized first.
@@ -43,6 +43,20 @@ mixin(base, @rest mixins) => JS(
     // Run base initializer.
     $base.prototype.new.apply(this, args);
   };
+  let namedCtors = ${safeGetOwnProperty(base, _namedConstructors)};
+  if ($base[$_namedConstructors] != null) {
+    for (let namedCtor of $base[$_namedConstructors]) {
+      Mixin.prototype[namedCtor] = function(...args) {
+        // Run mixin initializers. They cannot have arguments.
+        // Run them backwards so most-derived mixin is initialized first.
+        for (let i = $mixins.length - 1; i >= 0; i--) {
+          $mixins[i].prototype.new.call(this);
+        }
+        // Run base initializer.
+        $base.prototype[namedCtor].apply(this, args);
+      };
+    }
+  }
 
   // Set the signature of the Mixin class to be the composition
   // of the signatures of the mixins.
@@ -197,11 +211,8 @@ getStaticSetterSig(value) => JS('', '#[#]', value, _staticSetterSig);
 getGenericTypeCtor(value) => JS('', '#[#]', value, _genericTypeCtor);
 
 /// Get the type of a method from an object using the stored signature
-getType(obj) => JS(
-    '',
-    '''(() => {
-  return $obj == null ? $Object : $obj.__proto__.constructor;
-})()''');
+getType(obj) =>
+    JS('', '# == null ? # : #.__proto__.constructor', obj, Object, obj);
 
 bool isJsInterop(obj) {
   if (JS('bool', 'typeof # === "function"', obj)) {
@@ -219,31 +230,37 @@ bool isJsInterop(obj) {
 }
 
 /// Get the type of a method from a type using the stored signature
-getMethodType(type, name) => JS(
-    '',
-    '''(() => {
-  let sigObj = $type[$_methodSig];
-  if (sigObj === void 0) return void 0;
-  return sigObj[$name];
-})()''');
+getMethodType(type, name) {
+  var m = JS('', '#[#]', type, _methodSig);
+  return m != null ? JS('', '#[#]', m, name) : null;
+}
 
-getFieldType(type, name) => JS(
-    '',
-    '''(() => {
-  let sigObj = $type[$_fieldSig];
-  if (sigObj === void 0) return void 0;
-  let fieldType = sigObj[$name];
-  // workaround to handle metadata.
-  return (fieldType instanceof Array) ? fieldType[0] : fieldType;
-})()''');
+/// Gets the type of the corresponding setter (this includes writable fields).
+getSetterType(type, name) {
+  var signature = JS('', '#[#]', type, _setterSig);
+  if (signature != null) {
+    var type = JS('', '#[#]', signature, name);
+    if (type != null) {
+      // TODO(jmesserly): it would be nice not to encode setters with a full
+      // function type.
+      return JS('', '#.args[0]', type);
+    }
+  }
+  signature = JS('', '#[#]', type, _fieldSig);
+  if (signature != null) {
+    var fieldInfo = JS('', '#[#]', signature, name);
+    if (fieldInfo != null && JS('bool', '!#.isFinal', fieldInfo)) {
+      return JS('', '#.type', fieldInfo);
+    }
+  }
+  return null;
+}
 
-getSetterType(type, name) => JS(
-    '',
-    '''(() => {
-  let sigObj = $type[$_setterSig];
-  if (sigObj === void 0) return void 0;
-  return sigObj[$name];
-})()''');
+finalFieldType(type, metadata) =>
+    JS('', '{ type: #, isFinal: true, metadata: # }', type, metadata);
+
+fieldType(type, metadata) =>
+    JS('', '{ type: #, isFinal: false, metadata: # }', type, metadata);
 
 /// Get the type of a constructor from a class using the stored signature
 /// If name is undefined, returns the type of the default constructor
@@ -271,11 +288,16 @@ bind(obj, name, f) => JS(
     '',
     '''(() => {
   if ($f === void 0) $f = $obj[$name];
-  $f = $f.bind($obj);
   // TODO(jmesserly): track the function's signature on the function, instead
   // of having to go back to the class?
   let sig = $getMethodType($getType($obj), $name);
-  $assert_(sig);
+
+  // JS interop case: do not bind this for compatibility with the dart2js
+  // implementation where we cannot bind this reliably here until we trust
+  // types more.
+  if (sig == null) return $f;
+
+  $f = $f.bind($obj);
   $tag($f, sig);
   return $f;
 })()''');
@@ -286,23 +308,28 @@ bind(obj, name, f) => JS(
 /// associated function type.
 gbind(f, @rest typeArgs) {
   var result = JS('', '#.apply(null, #)', f, typeArgs);
-  var sig = JS('', '#.apply(null, #)', _getRuntimeType(f), typeArgs);
+  var sig = JS('', '#.instantiate(#)', _getRuntimeType(f), typeArgs);
   tag(result, sig);
   return result;
 }
 
 // Set up the method signature field on the constructor
-_setInstanceSignature(f, sigF, kind) => JS(
-    '',
-    '''(() => {
-  $defineMemoizedGetter($f, $kind, () => {
-    let sigObj = $sigF();
-    let proto = $f.__proto__;
-    // We need to set the root proto to null not undefined.
-    sigObj.__proto__ = ($kind in proto) ? proto[$kind] : null;
-    return sigObj;
-  });
-})()''');
+_setInstanceSignature(f, sigF, kind) => defineMemoizedGetter(
+    f,
+    kind,
+    JS(
+        '',
+        '''() => {
+          let sigObj = #();
+          let proto = #.__proto__;
+          // We need to set the root proto to null not undefined.
+          sigObj.__proto__ = (# in proto) ? proto[#] : null;
+          return sigObj;
+        }''',
+        sigF,
+        f,
+        kind,
+        kind));
 
 _setMethodSignature(f, sigF) => _setInstanceSignature(f, sigF, _methodSig);
 _setFieldSignature(f, sigF) => _setInstanceSignature(f, sigF, _fieldSig);
@@ -411,12 +438,17 @@ defineNamedConstructor(clazz, name) => JS(
   let proto = $clazz.prototype;
   let initMethod = proto[$name];
   let ctor = function(...args) { initMethod.apply(this, args); };
-  ctor[$isNamedConstructor] = true;
   ctor.prototype = proto;
   // Use defineProperty so we don't hit a property defined on Function,
   // like `caller` and `arguments`.
   $defineProperty($clazz, $name, { value: ctor, configurable: true });
+
+  let namedCtors = ${safeGetOwnProperty(clazz, _namedConstructors)};
+  if (namedCtors == null) $clazz[$_namedConstructors] = namedCtors = [];
+  namedCtors.push($name);
 })()''');
+
+final _namedConstructors = JS('', 'Symbol("_namedConstructors")');
 
 final _extensionType = JS('', 'Symbol("extensionType")');
 

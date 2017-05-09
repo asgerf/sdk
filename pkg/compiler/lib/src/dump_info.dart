@@ -42,13 +42,14 @@ class ElementInfoCollector extends BaseElementVisitor<Info, dynamic> {
     compiler.dumpInfoTask._constantToNode.forEach((constant, node) {
       // TODO(sigmund): add dependencies on other constants
       var size = compiler.dumpInfoTask._nodeToSize[node];
-      var code = jsAst.prettyPrint(node, compiler);
+      var code = jsAst.prettyPrint(node, compiler.options);
       var info = new ConstantInfo(
           size: size, code: code, outputUnit: _unitInfoForConstant(constant));
       _constantToInfo[constant] = info;
       result.constants.add(info);
     });
-    compiler.libraryLoader.libraries.forEach(visit);
+    (compiler.libraryLoader.libraries as Iterable<LibraryElement>)
+        .forEach(visit);
   }
 
   Info visit(Element e, [_]) => e.accept(this, null);
@@ -261,6 +262,7 @@ class ElementInfoCollector extends BaseElementVisitor<Info, dynamic> {
         isExternal: element.isPatched);
     String code = compiler.dumpInfoTask.codeOf(element);
 
+    String returnType = null;
     List<ParameterInfo> parameters = <ParameterInfo>[];
     if (element.hasFunctionSignature) {
       FunctionSignature signature = element.functionSignature;
@@ -268,15 +270,9 @@ class ElementInfoCollector extends BaseElementVisitor<Info, dynamic> {
         parameters.add(new ParameterInfo(parameter.name,
             '${_resultOfParameter(parameter).type}', '${parameter.node.type}'));
       });
-    }
-
-    String returnType = null;
-    // TODO(sigmund): why all these checks?
-    if (element.isInstanceMember &&
-        !element.isAbstract &&
-        closedWorld.allFunctions.contains(element as MemberElement)) {
       returnType = '${element.type.returnType}';
     }
+
     String inferredReturnType = '${_resultOfElement(element).returnType}';
     String sideEffects = '${closedWorld.getSideEffectsOfElement(element)}';
 
@@ -460,9 +456,9 @@ class DumpInfoTask extends CompilerTask implements InfoReporter {
         element,
         impact,
         new WorldImpactVisitorImpl(visitDynamicUse: (dynamicUse) {
-          selections.addAll(closedWorld.allFunctions
-              .filter(dynamicUse.selector, dynamicUse.mask)
-              .map((e) => new Selection(e, dynamicUse.mask)));
+          selections.addAll(closedWorld
+              .locateMembers(dynamicUse.selector, dynamicUse.mask)
+              .map((MemberElement e) => new Selection(e, dynamicUse.mask)));
         }, visitStaticUse: (staticUse) {
           selections.add(new Selection(staticUse.element, null));
         }),
@@ -532,7 +528,7 @@ class DumpInfoTask extends CompilerTask implements InfoReporter {
     // Concatenate rendered ASTs.
     StringBuffer sb = new StringBuffer();
     for (jsAst.Node ast in code) {
-      sb.writeln(jsAst.prettyPrint(ast, compiler));
+      sb.writeln(jsAst.prettyPrint(ast, compiler.options));
     }
     return sb.toString();
   }

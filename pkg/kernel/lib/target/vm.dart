@@ -12,7 +12,6 @@ import '../transformations/erasure.dart';
 import '../transformations/insert_type_checks.dart';
 import '../transformations/mixin_full_resolution.dart' as mix;
 import '../transformations/sanitize_for_vm.dart';
-import '../transformations/setup_builtin_library.dart' as setup_builtin_library;
 import '../transformations/treeshaker.dart';
 import 'package:kernel/kernel.dart';
 import 'package:kernel/target/hooks.dart';
@@ -102,12 +101,11 @@ class VmTarget extends Target {
       cont.transformProgram(program);
     });
 
-    // Repair `_getMainClosure()` function in dart:_builtin.
-    setup_builtin_library.transformProgram(program);
-
-    doStep(HookNames.erase, program, () {
-      performErasure(program);
-    });
+    if (strongMode) {
+      doStep(HookNames.erase, program, () {
+        performErasure(program);
+      });
+    }
 
     doStep(HookNames.sanitize, program, () {
       new SanitizeForVM().transform(program);

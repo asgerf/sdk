@@ -14,7 +14,7 @@ import 'package:compiler/src/elements/entities.dart';
 import 'package:compiler/src/elements/resolution_types.dart';
 import 'package:compiler/src/elements/types.dart';
 import 'package:compiler/src/kernel/elements.dart';
-import 'package:compiler/src/kernel/world_builder.dart';
+import 'package:compiler/src/kernel/element_map_impl.dart';
 import 'package:compiler/src/serialization/equivalence.dart';
 import 'package:compiler/src/util/util.dart';
 import 'package:expect/expect.dart';
@@ -242,7 +242,7 @@ bool checkMapEquivalence(var object1, var object2, String property, Map map1,
     throw message;
   }
   for (List pair in common) {
-    check(object1, object2, 'Map value for `$property`', map1[pair[0]],
+    check(pair[0], pair[1], 'Map value for `$property`', map1[pair[0]],
         map2[pair[1]], sameValue);
   }
   return true;
@@ -287,7 +287,7 @@ bool checkTypes(Object object1, Object object2, String property,
 ///
 /// Uses [object1], [object2] and [property] to provide context for failures.
 bool checkTypeLists(Object object1, Object object2, String property,
-    List<ResolutionDartType> list1, List<ResolutionDartType> list2) {
+    List<DartType> list1, List<DartType> list2) {
   return checkListEquivalence(
       object1, object2, property, list1, list2, checkTypes);
 }
@@ -645,7 +645,7 @@ class KernelEquivalence {
   Set<Pair<ClassEntity, ClassEntity>> assumedMixinApplications =
       new Set<Pair<ClassEntity, ClassEntity>>();
 
-  KernelEquivalence(KernelWorldBuilder builder)
+  KernelEquivalence(KernelToElementMapImpl builder)
       : testing = new WorldDeconstructionForTesting(builder);
 
   TestStrategy get defaultStrategy => new TestStrategy(
@@ -675,56 +675,56 @@ class KernelEquivalence {
           List<InterfaceType> aMixinTypes = [];
           List<InterfaceType> bMixinTypes = [];
           ClassElement aClass = a;
-          while (aClass.isMixinApplication) {
-            MixinApplicationElement aMixinApplication = aClass;
-            aMixinTypes.add(aMixinApplication.mixinType);
-            aClass = aMixinApplication.superclass;
-          }
-          KClass bClass = b;
-          while (bClass != null) {
-            InterfaceType mixinType = testing.getMixinTypeForClass(bClass);
-            if (mixinType == null) break;
-            bMixinTypes.add(mixinType);
-            bClass = testing.getSuperclassForClass(bClass);
-          }
-          if (aMixinTypes.isNotEmpty || aMixinTypes.isNotEmpty) {
-            if (aClass.isNamedMixinApplication &&
-                !strategy.test(a, b, 'name', a.name, b.name)) {
+          if (aClass.isUnnamedMixinApplication) {
+            if (!testing.isUnnamedMixinApplication(b)) {
               return false;
             }
-            Pair<ClassEntity, ClassEntity> pair =
-                new Pair<ClassEntity, ClassEntity>(aClass, bClass);
-            if (assumedMixinApplications.contains(pair)) {
-              return true;
-            } else {
-              assumedMixinApplications.add(pair);
-              bool result = strategy.testTypeLists(
-                  a, b, 'mixinTypes', aMixinTypes, bMixinTypes);
-              assumedMixinApplications.remove(pair);
-              return result;
+            while (aClass.isMixinApplication) {
+              MixinApplicationElement aMixinApplication = aClass;
+              aMixinTypes.add(aMixinApplication.mixinType);
+              aClass = aMixinApplication.superclass;
+            }
+            KClass bClass = b;
+            while (bClass != null) {
+              InterfaceType mixinType = testing.getMixinTypeForClass(bClass);
+              if (mixinType == null) break;
+              bMixinTypes.add(mixinType);
+              bClass = testing.getSuperclassForClass(bClass);
+            }
+            if (aMixinTypes.isNotEmpty || aMixinTypes.isNotEmpty) {
+              Pair<ClassEntity, ClassEntity> pair =
+                  new Pair<ClassEntity, ClassEntity>(aClass, bClass);
+              if (assumedMixinApplications.contains(pair)) {
+                return true;
+              } else {
+                assumedMixinApplications.add(pair);
+                bool result = strategy.testTypeLists(
+                    a, b, 'mixinTypes', aMixinTypes, bMixinTypes);
+                assumedMixinApplications.remove(pair);
+                return result;
+              }
+            }
+          } else {
+            if (testing.isUnnamedMixinApplication(b)) {
+              return false;
             }
           }
           return strategy.test(a, b, 'name', a.name, b.name) &&
-              strategy.testElements(
-                  a, b, 'library', a.library, testing.getLibraryForClass(b));
+              strategy.testElements(a, b, 'library', a.library, b.library);
         }
         return false;
       case ElementKind.LIBRARY:
         if (b is KLibrary) {
           LibraryElement libraryA = a;
-          return libraryA.canonicalUri == testing.getLibraryUri(b);
+          return libraryA.canonicalUri == b.canonicalUri;
         }
         return false;
       case ElementKind.FUNCTION:
         if (b is KMethod) {
-          if (!strategy.test(a, b, 'name', a.name, b.name)) return false;
-          if (b.enclosingClass != null) {
-            return strategy.testElements(
-                a, b, 'enclosingClass', a.enclosingClass, b.enclosingClass);
-          } else {
-            return strategy.testElements(
-                a, b, 'library', a.library, testing.getLibraryForFunction(b));
-          }
+          return strategy.test(a, b, 'name', a.name, b.name) &&
+              strategy.testElements(
+                  a, b, 'enclosingClass', a.enclosingClass, b.enclosingClass) &&
+              strategy.testElements(a, b, 'library', a.library, b.library);
         } else if (b is KLocalFunction) {
           LocalFunctionElement aLocalFunction = a;
           return strategy.test(a, b, 'name', a.name, b.name ?? '') &&
@@ -736,38 +736,26 @@ class KernelEquivalence {
         return false;
       case ElementKind.GETTER:
         if (b is KGetter) {
-          if (!strategy.test(a, b, 'name', a.name, b.name)) return false;
-          if (b.enclosingClass != null) {
-            return strategy.testElements(
-                a, b, 'enclosingClass', a.enclosingClass, b.enclosingClass);
-          } else {
-            return strategy.testElements(
-                a, b, 'library', a.library, testing.getLibraryForFunction(b));
-          }
+          return strategy.test(a, b, 'name', a.name, b.name) &&
+              strategy.testElements(
+                  a, b, 'enclosingClass', a.enclosingClass, b.enclosingClass) &&
+              strategy.testElements(a, b, 'library', a.library, b.library);
         }
         return false;
       case ElementKind.SETTER:
         if (b is KSetter) {
-          if (!strategy.test(a, b, 'name', a.name, b.name)) return false;
-          if (b.enclosingClass != null) {
-            return strategy.testElements(
-                a, b, 'enclosingClass', a.enclosingClass, b.enclosingClass);
-          } else {
-            return strategy.testElements(
-                a, b, 'library', a.library, testing.getLibraryForFunction(b));
-          }
+          return strategy.test(a, b, 'name', a.name, b.name) &&
+              strategy.testElements(
+                  a, b, 'enclosingClass', a.enclosingClass, b.enclosingClass) &&
+              strategy.testElements(a, b, 'library', a.library, b.library);
         }
         return false;
       case ElementKind.FIELD:
         if (b is KField) {
-          if (!strategy.test(a, b, 'name', a.name, b.name)) return false;
-          if (b.enclosingClass != null) {
-            return strategy.testElements(
-                a, b, 'enclosingClass', a.enclosingClass, b.enclosingClass);
-          } else {
-            return strategy.testElements(
-                a, b, 'library', a.library, testing.getLibraryForField(b));
-          }
+          return strategy.test(a, b, 'name', a.name, b.name) &&
+              strategy.testElements(
+                  a, b, 'enclosingClass', a.enclosingClass, b.enclosingClass) &&
+              strategy.testElements(a, b, 'library', a.library, b.library);
         }
         return false;
       case ElementKind.TYPE_VARIABLE:

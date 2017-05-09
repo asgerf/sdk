@@ -4,6 +4,8 @@
 
 library dart2js.resolution.members;
 
+import 'package:front_end/src/fasta/scanner.dart' show isUserDefinableOperator;
+
 import '../common.dart';
 import '../common/names.dart' show Selectors;
 import '../common/resolution.dart' show Resolution;
@@ -13,7 +15,6 @@ import '../constants/constructors.dart'
 import '../constants/expressions.dart';
 import '../constants/values.dart';
 import '../common_elements.dart';
-import '../elements/resolution_types.dart';
 import '../elements/elements.dart';
 import '../elements/modelx.dart'
     show
@@ -26,8 +27,10 @@ import '../elements/modelx.dart'
         ParameterElementX,
         VariableElementX,
         VariableList;
+import '../elements/names.dart';
+import '../elements/operators.dart';
+import '../elements/resolution_types.dart';
 import '../options.dart';
-import 'package:front_end/src/fasta/scanner.dart' show isUserDefinableOperator;
 import '../tree/tree.dart';
 import '../universe/call_structure.dart' show CallStructure;
 import '../universe/feature.dart' show Feature;
@@ -39,7 +42,6 @@ import 'class_members.dart' show MembersCreator;
 import 'constructors.dart'
     show ConstructorResolver, ConstructorResult, ConstructorResultKind;
 import 'label_scope.dart' show StatementScope;
-import 'operators.dart';
 import 'registry.dart' show ResolutionRegistry;
 import 'resolution.dart' show ResolverTask;
 import 'resolution_common.dart' show MappingVisitor;
@@ -1569,7 +1571,7 @@ class ResolverVisitor extends MappingVisitor<ResolutionResult> {
         case AccessKind.SUPER_METHOD:
           MethodElement superMethod = semantics.element;
           superMethod.computeType(resolution);
-          if (!callStructure.signatureApplies(superMethod.type)) {
+          if (!callStructure.signatureApplies(superMethod.parameterStructure)) {
             registry.registerFeature(Feature.THROW_NO_SUCH_METHOD);
             registry.registerDynamicUse(new DynamicUse(selector, null));
             registry.registerFeature(Feature.SUPER_NO_SUCH_METHOD);
@@ -1643,6 +1645,7 @@ class ResolverVisitor extends MappingVisitor<ResolutionResult> {
 
   /// Handle a [Send] whose selector is an [Operator], like `a && b`, `a is T`,
   /// `a + b`, and `~a`.
+  // ignore: MISSING_RETURN
   ResolutionResult handleOperatorSend(Send node) {
     String operatorText = node.selector.asOperator().source;
     if (operatorText == 'is') {
@@ -2502,7 +2505,7 @@ class ResolverVisitor extends MappingVisitor<ResolutionResult> {
         case AccessKind.LOCAL_FUNCTION:
           LocalFunctionElementX function = semantics.element;
           function.computeType(resolution);
-          if (!callStructure.signatureApplies(function.type)) {
+          if (!callStructure.signatureApplies(function.parameterStructure)) {
             registry.registerFeature(Feature.THROW_NO_SUCH_METHOD);
             registry.registerDynamicUse(new DynamicUse(selector, null));
             isIncompatibleInvoke = true;
@@ -2671,7 +2674,7 @@ class ResolverVisitor extends MappingVisitor<ResolutionResult> {
         case AccessKind.TOPLEVEL_METHOD:
           MethodElement method = semantics.element;
           method.computeType(resolution);
-          if (!callStructure.signatureApplies(method.type)) {
+          if (!callStructure.signatureApplies(method.parameterStructure)) {
             registry.registerFeature(Feature.THROW_NO_SUCH_METHOD);
             registry.registerDynamicUse(new DynamicUse(selector, null));
             isIncompatibleInvoke = true;
@@ -3839,6 +3842,9 @@ class ResolverVisitor extends MappingVisitor<ResolutionResult> {
   ResolutionResult visitNewExpression(NewExpression node) {
     ConstructorResult result = resolveConstructor(node);
     ConstructorElement constructor = result.element;
+    if (resolution.commonElements.isSymbolConstructor(constructor)) {
+      registry.registerFeature(Feature.SYMBOL_CONSTRUCTOR);
+    }
     ArgumentsResult argumentsResult;
     if (node.isConst) {
       argumentsResult =
@@ -3858,7 +3864,7 @@ class ResolverVisitor extends MappingVisitor<ResolutionResult> {
       case ConstructorResultKind.GENERATIVE:
         // Ensure that the signature of [constructor] has been computed.
         constructor.computeType(resolution);
-        if (!callStructure.signatureApplies(constructor.type)) {
+        if (!callStructure.signatureApplies(constructor.parameterStructure)) {
           isInvalid = true;
           kind = ConstructorAccessKind.INCOMPATIBLE;
           registry.registerFeature(Feature.THROW_NO_SUCH_METHOD);
@@ -3869,7 +3875,7 @@ class ResolverVisitor extends MappingVisitor<ResolutionResult> {
       case ConstructorResultKind.FACTORY:
         // Ensure that the signature of [constructor] has been computed.
         constructor.computeType(resolution);
-        if (!callStructure.signatureApplies(constructor.type)) {
+        if (!callStructure.signatureApplies(constructor.parameterStructure)) {
           // The effective target might still be valid(!) so the is not an
           // invalid case in itself. For instance
           //
@@ -3948,7 +3954,7 @@ class ResolverVisitor extends MappingVisitor<ResolutionResult> {
               argumentNode, MessageKind.STRING_EXPECTED, {'type': type});
         } else {
           StringConstantValue stringConstant = name;
-          String nameString = stringConstant.toDartString().slowToString();
+          String nameString = stringConstant.primitiveValue;
           if (validateSymbol(argumentNode, nameString)) {
             registry.registerConstSymbol(nameString);
           }

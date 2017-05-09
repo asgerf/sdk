@@ -6,7 +6,7 @@ library services.refactoring;
 
 import 'dart:async';
 
-import 'package:analysis_server/plugin/protocol/protocol.dart'
+import 'package:analysis_server/protocol/protocol_generated.dart'
     show RefactoringMethodParameter, SourceChange;
 import 'package:analysis_server/src/services/correction/status.dart';
 import 'package:analysis_server/src/services/refactoring/convert_getter_to_method.dart';
@@ -126,7 +126,7 @@ abstract class ExtractLocalRefactoring implements Refactoring {
    *
    * It does not perform all the checks (such as checking for conflicts with any
    * existing names in any of the scopes containing the current name), as many
-   * of these checkes require search engine. Use [checkFinalConditions] for this
+   * of these checks require search engine. Use [checkFinalConditions] for this
    * level of checking.
    */
   RefactoringStatus checkName();
@@ -215,7 +215,7 @@ abstract class ExtractMethodRefactoring implements Refactoring {
    *
    * It does not perform all the checks (such as checking for conflicts with any
    * existing names in any of the scopes containing the current name), as many
-   * of these checkes require search engine. Use [checkFinalConditions] for this
+   * of these checks require search engine. Use [checkFinalConditions] for this
    * level of checking.
    */
   RefactoringStatus checkName();
@@ -427,7 +427,7 @@ abstract class RenameRefactoring implements Refactoring {
    *
    * It does not perform all the checks (such as checking for conflicts with any
    * existing names in any of the scopes containing the current name), as many
-   * of these checkes require search engine. Use [checkFinalConditions] for this
+   * of these checks require search engine. Use [checkFinalConditions] for this
    * level of checking.
    */
   RefactoringStatus checkNewName();

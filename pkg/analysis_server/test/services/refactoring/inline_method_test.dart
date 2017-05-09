@@ -2,11 +2,9 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-library test.services.refactoring.inline_method;
-
 import 'dart:async';
 
-import 'package:analysis_server/plugin/protocol/protocol.dart' hide Element;
+import 'package:analysis_server/protocol/protocol_generated.dart' hide Element;
 import 'package:analysis_server/src/services/correction/status.dart';
 import 'package:analysis_server/src/services/refactoring/inline_method.dart';
 import 'package:analysis_server/src/services/refactoring/refactoring.dart';
@@ -19,7 +17,6 @@ import 'abstract_refactoring.dart';
 main() {
   defineReflectiveSuite(() {
     defineReflectiveTests(InlineMethodTest);
-    defineReflectiveTests(InlineMethodTest_Driver);
   });
 }
 
@@ -1716,10 +1713,4 @@ main(bool p, bool p2, bool p3) {
     refactoring = new InlineMethodRefactoring(
         searchEngine, astProvider, testUnit, offset);
   }
-}
-
-@reflectiveTest
-class InlineMethodTest_Driver extends InlineMethodTest {
-  @override
-  bool get enableNewAnalysisDriver => true;
 }

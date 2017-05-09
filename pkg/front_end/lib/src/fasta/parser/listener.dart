@@ -6,11 +6,12 @@ library fasta.parser.listener;
 
 import '../fasta_codes.dart' show FastaMessage;
 
+import '../../scanner/token.dart' show TokenType;
+
 import '../scanner/token.dart' show BeginGroupToken, SymbolToken, Token;
 
 import '../util/link.dart' show Link;
 
-import 'package:front_end/src/fasta/scanner/precedence.dart' show RECOVERY_INFO;
 import 'parser.dart' show FormalParameterType;
 
 import 'identifier_context.dart' show IdentifierContext;
@@ -102,6 +103,12 @@ class Listener {
 
   void endCompilationUnit(int count, Token token) {
     logEvent("CompilationUnit");
+  }
+
+  void beginConstLiteral(Token token) {}
+
+  void endConstLiteral(Token token) {
+    logEvent("ConstLiteral");
   }
 
   void beginConstructorReference(Token start) {}
@@ -409,7 +416,7 @@ class Listener {
 
   /// Handle the end of a field initializer.  Substructures:
   /// - Initializer expression
-  void endFieldInitializer(Token assignment) {
+  void endFieldInitializer(Token assignment, Token token) {
     logEvent("FieldInitializer");
   }
 
@@ -641,7 +648,7 @@ class Listener {
 
   void beginRethrowStatement(Token token) {}
 
-  void endRethrowStatement(Token throwToken, Token endToken) {
+  void endRethrowStatement(Token rethrowToken, Token endToken) {
     logEvent("RethrowStatement");
   }
 
@@ -1022,12 +1029,39 @@ class Listener {
     logEvent("Script");
   }
 
+  /// Matches a generic comment type substitution and injects it into the token
+  /// stream before the given [token].
+  Token injectGenericCommentTypeAssign(Token token) {
+    return token;
+  }
+
+  /// Matches a generic comment type parameters or type arguments and injects
+  /// them into the token stream before the given [token].
+  Token injectGenericCommentTypeList(Token token) {
+    return token;
+  }
+
+  /// If the [tokenWithComment] has a type substitution comment /*=T*/, then
+  /// the comment should be scanned into new tokens, and these tokens inserted
+  /// instead of tokens from the [tokenToStartReplacing] to the
+  /// [tokenWithComment]. Returns the first newly inserted token, or the
+  /// original [tokenWithComment].
+  Token replaceTokenWithGenericCommentTypeAssign(
+      Token tokenToStartReplacing, Token tokenWithComment) {
+    return tokenToStartReplacing;
+  }
+
+  /// A type has been just parsed, and the parser noticed that the next token
+  /// has a type substitution comment /*=T*. So, the type that has been just
+  /// parsed should be discarded, and a new type should be parsed instead.
+  void discardTypeReplacedWithCommentTypeAssign() {}
+
   /// Creates a new synthetic token whose `next` pointer points to [next].
   ///
   /// If [next] is `null`, `null` is returned.
   Token newSyntheticToken(Token next) {
     if (next == null) return null;
-    return new SymbolToken(RECOVERY_INFO, next.charOffset)..next = next;
+    return new SymbolToken(TokenType.RECOVERY, next.charOffset)..next = next;
   }
 }
 

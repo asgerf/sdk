@@ -2,11 +2,9 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-library test.services.refactoring.extract_method;
-
 import 'dart:async';
 
-import 'package:analysis_server/plugin/protocol/protocol.dart';
+import 'package:analysis_server/protocol/protocol_generated.dart';
 import 'package:analysis_server/src/services/correction/status.dart';
 import 'package:analysis_server/src/services/refactoring/extract_method.dart';
 import 'package:analysis_server/src/services/refactoring/refactoring.dart';
@@ -18,7 +16,6 @@ import 'abstract_refactoring.dart';
 main() {
   defineReflectiveSuite(() {
     defineReflectiveTests(ExtractMethodTest);
-    defineReflectiveTests(ExtractMethodTest_Driver);
   });
 }
 
@@ -2842,10 +2839,4 @@ Future<int> newFuture() => null;
       return new RefactoringMethodParameter(p.kind, p.type, p.name, id: p.id);
     }).toList();
   }
-}
-
-@reflectiveTest
-class ExtractMethodTest_Driver extends ExtractMethodTest {
-  @override
-  bool get enableNewAnalysisDriver => true;
 }

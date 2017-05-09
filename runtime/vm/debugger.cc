@@ -8,23 +8,23 @@
 
 #include "platform/address_sanitizer.h"
 
-#include "vm/code_generator.h"
 #include "vm/code_patcher.h"
 #include "vm/compiler.h"
 #include "vm/dart_entry.h"
 #include "vm/deopt_instructions.h"
 #include "vm/flags.h"
 #include "vm/globals.h"
-#include "vm/longjump.h"
 #include "vm/json_stream.h"
+#include "vm/longjump.h"
 #include "vm/message_handler.h"
 #include "vm/object.h"
 #include "vm/object_store.h"
 #include "vm/os.h"
 #include "vm/port.h"
+#include "vm/runtime_entry.h"
+#include "vm/service.h"
 #include "vm/service_event.h"
 #include "vm/service_isolate.h"
-#include "vm/service.h"
 #include "vm/stack_frame.h"
 #include "vm/stack_trace.h"
 #include "vm/stub_code.h"
@@ -844,7 +844,8 @@ bool ActivationFrame::HandlesException(const Instance& exc_obj) {
         if (type.IsDynamicType()) {
           return true;
         }
-        if (exc_obj.IsInstanceOf(type, Object::null_type_arguments(), NULL)) {
+        if (exc_obj.IsInstanceOf(type, Object::null_type_arguments(),
+                                 Object::null_type_arguments(), NULL)) {
           return true;
         }
       }
@@ -929,6 +930,7 @@ const Context& ActivationFrame::GetSavedCurrentContext() {
   if (!ctx_.IsNull()) return ctx_;
   GetVarDescriptors();
   intptr_t var_desc_len = var_descriptors_.Length();
+  Object& obj = Object::Handle();
   for (intptr_t i = 0; i < var_desc_len; i++) {
     RawLocalVarDescriptors::VarInfo var_info;
     var_descriptors_.GetInfo(i, &var_info);
@@ -938,11 +940,21 @@ const Context& ActivationFrame::GetSavedCurrentContext() {
         OS::PrintErr("\tFound saved current ctx at index %d\n",
                      var_info.index());
       }
-      ctx_ ^= GetStackVar(var_info.index());
+      obj = GetStackVar(var_info.index());
+      if (obj.IsClosure()) {
+        ASSERT(function().name() == Symbols::Call().raw());
+        ASSERT(function().IsInvokeFieldDispatcher());
+        // Closure.call frames.
+        ctx_ ^= Closure::Cast(obj).context();
+      } else if (obj.IsContext()) {
+        ctx_ ^= Context::Cast(obj).raw();
+      } else {
+        ASSERT(obj.IsNull());
+      }
       return ctx_;
     }
   }
-  return Context::ZoneHandle(Context::null());
+  return ctx_;
 }
 
 
@@ -1153,7 +1165,9 @@ void ActivationFrame::PrintContextMismatchError(intptr_t ctx_slot,
   OS::PrintErr(
       "-------------------------\n"
       "All frames...\n\n");
-  StackFrameIterator iterator(false);
+  StackFrameIterator iterator(StackFrameIterator::kDontValidateFrames,
+                              Thread::Current(),
+                              StackFrameIterator::kNoCrossThreadIteration);
   StackFrame* frame = iterator.NextFrame();
   intptr_t num = 0;
   while ((frame != NULL)) {
@@ -1836,7 +1850,9 @@ DebuggerStackTrace* Debugger::CollectStackTrace() {
   Zone* zone = thread->zone();
   Isolate* isolate = thread->isolate();
   DebuggerStackTrace* stack_trace = new DebuggerStackTrace(8);
-  StackFrameIterator iterator(false);
+  StackFrameIterator iterator(StackFrameIterator::kDontValidateFrames,
+                              Thread::Current(),
+                              StackFrameIterator::kNoCrossThreadIteration);
   Code& code = Code::Handle(zone);
   Code& inlined_code = Code::Handle(zone);
   Array& deopt_frame = Array::Handle(zone);
@@ -1922,7 +1938,9 @@ DebuggerStackTrace* Debugger::CollectAsyncCausalStackTrace() {
   // asynchronous function. We truncate the remainder of the synchronous
   // stack trace because it contains activations that are part of the
   // asynchronous dispatch mechanisms.
-  StackFrameIterator iterator(false);
+  StackFrameIterator iterator(StackFrameIterator::kDontValidateFrames,
+                              Thread::Current(),
+                              StackFrameIterator::kNoCrossThreadIteration);
   StackFrame* frame = iterator.NextFrame();
   while (synchronous_stack_trace_length > 0) {
     ASSERT(frame != NULL);
@@ -1974,7 +1992,7 @@ DebuggerStackTrace* Debugger::CollectAsyncCausalStackTrace() {
 
 
 DebuggerStackTrace* Debugger::CollectAwaiterReturnStackTrace() {
-  if (!FLAG_causal_async_stacks) {
+  if (!FLAG_async_debugger) {
     return NULL;
   }
   // Causal async stacks are not supported in the AOT runtime.
@@ -1985,7 +2003,9 @@ DebuggerStackTrace* Debugger::CollectAwaiterReturnStackTrace() {
   Isolate* isolate = thread->isolate();
   DebuggerStackTrace* stack_trace = new DebuggerStackTrace(8);
 
-  StackFrameIterator iterator(StackFrameIterator::kDontValidateFrames);
+  StackFrameIterator iterator(StackFrameIterator::kDontValidateFrames,
+                              Thread::Current(),
+                              StackFrameIterator::kNoCrossThreadIteration);
 
   Code& code = Code::Handle(zone);
   Smi& offset = Smi::Handle(zone);
@@ -1995,7 +2015,7 @@ DebuggerStackTrace* Debugger::CollectAwaiterReturnStackTrace() {
   Object& next_async_activation = Object::Handle(zone);
   Array& deopt_frame = Array::Handle(zone);
   class StackTrace& async_stack_trace = StackTrace::Handle(zone);
-
+  bool stack_has_async_function = false;
   for (StackFrame* frame = iterator.NextFrame(); frame != NULL;
        frame = iterator.NextFrame()) {
     ASSERT(frame->IsValid());
@@ -2024,6 +2044,7 @@ DebuggerStackTrace* Debugger::CollectAwaiterReturnStackTrace() {
                 deopt_frame_offset, ActivationFrame::kAsyncActivation);
             ASSERT(activation != NULL);
             stack_trace->AddActivation(activation);
+            stack_has_async_function = true;
             // Grab the awaiter.
             async_activation ^= activation->GetAsyncAwaiter();
             found_async_awaiter = true;
@@ -2046,8 +2067,10 @@ DebuggerStackTrace* Debugger::CollectAwaiterReturnStackTrace() {
               ActivationFrame::kAsyncActivation);
           ASSERT(activation != NULL);
           stack_trace->AddActivation(activation);
+          stack_has_async_function = true;
           // Grab the awaiter.
           async_activation ^= activation->GetAsyncAwaiter();
+          async_stack_trace ^= activation->GetCausalStack();
           break;
         } else {
           stack_trace->AddActivation(CollectDartFrame(
@@ -2057,9 +2080,8 @@ DebuggerStackTrace* Debugger::CollectAwaiterReturnStackTrace() {
     }
   }
 
-  // Return NULL to indicate that there is no useful information in this stack
-  // trace because we never found an awaiter.
-  if (async_activation.IsNull()) {
+  // If the stack doesn't have any async functions on it, return NULL.
+  if (!stack_has_async_function) {
     return NULL;
   }
 
@@ -2117,7 +2139,9 @@ DebuggerStackTrace* Debugger::CollectAwaiterReturnStackTrace() {
 
 
 ActivationFrame* Debugger::TopDartFrame() const {
-  StackFrameIterator iterator(false);
+  StackFrameIterator iterator(StackFrameIterator::kDontValidateFrames,
+                              Thread::Current(),
+                              StackFrameIterator::kNoCrossThreadIteration);
   StackFrame* frame = iterator.NextFrame();
   while ((frame != NULL) && !frame->IsDartFrame()) {
     frame = iterator.NextFrame();
@@ -2566,7 +2590,7 @@ void Debugger::FindCompiledFunctions(const Script& script,
         continue;
       }
       // Note: we need to check the functions of this class even if
-      // the class is defined in a differenct 'script'. There could
+      // the class is defined in a different 'script'. There could
       // be mixin functions from the given script in this class.
       functions = cls.functions();
       if (!functions.IsNull()) {
@@ -2634,7 +2658,7 @@ RawFunction* Debugger::FindBestFit(const Script& script,
       cls = class_table.At(i);
       // Note: if this class has been parsed and finalized already,
       // we need to check the functions of this class even if
-      // it is defined in a differenct 'script'. There could
+      // it is defined in a different 'script'. There could
       // be mixin functions from the given script in this class.
       // However, if this class is not parsed yet (not finalized),
       // we can ignore it and avoid the side effect of parsing it.
@@ -3244,7 +3268,7 @@ void Debugger::CleanupSyntheticAsyncBreakpoint() {
 
 
 void Debugger::RememberTopFrameAwaiter() {
-  if (!FLAG_async_debugger_stepping) {
+  if (!FLAG_async_debugger) {
     return;
   }
   if (stack_trace_->Length() > 0) {
@@ -3256,7 +3280,7 @@ void Debugger::RememberTopFrameAwaiter() {
 
 
 void Debugger::SetAsyncSteppingFramePointer() {
-  if (!FLAG_async_debugger_stepping) {
+  if (!FLAG_async_debugger) {
     return;
   }
   if (stack_trace_->FrameAt(0)->function().IsAsyncClosure() ||
@@ -3296,7 +3320,7 @@ void Debugger::HandleSteppingRequest(DebuggerStackTrace* stack_trace,
       OS::Print("HandleSteppingRequest- kStepOver %" Px "\n", stepping_fp_);
     }
   } else if (resume_action_ == kStepOut) {
-    if (FLAG_async_debugger_stepping) {
+    if (FLAG_async_debugger) {
       if (stack_trace->FrameAt(0)->function().IsAsyncClosure() ||
           stack_trace->FrameAt(0)->function().IsAsyncGenClosure()) {
         // Request to step out of an async/async* closure.
@@ -3330,7 +3354,9 @@ void Debugger::HandleSteppingRequest(DebuggerStackTrace* stack_trace,
       OS::PrintErr(
           "-------------------------\n"
           "All frames...\n\n");
-      StackFrameIterator iterator(false);
+      StackFrameIterator iterator(StackFrameIterator::kDontValidateFrames,
+                                  Thread::Current(),
+                                  StackFrameIterator::kNoCrossThreadIteration);
       StackFrame* frame = iterator.NextFrame();
       intptr_t num = 0;
       while ((frame != NULL)) {
@@ -3452,7 +3478,9 @@ void Debugger::RewindToFrame(intptr_t frame_index) {
   Function& function = Function::Handle(zone);
 
   // Find the requested frame.
-  StackFrameIterator iterator(false);
+  StackFrameIterator iterator(StackFrameIterator::kDontValidateFrames,
+                              Thread::Current(),
+                              StackFrameIterator::kNoCrossThreadIteration);
   intptr_t current_frame = 0;
   for (StackFrame* frame = iterator.NextFrame(); frame != NULL;
        frame = iterator.NextFrame()) {
@@ -3554,7 +3582,9 @@ void Debugger::RewindPostDeopt() {
     OS::PrintErr(
         "-------------------------\n"
         "All frames...\n\n");
-    StackFrameIterator iterator(false);
+    StackFrameIterator iterator(StackFrameIterator::kDontValidateFrames,
+                                Thread::Current(),
+                                StackFrameIterator::kNoCrossThreadIteration);
     StackFrame* frame = iterator.NextFrame();
     intptr_t num = 0;
     while ((frame != NULL)) {
@@ -3567,7 +3597,9 @@ void Debugger::RewindPostDeopt() {
   Zone* zone = thread->zone();
   Code& code = Code::Handle(zone);
 
-  StackFrameIterator iterator(false);
+  StackFrameIterator iterator(StackFrameIterator::kDontValidateFrames,
+                              Thread::Current(),
+                              StackFrameIterator::kNoCrossThreadIteration);
   intptr_t current_frame = 0;
   for (StackFrame* frame = iterator.NextFrame(); frame != NULL;
        frame = iterator.NextFrame()) {
@@ -3664,7 +3696,7 @@ RawError* Debugger::PauseStepping() {
   ActivationFrame* frame = TopDartFrame();
   ASSERT(frame != NULL);
 
-  if (FLAG_async_debugger_stepping) {
+  if (FLAG_async_debugger) {
     if ((async_stepping_fp_ != 0) && (top_frame_awaiter_ != Object::null())) {
       // Check if the user has single stepped out of an async function with
       // an awaiter. The first check handles the case of calling into the
@@ -4226,7 +4258,7 @@ void Debugger::RemoveBreakpoint(intptr_t bp_id) {
 }
 
 
-// Unlink code breakpoints from the the given breakpoint location.
+// Unlink code breakpoints from the given breakpoint location.
 // They will later be deleted when control returns from the pause event
 // callback. Also, disable the breakpoint so it no longer fires if it
 // should be hit before it gets deleted.
@@ -4301,7 +4333,7 @@ Breakpoint* Debugger::GetBreakpointById(intptr_t id) {
 
 
 void Debugger::MaybeAsyncStepInto(const Closure& async_op) {
-  if (FLAG_async_debugger_stepping && IsSingleStepping()) {
+  if (FLAG_async_debugger && IsSingleStepping()) {
     // We are single stepping, set a breakpoint on the closure activation
     // and resume execution so we can hit the breakpoint.
     AsyncStepInto(async_op);

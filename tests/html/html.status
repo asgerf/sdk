@@ -114,8 +114,6 @@ element_types_test/supported_meter: RuntimeError # Issue 18573
 
 [ $runtime == chrome ]
 touchevent_test/supported: Fail # Touch events are only supported on touch devices
-element_types_test/supported_object: RuntimeError # Issue 25155
-element_types_test/supported_embed: RuntimeError # Issue 25155
 svgelement_test/PathElement: RuntimeError # Issue 25665
 element_animate_test/timing_dict: RuntimeError # Issue 26730
 
@@ -284,9 +282,7 @@ element_types_test/supported_shadow: Pass, RuntimeError # Issue 28983
 # Firefox Feature support statuses-
 # All changes should be accompanied by platform support annotation changes.
 element_classes_test: RuntimeError # Issue 27535
-element_types_test/supported_embed: Fail
 element_types_test/supported_keygen: Fail
-element_types_test/supported_object: Fail
 fileapi_test/supported: Fail
 indexeddb_1_test/supportsDatabaseNames: Fail
 input_element_test/supported_date: Fail
@@ -378,4 +374,5 @@ js_typed_interop_default_arg_test/default_value: MissingCompileTimeError # Issue
 custom/constructor_calls_created_synchronously_test: Fail # mirrors not supported
 custom/js_custom_test: Fail # mirrors not supported
 custom/mirrors_test: Fail # mirrors not supported
+custom/mirrors_2_test: Fail # mirrors not supported
 mirrors_js_typed_interop_test: Fail # mirrors not supported

@@ -4,6 +4,8 @@
 
 library dart_scanner.error_token;
 
+import '../../scanner/token.dart' show TokenType;
+
 import '../fasta_codes.dart'
     show
         FastaCode,
@@ -21,8 +23,6 @@ import '../fasta_codes.dart'
 
 import '../scanner.dart'
     show BeginGroupToken, Token, unicodeReplacementCharacter;
-
-import 'precedence.dart' show BAD_INPUT_INFO, PrecedenceInfo;
 
 ErrorToken buildUnexpectedCharacterToken(int character, int charOffset) {
   if (character < 0x1f) {
@@ -69,13 +69,16 @@ ErrorToken buildUnexpectedCharacterToken(int character, int charOffset) {
 abstract class ErrorToken extends Token {
   ErrorToken(int charOffset) : super(charOffset);
 
-  PrecedenceInfo get info => BAD_INPUT_INFO;
+  TokenType get type => TokenType.BAD_INPUT;
+
+  /// This is a token that wraps around an error message. Return 1
+  /// instead of the size of the length of the error message.
+  @override
+  int get charCount => 1;
 
   String get lexeme => throw assertionMessage;
 
-  String get stringValue => null;
-
-  bool isIdentifier() => false;
+  bool get isIdentifier => false;
 
   String get assertionMessage;
 

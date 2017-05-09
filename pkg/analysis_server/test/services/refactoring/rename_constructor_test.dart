@@ -2,9 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-library test.services.refactoring.rename_constructor;
-
-import 'package:analysis_server/plugin/protocol/protocol.dart';
+import 'package:analysis_server/protocol/protocol_generated.dart';
 import 'package:analysis_server/src/services/correction/status.dart';
 import 'package:analysis_server/src/services/refactoring/refactoring.dart';
 import 'package:analyzer/dart/ast/ast.dart';
@@ -17,7 +15,6 @@ import 'abstract_rename.dart';
 main() {
   defineReflectiveSuite(() {
     defineReflectiveTests(RenameConstructorTest);
-    defineReflectiveTests(RenameConstructorTest_Driver);
   });
 }
 
@@ -251,10 +248,4 @@ main() {
         search, (node) => node is InstanceCreationExpression);
     createRenameRefactoringForElement(element);
   }
-}
-
-@reflectiveTest
-class RenameConstructorTest_Driver extends RenameConstructorTest {
-  @override
-  bool get enableNewAnalysisDriver => true;
 }

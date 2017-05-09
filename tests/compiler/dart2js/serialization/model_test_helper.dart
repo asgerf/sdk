@@ -14,6 +14,7 @@ import 'package:compiler/src/common.dart';
 import 'package:compiler/src/constants/values.dart';
 import 'package:compiler/src/compiler.dart';
 import 'package:compiler/src/elements/resolution_types.dart';
+import 'package:compiler/src/elements/types.dart';
 import 'package:compiler/src/deferred_load.dart';
 import 'package:compiler/src/elements/elements.dart';
 import 'package:compiler/src/elements/entities.dart';
@@ -106,6 +107,7 @@ Future checkModels(Uri entryPoint,
     checkClosedWorlds(
         compilerNormal.resolutionWorldBuilder.closedWorldForTesting,
         compilerDeserialized.resolutionWorldBuilder.closedWorldForTesting,
+        areElementsEquivalent,
         verbose: verbose);
     checkBackendInfo(compilerNormal, compilerDeserialized, verbose: verbose);
   });
@@ -116,31 +118,12 @@ void checkResolutionEnqueuers(
     BackendUsage backendUsage2,
     ResolutionEnqueuer enqueuer1,
     ResolutionEnqueuer enqueuer2,
-    {bool typeEquivalence(ResolutionDartType a, ResolutionDartType b):
-        areTypesEquivalent,
+    {bool elementEquivalence(Entity a, Entity b): areElementsEquivalent,
+    bool typeEquivalence(DartType a, DartType b): areTypesEquivalent,
     bool elementFilter(Element element),
     bool verbose: false}) {
-  checkSets(enqueuer1.processedEntities, enqueuer2.processedEntities,
-      "Processed element mismatch", areElementsEquivalent,
-      elementFilter: elementFilter, verbose: verbose);
-
-  ElementResolutionWorldBuilder worldBuilder1 = enqueuer1.worldBuilder;
-  ElementResolutionWorldBuilder worldBuilder2 = enqueuer2.worldBuilder;
-
-  checkMaps(
-      worldBuilder1.getInstantiationMap(),
-      worldBuilder2.getInstantiationMap(),
-      "Instantiated classes mismatch",
-      areElementsEquivalent,
-      (a, b) => areInstantiationInfosEquivalent(a, b, typeEquivalence),
-      verbose: verbose);
-
-  checkSets(
-      enqueuer1.worldBuilder.directlyInstantiatedClasses,
-      enqueuer2.worldBuilder.directlyInstantiatedClasses,
-      "Directly instantiated classes mismatch",
-      areElementsEquivalent,
-      verbose: verbose);
+  ResolutionWorldBuilderBase worldBuilder1 = enqueuer1.worldBuilder;
+  ResolutionWorldBuilderBase worldBuilder2 = enqueuer2.worldBuilder;
 
   checkSets(
       enqueuer1.worldBuilder.instantiatedTypes,
@@ -148,6 +131,27 @@ void checkResolutionEnqueuers(
       "Instantiated types mismatch",
       typeEquivalence,
       verbose: verbose);
+
+  checkSets(
+      enqueuer1.worldBuilder.directlyInstantiatedClasses,
+      enqueuer2.worldBuilder.directlyInstantiatedClasses,
+      "Directly instantiated classes mismatch",
+      elementEquivalence,
+      verbose: verbose);
+
+  checkMaps(
+      worldBuilder1.getInstantiationMap(),
+      worldBuilder2.getInstantiationMap(),
+      "Instantiated classes mismatch",
+      elementEquivalence,
+      (a, b) => areInstantiationInfosEquivalent(
+          a, b, elementEquivalence, typeEquivalence),
+      verbose: verbose);
+
+  checkSets(enqueuer1.processedEntities, enqueuer2.processedEntities,
+      "Processed element mismatch", elementEquivalence, elementFilter: (e) {
+    return elementFilter != null ? elementFilter(e) : true;
+  }, verbose: verbose);
 
   checkSets(enqueuer1.worldBuilder.isChecks, enqueuer2.worldBuilder.isChecks,
       "Is-check mismatch", typeEquivalence,
@@ -168,7 +172,12 @@ void checkResolutionEnqueuers(
 }
 
 void checkClosedWorlds(ClosedWorld closedWorld1, ClosedWorld closedWorld2,
+    bool elementEquivalence(Entity a, Entity b),
     {bool verbose: false}) {
+  if (verbose) {
+    print(closedWorld1.dump());
+    print(closedWorld2.dump());
+  }
   checkClassHierarchyNodes(
       closedWorld1,
       closedWorld2,
@@ -176,6 +185,7 @@ void checkClosedWorlds(ClosedWorld closedWorld1, ClosedWorld closedWorld2,
           .getClassHierarchyNode(closedWorld1.commonElements.objectClass),
       closedWorld2
           .getClassHierarchyNode(closedWorld2.commonElements.objectClass),
+      elementEquivalence,
       verbose: verbose);
 }
 
@@ -293,19 +303,25 @@ void checkElements(
   }
   JavaScriptBackend backend1 = compiler1.backend;
   JavaScriptBackend backend2 = compiler2.backend;
-  Expect.equals(
-      backend1.inlineCache.getCurrentCacheDecisionForTesting(element1),
-      backend2.inlineCache.getCurrentCacheDecisionForTesting(element2),
-      "Inline cache decision mismatch for $element1 vs $element2");
+  if (element1 is MethodElement && element2 is MethodElement) {
+    Expect.equals(
+        backend1.inlineCache.getCurrentCacheDecisionForTesting(element1),
+        backend2.inlineCache.getCurrentCacheDecisionForTesting(element2),
+        "Inline cache decision mismatch for $element1 vs $element2");
+  }
 
   checkElementOutputUnits(compiler1, compiler2, element1, element2);
 }
 
-void checkMixinUses(ClosedWorld closedWorld1, ClosedWorld closedWorld2,
-    ClassElement class1, ClassElement class2,
+void checkMixinUses(
+    ClosedWorld closedWorld1,
+    ClosedWorld closedWorld2,
+    ClassEntity class1,
+    ClassEntity class2,
+    bool elementEquivalence(Entity a, Entity b),
     {bool verbose: false}) {
   checkSets(closedWorld1.mixinUsesOf(class1), closedWorld2.mixinUsesOf(class2),
-      "Mixin uses of $class1 vs $class2", areElementsEquivalent,
+      "Mixin uses of $class1 vs $class2", elementEquivalence,
       verbose: verbose);
 }
 
@@ -314,17 +330,20 @@ void checkClassHierarchyNodes(
     ClosedWorld closedWorld2,
     ClassHierarchyNode node1,
     ClassHierarchyNode node2,
+    bool elementEquivalence(Entity a, Entity b),
     {bool verbose: false}) {
   if (verbose) {
     print('Checking $node1 vs $node2');
   }
-  Expect.isTrue(areElementsEquivalent(node1.cls, node2.cls),
-      "Element identity mismatch for ${node1.cls} vs ${node2.cls}.");
+  ClassEntity cls1 = node1.cls;
+  ClassEntity cls2 = node2.cls;
+  Expect.isTrue(elementEquivalence(cls1, cls2),
+      "Element identity mismatch for ${cls1} vs ${cls2}.");
   Expect.equals(
       node1.isDirectlyInstantiated,
       node2.isDirectlyInstantiated,
       "Value mismatch for 'isDirectlyInstantiated' "
-      "for ${node1.cls} vs ${node2.cls}.");
+      "for ${cls1} vs ${cls2}.");
   Expect.equals(
       node1.isIndirectlyInstantiated,
       node2.isIndirectlyInstantiated,
@@ -335,8 +354,11 @@ void checkClassHierarchyNodes(
   for (ClassHierarchyNode child in node1.directSubclasses) {
     bool found = false;
     for (ClassHierarchyNode other in node2.directSubclasses) {
-      if (areElementsEquivalent(child.cls, other.cls)) {
-        checkClassHierarchyNodes(closedWorld1, closedWorld2, child, other,
+      ClassEntity child1 = child.cls;
+      ClassEntity child2 = other.cls;
+      if (elementEquivalence(child1, child2)) {
+        checkClassHierarchyNodes(
+            closedWorld1, closedWorld2, child, other, elementEquivalence,
             verbose: verbose);
         found = true;
         break;
@@ -357,7 +379,8 @@ void checkClassHierarchyNodes(
           '${node2.directSubclasses}');
     }
   }
-  checkMixinUses(closedWorld1, closedWorld2, node1.cls, node2.cls,
+  checkMixinUses(
+      closedWorld1, closedWorld2, node1.cls, node2.cls, elementEquivalence,
       verbose: verbose);
 }
 
@@ -437,21 +460,24 @@ void checkOutputUnits(
 bool areInstantiationInfosEquivalent(
     InstantiationInfo info1,
     InstantiationInfo info2,
-    bool typeEquivalence(ResolutionDartType a, ResolutionDartType b)) {
+    bool elementEquivalence(Entity a, Entity b),
+    bool typeEquivalence(DartType a, DartType b)) {
   checkMaps(
       info1.instantiationMap,
       info2.instantiationMap,
       'instantiationMap of\n   '
       '${info1.instantiationMap}\nvs ${info2.instantiationMap}',
-      areElementsEquivalent,
+      elementEquivalence,
       (a, b) => areSetsEquivalent(
           a, b, (a, b) => areInstancesEquivalent(a, b, typeEquivalence)));
   return true;
 }
 
 bool areInstancesEquivalent(Instance instance1, Instance instance2,
-    bool typeEquivalence(ResolutionDartType a, ResolutionDartType b)) {
-  return typeEquivalence(instance1.type, instance2.type) &&
+    bool typeEquivalence(DartType a, DartType b)) {
+  InterfaceType type1 = instance1.type;
+  InterfaceType type2 = instance2.type;
+  return typeEquivalence(type1, type2) &&
       instance1.kind == instance2.kind &&
       instance1.isRedirection == instance2.isRedirection;
 }

@@ -11,6 +11,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
   let mochaOnError = window.onerror;
   dart_sdk.dart.trapRuntimeErrors(false);
   dart_sdk.dart.ignoreWhitelistedErrors(false);
+  dart_sdk.dart.failForWeakModeIsChecks(false);
   dart_sdk._isolate_helper.startRootIsolate(function() {}, []);
   // Make it easier to debug test failures and required for formatter test that
   // assumes custom formatters are enabled.
@@ -132,7 +133,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'deferred_redirecting_factory_test': fail,
       'deferred_static_seperate_test': fail,
 
-      'deferred_regression_22995_test': fail, // Strong mode "is" rejects some type tests.
       'double_int_to_string_test': fail,
       'dynamic_test': fail,
       'exception_test': fail,
@@ -149,44 +149,13 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'final_syntax_test_08_multi': fail,
       'first_class_types_test': fail,
       'for_variable_capture_test': is.firefox('<=50') ? pass : fail,
-      'function_subtype0_test': fail,
-      'function_subtype1_test': fail,
-      'function_subtype2_test': fail,
-      'function_subtype3_test': fail,
-      'function_subtype_bound_closure0_test': fail,
-      'function_subtype_bound_closure1_test': fail,
-      'function_subtype_bound_closure2_test': fail,
-      'function_subtype_bound_closure3_test': fail,
-      'function_subtype_bound_closure4_test': fail,
-      'function_subtype_bound_closure5_test': fail,
-      'function_subtype_bound_closure5a_test': fail,
-      'function_subtype_bound_closure6_test': fail,
-      'function_subtype_call0_test': fail, // Strong mode "is" rejects some type tests.
-      'function_subtype_call1_test': fail,
-      'function_subtype_call2_test': fail,
-      'function_subtype_factory0_test': fail,
-      'function_subtype_inline0_test': fail,
-      'function_subtype_local0_test': fail,
-      'function_subtype_local1_test': fail,
-      'function_subtype_local2_test': fail,
-      'function_subtype_local3_test': fail,
-      'function_subtype_local4_test': fail,
-      'function_subtype_local5_test': fail,
       'function_subtype_named1_test': fail,
       'function_subtype_named2_test': fail,
-      'function_subtype_not0_test': fail,
-      'function_subtype_not1_test': fail,
-      'function_subtype_not2_test': fail,
-      'function_subtype_not3_test': fail,
       'function_subtype_optional1_test': fail,
       'function_subtype_optional2_test': fail,
-      'function_subtype_top_level0_test': fail,
-      'function_subtype_top_level1_test': fail,
       'function_subtype_typearg2_test': fail,
       'function_subtype_typearg4_test': fail,
-      'function_type_alias2_test': fail,
       'function_type_alias3_test': fail,
-      'function_type_alias4_test': fail,
       'function_type_alias6_test_none_multi': fail,
       'generic_instanceof_test': fail, // runtime strong mode reject
       'generic_instanceof2_test': fail,
@@ -195,6 +164,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'generic_methods_dynamic_test_04_multi': fail,
       'generic_methods_recursive_bound_test_03_multi': fail,
       'generic_methods_simple_as_expression_test_02_multi': fail,
+      'generic_methods_generic_class_tearoff_test': fail,
       'getter_closure_execution_order_test': fail,
       'gc_test': 'slow',
       'identical_closure2_test': fail,
@@ -221,9 +191,9 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'memory_swap_test': skip_timeout,
       'method_invocation_test': fail,
       'mint_arithmetic_test': fail,
-      'mixin_forwarding_constructor3_test': fail,
       'mixin_implements_test': fail,
       'mixin_regress_13688_test': fail,
+      'mixin_super_constructor_positionals_test_none_multi': fail, // Issue 28059
       'modulo_test': fail,
       'named_parameter_clash_test': fail,
       'named_parameters_passing_falsy_test': is.firefox('<=50') ? fail : pass,
@@ -251,8 +221,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'switch_try_catch_test': fail,
       'throwing_lazy_variable_test': fail,
       'truncdiv_test': fail,  // did not throw
-      'type_variable_nested_test': fail,  // unsound is-check
-      'type_variable_typedef_test': fail,  // unsound is-check
+      'type_variable_nested_test': fail,
 
       'bit_operations_test_01_multi': fail,
       'bit_operations_test_02_multi': fail,
@@ -268,9 +237,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'multiline_newline_test_06_multi': fail,
       'multiline_newline_test_none_multi': fail,
       'no_main_test_01_multi': fail,
-
-      // https://github.com/dart-lang/sdk/issues/26123
-      'bad_raw_string_negative_test': fail,
 
       // https://github.com/dart-lang/sdk/issues/26124
       'prefix10_negative_test': fail,
@@ -366,6 +332,55 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'UC16_test': firefox_fail,
     },
 
+    'lib/async': {
+      'first_regression_test': async_unittest,
+      'future_or_bad_type_test_implements_multi': fail,
+      'future_or_bad_type_test_none_multi': fail,
+      'future_or_non_strong_test': fail,
+      'future_timeout_test': async_unittest,
+      'multiple_timer_test': async_unittest,
+      'futures_test': fail,
+      'run_zoned6_test_01_multi': fail,
+      'run_zoned9_test_01_multi': fail,
+      'schedule_microtask2_test': async_unittest,
+      'schedule_microtask3_test': async_unittest,
+      'schedule_microtask5_test': async_unittest,
+      'stream_controller_async_test': async_unittest,
+      'stream_first_where_test': async_unittest,
+      'stream_from_iterable_test': async_unittest,
+      'stream_iterator_test': async_unittest,
+      'stream_join_test': async_unittest,
+      'stream_last_where_test': async_unittest,
+      'stream_periodic2_test': async_unittest,
+      'stream_periodic3_test': async_unittest,
+      'stream_periodic4_test': async_unittest,
+      'stream_periodic5_test': async_unittest,
+      'stream_periodic6_test': async_unittest,
+      'stream_periodic_test': async_unittest,
+      'stream_single_test': async_unittest,
+      'stream_single_to_multi_subscriber_test': async_unittest,
+      'stream_state_helper': async_unittest,
+      'stream_state_nonzero_timer_test': async_unittest,
+      'stream_state_test': async_unittest,
+      'stream_subscription_as_future_test': async_unittest,
+      'stream_subscription_cancel_test': async_unittest,
+      'stream_timeout_test': async_unittest,
+      'stream_transform_test': async_unittest,
+      'stream_transformation_broadcast_test': async_unittest,
+      'stream_transformer_from_handlers_test': fail,
+      'timer_cancel1_test': async_unittest,
+      'timer_cancel2_test': async_unittest,
+      'timer_cancel_test': async_unittest,
+      'timer_isActive_test': async_unittest,
+      'timer_not_available_test': fail,
+      'timer_repeat_test': async_unittest,
+      'timer_test': async_unittest,
+      'zone_bind_callback_test': fail,
+      'zone_error_callback_test': fail,
+      'zone_register_callback_test': fail,
+      'zone_run_unary_test': fail,
+    },
+
     'lib/collection': {
       'linked_list_test': whitelist,
     },
@@ -417,9 +432,10 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'custom_elements_23127_test': async_unittest,
       'custom_elements_test': async_unittest,
 
-      // TODO(jmesserly): investigate the change here; it is likely due to
-      // different reified types affecting the (gigantic) HTML literal
-      'debugger_test': fail, // firefox_fail
+      // Please do not mark this test as fail. If your change breaks this test,
+      // please look at the test for instructions on how to generate a new
+      // golden file.
+      'debugger_test': firefox_fail,
       'element_animate_test': 'unittest',
 
       // https://github.com/dart-lang/sdk/issues/27579.
@@ -453,9 +469,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'isolates_test': async_unittest,
 
       'js_interop_1_test': async_unittest,
-
-      // Failing because accessing "zSomeInvalidName" does not throw.
-      'js_typed_interop_test': 'fail',
 
       // The "typed literal" test fails because the object does not have "_c".
       'js_util_test': 'fail',

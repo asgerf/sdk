@@ -161,12 +161,16 @@ void FUNCTION_NAME(Process_Start)(Dart_NativeArguments args) {
       &process_stdin, &process_stderr, &pid, &exit_event, &os_error_message);
   if (error_code == 0) {
     if (mode != kDetached) {
-      Socket::SetSocketIdNativeField(stdin_handle, process_stdin, false);
-      Socket::SetSocketIdNativeField(stdout_handle, process_stdout, false);
-      Socket::SetSocketIdNativeField(stderr_handle, process_stderr, false);
+      Socket::SetSocketIdNativeField(stdin_handle, process_stdin,
+                                     Socket::kFinalizerNormal);
+      Socket::SetSocketIdNativeField(stdout_handle, process_stdout,
+                                     Socket::kFinalizerNormal);
+      Socket::SetSocketIdNativeField(stderr_handle, process_stderr,
+                                     Socket::kFinalizerNormal);
     }
     if (mode == kNormal) {
-      Socket::SetSocketIdNativeField(exit_handle, exit_event, false);
+      Socket::SetSocketIdNativeField(exit_handle, exit_event,
+                                     Socket::kFinalizerNormal);
     }
     Process::SetProcessIdNativeField(process, pid);
   } else {
@@ -360,6 +364,26 @@ void FUNCTION_NAME(StringToSystemEncoding)(Dart_NativeArguments args) {
     memmove(buffer, system_string, system_len);
   }
   Dart_SetReturnValue(args, external_array);
+}
+
+
+void FUNCTION_NAME(ProcessInfo_CurrentRSS)(Dart_NativeArguments args) {
+  int64_t current_rss = Process::CurrentRSS();
+  if (current_rss < 0) {
+    Dart_SetReturnValue(args, DartUtils::NewDartOSError());
+    return;
+  }
+  Dart_SetIntegerReturnValue(args, current_rss);
+}
+
+
+void FUNCTION_NAME(ProcessInfo_MaxRSS)(Dart_NativeArguments args) {
+  int64_t max_rss = Process::MaxRSS();
+  if (max_rss < 0) {
+    Dart_SetReturnValue(args, DartUtils::NewDartOSError());
+    return;
+  }
+  Dart_SetIntegerReturnValue(args, max_rss);
 }
 
 }  // namespace bin

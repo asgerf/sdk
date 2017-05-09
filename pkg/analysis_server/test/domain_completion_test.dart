@@ -6,12 +6,17 @@ library test.domain.completion;
 
 import 'dart:async';
 
-import 'package:analysis_server/plugin/protocol/protocol.dart';
+import 'package:analysis_server/protocol/protocol.dart';
+import 'package:analysis_server/protocol/protocol_generated.dart';
 import 'package:analysis_server/src/domain_completion.dart';
+import 'package:analysis_server/src/plugin/plugin_manager.dart';
 import 'package:analysis_server/src/provisional/completion/completion_core.dart';
 import 'package:analysis_server/src/provisional/completion/dart/completion_dart.dart';
 import 'package:analysis_server/src/services/completion/dart/completion_manager.dart';
 import 'package:analysis_server/src/services/completion/dart/contribution_sorter.dart';
+import 'package:analyzer_plugin/protocol/protocol.dart' as plugin;
+import 'package:analyzer_plugin/protocol/protocol_constants.dart' as plugin;
+import 'package:analyzer_plugin/protocol/protocol_generated.dart' as plugin;
 import 'package:test/test.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 
@@ -28,6 +33,12 @@ main() {
 
 @reflectiveTest
 class CompletionDomainHandlerTest extends AbstractCompletionDomainTest {
+  @override
+  void setUp() {
+    enableNewAnalysisDriver = true;
+    super.setUp();
+  }
+
   test_ArgumentList_constructor_named_param_label() async {
     addTestFile('main() { new A(^);}'
         'class A { A({one, two}) {} }');
@@ -169,7 +180,65 @@ class CompletionDomainHandlerTest extends AbstractCompletionDomainTest {
     expect(suggestions, hasLength(2));
   }
 
+  test_constructor() async {
+    addTestFile('class A {bool foo; A() : ^;}');
+    await getSuggestions();
+    assertHasResult(CompletionSuggestionKind.KEYWORD, 'super',
+        relevance: DART_RELEVANCE_KEYWORD);
+    assertHasResult(CompletionSuggestionKind.INVOCATION, 'foo',
+        relevance: DART_RELEVANCE_LOCAL_FIELD);
+  }
+
+  test_constructor2() async {
+    addTestFile('class A {bool foo; A() : s^;}');
+    await getSuggestions();
+    assertHasResult(CompletionSuggestionKind.KEYWORD, 'super',
+        relevance: DART_RELEVANCE_KEYWORD);
+    assertHasResult(CompletionSuggestionKind.INVOCATION, 'foo',
+        relevance: DART_RELEVANCE_LOCAL_FIELD);
+  }
+
+  test_constructor3() async {
+    addTestFile('class A {bool foo; A() : a=7,^;}');
+    await getSuggestions();
+    assertHasResult(CompletionSuggestionKind.KEYWORD, 'super',
+        relevance: DART_RELEVANCE_KEYWORD);
+    assertHasResult(CompletionSuggestionKind.INVOCATION, 'foo',
+        relevance: DART_RELEVANCE_LOCAL_FIELD);
+  }
+
+  test_constructor4() async {
+    addTestFile('class A {bool foo; A() : a=7,s^;}');
+    await getSuggestions();
+    assertHasResult(CompletionSuggestionKind.KEYWORD, 'super',
+        relevance: DART_RELEVANCE_KEYWORD);
+    assertHasResult(CompletionSuggestionKind.INVOCATION, 'foo',
+        relevance: DART_RELEVANCE_LOCAL_FIELD);
+  }
+
+  test_constructor5() async {
+    addTestFile('class A {bool foo; A() : a=7,s^}');
+    await getSuggestions();
+    assertHasResult(CompletionSuggestionKind.KEYWORD, 'super',
+        relevance: DART_RELEVANCE_KEYWORD);
+    assertHasResult(CompletionSuggestionKind.INVOCATION, 'foo',
+        relevance: DART_RELEVANCE_LOCAL_FIELD);
+  }
+
+  test_constructor6() async {
+    addTestFile('class A {bool foo; A() : a=7,^ void bar() {}}');
+    await getSuggestions();
+    assertHasResult(CompletionSuggestionKind.KEYWORD, 'super',
+        relevance: DART_RELEVANCE_KEYWORD);
+    assertHasResult(CompletionSuggestionKind.INVOCATION, 'foo',
+        relevance: DART_RELEVANCE_LOCAL_FIELD);
+  }
+
+  @failingTest
   test_html() {
+    //
+    // We no longer support the analysis of non-dart files.
+    //
     testFile = '/project/web/test.html';
     addTestFile('''
       <html>^</html>
@@ -209,7 +278,12 @@ class CompletionDomainHandlerTest extends AbstractCompletionDomainTest {
     });
   }
 
+  @failingTest
   test_imports_aborted_new_request() async {
+    // TODO(brianwilkerson) Figure out whether this test makes sense when
+    // running the new driver. It waits for an initial empty notification then
+    // waits for a new notification. But I think that under the driver we only
+    // ever send one notification.
     addTestFile('''
         class foo { }
         c^''');
@@ -247,7 +321,12 @@ class CompletionDomainHandlerTest extends AbstractCompletionDomainTest {
         relevance: DART_RELEVANCE_HIGH);
   }
 
+  @failingTest
   test_imports_aborted_source_changed() async {
+    // TODO(brianwilkerson) Figure out whether this test makes sense when
+    // running the new driver. It waits for an initial empty notification then
+    // waits for a new notification. But I think that under the driver we only
+    // ever send one notification.
     addTestFile('''
         class foo { }
         c^''');
@@ -624,6 +703,33 @@ class B extends A {m() {^}}
       assertHasResult(CompletionSuggestionKind.INVOCATION, 'A');
       assertNoResult('test');
     });
+  }
+
+  test_sentToPlugins() async {
+    addTestFile('''
+      void main() {
+        ^
+      }
+    ''');
+    PluginInfo info = new PluginInfo('a', 'b', 'c', null, null);
+    plugin.CompletionGetSuggestionsResult result =
+        new plugin.CompletionGetSuggestionsResult(
+            1, 2, <plugin.CompletionSuggestion>[
+      new plugin.CompletionSuggestion(
+          plugin.CompletionSuggestionKind.IDENTIFIER,
+          DART_RELEVANCE_DEFAULT,
+          'plugin completion',
+          3,
+          0,
+          false,
+          false)
+    ]);
+    pluginManager.broadcastResults = <PluginInfo, Future<plugin.Response>>{
+      info: new Future.value(result.toResponse('-'))
+    };
+    await getSuggestions();
+    assertHasResult(CompletionSuggestionKind.IDENTIFIER, 'plugin completion',
+        selectionOffset: 3);
   }
 
   test_simple() {

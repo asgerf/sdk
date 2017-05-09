@@ -38,11 +38,12 @@ import '../../common_elements.dart' show CommonElements;
 import '../../elements/elements.dart' show ClassElement, MethodElement;
 import '../../hash/sha1.dart' show Hasher;
 import '../../io/code_output.dart';
-import '../../io/line_column_provider.dart' show LineColumnCollector;
+import '../../io/location_provider.dart' show LocationCollector;
 import '../../io/source_map_builder.dart' show SourceMapBuilder;
 import '../../js/js.dart' as js;
 import '../../js_backend/js_backend.dart'
-    show JavaScriptBackend, Namer, ConstantEmitter;
+    show JavaScriptBackend, Namer, ConstantEmitter, StringBackedName;
+import '../../js_backend/interceptor_data.dart';
 import '../constant_ordering.dart' show deepCompareConstants;
 import '../headers.dart';
 import '../js_emitter.dart' show NativeEmitter;
@@ -242,11 +243,11 @@ class ModelEmitter {
   // Updates the shared [outputBuffers] field with the output.
   void writeMainFragment(MainFragment fragment, js.Statement code,
       {bool isSplit}) {
-    LineColumnCollector lineColumnCollector;
+    LocationCollector locationCollector;
     List<CodeOutputListener> codeOutputListeners;
     if (shouldGenerateSourceMap) {
-      lineColumnCollector = new LineColumnCollector();
-      codeOutputListeners = <CodeOutputListener>[lineColumnCollector];
+      locationCollector = new LocationCollector();
+      codeOutputListeners = <CodeOutputListener>[locationCollector];
     }
 
     CodeOutput mainOutput = new StreamCodeOutput(
@@ -260,8 +261,9 @@ class ModelEmitter {
       code
     ]);
 
-    mainOutput.addBuffer(
-        js.createCodeBuffer(program, compiler, monitor: compiler.dumpInfoTask));
+    mainOutput.addBuffer(js.createCodeBuffer(
+        program, compiler.options, backend.sourceInformationStrategy,
+        monitor: compiler.dumpInfoTask));
 
     if (shouldGenerateSourceMap) {
       mainOutput.add(SourceMapBuilder.generateSourceMapTag(
@@ -273,7 +275,7 @@ class ModelEmitter {
     if (shouldGenerateSourceMap) {
       SourceMapBuilder.outputSourceMap(
           mainOutput,
-          lineColumnCollector,
+          locationCollector,
           '',
           compiler.options.sourceMapUri,
           compiler.options.outputUri,
@@ -291,10 +293,10 @@ class ModelEmitter {
     Hasher hasher = new Hasher();
     outputListeners.add(hasher);
 
-    LineColumnCollector lineColumnCollector;
+    LocationCollector locationCollector;
     if (shouldGenerateSourceMap) {
-      lineColumnCollector = new LineColumnCollector();
-      outputListeners.add(lineColumnCollector);
+      locationCollector = new LocationCollector();
+      outputListeners.add(locationCollector);
     }
 
     String hunkPrefix = fragment.outputFileName;
@@ -321,8 +323,9 @@ class ModelEmitter {
       js.js.statement('$deferredInitializersGlobal.current = #', code)
     ]);
 
-    output.addBuffer(
-        js.createCodeBuffer(program, compiler, monitor: compiler.dumpInfoTask));
+    output.addBuffer(js.createCodeBuffer(
+        program, compiler.options, backend.sourceInformationStrategy,
+        monitor: compiler.dumpInfoTask));
 
     // Make a unique hash of the code (before the sourcemaps are added)
     // This will be used to retrieve the initializing function from the global
@@ -357,7 +360,7 @@ class ModelEmitter {
 
       output.add(SourceMapBuilder.generateSourceMapTag(mapUri, partUri));
       output.close();
-      SourceMapBuilder.outputSourceMap(output, lineColumnCollector, partName,
+      SourceMapBuilder.outputSourceMap(output, locationCollector, partName,
           mapUri, partUri, compiler.outputProvider);
     } else {
       output.close();

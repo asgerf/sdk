@@ -10,10 +10,9 @@ import 'package:analyzer/src/dart/error/syntactic_errors.dart';
 import 'package:analyzer/src/dart/scanner/reader.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'package:front_end/src/fasta/scanner.dart' as fasta;
-import 'package:front_end/src/fasta/scanner/precedence.dart' as fasta;
 import 'package:front_end/src/scanner/errors.dart' show translateErrorToken;
 import 'package:front_end/src/scanner/scanner.dart' as fe;
-import 'package:front_end/src/scanner/token.dart' show Token;
+import 'package:front_end/src/scanner/token.dart' show Token, TokenType;
 
 export 'package:analyzer/src/dart/error/syntactic_errors.dart';
 export 'package:front_end/src/scanner/scanner.dart' show KeywordState;
@@ -41,12 +40,6 @@ class Scanner extends fe.Scanner {
   final AnalysisErrorListener _errorListener;
 
   /**
-   * A flag indicating whether the [Scanner] factory method
-   * will return a fasta based scanner or an analyzer based scanner.
-   */
-  static bool useFasta = false;
-
-  /**
    * Initialize a newly created scanner to scan characters from the given
    * [source]. The given character [reader] will be used to read the characters
    * in the source. The given [_errorListener] will be informed of any errors
@@ -54,7 +47,7 @@ class Scanner extends fe.Scanner {
    */
   factory Scanner(Source source, CharacterReader reader,
           AnalysisErrorListener errorListener) =>
-      useFasta
+      fe.Scanner.useFasta
           ? new _Scanner2(source, reader.getContents(), errorListener)
           : new Scanner._(source, reader, errorListener);
 
@@ -93,7 +86,7 @@ class _Scanner2 implements Scanner {
   bool _preserveComments = true;
 
   @override
-  List<int> lineStarts;
+  final List<int> lineStarts = <int>[];
 
   @override
   Token firstToken;
@@ -104,7 +97,9 @@ class _Scanner2 implements Scanner {
   @override
   bool scanLazyAssignmentOperators = false;
 
-  _Scanner2(this.source, this._contents, this._errorListener);
+  _Scanner2(this.source, this._contents, this._errorListener) {
+    lineStarts.add(0);
+  }
 
   @override
   void appendToken(Token token) {
@@ -155,11 +150,12 @@ class _Scanner2 implements Scanner {
     fasta.ScannerResult result =
         fasta.scanString(_contents, includeComments: _preserveComments);
     // fasta pretends there is an additional line at EOF
-    lineStarts = result.lineStarts.sublist(0, result.lineStarts.length - 1);
+    lineStarts
+        .addAll(result.lineStarts.sublist(1, result.lineStarts.length - 1));
     fasta.Token token = result.tokens;
     // The default recovery strategy used by scanString
     // places all error tokens at the head of the stream.
-    while (token.info == fasta.BAD_INPUT_INFO) {
+    while (token.type == TokenType.BAD_INPUT) {
       translateErrorToken(token, reportError);
       token = token.next;
     }

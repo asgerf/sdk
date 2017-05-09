@@ -77,11 +77,12 @@ class View {
   }
 
   int getEndOfLine(int lineIndex) {
-    return _source.getEndOfLine(lineIndex);
+    if (lineIndex + 1 >= _source.lineStarts.length) return _source.text.length;
+    return _source.lineStarts[lineIndex + 1];
   }
 
   int getLineFromOffset(int offset) {
-    return _source.getLineFromOffset(offset);
+    return _source.getLineFromOffset(offset) - 1;
   }
 
   int get numberOfLines => _source.lineStarts.length;

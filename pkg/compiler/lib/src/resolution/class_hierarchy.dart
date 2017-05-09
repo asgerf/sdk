@@ -17,7 +17,9 @@ import '../elements/modelx.dart'
         SynthesizedConstructorElementX,
         TypeVariableElementX,
         UnnamedMixinApplicationElementX;
-import '../ordered_typeset.dart' show OrderedTypeSet, OrderedTypeSetBuilder;
+import '../elements/names.dart';
+import '../ordered_typeset.dart'
+    show OrderedTypeSet, ResolutionOrderedTypeSetBuilder;
 import '../tree/tree.dart';
 import '../universe/call_structure.dart' show CallStructure;
 import '../universe/feature.dart' show Feature;
@@ -202,7 +204,8 @@ class ClassResolverVisitor extends TypeDefinitionVisitor {
       } else {
         ConstructorElement superConstructor = superMember;
         superConstructor.computeType(resolution);
-        if (!CallStructure.NO_ARGS.signatureApplies(superConstructor.type)) {
+        if (!CallStructure.NO_ARGS
+            .signatureApplies(superConstructor.parameterStructure)) {
           MessageKind kind = MessageKind.NO_MATCHING_CONSTRUCTOR_FOR_IMPLICIT;
           reporter.reportErrorMessage(node, kind);
           superMember = new ErroneousElementX(kind, {}, '', element);
@@ -537,9 +540,9 @@ class ClassResolverVisitor extends TypeDefinitionVisitor {
    */
   void calculateAllSupertypes(BaseClassElementX cls) {
     if (cls.allSupertypesAndSelf != null) return;
-    final ResolutionDartType supertype = cls.supertype;
+    final ResolutionInterfaceType supertype = cls.supertype;
     if (supertype != null) {
-      cls.allSupertypesAndSelf = new OrderedTypeSetBuilder(cls,
+      cls.allSupertypesAndSelf = new ResolutionOrderedTypeSetBuilder(cls,
               reporter: reporter, objectType: commonElements.objectType)
           .createOrderedTypeSet(supertype, cls.interfaces);
     } else {

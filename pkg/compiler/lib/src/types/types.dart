@@ -191,7 +191,6 @@ class GlobalTypeInferenceResults {
   // TODO(sigmund): store relevant data & drop reference to inference engine.
   final TypeGraphInferrer _inferrer;
   final ClosedWorld closedWorld;
-  final Compiler _compiler;
   final Map<Element, GlobalTypeInferenceElementResult> _elementResults = {};
 
   GlobalTypeInferenceElementResult resultOfMember(MemberElement element) {
@@ -221,10 +220,10 @@ class GlobalTypeInferenceResults {
         : element;
     bool isJsInterop = false;
     if (element is MemberElement) {
-      isJsInterop = _compiler.backend.nativeData.isJsInteropMember(element);
+      isJsInterop = closedWorld.nativeData.isJsInteropMember(element);
     } else if (element is ClassElement) {
       // TODO(johnniwinther): Can we meet classes here?
-      isJsInterop = _compiler.backend.nativeData.isJsInteropClass(element);
+      isJsInterop = closedWorld.nativeData.isJsInteropClass(element);
     }
     return _elementResults.putIfAbsent(
         element,
@@ -237,7 +236,7 @@ class GlobalTypeInferenceResults {
   }
 
   GlobalTypeInferenceResults(
-      this._inferrer, this._compiler, this.closedWorld, TypeSystem types);
+      this._inferrer, this.closedWorld, TypeSystem types);
 
   TypeMask get dynamicType => closedWorld.commonMasks.dynamicType;
 
@@ -272,14 +271,14 @@ class GlobalTypeInferenceTask extends CompilerTask {
         super(compiler.measurer);
 
   /// Runs the global type-inference algorithm once.
-  void runGlobalTypeInference(Element mainElement, ClosedWorld closedWorld,
-      ClosedWorldRefiner closedWorldRefiner) {
+  void runGlobalTypeInference(MethodElement mainElement,
+      ClosedWorld closedWorld, ClosedWorldRefiner closedWorldRefiner) {
     measure(() {
       typesInferrerInternal ??=
           new TypeGraphInferrer(compiler, closedWorld, closedWorldRefiner);
       typesInferrerInternal.analyzeMain(mainElement);
       typesInferrerInternal.clear();
-      results = new GlobalTypeInferenceResults(typesInferrerInternal, compiler,
+      results = new GlobalTypeInferenceResults(typesInferrerInternal,
           closedWorld, typesInferrerInternal.inferrer.types);
     });
   }

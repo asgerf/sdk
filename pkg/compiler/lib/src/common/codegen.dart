@@ -5,30 +5,29 @@
 library dart2js.common.codegen;
 
 import '../common.dart';
-import '../elements/resolution_types.dart'
-    show ResolutionDartType, ResolutionInterfaceType;
 import '../elements/elements.dart'
     show
+        AsyncMarker,
         ClassElement,
-        Element,
-        FunctionElement,
         LocalFunctionElement,
         MemberElement,
         ResolvedAst;
 import '../elements/entities.dart';
+import '../elements/types.dart' show DartType, InterfaceType;
 import '../js_backend/backend.dart' show JavaScriptBackend;
 import '../universe/use.dart' show ConstantUse, DynamicUse, StaticUse, TypeUse;
 import '../universe/world_impact.dart'
     show WorldImpact, WorldImpactBuilderImpl, WorldImpactVisitor;
+import '../util/enumset.dart';
 import '../util/util.dart' show Pair, Setlet;
+import '../world.dart' show ClosedWorld;
 import 'work.dart' show WorkItem;
 
 class CodegenImpact extends WorldImpact {
   const CodegenImpact();
 
-  Iterable<Pair<ResolutionDartType, ResolutionDartType>>
-      get typeVariableBoundsSubtypeChecks {
-    return const <Pair<ResolutionDartType, ResolutionDartType>>[];
+  Iterable<Pair<DartType, DartType>> get typeVariableBoundsSubtypeChecks {
+    return const <Pair<DartType, DartType>>[];
   }
 
   Iterable<String> get constSymbols => const <String>[];
@@ -39,16 +38,15 @@ class CodegenImpact extends WorldImpact {
 
   bool get usesInterceptor => false;
 
-  Iterable<Element> get asyncMarkers => const <FunctionElement>[];
+  Iterable<AsyncMarker> get asyncMarkers => <AsyncMarker>[];
 }
 
 class _CodegenImpact extends WorldImpactBuilderImpl implements CodegenImpact {
-  Setlet<Pair<ResolutionDartType, ResolutionDartType>>
-      _typeVariableBoundsSubtypeChecks;
+  Setlet<Pair<DartType, DartType>> _typeVariableBoundsSubtypeChecks;
   Setlet<String> _constSymbols;
   List<Set<ClassEntity>> _specializedGetInterceptors;
   bool _usesInterceptor = false;
-  Setlet<FunctionElement> _asyncMarkers;
+  EnumSet<AsyncMarker> _asyncMarkers;
 
   _CodegenImpact();
 
@@ -59,20 +57,18 @@ class _CodegenImpact extends WorldImpactBuilderImpl implements CodegenImpact {
   }
 
   void registerTypeVariableBoundsSubtypeCheck(
-      ResolutionDartType subtype, ResolutionDartType supertype) {
+      DartType subtype, DartType supertype) {
     if (_typeVariableBoundsSubtypeChecks == null) {
-      _typeVariableBoundsSubtypeChecks =
-          new Setlet<Pair<ResolutionDartType, ResolutionDartType>>();
+      _typeVariableBoundsSubtypeChecks = new Setlet<Pair<DartType, DartType>>();
     }
-    _typeVariableBoundsSubtypeChecks.add(
-        new Pair<ResolutionDartType, ResolutionDartType>(subtype, supertype));
+    _typeVariableBoundsSubtypeChecks
+        .add(new Pair<DartType, DartType>(subtype, supertype));
   }
 
-  Iterable<Pair<ResolutionDartType, ResolutionDartType>>
-      get typeVariableBoundsSubtypeChecks {
+  Iterable<Pair<DartType, DartType>> get typeVariableBoundsSubtypeChecks {
     return _typeVariableBoundsSubtypeChecks != null
         ? _typeVariableBoundsSubtypeChecks
-        : const <Pair<ResolutionDartType, ResolutionDartType>>[];
+        : const <Pair<DartType, DartType>>[];
   }
 
   void registerConstSymbol(String name) {
@@ -105,15 +101,17 @@ class _CodegenImpact extends WorldImpactBuilderImpl implements CodegenImpact {
 
   bool get usesInterceptor => _usesInterceptor;
 
-  void registerAsyncMarker(FunctionElement element) {
+  void registerAsyncMarker(AsyncMarker asyncMarker) {
     if (_asyncMarkers == null) {
-      _asyncMarkers = new Setlet<FunctionElement>();
+      _asyncMarkers = new EnumSet<AsyncMarker>();
     }
-    _asyncMarkers.add(element);
+    _asyncMarkers.add(asyncMarker);
   }
 
-  Iterable<Element> get asyncMarkers {
-    return _asyncMarkers != null ? _asyncMarkers : const <FunctionElement>[];
+  Iterable<AsyncMarker> get asyncMarkers {
+    return _asyncMarkers != null
+        ? _asyncMarkers.iterable(AsyncMarker.values)
+        : const <AsyncMarker>[];
   }
 }
 
@@ -153,7 +151,7 @@ class CodegenRegistry {
   }
 
   void registerTypeVariableBoundsSubtypeCheck(
-      ResolutionDartType subtype, ResolutionDartType supertype) {
+      DartType subtype, DartType supertype) {
     worldImpact.registerTypeVariableBoundsSubtypeCheck(subtype, supertype);
   }
 
@@ -173,12 +171,12 @@ class CodegenRegistry {
     worldImpact.registerUseInterceptor();
   }
 
-  void registerInstantiation(ResolutionInterfaceType type) {
+  void registerInstantiation(InterfaceType type) {
     registerTypeUse(new TypeUse.instantiation(type));
   }
 
-  void registerAsyncMarker(FunctionElement element) {
-    worldImpact.registerAsyncMarker(element);
+  void registerAsyncMarker(AsyncMarker asyncMarker) {
+    worldImpact.registerAsyncMarker(asyncMarker);
   }
 }
 
@@ -186,9 +184,11 @@ class CodegenRegistry {
 class CodegenWorkItem extends WorkItem {
   CodegenRegistry registry;
   final ResolvedAst resolvedAst;
-  final JavaScriptBackend backend;
+  final JavaScriptBackend _backend;
+  final ClosedWorld _closedWorld;
 
-  factory CodegenWorkItem(JavaScriptBackend backend, MemberElement element) {
+  factory CodegenWorkItem(JavaScriptBackend backend, ClosedWorld closedWorld,
+      MemberElement element) {
     // If this assertion fails, the resolution callbacks of the backend may be
     // missing call of form registry.registerXXX. Alternatively, the code
     // generation could spuriously be adding dependencies on things we know we
@@ -196,17 +196,16 @@ class CodegenWorkItem extends WorkItem {
     assert(invariant(element, element.hasResolvedAst,
         message: "$element has no resolved ast."));
     ResolvedAst resolvedAst = element.resolvedAst;
-    return new CodegenWorkItem.internal(resolvedAst, backend);
+    return new CodegenWorkItem.internal(resolvedAst, backend, closedWorld);
   }
 
-  CodegenWorkItem.internal(ResolvedAst resolvedAst, this.backend)
-      : this.resolvedAst = resolvedAst;
+  CodegenWorkItem.internal(this.resolvedAst, this._backend, this._closedWorld);
 
   MemberElement get element => resolvedAst.element;
 
   WorldImpact run() {
     registry = new CodegenRegistry(element);
-    return backend.codegen(this);
+    return _backend.codegen(this, _closedWorld);
   }
 
   String toString() => 'CodegenWorkItem(${resolvedAst.element})';

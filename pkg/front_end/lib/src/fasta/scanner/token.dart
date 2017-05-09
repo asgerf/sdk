@@ -5,18 +5,7 @@
 library fasta.scanner.token;
 
 import '../../scanner/token.dart' as analyzer;
-
-import 'keyword.dart' show Keyword;
-
-import 'precedence.dart'
-    show
-        AS_INFO,
-        BAD_INPUT_INFO,
-        EOF_INFO,
-        IDENTIFIER_INFO,
-        IS_INFO,
-        KEYWORD_INFO,
-        PrecedenceInfo;
+import '../../scanner/token.dart' show TokenType;
 
 import 'token_constants.dart' show IDENTIFIER_TOKEN;
 
@@ -26,95 +15,25 @@ import 'string_canonicalizer.dart';
  * A token that doubles as a linked list.
  */
 abstract class Token implements analyzer.TokenWithComment {
-  /**
-   * The character offset of the start of this token within the source text.
-   */
+  @override
   int charOffset;
 
   Token(this.charOffset);
 
-  /**
-   * The next token in the token stream.
-   */
-  Token next;
-
-  /**
-   * The previous token in the token stream.
-   *
-   * Deprecated :: This exists for compatibility with the Analyzer token stream
-   * and will be removed at some future date.
-   */
-  @deprecated
-  Token previousToken;
-
-  /**
-   * Return the first comment in the list of comments that precede this token,
-   * or `null` if there are no comments preceding this token. Additional
-   * comments can be reached by following the token stream using [next] until
-   * `null` is returned.
-   */
-  CommentToken precedingCommentTokens;
+  @override
+  analyzer.Token next;
 
   @override
-  analyzer.CommentToken get precedingComments => precedingCommentTokens;
+  analyzer.Token previous;
 
   @override
-  void set precedingComments(analyzer.CommentToken token) {
-    precedingCommentTokens = token;
-  }
+  analyzer.CommentToken precedingComments;
 
-  /**
-   * The precedence info for this token. [info] determines the kind and the
-   * precedence level of this token.
-   *
-   * Defined as getter to save a field in the [KeywordToken] subclass.
-   */
-  PrecedenceInfo get info;
+  @override
+  String get stringValue => type.stringValue;
 
-  /**
-   * The string represented by this token, a substring of the source code.
-   *
-   * For [StringToken]s the [lexeme] includes the quotes, explicit escapes, etc.
-   */
-  String get lexeme;
-
-  /**
-   * For symbol and keyword tokens, returns the string value represented by this
-   * token. For [StringToken]s this method returns [:null:].
-   *
-   * For [SymbolToken]s and [KeywordToken]s, the string value is a compile-time
-   * constant originating in the [PrecedenceInfo] or in the [Keyword] instance.
-   * This allows testing for keywords and symbols using [:identical:], e.g.,
-   * [:identical('class', token.value):].
-   *
-   * Note that returning [:null:] for string tokens is important to identify
-   * symbols and keywords, we cannot use [lexeme] instead. The string literal
-   *   "$a($b"
-   * produces ..., SymbolToken($), StringToken(a), StringToken((), ...
-   *
-   * After parsing the identifier 'a', the parser tests for a function
-   * declaration using [:identical(next.stringValue, '('):], which (rightfully)
-   * returns false because stringValue returns [:null:].
-   */
-  String get stringValue;
-
-  /**
-   * The kind enum of this token as determined by its [info].
-   */
-  int get kind => info.kind;
-
-  /**
-   * The precedence level for this token.
-   */
-  int get precedence => info.precedence;
-
-  /**
-   * True if this token is an identifier. Some keywords allowed as identifiers,
-   * see implementation in [KeywordToken].
-   */
-  bool isIdentifier();
-
-  bool get isPseudo => false;
+  @override
+  int get kind => type.kind;
 
   /**
    * Returns a textual representation of this token to be used for debugging
@@ -126,37 +45,22 @@ abstract class Token implements analyzer.TokenWithComment {
    */
   String toString();
 
-  /**
-   * The number of characters parsed by this token.
-   */
-  int get charCount {
-    if (info == BAD_INPUT_INFO) {
-      // This is a token that wraps around an error message. Return 1
-      // instead of the size of the length of the error message.
-      return 1;
-    } else {
-      return lexeme.length;
-    }
-  }
+  @override
+  int get charCount => lexeme.length;
 
-  /// The character offset of the end of this token within the source text.
+  @override
   int get charEnd => charOffset + charCount;
 
-  bool get isEof => false;
+  @override
+  bool get isEof => type == analyzer.TokenType.EOF;
 
   bool get isBuiltInIdentifier => false;
 
   @override
-  bool get isOperator => info.isOperator;
+  bool get isOperator => type.isOperator;
 
   @override
-  bool get isUserDefinableOperator => info.isUserDefinableOperator;
-
-  @override
-  analyzer.TokenType get type {
-    // Analyzer has a different concept of what is a Keyword type.
-    return info == AS_INFO || info == IS_INFO ? KEYWORD_INFO : info;
-  }
+  bool get isUserDefinableOperator => type.isUserDefinableOperator;
 
   @override
   int get offset => charOffset;
@@ -171,14 +75,6 @@ abstract class Token implements analyzer.TokenWithComment {
 
   @override
   int get end => charEnd;
-
-  @override
-  analyzer.Token get previous => previousToken;
-
-  @override
-  set previous(analyzer.Token newToken) {
-    previousToken = newToken as Token;
-  }
 
   @override
   void applyDelta(int delta) {
@@ -233,7 +129,7 @@ abstract class Token implements analyzer.TokenWithComment {
   @override
   analyzer.Token setNext(analyzer.Token token) {
     next = token as Token;
-    next.previousToken = this;
+    next.previous = this;
     return token;
   }
 
@@ -252,30 +148,31 @@ abstract class Token implements analyzer.TokenWithComment {
  * Also used for end of file with EOF_INFO.
  */
 class SymbolToken extends Token {
-  final PrecedenceInfo info;
+  final TokenType type;
 
-  SymbolToken(this.info, int charOffset) : super(charOffset);
+  SymbolToken(this.type, int charOffset) : super(charOffset);
 
   factory SymbolToken.eof(int charOffset) {
-    var eof = new SyntheticSymbolToken(EOF_INFO, charOffset);
+    var eof = new SyntheticSymbolToken(analyzer.TokenType.EOF, charOffset);
     // EOF points to itself so there's always infinite look-ahead.
-    eof.previousToken = eof;
+    eof.previous = eof;
     eof.next = eof;
     return eof;
   }
 
-  String get lexeme => info.value;
-
-  String get stringValue => info.value;
-
-  bool isIdentifier() => false;
-
-  String toString() => "SymbolToken(${info == EOF_INFO ? '-eof-' : lexeme})";
-
-  bool get isEof => info == EOF_INFO;
+  @override
+  String get lexeme => type.value;
 
   @override
-  Token copyWithoutComments() => new SymbolToken(info, charOffset);
+  bool get isIdentifier => false;
+
+  @override
+  String toString() => "SymbolToken(${isEof ? '-eof-' : lexeme})";
+
+  @override
+  Token copyWithoutComments() => isEof
+      ? new SymbolToken.eof(charOffset)
+      : new SymbolToken(type, charOffset);
 }
 
 /**
@@ -285,27 +182,32 @@ class SymbolToken extends Token {
  * then it will insert an synthetic ')'.
  */
 class SyntheticSymbolToken extends SymbolToken {
-  SyntheticSymbolToken(PrecedenceInfo info, int charOffset)
-      : super(info, charOffset);
+  SyntheticSymbolToken(TokenType type, int charOffset)
+      : super(type, charOffset);
 
   @override
   int get charCount => 0;
 
   @override
   bool get isSynthetic => true;
+
+  @override
+  Token copyWithoutComments() => isEof
+      ? new SymbolToken.eof(charOffset)
+      : new SyntheticSymbolToken(type, charOffset);
 }
 
 /**
  * A [BeginGroupToken] represents a symbol that may be the beginning of
  * a pair of brackets, i.e., ( { [ < or ${
- * The [endGroup] token points to the matching closing bracked in case
+ * The [endGroup] token points to the matching closing bracket in case
  * it can be identified during scanning.
  */
-class BeginGroupToken extends SymbolToken implements analyzer.BeginToken {
+class BeginGroupToken extends SymbolToken
+    implements analyzer.BeginTokenWithComment {
   Token endGroup;
 
-  BeginGroupToken(PrecedenceInfo info, int charOffset)
-      : super(info, charOffset);
+  BeginGroupToken(TokenType type, int charOffset) : super(type, charOffset);
 
   @override
   analyzer.Token get endToken => endGroup;
@@ -314,40 +216,61 @@ class BeginGroupToken extends SymbolToken implements analyzer.BeginToken {
   void set endToken(analyzer.Token token) {
     endGroup = token;
   }
+
+  @override
+  Token copyWithoutComments() => new BeginGroupToken(type, charOffset);
 }
 
 /**
  * A keyword token.
  */
-class KeywordToken extends Token {
-  final Keyword keyword;
+class KeywordToken extends Token implements analyzer.KeywordTokenWithComment {
+  final analyzer.Keyword keyword;
 
   KeywordToken(this.keyword, int charOffset) : super(charOffset);
 
-  PrecedenceInfo get info => keyword.info;
+  @override
+  String get lexeme => keyword.lexeme;
 
-  String get lexeme => keyword.syntax;
+  @override
+  bool get isIdentifier => keyword.isPseudo || keyword.isBuiltIn;
 
-  String get stringValue => keyword.syntax;
-
-  bool isIdentifier() => keyword.isPseudo || keyword.isBuiltIn;
-
-  bool get isPseudo => keyword.isPseudo;
-
+  @override
   bool get isBuiltInIdentifier => keyword.isBuiltIn;
 
+  @override
   String toString() => "KeywordToken($lexeme)";
 
   @override
   Token copyWithoutComments() => new KeywordToken(keyword, charOffset);
 
   @override
-  // Analyzer considers pseudo-keywords to have a different value
-  Object value() => isPseudo ? lexeme : keyword;
+  analyzer.Keyword value() => keyword;
 
   @override
-  // Analyzer considers pseudo-keywords to be identifiers
-  analyzer.TokenType get type => isPseudo ? IDENTIFIER_INFO : KEYWORD_INFO;
+  analyzer.TokenType get type => keyword;
+}
+
+/**
+ * A synthetic keyword token.
+ */
+class SyntheticKeywordToken extends KeywordToken
+    implements analyzer.SyntheticKeywordToken {
+  /**
+   * Initialize a newly created token to represent the given [keyword] at the
+   * given [offset].
+   */
+  SyntheticKeywordToken(analyzer.Keyword keyword, int offset)
+      : super(keyword, offset);
+
+  @override
+  bool get isSynthetic => true;
+
+  @override
+  int get length => 0;
+
+  @override
+  Token copyWithoutComments() => new SyntheticKeywordToken(keyword, offset);
 }
 
 /**
@@ -355,26 +278,27 @@ class KeywordToken extends Token {
  * number literals, comments, and error tokens, using the corresponding
  * precedence info.
  */
-class StringToken extends Token implements analyzer.StringToken {
+class StringToken extends Token implements analyzer.StringTokenWithComment {
   /**
    * The length threshold above which substring tokens are computed lazily.
    *
    * For string tokens that are substrings of the program source, the actual
    * substring extraction is performed lazily. This is beneficial because
-   * not all scanned code is actually used. For unused parts, the substrings
+   * not all scanned code are actually used. For unused parts, the substrings
    * are never computed and allocated.
    */
   static const int LAZY_THRESHOLD = 4;
 
   var /* String | LazySubtring */ valueOrLazySubstring;
 
-  final PrecedenceInfo info;
+  @override
+  final TokenType type;
 
   /**
    * Creates a non-lazy string token. If [canonicalize] is true, the string
    * is canonicalized before the token is created.
    */
-  StringToken.fromString(this.info, String value, int charOffset,
+  StringToken.fromString(this.type, String value, int charOffset,
       {bool canonicalize: false})
       : valueOrLazySubstring =
             canonicalizedString(value, 0, value.length, canonicalize),
@@ -385,7 +309,7 @@ class StringToken extends Token implements analyzer.StringToken {
    * is canonicalized before the token is created.
    */
   StringToken.fromSubstring(
-      this.info, String data, int start, int end, int charOffset,
+      this.type, String data, int start, int end, int charOffset,
       {bool canonicalize: false})
       : super(charOffset) {
     int length = end - start;
@@ -394,7 +318,7 @@ class StringToken extends Token implements analyzer.StringToken {
           canonicalizedString(data, start, end, canonicalize);
     } else {
       valueOrLazySubstring =
-          new LazySubstring(data, start, length, canonicalize);
+          new _LazySubstring(data, start, length, canonicalize);
     }
   }
 
@@ -402,25 +326,26 @@ class StringToken extends Token implements analyzer.StringToken {
    * Creates a lazy string token. If [asciiOnly] is false, the byte array
    * is passed through a UTF-8 decoder.
    */
-  StringToken.fromUtf8Bytes(this.info, List<int> data, int start, int end,
+  StringToken.fromUtf8Bytes(this.type, List<int> data, int start, int end,
       bool asciiOnly, int charOffset)
       : super(charOffset) {
     int length = end - start;
     if (length <= LAZY_THRESHOLD) {
       valueOrLazySubstring = decodeUtf8(data, start, end, asciiOnly);
     } else {
-      valueOrLazySubstring = new LazySubstring(data, start, length, asciiOnly);
+      valueOrLazySubstring = new _LazySubstring(data, start, length, asciiOnly);
     }
   }
 
-  StringToken._(this.info, this.valueOrLazySubstring, int charOffset)
+  StringToken._(this.type, this.valueOrLazySubstring, int charOffset)
       : super(charOffset);
 
+  @override
   String get lexeme {
     if (valueOrLazySubstring is String) {
       return valueOrLazySubstring;
     } else {
-      assert(valueOrLazySubstring is LazySubstring);
+      assert(valueOrLazySubstring is _LazySubstring);
       var data = valueOrLazySubstring.data;
       int start = valueOrLazySubstring.start;
       int end = start + valueOrLazySubstring.length;
@@ -435,11 +360,10 @@ class StringToken extends Token implements analyzer.StringToken {
     }
   }
 
-  /// See [Token.stringValue] for an explanation.
-  String get stringValue => null;
+  @override
+  bool get isIdentifier => identical(kind, IDENTIFIER_TOKEN);
 
-  bool isIdentifier() => identical(kind, IDENTIFIER_TOKEN);
-
+  @override
   String toString() => "StringToken($lexeme)";
 
   static final StringCanonicalizer canonicalizer = new StringCanonicalizer();
@@ -456,66 +380,81 @@ class StringToken extends Token implements analyzer.StringToken {
 
   @override
   Token copyWithoutComments() =>
-      new StringToken._(info, valueOrLazySubstring, charOffset);
+      new StringToken._(type, valueOrLazySubstring, charOffset);
 
   @override
   String value() => lexeme;
 }
 
+/**
+ * A String-valued token that does not exist in the original source.
+ */
+class SyntheticStringToken extends StringToken
+    implements analyzer.SyntheticStringToken {
+  SyntheticStringToken(TokenType type, String value, int offset)
+      : super._(type, value, offset);
+
+  @override
+  bool get isSynthetic => true;
+
+  @override
+  int get length => 0;
+
+  @override
+  Token copyWithoutComments() =>
+      new SyntheticStringToken(type, valueOrLazySubstring, offset);
+}
+
 class CommentToken extends StringToken implements analyzer.CommentToken {
+  @override
+  analyzer.TokenWithComment parent;
+
   /**
    * Creates a lazy comment token. If [canonicalize] is true, the string
    * is canonicalized before the token is created.
    */
   CommentToken.fromSubstring(
-      PrecedenceInfo info, String data, int start, int end, int charOffset,
+      TokenType type, String data, int start, int end, int charOffset,
       {bool canonicalize: false})
-      : super.fromSubstring(info, data, start, end, charOffset,
+      : super.fromSubstring(type, data, start, end, charOffset,
             canonicalize: canonicalize);
+
+  /**
+   * Creates a non-lazy comment token.
+   */
+  CommentToken.fromString(TokenType type, String lexeme, int charOffset)
+      : super.fromString(type, lexeme, charOffset);
 
   /**
    * Creates a lazy string token. If [asciiOnly] is false, the byte array
    * is passed through a UTF-8 decoder.
    */
-  CommentToken.fromUtf8Bytes(PrecedenceInfo info, List<int> data, int start,
-      int end, bool asciiOnly, int charOffset)
-      : super.fromUtf8Bytes(info, data, start, end, asciiOnly, charOffset);
+  CommentToken.fromUtf8Bytes(TokenType type, List<int> data, int start, int end,
+      bool asciiOnly, int charOffset)
+      : super.fromUtf8Bytes(type, data, start, end, asciiOnly, charOffset);
 
-  CommentToken._(PrecedenceInfo info, valueOrLazySubstring, int charOffset)
-      : super._(info, valueOrLazySubstring, charOffset);
+  CommentToken._(TokenType type, valueOrLazySubstring, int charOffset)
+      : super._(type, valueOrLazySubstring, charOffset);
 
   @override
   CommentToken copy() =>
-      new CommentToken._(info, valueOrLazySubstring, charOffset);
-
-  @override
-  analyzer.TokenWithComment get parent {
-    Token token = next;
-    while (token is CommentToken) {
-      token = token.next;
-    }
-    return token;
-  }
-
-  @override
-  void set parent(analyzer.TokenWithComment ignored) {
-    throw 'unsupported operation';
-  }
+      new CommentToken._(type, valueOrLazySubstring, charOffset);
 
   @override
   void remove() {
-    // TODO: implement remove
-    throw 'not implemented yet';
+    if (previous != null) {
+      previous.setNextWithoutSettingPrevious(next);
+      next?.previous = previous;
+    } else {
+      assert(parent.precedingComments == this);
+      parent.precedingComments = next as CommentToken;
+    }
   }
 }
 
 class DartDocToken extends CommentToken
     implements analyzer.DocumentationCommentToken {
-  /**
-   * The references embedded within the documentation comment.
-   * This list will be empty unless this is a documentation comment that has
-   * references embedded within it.
-   */
+  @override
   final List<Token> references = <Token>[];
 
   /**
@@ -523,26 +462,26 @@ class DartDocToken extends CommentToken
    * is canonicalized before the token is created.
    */
   DartDocToken.fromSubstring(
-      PrecedenceInfo info, String data, int start, int end, int charOffset,
+      TokenType type, String data, int start, int end, int charOffset,
       {bool canonicalize: false})
-      : super.fromSubstring(info, data, start, end, charOffset,
+      : super.fromSubstring(type, data, start, end, charOffset,
             canonicalize: canonicalize);
 
   /**
    * Creates a lazy string token. If [asciiOnly] is false, the byte array
    * is passed through a UTF-8 decoder.
    */
-  DartDocToken.fromUtf8Bytes(PrecedenceInfo info, List<int> data, int start,
-      int end, bool asciiOnly, int charOffset)
-      : super.fromUtf8Bytes(info, data, start, end, asciiOnly, charOffset);
+  DartDocToken.fromUtf8Bytes(TokenType type, List<int> data, int start, int end,
+      bool asciiOnly, int charOffset)
+      : super.fromUtf8Bytes(type, data, start, end, asciiOnly, charOffset);
 
-  DartDocToken._(PrecedenceInfo info, valueOrLazySubstring, int charOffset)
-      : super._(info, valueOrLazySubstring, charOffset);
+  DartDocToken._(TokenType type, valueOrLazySubstring, int charOffset)
+      : super._(type, valueOrLazySubstring, charOffset);
 
   @override
   DartDocToken copy() {
     DartDocToken copy =
-        new DartDocToken._(info, valueOrLazySubstring, charOffset);
+        new DartDocToken._(type, valueOrLazySubstring, charOffset);
     references.forEach((ref) => copy.references.add(ref.copy()));
     return copy;
   }
@@ -553,7 +492,7 @@ class DartDocToken extends CommentToken
  * lazily. The substring can either originate from a string or from
  * a [:List<int>:] of UTF-8 bytes.
  */
-abstract class LazySubstring {
+abstract class _LazySubstring {
   /** The original data, either a string or a List<int> */
   get data;
 
@@ -570,18 +509,18 @@ abstract class LazySubstring {
    */
   bool get boolValue;
 
-  LazySubstring.internal();
+  _LazySubstring.internal();
 
-  factory LazySubstring(data, int start, int length, bool b) {
+  factory _LazySubstring(data, int start, int length, bool b) {
     // See comment on [CompactLazySubstring].
     if (start < 0x100000 && length < 0x200) {
       int fields = (start << 9);
       fields = fields | length;
       fields = fields << 1;
       if (b) fields |= 1;
-      return new CompactLazySubstring(data, fields);
+      return new _CompactLazySubstring(data, fields);
     } else {
-      return new FullLazySubstring(data, start, length, b);
+      return new _FullLazySubstring(data, start, length, b);
     }
   }
 }
@@ -593,23 +532,23 @@ abstract class LazySubstring {
  *
  * The file html_dart2js.dart is currently around 1MB.
  */
-class CompactLazySubstring extends LazySubstring {
+class _CompactLazySubstring extends _LazySubstring {
   final data;
   final int fields;
 
-  CompactLazySubstring(this.data, this.fields) : super.internal();
+  _CompactLazySubstring(this.data, this.fields) : super.internal();
 
   int get start => fields >> 10;
   int get length => (fields >> 1) & 0x1ff;
   bool get boolValue => (fields & 1) == 1;
 }
 
-class FullLazySubstring extends LazySubstring {
+class _FullLazySubstring extends _LazySubstring {
   final data;
   final int start;
   final int length;
   final bool boolValue;
-  FullLazySubstring(this.data, this.start, this.length, this.boolValue)
+  _FullLazySubstring(this.data, this.start, this.length, this.boolValue)
       : super.internal();
 }
 

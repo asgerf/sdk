@@ -31,8 +31,6 @@ import '../constants/expressions.dart'
         IntFromEnvironmentConstantExpression,
         StringFromEnvironmentConstantExpression,
         TypeConstantExpression;
-import '../elements/resolution_types.dart'
-    show ResolutionDartType, ResolutionInterfaceType;
 import '../diagnostics/spannable.dart' show Spannable;
 import '../elements/elements.dart'
     show
@@ -52,12 +50,14 @@ import '../elements/elements.dart'
         LocalFunctionElement,
         LocalVariableElement,
         MethodElement,
-        Name,
         ParameterElement,
         PrefixElement,
         TypeVariableElement;
-import '../resolution/operators.dart'
+import '../elements/names.dart' show Name;
+import '../elements/operators.dart'
     show AssignmentOperator, BinaryOperator, IncDecOperator, UnaryOperator;
+import '../elements/resolution_types.dart'
+    show ResolutionDartType, ResolutionInterfaceType;
 import '../resolution/semantic_visitor.dart'
     show
         BaseImplementationOfCompoundsMixin,
@@ -353,6 +353,7 @@ class KernelVisitor extends Object
   }
 
   @override
+  // ignore: INVALID_METHOD_OVERRIDE_RETURN_TYPE
   ir.Expression visitIdentifier(Identifier node) {
     // TODO(ahe): Shouldn't have to override this method, but
     // [SemanticSendResolvedMixin.visitIdentifier] may return `null` on errors.
@@ -1806,6 +1807,7 @@ class KernelVisitor extends Object
     return buildLocalGet(element);
   }
 
+  // ignore: MISSING_RETURN
   ir.Expression buildCompound(
       Accessor accessor, CompoundRhs rhs, SendSet node) {
     ir.Name name = kernel.irName(rhs.operator.selectorName, currentElement);
@@ -2875,6 +2877,7 @@ class KernelVisitor extends Object
   }
 
   @override
+  // ignore: INVALID_METHOD_OVERRIDE_RETURN_TYPE
   ir.Node visitVariableDefinitions(VariableDefinitions definitions) {
     // TODO(ahe): This method is copied from [SemanticDeclarationResolvedMixin]
     // and modified. Perhaps we can find a way to avoid code duplication.

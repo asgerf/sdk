@@ -335,7 +335,7 @@ class Server {
       try {
         var address;
         if (Platform.isFuchsia) {
-          address = InternetAddress.ANY_IP_V4;
+          address = InternetAddress.ANY_IP_V6;
         } else {
           var addresses = await InternetAddress.lookup(_ip);
           // Prefer IPv4 addresses.
@@ -361,7 +361,7 @@ class Server {
       serverPrint("Observatory server failed to start after $attempts tries");
       if (attempts > maxAttempts) {
         serverPrint('Could not start Observatory HTTP server:\n'
-                    '$pollError\n$pollStack\n');
+            '$pollError\n$pollStack\n');
         _notifyServerState("");
         onServerAddressChange(null);
         return this;

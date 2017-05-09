@@ -14,7 +14,8 @@ class _StdIOUtils {
       case _STDIO_HANDLE_TYPE_FILE:
         return new Stdin._(new _FileStream.forStdin());
       default:
-        throw new FileSystemException("Unsupported stdin type");
+        throw new FileSystemException(
+            "Couldn't determine file type of stdin (fd 0)");
     }
   }
 
@@ -28,7 +29,8 @@ class _StdIOUtils {
       case _STDIO_HANDLE_TYPE_FILE:
         return new Stdout._(new IOSink(new _StdConsumer(fd)), fd);
       default:
-        throw new FileSystemException("Unsupported stdin type");
+        throw new FileSystemException(
+            "Couldn't determine file type of stdio handle (fd $fd)");
     }
   }
 
@@ -95,7 +97,8 @@ class Stdin {
     }
   }
 
-  @patch bool get supportsAnsiEscapes {
+  @patch
+  bool get supportsAnsiEscapes {
     var result = _supportsAnsiEscapes();
     if (result is OSError) {
       throw new StdinException("Error determining ANSI support", result);
@@ -138,7 +141,8 @@ class Stdout {
 
   static _getTerminalSize(int fd) native "Stdout_GetTerminalSize";
 
-  @patch static bool _supportsAnsiEscapes(int fd) {
+  @patch
+  static bool _supportsAnsiEscapes(int fd) {
     var result = _getAnsiSupported(fd);
     if (result is! bool) {
       throw new StdoutException("Error determining ANSI support", result);

@@ -391,7 +391,7 @@ class BestPracticesVerifier extends RecursiveAstVisitor<Object> {
     }
     String rhsNameStr = typeName is TypeName ? typeName.name.name : null;
     // if x is dynamic
-    if (rhsType.isDynamic && rhsNameStr == Keyword.DYNAMIC.syntax) {
+    if (rhsType.isDynamic && rhsNameStr == Keyword.DYNAMIC.lexeme) {
       if (node.notOperator == null) {
         // the is case
         _errorReporter.reportErrorForNode(
@@ -780,11 +780,12 @@ class BestPracticesVerifier extends RecursiveAstVisitor<Object> {
     }
 
     /**
-     * Return `true` if the given class [element] defines a non-final field.
+     * Return `true` if the given class [element] defines a non-final instance
+     * field.
      */
-    bool hasNonFinalField(ClassElement element) {
+    bool hasNonFinalInstanceField(ClassElement element) {
       for (FieldElement field in element.fields) {
-        if (!field.isSynthetic && !field.isFinal) {
+        if (!field.isSynthetic && !field.isFinal && !field.isStatic) {
           return true;
         }
       }
@@ -795,19 +796,20 @@ class BestPracticesVerifier extends RecursiveAstVisitor<Object> {
      * Return `true` if the given class [element] defines or inherits a
      * non-final field.
      */
-    bool hasOrInheritsNonFinalField(
+    bool hasOrInheritsNonFinalInstanceField(
         ClassElement element, HashSet<ClassElement> visited) {
       if (visited.add(element)) {
-        if (hasNonFinalField(element)) {
+        if (hasNonFinalInstanceField(element)) {
           return true;
         }
         for (InterfaceType mixin in element.mixins) {
-          if (hasNonFinalField(mixin.element)) {
+          if (hasNonFinalInstanceField(mixin.element)) {
             return true;
           }
         }
         if (element.supertype != null) {
-          return hasOrInheritsNonFinalField(element.supertype.element, visited);
+          return hasOrInheritsNonFinalInstanceField(
+              element.supertype.element, visited);
         }
       }
       return false;
@@ -815,7 +817,8 @@ class BestPracticesVerifier extends RecursiveAstVisitor<Object> {
 
     ClassElement element = node.element;
     if (isOrInheritsImmutable(element, new HashSet<ClassElement>()) &&
-        hasOrInheritsNonFinalField(element, new HashSet<ClassElement>())) {
+        hasOrInheritsNonFinalInstanceField(
+            element, new HashSet<ClassElement>())) {
       _errorReporter.reportErrorForNode(HintCode.MUST_BE_IMMUTABLE, node.name);
     }
   }
@@ -1696,6 +1699,8 @@ class ConstantVerifier extends RecursiveAstVisitor<Object> {
           identical(dataErrorCode, CompileTimeErrorCode.CONST_EVAL_TYPE_NUM) ||
           identical(dataErrorCode,
               CompileTimeErrorCode.RECURSIVE_COMPILE_TIME_CONSTANT) ||
+          identical(dataErrorCode,
+              CheckedModeCompileTimeErrorCode.CONST_EVAL_THROWS_EXCEPTION) ||
           identical(
               dataErrorCode,
               CheckedModeCompileTimeErrorCode
@@ -2101,7 +2106,7 @@ class DeadCodeVerifier extends RecursiveAstVisitor<Object> {
       LibraryElement library = exportElement.exportedLibrary;
       if (library != null && !library.isSynthetic) {
         for (Combinator combinator in node.combinators) {
-          _checkCombinator(exportElement.exportedLibrary, combinator);
+          _checkCombinator(library, combinator);
         }
       }
     }
@@ -3698,14 +3703,19 @@ class GatherUsedLocalElementsVisitor extends RecursiveAstVisitor {
     }
     // check if useless reading
     AstNode parent = node.parent;
-    if (parent.parent is ExpressionStatement &&
-        (parent is PrefixExpression ||
-            parent is PostfixExpression ||
-            parent is AssignmentExpression && parent.leftHandSide == node)) {
-      // v++;
-      // ++v;
-      // v += 2;
-      return false;
+    if (parent.parent is ExpressionStatement) {
+      if (parent is PrefixExpression || parent is PostfixExpression) {
+        // v++;
+        // ++v;
+        return false;
+      }
+      if (parent is AssignmentExpression && parent.leftHandSide == node) {
+        // v ??= doSomething();
+        //   vs.
+        // v += 2;
+        TokenType operatorType = parent.operator?.type;
+        return operatorType == TokenType.QUESTION_QUESTION_EQ;
+      }
     }
     // OK
     return true;
@@ -4079,7 +4089,7 @@ class ImportsVerifier {
    */
   void _addAdditionalLibrariesForExports(LibraryElement library,
       ImportDirective importDirective, Set<LibraryElement> visitedLibraries) {
-    if (!visitedLibraries.add(library)) {
+    if (library == null || !visitedLibraries.add(library)) {
       return;
     }
     List<ExportElement> exports = library.exports;
@@ -4229,8 +4239,8 @@ class InferenceContext {
    */
   final List<DartType> _returnStack = <DartType>[];
 
-  InferenceContext._(this._errorReporter, TypeProvider typeProvider,
-      this._typeSystem, this._inferenceHints)
+  InferenceContext._(TypeProvider typeProvider, this._typeSystem,
+      this._inferenceHints, this._errorReporter)
       : _typeProvider = typeProvider;
 
   /**
@@ -4313,7 +4323,7 @@ class InferenceContext {
   }
 
   /**
-   * Clear the type information assocated with [node].
+   * Clear the type information associated with [node].
    */
   static void clearType(AstNode node) {
     node?.setProperty(_typeProperty, null);
@@ -5062,7 +5072,7 @@ class ResolverVisitor extends ScopedVisitor {
       strongModeHints = options.strongModeHints;
     }
     this.inferenceContext = new InferenceContext._(
-        errorReporter, typeProvider, typeSystem, strongModeHints);
+        typeProvider, typeSystem, strongModeHints, errorReporter);
     this.typeAnalyzer = new StaticTypeAnalyzer(this);
   }
 
@@ -5158,30 +5168,6 @@ class ResolverVisitor extends ScopedVisitor {
   void initForIncrementalResolution() {
     _overrideManager.enterScope();
   }
-
-  /**
-   * Returns true if this method is `Future.then` or an override thereof.
-   *
-   * If so we will apply special typing rules in strong mode, to handle the
-   * implicit union of `S | Future<S>`
-   */
-  // TODO(leafp): Eliminate this when code is switched to using FutureOr
-  bool isFutureThen(Element element) {
-    // If we are a method named then
-    if (element is MethodElement && element.name == 'then') {
-      DartType type = element.enclosingElement.type;
-      // On Future or a subtype, then we're good.
-      return (type.isDartAsyncFuture || isSubtypeOfFuture(type));
-    }
-    return false;
-  }
-
-  /**
-   * Returns true if this type is any subtype of the built in Future type.
-   */
-  // TODO(leafp): Eliminate this when code is switched to using FutureOr
-  bool isSubtypeOfFuture(DartType type) =>
-      typeSystem.isSubtypeOf(type, typeProvider.futureDynamicType);
 
   /**
    * Given a downward inference type [fnType], and the declared
@@ -6021,26 +6007,8 @@ class ResolverVisitor extends ScopedVisitor {
               matchFunctionTypeParameters(node.typeParameters, functionType);
           if (functionType is FunctionType) {
             _inferFormalParameterList(node.parameters, functionType);
-            DartType returnType;
-            ParameterElement parameterElement =
-                resolutionMap.staticParameterElementForExpression(node);
-            if (isFutureThen(parameterElement?.enclosingElement)) {
-              var futureThenType =
-                  InferenceContext.getContext(node.parent) as FunctionType;
-
-              // TODO(leafp): Get rid of this once code has been updated to use
-              // FutureOr
-              // Introduce FutureOr<T> for backwards compatibility if it was
-              // missing in old code.
-              if (futureThenType.parameters.isNotEmpty) {
-                if (!futureThenType.parameters[0].type.isDartAsyncFutureOr) {
-                  var typeParamS = futureThenType.returnType.flattenFutures(ts);
-                  returnType = _createFutureOr(typeParamS);
-                }
-              }
-            }
-            returnType ??= _computeReturnOrYieldType(functionType.returnType);
-            InferenceContext.setType(node.body, returnType);
+            InferenceContext.setType(
+                node.body, _computeReturnOrYieldType(functionType.returnType));
           }
         }
         super.visitFunctionExpression(node);
@@ -7154,9 +7122,18 @@ class ResolverVisitor extends ScopedVisitor {
       }
     } else if (positionalArgumentCount > unnamedParameterCount &&
         noBlankArguments) {
-      ErrorCode errorCode = (reportAsError
-          ? CompileTimeErrorCode.EXTRA_POSITIONAL_ARGUMENTS
-          : StaticWarningCode.EXTRA_POSITIONAL_ARGUMENTS);
+      ErrorCode errorCode;
+      int namedParameterCount = namedParameters?.length ?? 0;
+      int namedArgumentCount = usedNames?.length ?? 0;
+      if (namedParameterCount > namedArgumentCount) {
+        errorCode = (reportAsError
+            ? CompileTimeErrorCode.EXTRA_POSITIONAL_ARGUMENTS_COULD_BE_NAMED
+            : StaticWarningCode.EXTRA_POSITIONAL_ARGUMENTS_COULD_BE_NAMED);
+      } else {
+        errorCode = (reportAsError
+            ? CompileTimeErrorCode.EXTRA_POSITIONAL_ARGUMENTS
+            : StaticWarningCode.EXTRA_POSITIONAL_ARGUMENTS);
+      }
       if (onError != null) {
         onError(errorCode, argumentList,
             [unnamedParameterCount, positionalArgumentCount]);
@@ -8398,7 +8375,7 @@ class TypeNameResolver {
       List<DartType> typeArguments = new List<DartType>(parameterCount);
       if (argumentCount == parameterCount) {
         for (int i = 0; i < parameterCount; i++) {
-          typeArguments[i] = _getType(arguments[i]) ?? dynamicType;
+          typeArguments[i] = _getType(arguments[i]);
         }
       } else {
         reportErrorForNode(_getInvalidTypeParametersErrorCode(node), node,
@@ -8407,9 +8384,17 @@ class TypeNameResolver {
           typeArguments[i] = dynamicType;
         }
       }
-      type = typeSystem.instantiateType(type, typeArguments);
+      if (element is GenericTypeAliasElementImpl) {
+        type = element.typeAfterSubstitution(typeArguments) ?? dynamicType;
+      } else {
+        type = typeSystem.instantiateType(type, typeArguments);
+      }
     } else {
-      type = typeSystem.instantiateToBounds(type);
+      if (element is GenericTypeAliasElementImpl) {
+        type = element.typeAfterSubstitution(null) ?? dynamicType;
+      } else {
+        type = typeSystem.instantiateToBounds(type);
+      }
     }
     typeName.staticType = type;
     node.type = type;
@@ -8461,6 +8446,21 @@ class TypeNameResolver {
     DartType type = annotation.type;
     if (type == null) {
       return undefinedType;
+    } else if (type is FunctionType) {
+      Element element = type.element;
+      if (annotation is TypeName && element is GenericTypeAliasElementImpl) {
+        TypeArgumentList argumentList = annotation.typeArguments;
+        List<DartType> typeArguments = null;
+        if (argumentList != null) {
+          List<TypeAnnotation> arguments = argumentList.arguments;
+          int argumentCount = arguments.length;
+          typeArguments = new List<DartType>(argumentCount);
+          for (int i = 0; i < argumentCount; i++) {
+            typeArguments[i] = _getType(arguments[i]);
+          }
+        }
+        return element.typeAfterSubstitution(typeArguments) ?? dynamicType;
+      }
     }
     return type;
   }
@@ -8576,7 +8576,7 @@ class TypeNameResolver {
    */
   static bool _isBuiltInIdentifier(TypeName typeName) {
     Token token = typeName.name.beginToken;
-    return token.type == TokenType.KEYWORD;
+    return token.type.isKeyword;
   }
 
   /**
@@ -10152,7 +10152,7 @@ class TypeResolverVisitor extends ScopedVisitor {
     if (returnType == null) {
       return _dynamicType;
     } else {
-      return returnType.type;
+      return _typeNameResolver._getType(returnType);
     }
   }
 
@@ -10305,7 +10305,7 @@ class TypeResolverVisitor extends ScopedVisitor {
     // If the type is not an InterfaceType, then visitTypeName() sets the type
     // to be a DynamicTypeImpl
     Identifier name = typeName.name;
-    if (name.name == Keyword.DYNAMIC.syntax) {
+    if (name.name == Keyword.DYNAMIC.lexeme) {
       errorReporter.reportErrorForNode(dynamicTypeError, name, [name.name]);
     } else if (!nameScope.shouldIgnoreUndefined(name)) {
       errorReporter.reportErrorForNode(nonTypeError, name, [name.name]);

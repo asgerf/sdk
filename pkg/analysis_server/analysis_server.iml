@@ -21,12 +21,14 @@
       <excludeFolder url="file://$MODULE_DIR$/test/integration/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/integration/search/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/integration/server/packages" />
+      <excludeFolder url="file://$MODULE_DIR$/test/integration/support/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/operation/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/plugin/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/search/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/services/completion/dart/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/services/completion/packages" />
+      <excludeFolder url="file://$MODULE_DIR$/test/services/completion/statement/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/services/correction/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/services/dependencies/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/services/index/packages" />
@@ -37,7 +39,6 @@
       <excludeFolder url="file://$MODULE_DIR$/test/source/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/src/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/src/plugin/packages" />
-      <excludeFolder url="file://$MODULE_DIR$/test/src/utilities/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/stress/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/stress/replay/packages" />
       <excludeFolder url="file://$MODULE_DIR$/test/stress/utilities/packages" />
